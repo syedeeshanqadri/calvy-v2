@@ -1,0 +1,337 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "rhel-openssl-1.0.x", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String
+  email         String    @unique
+  password      String?   // null for OAuth-only accounts (Google/Facebook)
+  image         String?
+  role          String    @default("user")
+  emailVerified DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  business      Business?
+}
+
+model VerificationToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  email     String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+model Business {
+  id                     String              @id @default(cuid())
+  name                   String
+  slug                   String              @unique
+  plan                   String              @default("free")
+  planStatus             String              @default("free")
+  trialEndsAt            DateTime?
+  razorpayCustomerId     String?             @unique
+  razorpaySubscriptionId String?
+  ownerId                String              @unique
+  businessType           String              @default("general")
+  phone                  String?
+  email                  String?
+  address                String?
+  website                String?
+  description            String?
+  primaryColor           String              @default("#e84545")
+  availabilityJson       String              @default("{}")
+  currency               String              @default("USD")
+  paymentMode            String              @default("postpaid")
+  bankAccountName        String?
+  bankAccountNumber      String?
+  bankRoutingNumber      String?
+  bankIban               String?
+  razorpayConnectAccountId String?
+  // Razorpay Route (linked account) onboarding
+  razorpayStakeholderId  String?
+  razorpayRouteProductId String?
+  routeStatus            String              @default("not_started") // not_started | created | needs_clarification | activated
+  legalBusinessName      String?
+  rzpBusinessType        String?             // proprietorship | partnership | private_limited | public_limited | llp | individual ...
+  rzpCategory            String?             // Razorpay profile category, e.g. "healthcare"
+  rzpSubcategory         String?             // Razorpay profile subcategory
+  panNumber              String?
+  gstNumber              String?
+  addressStreet          String?
+  addressCity            String?
+  addressState           String?
+  addressPostalCode      String?
+  websiteJson            String              @default("{}")
+  slotInterval           Int                 @default(30)
+  createdAt              DateTime            @default(now())
+  updatedAt              DateTime            @updatedAt
+  appointments           Appointment[]
+  owner                  User                @relation(fields: [ownerId], references: [id])
+  clients                Client[]
+  services               Service[]
+  staff                  Staff[]
+  withdrawalRequests     WithdrawalRequest[]
+  pushSubscriptions      PushSubscription[]
+  broadcasts             Broadcast[]
+  expenses               Expense[]
+  notifications          Notification[]
+  supportTickets         SupportTicket[]
+}
+
+model Staff {
+  id           String         @id @default(cuid())
+  businessId   String
+  name         String
+  role         String
+  email        String
+  phone        String?
+  color        String         @default("#e84545")
+  isActive     Boolean        @default(true)
+  workingHours String         @default("{}")
+  createdAt    DateTime       @default(now())
+  appointments Appointment[]
+  business     Business       @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  services     StaffService[]
+}
+
+model Service {
+  id           String         @id @default(cuid())
+  businessId   String
+  name         String
+  description  String         @default("")
+  duration     Int
+  price        Float
+  category     String         @default("other")
+  color        String         @default("#e84545")
+  capacity     Int            @default(1)
+  isActive     Boolean        @default(true)
+  createdAt    DateTime       @default(now())
+  appointments Appointment[]
+  business     Business       @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  staff        StaffService[]
+}
+
+model StaffService {
+  staffId   String
+  serviceId String
+  service   Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  staff     Staff   @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@id([staffId, serviceId])
+}
+
+model Client {
+  id                String        @id @default(cuid())
+  businessId        String
+  name              String
+  email             String
+  phone             String?
+  notes             String?
+  totalAppointments Int           @default(0)
+  totalSpent        Float         @default(0)
+  lastVisit         DateTime?
+  createdAt         DateTime      @default(now())
+  appointments      Appointment[]
+  business          Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@unique([businessId, email])
+}
+
+model PlanConfig {
+  planId                 String   @id
+  name                   String
+  price                  Float
+  annualPrice            Float    @default(0)
+  description            String
+  maxStaff               Int
+  maxServices            Int
+  maxMonthlyAppointments Int
+  maxBroadcastsPerMonth  Int      @default(0)
+  // Feature flags
+  analytics              Boolean  @default(false)
+  customBranding         Boolean  @default(false)
+  imageUpload            Boolean  @default(false)
+  seoControls            Boolean  @default(false)
+  chatbotWidget          Boolean  @default(false)
+  groupBooking           Boolean  @default(false)
+  multiService           Boolean  @default(true)
+  stripePayments         Boolean  @default(false)
+  emailReminders         Boolean  @default(false)
+  smsReminders           Boolean  @default(false)
+  broadcasts             Boolean  @default(false)
+  csvExport              Boolean  @default(false)
+  expenseTracking        Boolean  @default(false)
+  wallet                 Boolean  @default(false)
+  customSlotInterval     Boolean  @default(false)
+  removeBranding         Boolean  @default(false)
+  prioritySupport        Boolean  @default(false)
+  features               String   @default("[]")
+  updatedAt              DateTime @updatedAt
+}
+
+model Appointment {
+  id              String   @id @default(cuid())
+  businessId      String
+  clientId        String
+  staffId         String?
+  serviceId       String
+  date            DateTime
+  duration        Int
+  price           Float
+  status          String   @default("pending")
+  notes           String?
+  razorpayPaymentId String?
+  razorpayTransferId String?  // set when paid out directly via Razorpay Route; excluded from wallet balance
+  paymentStatus   String   @default("unpaid")
+  paymentMode     String   @default("prepaid")
+  reminderSent    Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  service         Service  @relation(fields: [serviceId], references: [id])
+  staff           Staff?   @relation(fields: [staffId], references: [id])
+  client          Client   @relation(fields: [clientId], references: [id])
+  business        Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+}
+
+model WithdrawalRequest {
+  id          String    @id @default(cuid())
+  businessId  String
+  amount      Float
+  status      String    @default("pending")
+  notes       String?
+  adminNotes  String?
+  requestedAt DateTime  @default(now())
+  processedAt DateTime?
+  business    Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+}
+
+model PushSubscription {
+  id         String   @id @default(cuid())
+  businessId String
+  endpoint   String   @unique
+  p256dh     String
+  auth       String
+  createdAt  DateTime @default(now())
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+}
+
+model AppSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
+model Broadcast {
+  id         String   @id @default(cuid())
+  businessId String
+  subject    String?
+  message    String
+  medium     String
+  sentTo     Int      @default(0)
+  createdAt  DateTime @default(now())
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+}
+
+model Expense {
+  id          String   @id @default(cuid())
+  businessId  String
+  amount      Float
+  category    String   @default("Other")
+  description String?
+  date        DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+}
+
+model Notification {
+  id         String   @id @default(cuid())
+  businessId String
+  title      String
+  body       String
+  url        String   @default("/dashboard")
+  read       Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+}
+
+model SupportTicket {
+  id         String           @id @default(cuid())
+  businessId String
+  subject    String
+  status     String           @default("open")
+  priority   String           @default("normal")
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+  business   Business         @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  messages   SupportMessage[]
+}
+
+model SupportMessage {
+  id         String        @id @default(cuid())
+  ticketId   String
+  senderRole String
+  body       String
+  createdAt  DateTime      @default(now())
+  ticket     SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+}
+
+model Post {
+  id             String    @id @default(cuid())
+  title          String
+  slug           String    @unique
+  excerpt        String?
+  content        String    // Markdown
+  coverImage     String?
+  authorName     String    @default("Calvy Team")
+  tags           String    @default("") // comma-separated
+  seoTitle       String?
+  seoDescription String?
+  faq            String    @default("[]") // JSON [{q,a}]
+  published      Boolean   @default(false)
+  publishedAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([published, publishedAt])
+}
+
+model Lead {
+  id            String   @id @default(cuid())
+  name          String
+  email         String
+  phone         String?
+  businessType  String?
+  demoRequested Boolean  @default(false)
+  message       String?
+  status        String   @default("new") // new | contacted | qualified | demo | won | lost
+  source        String   @default("landing")
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([status, createdAt])
+}
+
+model EmailLog {
+  id            String   @id @default(cuid())
+  type          String   // confirmation | reminder | cancellation | reschedule | invoice | verification | lead
+  to            String
+  subject       String
+  status        String   // sent | failed | skipped
+  providerId    String?  // Resend message id
+  error         String?
+  appointmentId String?
+  businessId    String?
+  createdAt     DateTime @default(now())
+
+  @@index([appointmentId])
+  @@index([businessId, createdAt])
+}

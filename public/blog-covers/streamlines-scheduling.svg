@@ -1,0 +1,96 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" fill="none" xmlns="http://www.w3.org/2000/svg" font-family="'Segoe UI', Helvetica, Arial, sans-serif">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1200" y2="630" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#f0f9ff"/>
+      <stop offset="1" stop-color="#ffffff"/>
+    </linearGradient>
+    <linearGradient id="sky" x1="700" y1="120" x2="1120" y2="540" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0ea5e9"/>
+      <stop offset="1" stop-color="#0284c7"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="18" stdDeviation="28" flood-color="#0284c7" flood-opacity="0.18"/>
+    </filter>
+  </defs>
+
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <!-- dot grid -->
+  <g fill="#cbd5e1" opacity="0.35">
+    <g id="row">
+      <circle cx="40" cy="40" r="2"/><circle cx="90" cy="40" r="2"/><circle cx="140" cy="40" r="2"/><circle cx="190" cy="40" r="2"/><circle cx="240" cy="40" r="2"/>
+    </g>
+  </g>
+
+  <!-- Brand -->
+  <g transform="translate(80,72)">
+    <circle cx="9" cy="9" r="9" fill="#0284c7"/>
+    <text x="28" y="15" font-size="22" font-weight="700" fill="#0f172a" letter-spacing="0.5">Calvy</text>
+  </g>
+  <text x="80" y="150" font-size="15" font-weight="700" letter-spacing="3" fill="#0284c7">APPOINTMENT SCHEDULING</text>
+
+  <!-- Title -->
+  <text x="80" y="232" font-size="58" font-weight="800" fill="#0f172a" letter-spacing="-1">How Calvy</text>
+  <text x="80" y="300" font-size="58" font-weight="800" fill="#0f172a" letter-spacing="-1">Streamlines</text>
+  <text x="80" y="368" font-size="58" font-weight="800" fill="#0284c7" letter-spacing="-1">Appointment</text>
+  <text x="80" y="436" font-size="58" font-weight="800" fill="#0284c7" letter-spacing="-1">Scheduling</text>
+
+  <text x="82" y="500" font-size="20" fill="#64748b">Bookings, reminders &amp; payments — on autopilot.</text>
+
+  <!-- Calendar card -->
+  <g filter="url(#shadow)">
+    <rect x="724" y="120" width="396" height="392" rx="28" fill="#ffffff" stroke="#e2e8f0"/>
+    <!-- header band -->
+    <path d="M724 148 a28 28 0 0 1 28 -28 h340 a28 28 0 0 1 28 28 v40 h-396 z" fill="url(#sky)"/>
+    <text x="752" y="163" font-size="16" font-weight="700" fill="#ffffff">April 2026</text>
+    <circle cx="1076" cy="158" r="13" fill="#ffffff" opacity="0.22"/>
+    <!-- weekday labels -->
+    <g font-size="12" font-weight="600" fill="#94a3b8" text-anchor="middle">
+      <text x="770" y="222">M</text><text x="822" y="222">T</text><text x="874" y="222">W</text>
+      <text x="926" y="222">T</text><text x="978" y="222">F</text><text x="1030" y="222">S</text><text x="1074" y="222">S</text>
+    </g>
+    <!-- selected day -->
+    <rect x="908" y="234" width="36" height="28" rx="9" fill="#0284c7"/>
+    <text x="926" y="253" font-size="13" font-weight="700" fill="#ffffff" text-anchor="middle">24</text>
+    <g font-size="13" font-weight="600" fill="#475569" text-anchor="middle">
+      <text x="770" y="253">21</text><text x="822" y="253">22</text><text x="874" y="253">23</text>
+      <text x="978" y="253">25</text><text x="1030" y="253">26</text><text x="1074" y="253">27</text>
+    </g>
+
+    <!-- appointment slots -->
+    <g>
+      <rect x="752" y="288" width="340" height="44" rx="12" fill="#eff6ff"/>
+      <rect x="752" y="288" width="5" height="44" rx="2.5" fill="#0284c7"/>
+      <circle cx="780" cy="310" r="11" fill="#0284c7"/><text x="780" y="314" font-size="10" font-weight="700" fill="#fff" text-anchor="middle">SR</text>
+      <text x="800" y="306" font-size="13" font-weight="700" fill="#0f172a">Sarah R. — Haircut &amp; Style</text>
+      <text x="800" y="323" font-size="11" fill="#94a3b8">10:00 AM · confirmed</text>
+    </g>
+    <g>
+      <rect x="752" y="344" width="340" height="44" rx="12" fill="#ecfdf5"/>
+      <rect x="752" y="344" width="5" height="44" rx="2.5" fill="#22c55e"/>
+      <circle cx="780" cy="366" r="11" fill="#22c55e"/><text x="780" y="370" font-size="10" font-weight="700" fill="#fff" text-anchor="middle">MK</text>
+      <text x="800" y="362" font-size="13" font-weight="700" fill="#0f172a">Michael K. — Consultation</text>
+      <text x="800" y="379" font-size="11" fill="#94a3b8">11:30 AM · paid online</text>
+    </g>
+    <g>
+      <rect x="752" y="400" width="340" height="44" rx="12" fill="#fdf2f8"/>
+      <rect x="752" y="400" width="5" height="44" rx="2.5" fill="#ec4899"/>
+      <circle cx="780" cy="422" r="11" fill="#ec4899"/><text x="780" y="426" font-size="10" font-weight="700" fill="#fff" text-anchor="middle">AL</text>
+      <text x="800" y="418" font-size="13" font-weight="700" fill="#0f172a">Ana Lopez — Full Session</text>
+      <text x="800" y="435" font-size="11" fill="#94a3b8">1:00 PM · reminder sent</text>
+    </g>
+
+    <!-- footer stat -->
+    <rect x="752" y="460" width="340" height="34" rx="10" fill="#0f172a"/>
+    <text x="772" y="482" font-size="12" font-weight="600" fill="#e2e8f0">Today</text>
+    <text x="1072" y="482" font-size="12" font-weight="700" fill="#7dd3fc" text-anchor="end">8 bookings · 94% show-up</text>
+  </g>
+
+  <!-- floating "Booked" pill -->
+  <g filter="url(#shadow)" transform="translate(660,250)">
+    <rect width="150" height="56" rx="16" fill="#ffffff" stroke="#e2e8f0"/>
+    <circle cx="30" cy="28" r="15" fill="#dcfce7"/>
+    <path d="M24 28 l4 4 l8 -9" stroke="#16a34a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    <text x="54" y="25" font-size="13" font-weight="700" fill="#0f172a">Booked ✓</text>
+    <text x="54" y="41" font-size="10" fill="#94a3b8">in 30 seconds</text>
+  </g>
+</svg>

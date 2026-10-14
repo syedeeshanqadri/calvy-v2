@@ -1,0 +1,39 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" fill="none" xmlns="http://www.w3.org/2000/svg" font-family="'Segoe UI', Helvetica, Arial, sans-serif">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1200" y2="630" gradientUnits="userSpaceOnUse"><stop stop-color="#f0f9ff"/><stop offset="1" stop-color="#ecfdf5"/></linearGradient>
+    <linearGradient id="sky" x1="740" y1="140" x2="1100" y2="500" gradientUnits="userSpaceOnUse"><stop stop-color="#0ea5e9"/><stop offset="1" stop-color="#0284c7"/></linearGradient>
+    <linearGradient id="bar" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#38bdf8"/><stop offset="1" stop-color="#0284c7"/></linearGradient>
+    <filter id="sh" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="18" stdDeviation="28" flood-color="#0284c7" flood-opacity="0.16"/></filter>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <g transform="translate(80,72)"><circle cx="9" cy="9" r="9" fill="#0284c7"/><text x="28" y="15" font-size="22" font-weight="700" fill="#0f172a">Calvy</text></g>
+  <text x="80" y="150" font-size="15" font-weight="700" letter-spacing="3" fill="#0284c7">GROW YOUR BUSINESS</text>
+  <text x="80" y="232" font-size="56" font-weight="800" fill="#0f172a" letter-spacing="-1">How to Get</text>
+  <text x="80" y="298" font-size="56" font-weight="800" fill="#0284c7" letter-spacing="-1">More Bookings</text>
+  <text x="82" y="356" font-size="22" fill="#64748b">7 proven tactics to fill your calendar.</text>
+  <g font-size="14" font-weight="600">
+    <rect x="80" y="392" width="170" height="38" rx="19" fill="#e0f2fe"/><text x="104" y="416" fill="#0369a1">Booking page</text>
+    <rect x="262" y="392" width="140" height="38" rx="19" fill="#dcfce7"/><text x="286" y="416" fill="#15803d">Reviews</text>
+    <rect x="414" y="392" width="120" height="38" rx="19" fill="#fef3c7"/><text x="438" y="416" fill="#b45309">SEO</text>
+  </g>
+  <!-- analytics growth card -->
+  <g filter="url(#sh)" transform="translate(770,130)">
+    <rect x="0" y="0" width="330" height="350" rx="28" fill="#ffffff" stroke="#e2e8f0"/>
+    <path d="M0 28 a28 28 0 0 1 28 -28 h274 a28 28 0 0 1 28 28 v48 h-330 z" fill="url(#sky)"/>
+    <text x="26" y="45" font-size="15" font-weight="700" fill="#fff">Bookings this month</text>
+    <text x="26" y="118" font-size="34" font-weight="800" fill="#0f172a">+38%</text>
+    <text x="26" y="142" font-size="12" fill="#16a34a">▲ vs last month</text>
+    <!-- bars -->
+    <g>
+      <rect x="26" y="250" width="34" height="40" rx="6" fill="url(#bar)"/>
+      <rect x="74" y="232" width="34" height="58" rx="6" fill="url(#bar)"/>
+      <rect x="122" y="244" width="34" height="46" rx="6" fill="url(#bar)"/>
+      <rect x="170" y="210" width="34" height="80" rx="6" fill="url(#bar)"/>
+      <rect x="218" y="190" width="34" height="100" rx="6" fill="url(#bar)"/>
+      <rect x="266" y="166" width="34" height="124" rx="6" fill="url(#bar)"/>
+    </g>
+    <rect x="26" y="306" width="278" height="30" rx="9" fill="#f0f9ff"/>
+    <text x="44" y="326" font-size="12" font-weight="600" fill="#0369a1">Show-up rate</text>
+    <text x="286" y="326" font-size="12" font-weight="700" fill="#0284c7" text-anchor="end">95%</text>
+  </g>
+</svg>

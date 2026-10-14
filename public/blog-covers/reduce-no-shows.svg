@@ -1,0 +1,77 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" fill="none" xmlns="http://www.w3.org/2000/svg" font-family="'Segoe UI', Helvetica, Arial, sans-serif">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1200" y2="630" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#f0f9ff"/><stop offset="1" stop-color="#ffffff"/>
+    </linearGradient>
+    <linearGradient id="sky" x1="720" y1="120" x2="1120" y2="540" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0ea5e9"/><stop offset="1" stop-color="#0284c7"/>
+    </linearGradient>
+    <filter id="sh" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="18" stdDeviation="28" flood-color="#0284c7" flood-opacity="0.18"/>
+    </filter>
+  </defs>
+
+  <rect width="1200" height="630" fill="url(#bg)"/>
+
+  <!-- Brand -->
+  <g transform="translate(80,72)">
+    <circle cx="9" cy="9" r="9" fill="#0284c7"/>
+    <text x="28" y="15" font-size="22" font-weight="700" fill="#0f172a">Calvy</text>
+  </g>
+  <text x="80" y="150" font-size="15" font-weight="700" letter-spacing="3" fill="#0284c7">GROW YOUR BOOKINGS</text>
+
+  <!-- Title -->
+  <text x="80" y="232" font-size="56" font-weight="800" fill="#0f172a" letter-spacing="-1">How to Reduce</text>
+  <text x="80" y="298" font-size="56" font-weight="800" fill="#0284c7" letter-spacing="-1">Appointment</text>
+  <text x="80" y="364" font-size="56" font-weight="800" fill="#0284c7" letter-spacing="-1">No-Shows</text>
+  <text x="82" y="424" font-size="22" fill="#64748b">9 strategies that protect your revenue.</text>
+
+  <!-- chips -->
+  <g font-size="14" font-weight="600">
+    <rect x="80" y="456" width="170" height="38" rx="19" fill="#e0f2fe"/><text x="105" y="480" fill="#0369a1">Reminders</text>
+    <rect x="262" y="456" width="160" height="38" rx="19" fill="#dcfce7"/><text x="286" y="480" fill="#15803d">Prepayment</text>
+    <rect x="434" y="456" width="150" height="38" rx="19" fill="#fef3c7"/><text x="458" y="480" fill="#b45309">Policies</text>
+  </g>
+
+  <!-- Reminder card visual -->
+  <g filter="url(#sh)">
+    <rect x="740" y="150" width="372" height="332" rx="28" fill="#ffffff" stroke="#e2e8f0"/>
+    <path d="M740 178 a28 28 0 0 1 28 -28 h316 a28 28 0 0 1 28 28 v34 h-372 z" fill="url(#sky)"/>
+    <text x="768" y="201" font-size="15" font-weight="700" fill="#ffffff">Tomorrow's reminders</text>
+
+    <!-- rows -->
+    <g>
+      <rect x="768" y="236" width="316" height="56" rx="14" fill="#ecfdf5"/>
+      <circle cx="800" cy="264" r="14" fill="#22c55e"/>
+      <path d="M793 264 l5 5 l10 -11" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+      <text x="826" y="259" font-size="14" font-weight="700" fill="#0f172a">Sarah R. — 10:00 AM</text>
+      <text x="826" y="278" font-size="12" fill="#16a34a">Confirmed ✓</text>
+    </g>
+    <g>
+      <rect x="768" y="300" width="316" height="56" rx="14" fill="#eff6ff"/>
+      <circle cx="800" cy="328" r="14" fill="#0284c7"/>
+      <path d="M800 321 v7 l5 4" stroke="#fff" stroke-width="3" stroke-linecap="round" fill="none"/>
+      <text x="826" y="323" font-size="14" font-weight="700" fill="#0f172a">Michael K. — 11:30 AM</text>
+      <text x="826" y="342" font-size="12" fill="#0369a1">Reminder sent</text>
+    </g>
+    <g>
+      <rect x="768" y="364" width="316" height="56" rx="14" fill="#fdf2f8"/>
+      <circle cx="800" cy="392" r="14" fill="#ec4899"/>
+      <path d="M800 386 v6 l4 3" stroke="#fff" stroke-width="3" stroke-linecap="round" fill="none"/>
+      <text x="826" y="387" font-size="14" font-weight="700" fill="#0f172a">Ana L. — 1:00 PM</text>
+      <text x="826" y="406" font-size="12" fill="#be185d">Deposit paid</text>
+    </g>
+
+    <rect x="768" y="432" width="316" height="32" rx="10" fill="#0f172a"/>
+    <text x="788" y="453" font-size="12" font-weight="600" fill="#e2e8f0">Show-up rate</text>
+    <text x="1064" y="453" font-size="12" font-weight="700" fill="#7dd3fc" text-anchor="end">96% ↑</text>
+  </g>
+
+  <!-- floating bell -->
+  <g filter="url(#sh)" transform="translate(688,196)">
+    <circle cx="28" cy="28" r="28" fill="#ffffff" stroke="#e2e8f0"/>
+    <path d="M28 16 a8 8 0 0 1 8 8 v6 l3 4 h-22 l3 -4 v-6 a8 8 0 0 1 8 -8z" fill="#0284c7"/>
+    <circle cx="28" cy="40" r="3" fill="#0284c7"/>
+    <circle cx="40" cy="16" r="6" fill="#22c55e"/>
+  </g>
+</svg>

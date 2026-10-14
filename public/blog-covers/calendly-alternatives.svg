@@ -1,0 +1,27 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" fill="none" xmlns="http://www.w3.org/2000/svg" font-family="'Segoe UI', Helvetica, Arial, sans-serif">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1200" y2="630" gradientUnits="userSpaceOnUse"><stop stop-color="#eef2ff"/><stop offset="1" stop-color="#f0f9ff"/></linearGradient>
+    <linearGradient id="sky" x1="740" y1="130" x2="1100" y2="510" gradientUnits="userSpaceOnUse"><stop stop-color="#0ea5e9"/><stop offset="1" stop-color="#0284c7"/></linearGradient>
+    <filter id="sh" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="18" stdDeviation="28" flood-color="#0284c7" flood-opacity="0.16"/></filter>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <g transform="translate(80,72)"><circle cx="9" cy="9" r="9" fill="#0284c7"/><text x="28" y="15" font-size="22" font-weight="700" fill="#0f172a">Calvy</text></g>
+  <text x="80" y="150" font-size="15" font-weight="700" letter-spacing="3" fill="#0284c7">COMPARISON · 2026</text>
+  <text x="80" y="232" font-size="54" font-weight="800" fill="#0f172a" letter-spacing="-1">7 Best Calendly</text>
+  <text x="80" y="296" font-size="54" font-weight="800" fill="#0284c7" letter-spacing="-1">Alternatives for</text>
+  <text x="80" y="360" font-size="54" font-weight="800" fill="#0284c7" letter-spacing="-1">Service Businesses</text>
+  <text x="82" y="420" font-size="22" fill="#64748b">Built for bookings, payments &amp; clients.</text>
+  <!-- comparison checklist card -->
+  <g filter="url(#sh)" transform="translate(770,140)">
+    <rect x="0" y="0" width="330" height="330" rx="28" fill="#ffffff" stroke="#e2e8f0"/>
+    <path d="M0 28 a28 28 0 0 1 28 -28 h274 a28 28 0 0 1 28 28 v50 h-330 z" fill="url(#sky)"/>
+    <text x="26" y="46" font-size="16" font-weight="700" fill="#fff">What to look for</text>
+    <g font-size="13.5" font-weight="600" fill="#0f172a">
+      <g transform="translate(26,96)"><circle cx="12" cy="-4" r="12" fill="#dcfce7"/><path d="M6 -4 l4 4 l8 -9" stroke="#16a34a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/><text x="36" y="0">Online payments &amp; deposits</text></g>
+      <g transform="translate(26,140)"><circle cx="12" cy="-4" r="12" fill="#dcfce7"/><path d="M6 -4 l4 4 l8 -9" stroke="#16a34a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/><text x="36" y="0">Staff &amp; services management</text></g>
+      <g transform="translate(26,184)"><circle cx="12" cy="-4" r="12" fill="#dcfce7"/><path d="M6 -4 l4 4 l8 -9" stroke="#16a34a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/><text x="36" y="0">Automatic reminders</text></g>
+      <g transform="translate(26,228)"><circle cx="12" cy="-4" r="12" fill="#dcfce7"/><path d="M6 -4 l4 4 l8 -9" stroke="#16a34a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/><text x="36" y="0">A public booking page</text></g>
+      <g transform="translate(26,272)"><circle cx="12" cy="-4" r="12" fill="#dcfce7"/><path d="M6 -4 l4 4 l8 -9" stroke="#16a34a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/><text x="36" y="0">Fair, simple pricing</text></g>
+    </g>
+  </g>
+</svg>

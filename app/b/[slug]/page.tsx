@@ -1,0 +1,40 @@
+import { notFound } from "next/navigation";
+import { prisma } from "@/lib/prisma";
+import { BookingClient } from "./BookingClient";
+
+export const dynamic = 'force-dynamic';
+
+export default async function BusinessBookingPage({ params }: { params: { slug: string } }) {
+  const business = await prisma.business.findUnique({
+    where: { slug: params.slug },
+    include: {
+      services: { where: { isActive: true }, orderBy: { createdAt: "asc" } },
+      staff: { where: { isActive: true }, orderBy: { createdAt: "asc" } },
+    },
+  });
+
+  if (!business) notFound();
+
+  const data = {
+    slug: business.slug,
+    name: business.name,
+    primaryColor: business.primaryColor,
+    businessType: business.businessType,
+    description: business.description ?? "",
+    phone: business.phone ?? "",
+    address: business.address ?? "",
+    website: business.website ?? "",
+    currency: business.currency ?? "USD",
+    paymentMode: (business as { paymentMode?: string }).paymentMode ?? "prepaid",
+    services: business.services.map(s => ({
+      id: s.id, name: s.name, description: s.description,
+      duration: s.duration, price: s.price, color: s.color,
+      capacity: (s as { capacity?: number }).capacity ?? 1,
+    })),
+    staff: business.staff.map(s => ({
+      id: s.id, name: s.name, role: s.role, color: s.color,
+    })),
+  };
+
+  return <BookingClient business={data} />;
+}

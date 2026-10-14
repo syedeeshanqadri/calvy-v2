@@ -1,0 +1,39 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" fill="none" xmlns="http://www.w3.org/2000/svg" font-family="'Segoe UI', Helvetica, Arial, sans-serif">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1200" y2="630" gradientUnits="userSpaceOnUse"><stop stop-color="#eff6ff"/><stop offset="1" stop-color="#ecfeff"/></linearGradient>
+    <linearGradient id="ac" x1="740" y1="120" x2="1120" y2="540" gradientUnits="userSpaceOnUse"><stop stop-color="#0ea5e9"/><stop offset="1" stop-color="#0284c7"/></linearGradient>
+    <filter id="sh" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="18" stdDeviation="28" flood-color="#0284c7" flood-opacity="0.18"/></filter>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <g transform="translate(80,72)"><circle cx="9" cy="9" r="9" fill="#0284c7"/><text x="28" y="15" font-size="22" font-weight="700" fill="#0f172a">Calvy</text></g>
+  <text x="80" y="150" font-size="15" font-weight="700" letter-spacing="3" fill="#0369a1">FOR DENTAL CLINICS</text>
+  <text x="80" y="232" font-size="54" font-weight="800" fill="#0f172a" letter-spacing="-1">Dentist Booking</text>
+  <text x="80" y="296" font-size="54" font-weight="800" fill="#0284c7" letter-spacing="-1">Software:</text>
+  <text x="80" y="360" font-size="54" font-weight="800" fill="#0284c7" letter-spacing="-1">Features That Matter</text>
+  <text x="82" y="418" font-size="22" fill="#64748b">Fill chairs, cut no-shows, recall patients.</text>
+  <g font-size="14" font-weight="600">
+    <rect x="80" y="454" width="152.79999999999998" height="38" rx="19" fill="#e0f2fe"/><text x="104" y="478" fill="#0369a1">Online booking</text>
+    <rect x="244.79999999999998" y="454" width="88.39999999999999" height="38" rx="19" fill="#dcfce7"/><text x="268.79999999999995" y="478" fill="#15803d">Recalls</text>
+    <rect x="345.2" y="454" width="106.8" height="38" rx="19" fill="#f3e8ff"/><text x="369.2" y="478" fill="#7e22ce">Reminders</text>
+  </g>
+  <g filter="url(#sh)" transform="translate(770,164)">
+    <rect x="0" y="0" width="330" height="302" rx="28" fill="#ffffff" stroke="#e2e8f0"/>
+    <path d="M0 28 a28 28 0 0 1 28 -28 h274 a28 28 0 0 1 28 28 v44 h-330 z" fill="url(#ac)"/>
+    <text x="26" y="38" font-size="15" font-weight="700" fill="#fff">Book appointment</text>
+    
+    <g>
+      <rect x="24" y="96" width="282" height="56" rx="14" fill="#f8fafc" stroke="#e2e8f0"/>
+      <text x="44" y="122" font-size="14" font-weight="700" fill="#0f172a">Check-up &amp; clean</text>
+      <text x="44" y="140" font-size="11" fill="#94a3b8">30 min · Dr Rao</text>
+      <text x="286" y="130" font-size="14" font-weight="700" fill="#0284c7" text-anchor="end">₹600</text>
+    </g>
+    <g>
+      <rect x="24" y="160" width="282" height="56" rx="14" fill="#ffffff" stroke="#e2e8f0"/>
+      <text x="44" y="186" font-size="14" font-weight="700" fill="#0f172a">Root canal</text>
+      <text x="44" y="204" font-size="11" fill="#94a3b8">60 min · Dr Shah</text>
+      <text x="286" y="194" font-size="14" font-weight="700" fill="#0284c7" text-anchor="end">₹4,500</text>
+    </g>
+    <rect x="24" y="228" width="282" height="44" rx="14" fill="#0284c7"/>
+    <text x="165" y="256" font-size="14" font-weight="700" fill="#fff" text-anchor="middle">Confirm →</text>
+  </g>
+</svg>

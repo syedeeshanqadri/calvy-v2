@@ -1,0 +1,57 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" fill="none" xmlns="http://www.w3.org/2000/svg" font-family="'Segoe UI', Helvetica, Arial, sans-serif">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1200" y2="630" gradientUnits="userSpaceOnUse"><stop stop-color="#eef2ff"/><stop offset="1" stop-color="#ecfeff"/></linearGradient>
+    <linearGradient id="vio" x1="740" y1="120" x2="1120" y2="540" gradientUnits="userSpaceOnUse"><stop stop-color="#6366f1"/><stop offset="1" stop-color="#0ea5e9"/></linearGradient>
+    <filter id="sh" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="18" stdDeviation="28" flood-color="#4338ca" flood-opacity="0.18"/></filter>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <g transform="translate(80,72)"><circle cx="9" cy="9" r="9" fill="#0284c7"/><text x="28" y="15" font-size="22" font-weight="700" fill="#0f172a">Calvy</text></g>
+  <text x="80" y="150" font-size="15" font-weight="700" letter-spacing="3" fill="#6366f1">AI &amp; AUTOMATION</text>
+  <text x="80" y="232" font-size="56" font-weight="800" fill="#0f172a" letter-spacing="-1">AI Appointment</text>
+  <text x="80" y="298" font-size="56" font-weight="800" fill="#6366f1" letter-spacing="-1">Booking Bots</text>
+  <text x="82" y="356" font-size="22" fill="#64748b">How they work — and if you need one.</text>
+  <g font-size="14" font-weight="600">
+    <rect x="80" y="392" width="150" height="38" rx="19" fill="#e0e7ff"/><text x="104" y="416" fill="#4338ca">24/7 booking</text>
+    <rect x="242" y="392" width="150" height="38" rx="19" fill="#cffafe"/><text x="266" y="416" fill="#0e7490">Auto-replies</text>
+    <rect x="404" y="392" width="160" height="38" rx="19" fill="#dcfce7"/><text x="428" y="416" fill="#15803d">Fewer no-shows</text>
+  </g>
+  <!-- chat booking card -->
+  <g filter="url(#sh)" transform="translate(770,118)">
+    <rect x="0" y="0" width="330" height="398" rx="30" fill="#ffffff" stroke="#e0e7ff"/>
+    <path d="M0 30 a30 30 0 0 1 30 -30 h270 a30 30 0 0 1 30 30 v46 h-330 z" fill="url(#vio)"/>
+    <circle cx="34" cy="38" r="16" fill="#ffffff" opacity="0.22"/>
+    <path d="M28 38 a6 6 0 0 1 12 0 M34 30 v-4 M30 44 h8" stroke="#fff" stroke-width="2" stroke-linecap="round" fill="none"/>
+    <text x="60" y="34" font-size="15" font-weight="700" fill="#fff">Calvy Assistant</text>
+    <text x="60" y="52" font-size="11" fill="#c7d2fe">Online · replies instantly</text>
+    <!-- bot bubble -->
+    <g transform="translate(24,98)">
+      <rect width="220" height="46" rx="14" fill="#eef2ff"/>
+      <text x="16" y="22" font-size="12" fill="#3730a3">Hi! When would you like to</text>
+      <text x="16" y="38" font-size="12" fill="#3730a3">come in?</text>
+    </g>
+    <!-- user bubble -->
+    <g transform="translate(140,156)">
+      <rect width="166" height="32" rx="14" fill="#0ea5e9"/>
+      <text x="83" y="21" font-size="12" font-weight="600" fill="#fff" text-anchor="middle">Friday afternoon</text>
+    </g>
+    <!-- slot suggestion -->
+    <g transform="translate(24,200)">
+      <rect width="282" height="44" rx="12" fill="#f8fafc" stroke="#e2e8f0"/>
+      <circle cx="26" cy="22" r="11" fill="#dcfce7"/>
+      <path d="M21 22 l3 3 l7 -8" stroke="#16a34a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+      <text x="48" y="20" font-size="12.5" font-weight="700" fill="#0f172a">Fri, 27 Jun · 3:30 PM</text>
+      <text x="48" y="36" font-size="11" fill="#64748b">45 min · with Priya</text>
+    </g>
+    <!-- confirmed -->
+    <g transform="translate(24,256)">
+      <rect width="282" height="44" rx="12" fill="#ecfdf5"/>
+      <text x="16" y="20" font-size="12.5" font-weight="700" fill="#15803d">Booked &amp; confirmed ✓</text>
+      <text x="16" y="36" font-size="11" fill="#16a34a">Reminder scheduled · deposit paid</text>
+    </g>
+    <!-- input -->
+    <rect x="24" y="318" width="282" height="42" rx="21" fill="#f1f5f9"/>
+    <text x="44" y="344" font-size="12" fill="#94a3b8">Type a message…</text>
+    <circle cx="284" cy="339" r="15" fill="#6366f1"/>
+    <path d="M278 339 h11 M285 334 l5 5 l-5 5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  </g>
+</svg>

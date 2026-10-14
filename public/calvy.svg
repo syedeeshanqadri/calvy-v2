@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 236 60" width="472" height="120">
+  <g transform="scale(0.6)">
+  <path d="M 71.55,77.58 A 35,35 0 1,0 71.55,22.42" fill="none"  transform="rotate(180 90 50)" stroke="#0284C7" stroke-width="13" stroke-linecap="round"></path>
+  <rect x="73.65" y="42.85" transform="rotate(180 90 50)" width="14.30" height="14.30" rx="2.5" fill="#0284C7"></rect>
+  </g>
+  <text x="80" y="47" font-family="&#39;Space Grotesk&#39;, Helvetica Neue, Arial, sans-serif" font-weight="700" font-size="42" letter-spacing="-0.02em" fill="#202020">alvy</text>
+<text x="155" y="47" font-family="&#39;Space Grotesk&#39;, Helvetica Neue, Arial, sans-serif" font-weight="700" font-size="52" letter-spacing="-0.02em" fill="#0284C7">.</text>
+</svg>
