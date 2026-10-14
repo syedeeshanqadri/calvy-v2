@@ -1,0 +1,137 @@
+# Screenshot run
+
+Base: http://localhost:3000 | captured OK: 98/102 | failed: 4
+
+## Failed
+- booking/booking-success @375: HTTP 500
+- marketing/blog-post @375: no blog post link found
+- booking/booking-success @1440: HTTP 500
+- marketing/blog-post @1440: no blog post link found
+
+## Captured but redirected
+- onboarding/onboarding @375: redirected->/dashboard
+- admin/home @375: redirected->/dashboard
+- admin/blog @375: redirected->/dashboard
+- admin/notifications @375: redirected->/dashboard
+- admin/plans @375: redirected->/dashboard
+- admin/revenue @375: redirected->/dashboard
+- admin/settings @375: redirected->/dashboard
+- admin/support @375: redirected->/dashboard
+- admin/tenants @375: redirected->/dashboard
+- admin/withdrawals @375: redirected->/dashboard
+- crm/crm @375: redirected->/dashboard
+- onboarding/onboarding @1440: redirected->/dashboard
+- admin/home @1440: redirected->/dashboard
+- admin/blog @1440: redirected->/dashboard
+- admin/notifications @1440: redirected->/dashboard
+- admin/plans @1440: redirected->/dashboard
+- admin/revenue @1440: redirected->/dashboard
+- admin/settings @1440: redirected->/dashboard
+- admin/support @1440: redirected->/dashboard
+- admin/tenants @1440: redirected->/dashboard
+- admin/withdrawals @1440: redirected->/dashboard
+- crm/crm @1440: redirected->/dashboard
+
+## All
+- [x] marketing/home @375
+- [x] marketing/blog @375
+- [x] marketing/help @375
+- [x] marketing/privacy @375
+- [x] marketing/terms @375
+- [x] marketing/refund-policy @375
+- [x] auth/signup @375
+- [x] auth/login @375
+- [x] auth/verify-email @375
+- [x] tenant-site/tenant-home @375
+- [x] tenant-site/tenant-book-now @375
+- [x] tenant-site/tenant-b-page @375
+- [x] booking/booking @375
+- [ ] booking/booking-success @375 — HTTP 500
+- [ ] marketing/blog-post @375 — no blog post link found
+- [x] marketing/help-article @375
+- [x] booking-flow/1-service @375
+- [x] booking-flow/2-staff @375
+- [x] booking-flow/3-datetime-empty @375
+- [x] booking-flow/3-datetime-selected @375
+- [x] booking-flow/4-details-empty @375
+- [x] booking-flow/4-details-filled @375
+- [x] booking-flow/5-confirm @375
+- [x] onboarding/onboarding @375 — redirected->/dashboard
+- [x] dashboard/home @375
+- [x] dashboard/analytics @375
+- [x] dashboard/appointments @375
+- [x] dashboard/billing @375
+- [x] dashboard/booking-page @375
+- [x] dashboard/broadcasts @375
+- [x] dashboard/calendar @375
+- [x] dashboard/clients @375
+- [x] dashboard/expenses @375
+- [x] dashboard/payments @375
+- [x] dashboard/services @375
+- [x] dashboard/settings @375
+- [x] dashboard/staff @375
+- [x] dashboard/support @375
+- [x] dashboard/wallet @375
+- [x] dashboard/website @375
+- [x] dashboard/client-detail @375
+- [x] admin/home @375 — redirected->/dashboard
+- [x] admin/blog @375 — redirected->/dashboard
+- [x] admin/notifications @375 — redirected->/dashboard
+- [x] admin/plans @375 — redirected->/dashboard
+- [x] admin/revenue @375 — redirected->/dashboard
+- [x] admin/settings @375 — redirected->/dashboard
+- [x] admin/support @375 — redirected->/dashboard
+- [x] admin/tenants @375 — redirected->/dashboard
+- [x] admin/withdrawals @375 — redirected->/dashboard
+- [x] crm/crm @375 — redirected->/dashboard
+- [x] marketing/home @1440
+- [x] marketing/blog @1440
+- [x] marketing/help @1440
+- [x] marketing/privacy @1440
+- [x] marketing/terms @1440
+- [x] marketing/refund-policy @1440
+- [x] auth/signup @1440
+- [x] auth/login @1440
+- [x] auth/verify-email @1440
+- [x] tenant-site/tenant-home @1440
+- [x] tenant-site/tenant-book-now @1440
+- [x] tenant-site/tenant-b-page @1440
+- [x] booking/booking @1440
+- [ ] booking/booking-success @1440 — HTTP 500
+- [ ] marketing/blog-post @1440 — no blog post link found
+- [x] marketing/help-article @1440
+- [x] booking-flow/1-service @1440
+- [x] booking-flow/2-staff @1440
+- [x] booking-flow/3-datetime-empty @1440
+- [x] booking-flow/3-datetime-selected @1440
+- [x] booking-flow/4-details-empty @1440
+- [x] booking-flow/4-details-filled @1440
+- [x] booking-flow/5-confirm @1440
+- [x] onboarding/onboarding @1440 — redirected->/dashboard
+- [x] dashboard/home @1440
+- [x] dashboard/analytics @1440
+- [x] dashboard/appointments @1440
+- [x] dashboard/billing @1440
+- [x] dashboard/booking-page @1440
+- [x] dashboard/broadcasts @1440
+- [x] dashboard/calendar @1440
+- [x] dashboard/clients @1440
+- [x] dashboard/expenses @1440
+- [x] dashboard/payments @1440
+- [x] dashboard/services @1440
+- [x] dashboard/settings @1440
+- [x] dashboard/staff @1440
+- [x] dashboard/support @1440
+- [x] dashboard/wallet @1440
+- [x] dashboard/website @1440
+- [x] dashboard/client-detail @1440
+- [x] admin/home @1440 — redirected->/dashboard
+- [x] admin/blog @1440 — redirected->/dashboard
+- [x] admin/notifications @1440 — redirected->/dashboard
+- [x] admin/plans @1440 — redirected->/dashboard
+- [x] admin/revenue @1440 — redirected->/dashboard
+- [x] admin/settings @1440 — redirected->/dashboard
+- [x] admin/support @1440 — redirected->/dashboard
+- [x] admin/tenants @1440 — redirected->/dashboard
+- [x] admin/withdrawals @1440 — redirected->/dashboard
+- [x] crm/crm @1440 — redirected->/dashboard
