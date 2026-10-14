@@ -8,7 +8,11 @@ import path from "path";
 
 const BASE = process.env.BASE_URL || "http://localhost:3000";
 const T = "alex-johnson-studio";
-const PW = "CalvyDev#2026";
+// Dev-only seeded accounts (see README "Test accounts"); override via env for any other database.
+const PW = process.env.TEST_PASSWORD || "CalvyDev#2026";
+const DEMO_EMAIL = process.env.DEMO_EMAIL || "demo@calvy.io";
+const DEMO_PW = process.env.DEMO_PASSWORD || "password123";
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "admin@calvy.test";
 const pub = ["/", "/blog", "/help", "/privacy", "/terms", "/refund-policy", "/signup", "/login", `/${T}`, `/${T}/book-now`, `/b/${T}`, "/booking/success", "/blog/test-how-to-reduce-no-shows"];
 const dash = ["", "/analytics", "/appointments", "/billing", "/booking-page", "/broadcasts", "/calendar", "/clients", "/expenses", "/payments", "/services", "/settings", "/staff", "/support", "/wallet", "/website"].map((p) => "/dashboard" + p);
 const admin = ["", "/blog", "/notifications", "/plans", "/revenue", "/settings", "/support", "/tenants", "/withdrawals"].map((p) => "/admin" + p).concat(["/crm"]);
@@ -69,8 +73,8 @@ async function check(page: Page, url: string) {
     await ctx.close();
   };
   await run(pub);
-  await run(dash, ["demo@calvy.io", "password123"]);
-  await run(admin, ["admin@calvy.test", PW]);
+  await run(dash, [DEMO_EMAIL, DEMO_PW]);
+  await run(admin, [ADMIN_EMAIL, PW]);
   await browser.close();
   fs.writeFileSync(path.join(process.cwd(), "docs/audit/screenshots/DOM-CHECKS.json"), JSON.stringify(out, null, 1));
   for (const r of out) console.log(r.error ? `${r.url} ERR ${r.error}` : `${r.url} [${r.status}${r.finalPath !== r.url.split("?")[0] ? "->" + r.finalPath : ""}] h1=${r.h1} ovfX=${r.overflowX}(${r.scrollW}) small=${r.smallTargets} unlbl=${r.unlabeledInputs} noname=${r.iconBtnNoName} noalt=${r.imgNoAlt} hash=${r.hashLinks.length} tiny=${r.tinyText} fonts=${r.fonts.length} sizes=${r.sizes.length} err=${r.consoleErrors.length} title="${r.title.slice(0, 40)}"`);
