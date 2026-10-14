@@ -13,8 +13,67 @@ const WH = JSON.stringify({
   sunday:    { isWorking: false },
 });
 
+// Shared password for all dev-only test accounts (printed at the end of the run).
+const TEST_PASSWORD = "CalvyDev#2026";
+
+// Idempotent: upserts by unique email/slug, safe to run repeatedly. Runs even if demo data exists.
+async function seedTestAccounts() {
+  const password = await bcrypt.hash(TEST_PASSWORD, 12);
+
+  // Super admin: the app treats role === "admin" as admin (lib/adminAuth.ts), no env var needed.
+  await prisma.user.upsert({
+    where: { email: "admin@calvy.test" },
+    update: { role: "admin", emailVerified: new Date() },
+    create: { name: "Test Admin", email: "admin@calvy.test", password, role: "admin", emailVerified: new Date() },
+  });
+
+  // Verified owner with NO business: lands on /onboarding.
+  await prisma.user.upsert({
+    where: { email: "newowner@calvy.test" },
+    update: { emailVerified: new Date() },
+    create: { name: "New Owner", email: "newowner@calvy.test", password, emailVerified: new Date() },
+  });
+
+  const posts = [
+    {
+      slug: "test-how-to-reduce-no-shows",
+      title: "How to Reduce No-Shows at Your Appointment Business",
+      excerpt: "Practical ways to cut missed appointments with reminders and deposits.",
+      tags: "no-shows,reminders",
+      content: [
+        "# How to Reduce No-Shows", "",
+        "No-shows cost service businesses real money.", "",
+        "## Send reminders", "",
+        "Automated email and WhatsApp reminders cut no-shows sharply.", "",
+        "## Take deposits", "",
+        "Prepaid bookings make clients commit.",
+      ].join("\n"),
+    },
+    {
+      slug: "test-setting-up-online-booking",
+      title: "Setting Up Online Booking in Under an Hour",
+      excerpt: "A step-by-step checklist for launching your booking page.",
+      tags: "booking,getting-started",
+      content: [
+        "# Setting Up Online Booking", "",
+        "A quick checklist.", "",
+        "1. Add your services", "2. Add your staff", "3. Share your booking link",
+      ].join("\n"),
+    },
+  ];
+  for (const p of posts) {
+    await prisma.post.upsert({
+      where: { slug: p.slug },
+      update: { published: true },
+      create: { ...p, authorName: "Calvy Team", published: true, publishedAt: new Date() },
+    });
+  }
+}
+
 async function main() {
   console.log("🌱 Seeding database...");
+
+  await seedTestAccounts();
 
   const password = await bcrypt.hash("password123", 12);
 
@@ -28,6 +87,7 @@ async function main() {
   const existingBusiness = await prisma.business.findUnique({ where: { ownerId: user.id } });
   if (existingBusiness) {
     console.log("✅ Demo data already exists — skipping.");
+    printTestAccounts();
     return;
   }
 
@@ -113,7 +173,14 @@ async function main() {
   console.log("✅ Seed complete!");
   console.log("   Login:  demo@calvy.io");
   console.log("   Pass:   password123");
+  printTestAccounts();
   console.log(`   Book:   http://localhost:3001/b/alex-johnson-studio`);
+}
+
+function printTestAccounts() {
+  console.log("   Test accounts (dev only), shared password: " + TEST_PASSWORD);
+  console.log("     admin@calvy.test     (super admin)");
+  console.log("     newowner@calvy.test  (verified, not onboarded)");
 }
 
 main()

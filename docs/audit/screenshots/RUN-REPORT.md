@@ -1,36 +1,12 @@
 # Screenshot run
 
-Base: http://localhost:3000 | captured OK: 98/102 | failed: 4
+Base: http://localhost:3000 | captured OK: 106/106 | failed: 0
 
 ## Failed
-- booking/booking-success @375: HTTP 500
-- marketing/blog-post @375: no blog post link found
-- booking/booking-success @1440: HTTP 500
-- marketing/blog-post @1440: no blog post link found
 
 ## Captured but redirected
-- onboarding/onboarding @375: redirected->/dashboard
-- admin/home @375: redirected->/dashboard
-- admin/blog @375: redirected->/dashboard
-- admin/notifications @375: redirected->/dashboard
-- admin/plans @375: redirected->/dashboard
-- admin/revenue @375: redirected->/dashboard
-- admin/settings @375: redirected->/dashboard
-- admin/support @375: redirected->/dashboard
-- admin/tenants @375: redirected->/dashboard
-- admin/withdrawals @375: redirected->/dashboard
-- crm/crm @375: redirected->/dashboard
-- onboarding/onboarding @1440: redirected->/dashboard
-- admin/home @1440: redirected->/dashboard
-- admin/blog @1440: redirected->/dashboard
-- admin/notifications @1440: redirected->/dashboard
-- admin/plans @1440: redirected->/dashboard
-- admin/revenue @1440: redirected->/dashboard
-- admin/settings @1440: redirected->/dashboard
-- admin/support @1440: redirected->/dashboard
-- admin/tenants @1440: redirected->/dashboard
-- admin/withdrawals @1440: redirected->/dashboard
-- crm/crm @1440: redirected->/dashboard
+- admin/settings @375: redirected->/admin
+- admin/settings @1440: redirected->/admin
 
 ## All
 - [x] marketing/home @375
@@ -46,8 +22,9 @@ Base: http://localhost:3000 | captured OK: 98/102 | failed: 4
 - [x] tenant-site/tenant-book-now @375
 - [x] tenant-site/tenant-b-page @375
 - [x] booking/booking @375
-- [ ] booking/booking-success @375 — HTTP 500
-- [ ] marketing/blog-post @375 — no blog post link found
+- [x] booking/booking-success-no-params @375
+- [x] booking/booking-success @375
+- [x] marketing/blog-post @375
 - [x] marketing/help-article @375
 - [x] booking-flow/1-service @375
 - [x] booking-flow/2-staff @375
@@ -56,7 +33,6 @@ Base: http://localhost:3000 | captured OK: 98/102 | failed: 4
 - [x] booking-flow/4-details-empty @375
 - [x] booking-flow/4-details-filled @375
 - [x] booking-flow/5-confirm @375
-- [x] onboarding/onboarding @375 — redirected->/dashboard
 - [x] dashboard/home @375
 - [x] dashboard/analytics @375
 - [x] dashboard/appointments @375
@@ -74,16 +50,18 @@ Base: http://localhost:3000 | captured OK: 98/102 | failed: 4
 - [x] dashboard/wallet @375
 - [x] dashboard/website @375
 - [x] dashboard/client-detail @375
-- [x] admin/home @375 — redirected->/dashboard
-- [x] admin/blog @375 — redirected->/dashboard
-- [x] admin/notifications @375 — redirected->/dashboard
-- [x] admin/plans @375 — redirected->/dashboard
-- [x] admin/revenue @375 — redirected->/dashboard
-- [x] admin/settings @375 — redirected->/dashboard
-- [x] admin/support @375 — redirected->/dashboard
-- [x] admin/tenants @375 — redirected->/dashboard
-- [x] admin/withdrawals @375 — redirected->/dashboard
-- [x] crm/crm @375 — redirected->/dashboard
+- [x] admin/home @375
+- [x] admin/blog @375
+- [x] admin/notifications @375
+- [x] admin/plans @375
+- [x] admin/revenue @375
+- [x] admin/settings @375 — redirected->/admin
+- [x] admin/support @375
+- [x] admin/tenants @375
+- [x] admin/withdrawals @375
+- [x] crm/crm @375
+- [x] onboarding/1-empty @375
+- [x] onboarding/2-validation-error+3-filled @375
 - [x] marketing/home @1440
 - [x] marketing/blog @1440
 - [x] marketing/help @1440
@@ -97,8 +75,9 @@ Base: http://localhost:3000 | captured OK: 98/102 | failed: 4
 - [x] tenant-site/tenant-book-now @1440
 - [x] tenant-site/tenant-b-page @1440
 - [x] booking/booking @1440
-- [ ] booking/booking-success @1440 — HTTP 500
-- [ ] marketing/blog-post @1440 — no blog post link found
+- [x] booking/booking-success-no-params @1440
+- [x] booking/booking-success @1440
+- [x] marketing/blog-post @1440
 - [x] marketing/help-article @1440
 - [x] booking-flow/1-service @1440
 - [x] booking-flow/2-staff @1440
@@ -107,7 +86,6 @@ Base: http://localhost:3000 | captured OK: 98/102 | failed: 4
 - [x] booking-flow/4-details-empty @1440
 - [x] booking-flow/4-details-filled @1440
 - [x] booking-flow/5-confirm @1440
-- [x] onboarding/onboarding @1440 — redirected->/dashboard
 - [x] dashboard/home @1440
 - [x] dashboard/analytics @1440
 - [x] dashboard/appointments @1440
@@ -125,13 +103,15 @@ Base: http://localhost:3000 | captured OK: 98/102 | failed: 4
 - [x] dashboard/wallet @1440
 - [x] dashboard/website @1440
 - [x] dashboard/client-detail @1440
-- [x] admin/home @1440 — redirected->/dashboard
-- [x] admin/blog @1440 — redirected->/dashboard
-- [x] admin/notifications @1440 — redirected->/dashboard
-- [x] admin/plans @1440 — redirected->/dashboard
-- [x] admin/revenue @1440 — redirected->/dashboard
-- [x] admin/settings @1440 — redirected->/dashboard
-- [x] admin/support @1440 — redirected->/dashboard
-- [x] admin/tenants @1440 — redirected->/dashboard
-- [x] admin/withdrawals @1440 — redirected->/dashboard
-- [x] crm/crm @1440 — redirected->/dashboard
+- [x] admin/home @1440
+- [x] admin/blog @1440
+- [x] admin/notifications @1440
+- [x] admin/plans @1440
+- [x] admin/revenue @1440
+- [x] admin/settings @1440 — redirected->/admin
+- [x] admin/support @1440
+- [x] admin/tenants @1440
+- [x] admin/withdrawals @1440
+- [x] crm/crm @1440
+- [x] onboarding/1-empty @1440
+- [x] onboarding/2-validation-error+3-filled @1440

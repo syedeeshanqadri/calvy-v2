@@ -10,6 +10,9 @@ import path from "path";
 const BASE = process.env.BASE_URL || "http://localhost:3000";
 const EMAIL = process.env.DEMO_EMAIL || "demo@calvy.io";
 const PASSWORD = process.env.DEMO_PASSWORD || "password123";
+const TEST_PASSWORD = process.env.TEST_PASSWORD || "CalvyDev#2026"; // dev-only seed accounts
+const ADMIN_EMAIL = "admin@calvy.test";
+const NEWOWNER_EMAIL = "newowner@calvy.test";
 const TENANT = process.env.TENANT_SLUG || "alex-johnson-studio";
 const OUT = path.join(process.cwd(), "docs", "audit", "screenshots");
 const VIEWPORTS = [
@@ -46,10 +49,10 @@ async function capturePage(page: Page, vp: string, group: string, name: string, 
   }
 }
 
-async function login(page: Page): Promise<boolean> {
+async function login(page: Page, email = EMAIL, password = PASSWORD): Promise<boolean> {
   await page.goto(BASE + "/login", { waitUntil: "load" });
-  await page.locator('input[type="email"]').first().fill(EMAIL);
-  await page.locator('input[type="password"]').first().fill(PASSWORD);
+  await page.locator('input[type="email"]').first().fill(email);
+  await page.locator('input[type="password"]').first().fill(password);
   await page.locator('button[type="submit"]').first().click();
   try {
     await page.waitForURL((u) => !u.pathname.startsWith("/login"), { timeout: 20000 });
@@ -145,7 +148,8 @@ async function run(browser: Browser, vp: (typeof VIEWPORTS)[number]) {
     ["tenant-site", "tenant-book-now", `/${TENANT}/book-now`],
     ["tenant-site", "tenant-b-page", `/b/${TENANT}`],
     ["booking", "booking", "/booking"],
-    ["booking", "booking-success", "/booking/success"],
+    ["booking", "booking-success-no-params", "/booking/success"], // known 500 (bug)
+    ["booking", "booking-success", "/booking/success?razorpay_payment_link_id=plink_audit&razorpay_payment_link_status=paid"],
   ];
   for (const [g, n, u] of publicPages) await capturePage(p, vp.name, g, n, u);
 
@@ -167,7 +171,6 @@ async function run(browser: Browser, vp: (typeof VIEWPORTS)[number]) {
     await ctx.close();
     return;
   }
-  await capturePage(page, vp.name, "onboarding", "onboarding", "/onboarding");
   const dash = [
     "", "/analytics", "/appointments", "/billing", "/booking-page", "/broadcasts", "/calendar", "/clients",
     "/expenses", "/payments", "/services", "/settings", "/staff", "/support", "/wallet", "/website",
@@ -178,9 +181,35 @@ async function run(browser: Browser, vp: (typeof VIEWPORTS)[number]) {
   else results.push({ name: "dashboard/client-detail", vp: vp.name, ok: false, note: "no client link found" });
 
   const admin = ["", "/blog", "/notifications", "/plans", "/revenue", "/settings", "/support", "/tenants", "/withdrawals"];
-  for (const a of admin) await capturePage(page, vp.name, "admin", a ? a.slice(1) : "home", "/admin" + a);
-  await capturePage(page, vp.name, "crm", "crm", "/crm");
   await ctx.close();
+
+  // --- super admin ---
+  const actx = await browser.newContext({ viewport: { width: vp.width, height: vp.height } });
+  const apage = await actx.newPage();
+  if (await login(apage, ADMIN_EMAIL, TEST_PASSWORD)) {
+    for (const a of admin) await capturePage(apage, vp.name, "admin", a ? a.slice(1) : "home", "/admin" + a);
+    await capturePage(apage, vp.name, "crm", "crm", "/crm");
+  } else results.push({ name: "admin/*", vp: vp.name, ok: false, note: "admin login failed" });
+  await actx.close();
+
+  // --- new owner: onboarding (single-form step; never submitted) ---
+  const nctx = await browser.newContext({ viewport: { width: vp.width, height: vp.height } });
+  const npage = await nctx.newPage();
+  if (await login(npage, NEWOWNER_EMAIL, TEST_PASSWORD)) {
+    await capturePage(npage, vp.name, "onboarding", "1-empty", "/onboarding");
+    try {
+      await npage.getByRole("button", { name: "Finish setup" }).click(); // client-side validation only, no request
+      await sleep(300);
+      await shot(npage, "onboarding", "2-validation-error", vp.name);
+      await npage.getByPlaceholder("e.g. Glow Beauty Studio").fill("Audit Test Studio");
+      await npage.locator("select").selectOption({ index: 1 });
+      await shot(npage, "onboarding", "3-filled", vp.name);
+      results.push({ name: "onboarding/2-validation-error+3-filled", vp: vp.name, ok: true });
+    } catch (e) {
+      results.push({ name: "onboarding/steps", vp: vp.name, ok: false, note: (e as Error).message.split("\n")[0] });
+    }
+  } else results.push({ name: "onboarding/*", vp: vp.name, ok: false, note: "newowner login failed" });
+  await nctx.close();
 }
 
 (async () => {
