@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isAdminUser } from "@/lib/adminAuth";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -11,7 +12,7 @@ export const dynamic = "force-dynamic";
 type Session = Awaited<ReturnType<typeof getServerSession<typeof authOptions>>>;
 
 function isAdmin(session: Session) {
-  return session?.user?.role === "admin" || session?.user?.email === process.env.SUPER_ADMIN_EMAIL;
+  return isAdminUser(session?.user);
 }
 
 export async function GET() {
