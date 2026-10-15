@@ -2,6 +2,8 @@ import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getFlags } from "@/lib/flags";
+import { FlagsProvider } from "@/components/providers/FlagsProvider";
 import { CurrencyProvider } from "@/components/providers/CurrencyProvider";
 
 export default async function DashboardRootLayout({ children }: { children: React.ReactNode }) {
@@ -30,5 +32,9 @@ export default async function DashboardRootLayout({ children }: { children: Reac
     currency = biz.currency ?? "USD";
   }
 
-  return <CurrencyProvider currency={currency}>{children}</CurrencyProvider>;
+  return (
+    <FlagsProvider flags={getFlags()}>
+      <CurrencyProvider currency={currency}>{children}</CurrencyProvider>
+    </FlagsProvider>
+  );
 }

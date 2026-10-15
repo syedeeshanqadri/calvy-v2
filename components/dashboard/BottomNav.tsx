@@ -9,6 +9,8 @@ import {
   Sparkles, SlidersHorizontal, LogOut, Megaphone, Receipt,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useFlags } from "@/components/providers/FlagsProvider";
+import type { FeatureFlag } from "@/lib/flags";
 
 const PRIMARY = [
   { label: "Home", href: "/dashboard", icon: LayoutDashboard, exact: true },
@@ -17,22 +19,24 @@ const PRIMARY = [
   { label: "Clients", href: "/dashboard/clients", icon: Users },
 ];
 
-const MORE_ITEMS = [
+const ALL_MORE_ITEMS: { label: string; href: string; icon: typeof UserCog; flag?: FeatureFlag }[] = [
   { label: "Staff", href: "/dashboard/staff", icon: UserCog },
-  { label: "Payments", href: "/dashboard/payments", icon: CreditCard },
-  { label: "Wallet", href: "/dashboard/wallet", icon: Wallet },
+  { label: "Payments", href: "/dashboard/payments", icon: CreditCard, flag: "payments" },
+  { label: "Wallet", href: "/dashboard/wallet", icon: Wallet, flag: "wallet" },
   { label: "Analytics", href: "/dashboard/analytics", icon: BarChart2 },
   { label: "Expenses", href: "/dashboard/expenses", icon: Receipt },
   { label: "Services", href: "/dashboard/services", icon: Wrench },
-  { label: "Broadcasts", href: "/dashboard/broadcasts", icon: Megaphone },
+  { label: "Broadcasts", href: "/dashboard/broadcasts", icon: Megaphone, flag: "broadcasts" },
   { label: "Booking Page", href: "/dashboard/booking-page", icon: Link2 },
   { label: "Website", href: "/dashboard/website", icon: Globe },
-  { label: "Billing", href: "/dashboard/billing", icon: Sparkles },
+  { label: "Billing", href: "/dashboard/billing", icon: Sparkles, flag: "payments" },
   { label: "Settings", href: "/dashboard/settings", icon: SlidersHorizontal },
 ];
 
 export function BottomNav() {
   const pathname = usePathname();
+  const flags = useFlags();
+  const MORE_ITEMS = ALL_MORE_ITEMS.filter((i) => !i.flag || flags[i.flag]);
   const [showMore, setShowMore] = useState(false);
 
   const isMoreActive = MORE_ITEMS.some(item => pathname.startsWith(item.href));

@@ -1,6 +1,7 @@
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { Lock, Zap } from "lucide-react";
 import Link from "next/link";
+import { getFlags } from "@/lib/flags";
 
 interface UpgradeGateProps {
   title: string;
@@ -9,6 +10,7 @@ interface UpgradeGateProps {
 }
 
 export function UpgradeGate({ title, subtitle, description }: UpgradeGateProps) {
+  const plansAvailable = getFlags().payments;
   return (
     <DashboardLayout title={title} subtitle={subtitle}>
       <div className="flex items-start justify-start pt-4">
@@ -18,13 +20,17 @@ export function UpgradeGate({ title, subtitle, description }: UpgradeGateProps) 
           </div>
           <h2 className="font-syne font-bold text-lg text-[#0f0f1a] mb-2">Plan upgrade required</h2>
           <p className="text-sm text-[#6b6b80] leading-relaxed mb-6">{description}</p>
-          <Link
-            href="/dashboard/billing"
-            className="inline-flex items-center gap-2 px-5 py-2.5 bg-accent text-white text-sm font-semibold rounded-xl hover:bg-accent-hover transition-colors"
-          >
-            <Zap size={15} />
-            Upgrade your plan
-          </Link>
+          {plansAvailable ? (
+            <Link
+              href="/dashboard/billing"
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-accent text-white text-sm font-semibold rounded-xl hover:bg-accent-hover transition-colors"
+            >
+              <Zap size={15} />
+              Upgrade your plan
+            </Link>
+          ) : (
+            <p className="text-sm font-medium text-[#3d3d4d]">Plans are not available yet.</p>
+          )}
         </div>
       </div>
     </DashboardLayout>

@@ -2,7 +2,8 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { trialDaysLeft, PLAN_LIMITS, PLAN_META } from "@/lib/plans";
-import { redirect } from "next/navigation";
+import { redirect, notFound } from "next/navigation";
+import { getFlags } from "@/lib/flags";
 import BillingClient from "./BillingClient";
 
 export const dynamic = 'force-dynamic';
@@ -98,6 +99,8 @@ async function getPlans(): Promise<PlanData[]> {
 }
 
 export default async function BillingPage() {
+  const flags = getFlags();
+  if (!flags.payments) notFound();
   const session = await getServerSession(authOptions);
   if (!session?.user?.businessId) redirect("/login");
 

@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { useFlags } from "@/components/providers/FlagsProvider";
 import { Check, Edit2, ExternalLink, X, Plus, Infinity } from "lucide-react";
 
 interface PlanConfig {
@@ -48,7 +49,7 @@ const PLAN_COLORS: Record<string, string> = {
 type FlagItem = { key: keyof PlanConfig; label: string };
 type FlagGroup = { label: string; flags: FlagItem[] };
 
-const FEATURE_FLAG_GROUPS: FlagGroup[] = [
+const ALL_FLAG_GROUPS: FlagGroup[] = [
   {
     label: "Online Presence",
     flags: [
@@ -93,10 +94,15 @@ const FEATURE_FLAG_GROUPS: FlagGroup[] = [
   },
 ];
 
-// Flat list for card display
-const ALL_FEATURE_FLAGS: FlagItem[] = FEATURE_FLAG_GROUPS.flatMap(g => g.flags);
 
 export function PlansClient({ plans: initialPlans, tenantCounts, envConfigured }: Props) {
+  const flags = useFlags();
+  // UI-only flag: hide "Remove branding" unless FEATURE_REMOVE_BRANDING is on.
+  const FEATURE_FLAG_GROUPS = ALL_FLAG_GROUPS
+    .map(g => ({ ...g, flags: g.flags.filter(f => f.key !== "removeBranding" || flags.removeBranding) }))
+    .filter(g => g.flags.length > 0);
+  // Flat list for card display
+  const ALL_FEATURE_FLAGS: FlagItem[] = FEATURE_FLAG_GROUPS.flatMap(g => g.flags);
   const [plans, setPlans] = useState(initialPlans);
   const [editing, setEditing] = useState<PlanConfig | null>(null);
   const [form, setForm] = useState<PlanConfig | null>(null);
@@ -200,7 +206,7 @@ export function PlansClient({ plans: initialPlans, tenantCounts, envConfigured }
         {plans.map(plan => {
           const count = tenantCounts[plan.planId] ?? 0;
           const stripeOk = plan.planId === "free" ? true : envConfigured[plan.planId];
-          const features = parsedFeatures(plan.features);
+          const features = parsedFeatures(plan.features).filter(f => flags.removeBranding || !/remove\s+(calvy\s+)?branding/i.test(f));
           const accent = PLAN_COLORS[plan.planId] ?? "#0284c7";
           const enabledFlags = ALL_FEATURE_FLAGS.filter(f => plan[f.key as keyof PlanConfig]);
 
