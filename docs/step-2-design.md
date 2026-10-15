@@ -29,4 +29,14 @@ Demo data: snapshot a Neon branch before each `db:deploy`; each migration is ide
 7. Return slot → staff ids; "any available" picks fewest bookings that day, then `staffId` order.
 8. Booking and reschedule (S2-07) run steps 1-6 for one slot inside the lock; cancel/no-show free it; cutoff enforced on customer cancel.
 
-**Chunk order:** 1 `step-2/timezone-locking` (S2-01, S2-02, S2-06) → 2 `step-2/schedules-availability` (S2-04, S2-03, S2-05, S2-11) → 3 `step-2/appointment-data` (S2-09, S2-08, S2-10, manage token) → 4 `step-2/rules-side-effects` (S2-07, S2-12) → 5 `step-2/owner-screens` (S2-13, S2-14, S2-16) → 6 `step-2/calendar-booking-tests` (S2-15, S2-17, S2-18); S2-19 on request.
+**Approved decisions (owner):** existing times are IST saved as UTC (demo data only; production starts on a fresh DB in Step 7); all active staff are linked to services with none, then links are enforced; S2-10 is money as integer minor units (paise/cents) and enums, types and migrations only, with no wallet or payment logic changes beyond what the type change requires.
+
+**Final chunk list** (S2-19 on request, after chunk 8):
+1. `step-2/timezone-locking`: S2-01, S2-02, S2-06
+2. `step-2/schedules-availability`: S2-04, S2-03, S2-05, S2-11
+3. `step-2/appointment-data`: S2-09, S2-08 (walk-ins with phone OR email, at least one required), S2-10, manage-token column
+4. `step-2/rules-side-effects`: S2-07 (incl. cancellation cutoff), S2-12
+5. `step-2/owner-screens`: S2-13, S2-14, S2-16 (reschedule + delete in the edit modal; walk-in form)
+6. `step-2/calendar-booking-tests`: S2-15 (clickable calendar: empty slot creates, booking opens; staff filter), S2-17, S2-18
+7. `step-2/manage-booking` (new): public `/manage/[token]` page (view, cancel, reschedule inside the cutoff, hashed-token lookup, rate limited); link in confirmation, reschedule and reminder emails; owner gets a `Notification` + push on customer changes
+8. `step-2/plan-limits` (new): `getBusinessFeatures` limits (staff, services, monthly appointments, group booking, multi-service, slot interval) enforced server-side on every create path (public, owner, chatbot) and mirrored in the pages; 402 with a friendly message; tests. Extends S2-05, which only covers public bookings.
