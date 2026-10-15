@@ -56,7 +56,7 @@ export const authOptions: NextAuthOptions = {
         if (!credentials?.email || !credentials?.password) return null;
 
         // Throttle brute-force attempts per email address.
-        const rl = rateLimit(`login:${credentials.email.toLowerCase()}`, 10, 60_000);
+        const rl = await rateLimit(`login:${credentials.email.toLowerCase()}`, 10, 60_000);
         if (!rl.ok) throw new Error("TooManyAttempts");
 
         try {
