@@ -18,7 +18,7 @@ and verified two ways:
 
 ## Everyday commands (PowerShell, from the repo root)
 
-Prisma's own CLI reads only `.env`, not `.env.local`. The npm scripts below load `.env.local` for you.
+Prisma's own CLI reads only `.env`, not `.env.local`. `db:migrate`, `db:status` and `db:seed` load `.env.local` for you. `db:deploy` does **not**: it is for CI and hosting, where the variables are set for real, so run it locally only with `DATABASE_URL` set in your shell (see the safety checks below).
 
 ```powershell
 npm run db:status          # which migrations are applied
