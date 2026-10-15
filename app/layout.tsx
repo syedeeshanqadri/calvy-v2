@@ -58,7 +58,7 @@ export const viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${plusJakartaSans.variable} ${dmSans.variable}`}>
+    <html lang="en" data-scroll-behavior="smooth" className={`${plusJakartaSans.variable} ${dmSans.variable}`}>
       <body><Providers>{children}<PWAInstallPrompt /><SentryClient /></Providers><Analytics /></body>
     </html>
   );
