@@ -58,7 +58,7 @@ describe("window boundaries (memory)", () => {
   });
 
   // KNOWN BUG (reported): NaN window -> resetAt NaN, bucket never expires, retryAfter NaN.
-  it.fails("windowMs NaN: must not block forever (expected: recovers or at least finite retryAfter)", async () => {
+  it("windowMs NaN: must not block forever (expected: recovers or at least finite retryAfter)", async () => {
     const clock = fakeClock();
     const rl = createRateLimiter({ now: clock.now });
     await rl("nan", 1, NaN);
@@ -164,7 +164,7 @@ describe("malformed redis replies fall back to memory", () => {
   // Finding: Number(null) === 0 and Number("") === 0 are finite, so these
   // are treated as "count 0" -> allowed, with no fallback. Fail-open.
   // KNOWN BUG (reported): Number(null) === 0 is finite -> treated as count 0, allowed, no fallback (fail-open).
-  it.fails("null reply must not be treated as a valid count (fail-open check)", async () => {
+  it("null reply must not be treated as a valid count (fail-open check)", async () => {
     const redis: RedisLike = { eval: async () => null };
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const rl = createRateLimiter({ redis, now: fakeClock().now });
@@ -288,7 +288,7 @@ describe("clientIp", () => {
     expect(ip({ "x-forwarded-for": "   " })).toBe("unknown");
   });
   // KNOWN BUG (reported): a leading comma gives "" -> shared empty-string bucket instead of a sane fallback.
-  it.fails("leading comma in x-forwarded-for does not yield an empty key", () => {
+  it("leading comma in x-forwarded-for does not yield an empty key", () => {
     expect(ip({ "x-forwarded-for": ",1.2.3.4" })).not.toBe("");
   });
   it("spoofing: each distinct leading value is a different bucket (known limitation)", () => {
