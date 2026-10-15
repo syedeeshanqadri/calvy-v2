@@ -1,5 +1,5 @@
-import Image from "next/image";
 import { cn } from "@/lib/utils";
+import { Logo } from "@/components/ui/Logo";
 
 /** Shared class strings so links look like the Button kit (links cannot sit inside <button>). */
 export const statusPrimaryLink =
@@ -26,7 +26,7 @@ export function StatusPage({ title, description, reference, alert, layout = "scr
     <div className="w-full max-w-md">
       {layout === "screen" && (
         <div className="flex justify-center mb-8">
-          <Image src="/calvy.svg" alt="Calvy" width={120} height={35} className="brightness-0 invert" priority />
+          <Logo width={120} className="brightness-0 invert" priority />
         </div>
       )}
       <div className={cn("bg-white rounded-3xl p-6 sm:p-8 text-center", layout === "screen" ? "shadow-2xl" : "border border-[#e8e6e0]")}>
@@ -45,8 +45,7 @@ export function StatusPage({ title, description, reference, alert, layout = "scr
   }
   return (
     <main
-      className="min-h-dvh bg-brand flex items-center justify-center p-4"
-      style={{ paddingTop: "max(1rem, env(safe-area-inset-top))", paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
+      className="min-h-dvh bg-brand flex items-center justify-center px-4 safe-pt-4 safe-pb-4"
     >
       {card}
     </main>

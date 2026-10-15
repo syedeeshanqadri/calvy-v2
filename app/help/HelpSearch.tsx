@@ -56,7 +56,6 @@ export function HelpSearch({ index, categories }: { index: IndexItem[]; categori
               onChange={e => setQ(e.target.value)}
               placeholder="Search for an answer…"
               className="w-full rounded-2xl border border-[#e8e6e0] bg-white pl-13 pr-12 py-4 text-base shadow-sm focus:outline-none focus:ring-4 focus:ring-sky-100 focus:border-sky-500 transition-all"
-              style={{ paddingLeft: "3.25rem" }}
             />
             {q && (
               <button onClick={() => setQ("")} className="absolute right-4 top-1/2 -translate-y-1/2 text-[#9b9b9b] hover:text-[#0f0f1a]">

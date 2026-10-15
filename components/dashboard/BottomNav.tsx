@@ -110,7 +110,7 @@ export function BottomNav() {
           </button>
         </div>
 
-        <div style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 1rem)" }} />
+        <div className="safe-pb-plus-4" />
       </div>
 
       {/* Bottom tab bar */}
@@ -148,7 +148,7 @@ export function BottomNav() {
             </span>
           </button>
         </div>
-        <div style={{ paddingBottom: "env(safe-area-inset-bottom)" }} />
+        <div className="safe-pb" />
       </nav>
     </>
   );

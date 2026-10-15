@@ -54,3 +54,17 @@ body {
 /* Lead-form micro-interactions */
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes popIn { from { opacity: 0; transform: scale(0.96) translateY(6px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+
+/* Safe-area insets as classes, not inline styles: inline `env()` values can be
+   re-serialised by the browser and trigger dev-mode "Prop `style` did not
+   match" hydration warnings. See docs/hydration.md. */
+@layer utilities {
+  .safe-pt-4 { padding-top: max(1rem, env(safe-area-inset-top)); }
+  .safe-pb-4 { padding-bottom: max(1rem, env(safe-area-inset-bottom)); }
+  .safe-pt { padding-top: env(safe-area-inset-top); }
+  .safe-pb { padding-bottom: env(safe-area-inset-bottom); }
+  .safe-pb-plus-4 { padding-bottom: calc(env(safe-area-inset-bottom) + 1rem); }
+  .safe-header-14 { padding-top: env(safe-area-inset-top); min-height: calc(3.5rem + env(safe-area-inset-top)); }
+  .safe-header-16 { padding-top: env(safe-area-inset-top); min-height: calc(4rem + env(safe-area-inset-top)); }
+  .pl-13 { padding-left: 3.25rem; }
+}

@@ -1,15 +1,14 @@
-import Image from "next/image";
+import { Logo } from "@/components/ui/Logo";
 
 /** Dark full-height background + logo + white card used by every auth screen. */
 export default function AuthShell({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
     <div
-      className="min-h-dvh bg-[#0f0f1a] flex items-center justify-center p-4"
-      style={{ paddingTop: "max(1rem, env(safe-area-inset-top))", paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
+      className="min-h-dvh bg-[#0f0f1a] flex items-center justify-center px-4 safe-pt-4 safe-pb-4"
     >
       <div className="w-full max-w-md">
         <div className="flex justify-center mb-10">
-          <Image src="/calvy.svg" alt="Calvy" width={120} height={35} className="brightness-0 invert" style={{ height: "auto" }} priority />
+          <Logo width={120} className="brightness-0 invert" priority />
         </div>
         <div className={`bg-white rounded-3xl p-6 sm:p-8 shadow-2xl ${className}`}>{children}</div>
         <p className="text-center text-white/60 text-xs mt-6">© 2026 Calvy · All rights reserved</p>
