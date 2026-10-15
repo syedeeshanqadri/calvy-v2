@@ -6,6 +6,7 @@ import { parseBody } from "@/lib/validation/common";
 import { broadcastSchema } from "@/lib/validation/misc";
 import { Resend } from "resend";
 import { sendWhatsApp } from "@/lib/whatsapp";
+import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
 
@@ -79,7 +80,7 @@ export async function POST(req: NextRequest) {
         await getResend().batch.send(emails);
         sentTo += chunk.length;
       } catch (err) {
-        console.error("[Broadcast] Email batch error:", err);
+        logger.error("[Broadcast] Email batch error:", { err });
       }
     }
   }

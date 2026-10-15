@@ -7,6 +7,7 @@ import { sendPushToAll, sendPushToBusinessIds } from "@/lib/push";
 
 import { parseBody } from "@/lib/validation/common";
 import { adminNotificationSchema } from "@/lib/validation/admin";
+import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
 
@@ -40,7 +41,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ error: "Specify targetAll or targetPlan" }, { status: 400 });
   } catch (err) {
-    console.error("[Admin notifications] Error:", err);
+    logger.error("[Admin notifications] Error:", { err });
     return NextResponse.json({ error: "Failed to send notifications" }, { status: 500 });
   }
 }

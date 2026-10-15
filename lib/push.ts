@@ -1,4 +1,5 @@
 import webpush from "web-push";
+import { logger } from "@/lib/logger";
 
 const VAPID_PUBLIC = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? "";
 const VAPID_PRIVATE = process.env.VAPID_PRIVATE_KEY ?? "";
@@ -12,7 +13,7 @@ if (isConfigured()) {
   try {
     webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC, VAPID_PRIVATE);
   } catch (err) {
-    console.error("[Push] Invalid VAPID keys:", err);
+    logger.error("[Push] Invalid VAPID keys:", { err });
   }
 }
 
@@ -41,7 +42,7 @@ export async function sendPushToSubscription(
       // Subscription expired — caller should delete from DB
       throw Object.assign(new Error("expired"), { expired: true });
     }
-    console.error("[Push] Send failed:", err);
+    logger.error("[Push] Send failed:", { err });
   }
 }
 

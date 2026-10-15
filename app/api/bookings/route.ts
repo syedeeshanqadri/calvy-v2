@@ -10,6 +10,7 @@ import { findClientByEmail } from "@/lib/email-normalize";
 import { parseBody } from "@/lib/validation/common";
 import { bookingSchema } from "@/lib/validation/bookings";
 import { isPastBooking, hasBookingConflict } from "@/lib/booking";
+import { logger } from "@/lib/logger";
 
 export const dynamic = 'force-dynamic';
 
@@ -172,7 +173,7 @@ export async function POST(req: NextRequest) {
         ctx: { appointmentId: appointment.id, businessId: business.id },
       });
     } catch (err) {
-      console.error("[Email] Failed:", err);
+      logger.error("[Email] Failed:", { err });
     }
 
     if (clientPhone) {
@@ -186,7 +187,7 @@ export async function POST(req: NextRequest) {
           time,
         });
       } catch (err) {
-        console.error("[WhatsApp] Failed:", err);
+        logger.error("[WhatsApp] Failed:", { err });
       }
     }
 
@@ -286,7 +287,7 @@ export async function POST(req: NextRequest) {
       ctx: { appointmentId: appointment.id, businessId: business.id },
     });
   } catch (err) {
-    console.error("[Email] Failed:", err);
+    logger.error("[Email] Failed:", { err });
   }
 
   if (clientPhone) {
@@ -300,7 +301,7 @@ export async function POST(req: NextRequest) {
         time,
       });
     } catch (err) {
-      console.error("[WhatsApp] Failed:", err);
+      logger.error("[WhatsApp] Failed:", { err });
     }
   }
 

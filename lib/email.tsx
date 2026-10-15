@@ -22,7 +22,7 @@ const FROM = process.env.EMAIL_FROM ?? "Calvy <onboarding@resend.dev>";
 
 function isConfigured() {
   if (!process.env.RESEND_API_KEY || process.env.RESEND_API_KEY === "re_REPLACE_ME") {
-    console.warn("[Email] RESEND_API_KEY not set — emails disabled");
+    logger.warn("email disabled: RESEND_API_KEY not set");
     return false;
   }
   return true;
@@ -45,7 +45,7 @@ async function logEmail(d: {
       },
     });
   } catch (e) {
-    console.error("[Email] log write failed:", e);
+    logger.error("[Email] log write failed:", { err: e });
   }
 }
 
@@ -71,14 +71,14 @@ async function dispatch(opts: {
     });
     if (result.error) {
       await logEmail({ ...meta, status: "failed", error: result.error.message ?? String(result.error) });
-      console.error(`[Email] ${opts.type} rejected:`, result.error);
+      logger.error("email rejected by provider", { type: opts.type, err: new Error(String(result.error.message ?? "unknown")) });
       return { ok: false };
     }
     await logEmail({ ...meta, status: "sent", providerId: result.data?.id });
     return { ok: true, id: result.data?.id };
   } catch (err) {
     await logEmail({ ...meta, status: "failed", error: err instanceof Error ? err.message : "send error" });
-    console.error(`[Email] ${opts.type} failed:`, err);
+    logger.error(`[Email] ${opts.type} failed:`, { err });
     return { ok: false };
   }
 }
@@ -194,6 +194,7 @@ export function sendLeadAcknowledgment({ to, name, demoRequested }: { to: string
 
 // Imported here (not in the header list) to keep this change append-only.
 import { PasswordResetEmail } from "@/emails/templates";
+import { logger } from "@/lib/logger";
 
 export function sendPasswordResetEmail({ to, name, token, baseUrl }: { to: string; name: string; token: string; baseUrl?: string }) {
   const appUrl = baseUrl ?? process.env.NEXT_PUBLIC_APP_URL ?? "https://calvy.io";

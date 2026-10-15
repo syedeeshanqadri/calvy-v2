@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { parseBody } from "@/lib/validation/common";
 import { appointmentPatchSchema } from "@/lib/validation/appointments";
 import { sendBookingCancellation, sendBookingReschedule, sendInvoice, type BookingDetails } from "@/lib/email";
+import { logger } from "@/lib/logger";
 
 export const dynamic = 'force-dynamic';
 
@@ -89,7 +90,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
         }
       }
     } catch (err) {
-      console.error("[Appointments] transactional email error:", err);
+      logger.error("[Appointments] transactional email error:", { err });
     }
   }
 

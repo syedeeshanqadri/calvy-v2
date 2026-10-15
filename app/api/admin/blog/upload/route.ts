@@ -2,6 +2,7 @@ import { put } from "@vercel/blob";
 import { NextRequest, NextResponse } from "next/server";
 import { checkImageUpload } from "@/lib/validation/upload";
 import { isAdminSession } from "@/lib/adminAuth";
+import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
 
@@ -28,7 +29,7 @@ export async function POST(req: NextRequest) {
     const blob = await put(pathname, file as File, { access: "public" });
     return NextResponse.json({ url: blob.url });
   } catch (err) {
-    console.error("[Blog upload] Error:", err);
+    logger.error("[Blog upload] Error:", { err });
     const message = err instanceof Error ? err.message : "Upload failed";
     return NextResponse.json({ error: message }, { status: 500 });
   }

@@ -1,12 +1,13 @@
 "use client";
 import { useEffect } from "react";
+import { reportClientError } from "@/lib/clientErrors";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { StatusPage, statusSecondaryLink } from "@/components/ui/StatusPage";
 
 export default function RouteError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   useEffect(() => {
-    console.error("App error", error.digest ?? "");
+    reportClientError(error);
   }, [error]);
 
   return (

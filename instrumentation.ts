@@ -1,6 +1,12 @@
 // Runs once when the Next.js server starts (enabled via
 // experimental.instrumentationHook in next.config.mjs).
 export async function register() {
+  // Error tracking (server and edge). Disabled unless SENTRY_DSN is set.
+  if (process.env.SENTRY_DSN) {
+    const Sentry = await import("@sentry/nextjs");
+    Sentry.init({ dsn: process.env.SENTRY_DSN, tracesSampleRate: 0, sendDefaultPii: false });
+  }
+
   if (process.env.NEXT_RUNTIME !== "nodejs") return;
 
   const { checkEnv, disabledServices } = await import("@/lib/env");

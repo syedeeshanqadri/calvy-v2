@@ -8,6 +8,7 @@ import { findClientByEmail } from "@/lib/email-normalize";
 import { sendPushToBusiness } from "@/lib/push";
 import { parseBody, parseQuery } from "@/lib/validation/common";
 import { appointmentCreateSchema, appointmentListQuery } from "@/lib/validation/appointments";
+import { logger } from "@/lib/logger";
 
 export const dynamic = 'force-dynamic';
 
@@ -167,7 +168,7 @@ export async function POST(request: NextRequest) {
       appointmentDate: apptDate,
     });
   } catch (err) {
-    console.error("[Email] Failed to send confirmation for panel booking:", err);
+    logger.error("[Email] Failed to send confirmation for panel booking:", { err });
   }
 
   return NextResponse.json({ appointment }, { status: 201 });

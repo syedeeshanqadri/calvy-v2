@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { checkImageUpload } from "@/lib/validation/upload";
 import { rateLimit } from "@/lib/ratelimit";
+import { logger } from "@/lib/logger";
 
 export async function POST(req: NextRequest) {
   try {
@@ -37,7 +38,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ url: blob.url });
   } catch (err) {
-    console.error("[Upload] Error:", err);
+    logger.error("[Upload] Error:", { err });
     const message = err instanceof Error ? err.message : "Upload failed";
     return NextResponse.json({ error: message }, { status: 500 });
   }

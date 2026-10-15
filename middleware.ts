@@ -48,12 +48,21 @@ const authMiddleware = withAuth(
 export default async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  // Feature-flag guard: API entry points of disabled features return 404.
   if (pathname.startsWith("/api/")) {
+    // Request id for log correlation: keep a sane caller-supplied one, else mint one.
+    const incoming = req.headers.get("x-request-id");
+    const requestId = incoming && /^[\w-]{8,64}$/.test(incoming) ? incoming : crypto.randomUUID();
+
+    // Feature-flag guard: API entry points of disabled features return 404.
     const flag = featureForApiPath(pathname);
     if (flag && !isFeatureEnabled(flag)) {
-      return NextResponse.json({ error: "Not found" }, { status: 404 });
+      return NextResponse.json({ error: "Not found" }, { status: 404, headers: { "x-request-id": requestId } });
     }
+
+    // API routes skip auth middleware and subdomain rewrites.
+    const headers = new Headers(req.headers);
+    headers.set("x-request-id", requestId);
+    return NextResponse.next({ request: { headers }, headers: { "x-request-id": requestId } });
   }
 
   // Already-authenticated users should never see the auth pages — send them

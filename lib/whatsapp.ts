@@ -1,10 +1,11 @@
+import { logger } from "@/lib/logger";
 const BASE_URL = "https://graph.facebook.com/v19.0";
 
 function isConfigured() {
   const phoneId = process.env.WHATSAPP_PHONE_NUMBER_ID;
   const token = process.env.WHATSAPP_ACCESS_TOKEN;
   if (!phoneId || phoneId === "REPLACE_ME" || !token || token === "REPLACE_ME") {
-    console.log("[WhatsApp] Not configured — skipping");
+    logger.info("whatsapp not configured; skipping");
     return false;
   }
   return true;
@@ -46,7 +47,7 @@ export async function sendWhatsApp(to: string, body: string): Promise<boolean> {
     await sendMessage(to, body);
     return true;
   } catch (err) {
-    console.error("[WhatsApp] Send failed:", err);
+    logger.error("[WhatsApp] Send failed:", { err });
     return false;
   }
 }
@@ -65,9 +66,9 @@ export async function sendBookingConfirmationWhatsApp(details: {
 
   try {
     const result = await sendMessage(to, body);
-    console.log("[WhatsApp] Sent confirmation to", to, result);
+    logger.info("whatsapp confirmation sent");
   } catch (err) {
-    console.error("[WhatsApp] Failed to send confirmation:", err);
+    logger.error("[WhatsApp] Failed to send confirmation:", { err });
   }
 }
 
@@ -84,6 +85,6 @@ export async function sendReminderWhatsApp(details: {
   try {
     await sendMessage(to, body);
   } catch (err) {
-    console.error("[WhatsApp] Failed to send reminder:", err);
+    logger.error("[WhatsApp] Failed to send reminder:", { err });
   }
 }

@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { sendBookingReminder } from "@/lib/email";
 import { sendReminderWhatsApp } from "@/lib/whatsapp";
 import { sendPushToBusiness } from "@/lib/push";
+import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -73,7 +74,7 @@ export async function GET(req: NextRequest) {
           time: timeLabel,
           ctx: { appointmentId: appt.id, businessId: appt.businessId },
         }).catch((e) => {
-          console.error("[Cron] reminder email failed:", e);
+          logger.error("[Cron] reminder email failed:", { err: e });
           return { ok: false };
         });
         if (res.ok) delivered = true;
@@ -87,7 +88,7 @@ export async function GET(req: NextRequest) {
           time: timeLabel,
         }).catch((e) => {
           attempted = false;
-          console.error("[Cron] reminder WhatsApp failed:", e);
+          logger.error("[Cron] reminder WhatsApp failed:", { err: e });
         });
         if (attempted && !hasEmail) delivered = true;
       }
@@ -98,7 +99,7 @@ export async function GET(req: NextRequest) {
         body: `${appt.client.name} — ${appt.service.name} tomorrow at ${timeLabel}`,
         url: "/dashboard/appointments",
         tag: `reminder-${appt.id}`,
-      }).catch((e) => console.error("[Cron] reminder push failed:", e));
+      }).catch((e) => logger.error("[Cron] reminder push failed:", { err: e }));
 
       if (delivered) {
         await prisma.appointment.update({
@@ -107,7 +108,7 @@ export async function GET(req: NextRequest) {
         });
         sent++;
       } else {
-        console.warn("[Cron] reminder not delivered; will stay unsent", appt.id);
+        logger.warn("cron: reminder not delivered; will stay unsent", { appointmentId: appt.id });
       }
     })
   );

@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 
 import { parseBody } from "@/lib/validation/common";
 import { tenantPatchSchema, tenantDeleteSchema } from "@/lib/validation/admin";
+import { logger } from "@/lib/logger";
 
 export const dynamic = 'force-dynamic';
 
@@ -45,7 +46,7 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
   if (parsed.data.confirm !== tenant.slug) {
     return NextResponse.json({ error: "Confirmation does not match the tenant slug." }, { status: 400 });
   }
-  console.warn(`[admin] tenant deleted id=${tenant.id} slug=${tenant.slug} by=${session?.user?.email ?? "unknown"}`);
+  logger.warn("admin: tenant deleted", { tenantId: tenant.id, slug: tenant.slug, adminId: session?.user?.id });
 
   // Delete business (cascades to staff, services, clients, appointments)
   await prisma.business.delete({ where: { id: params.id } });
