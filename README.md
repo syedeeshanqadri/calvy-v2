@@ -266,6 +266,22 @@ npx prisma generate      # regenerate Prisma client
 npx prisma studio        # visual explorer at localhost:5555
 ```
 
+### Test accounts (dev only)
+
+`prisma/seed.ts` is idempotent and also creates these accounts. All share one password, printed at the end of the seed run (`CalvyDev#2026`). Never seed these into a production database.
+
+| Email | Purpose |
+|---|---|
+| `demo@calvy.io` (password `password123`) | Owner with demo business, services, staff, clients, appointments |
+| `admin@calvy.test` | Super admin (`role = "admin"`), email verified. Reaches `/admin/*` and `/crm`; no env var needed |
+| `newowner@calvy.test` | Email verified, no business yet, so login redirects to `/onboarding` |
+
+It also upserts two published sample blog posts (`test-how-to-reduce-no-shows`, `test-setting-up-online-booking`).
+
+```bash
+npx tsx --env-file=.env.local prisma/seed.ts   # the seed does not load .env.local by itself
+```
+
 ---
 
 ## Utilities

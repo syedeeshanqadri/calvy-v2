@@ -1,0 +1,1750 @@
+[
+ {
+  "url": "/",
+  "status": 200,
+  "finalPath": "/",
+  "consoleErrors": [],
+  "title": "Calvy — Smart Appointment Booking",
+  "h1": 1,
+  "lang": "en",
+  "scrollW": 375,
+  "vw": 375,
+  "overflowX": false,
+  "wide": [
+   "div.absolute -bottom-20 -left-20 w-[500px] h-[500px] r",
+   "div.relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py",
+   "div.grid lg:grid-cols-2 gap-16 items-center",
+   "div."
+  ],
+  "smallTargets": 31,
+  "smallSample": [
+   "/ 110x28",
+   "BUTTON 36x36",
+   "Or book a personal demo 188x20",
+   "Previous 36x36",
+   "Next 36x36"
+  ],
+  "unlabeledInputs": 5,
+  "unlabeledSample": [
+   "Enter your email",
+   "you@business.com",
+   "Your name",
+   "you@business.com"
+  ],
+  "iconBtnNoName": 3,
+  "imgNoAlt": 0,
+  "hashLinks": [
+   "𝕏",
+   "in",
+   "f",
+   "Integrations",
+   "Changelog",
+   "About",
+   "Careers"
+  ],
+  "tinyText": 43,
+  "fonts": [
+   "__DM_Sans_0b9930",
+   "__Plus_Jakarta_Sans_64a611"
+  ],
+  "sizes": [
+   "16px",
+   "14px",
+   "48px",
+   "20px",
+   "12px",
+   "10px",
+   "18px",
+   "9px",
+   "7px",
+   "11px",
+   "6px",
+   "8px",
+   "6.5px",
+   "7.5px",
+   "36px",
+   "24px",
+   "30px"
+  ],
+  "viewportMeta": true
+ },
+ {
+  "url": "/blog",
+  "status": 200,
+  "finalPath": "/blog",
+  "consoleErrors": [],
+  "title": "Blog · Calvy",
+  "h1": 1,
+  "lang": "en",
+  "scrollW": 375,
+  "vw": 375,
+  "overflowX": false,
+  "wide": [],
+  "smallTargets": 21,
+  "smallSample": [
+   "/ 110x28",
+   "BUTTON 36x36",
+   "𝕏 36x36",
+   "in 36x36",
+   "f 36x36"
+  ],
+  "unlabeledInputs": 1,
+  "unlabeledSample": [
+   "you@business.com"
+  ],
+  "iconBtnNoName": 3,
+  "imgNoAlt": 0,
+  "hashLinks": [
+   "𝕏",
+   "in",
+   "f",
+   "Integrations",
+   "Changelog",
+   "About",
+   "Careers"
+  ],
+  "tinyText": 4,
+  "fonts": [
+   "__DM_Sans_0b9930",
+   "__Plus_Jakarta_Sans_64a611"
+  ],
+  "sizes": [
+   "14px",
+   "12px",
+   "36px",
+   "18px",
+   "10px",
+   "16px"
+  ],
+  "viewportMeta": true
+ },
+ {
+  "url": "/help",
+  "status": 200,
+  "finalPath": "/help",
+  "consoleErrors": [],
+  "title": "Help Center · Calvy",
+  "h1": 1,
+  "lang": "en",
+  "scrollW": 375,
+  "vw": 375,
+  "overflowX": false,
+  "wide": [],
+  "smallTargets": 22,
+  "smallSample": [
+   "/ 110x28",
+   "BUTTON 36x36",
+   "Contact support 150x40",
+   "𝕏 36x36",
+   "in 36x36"
+  ],
+  "unlabeledInputs": 2,
+  "unlabeledSample": [
+   "Search for an answer…",
+   "you@business.com"
+  ],
+  "iconBtnNoName": 3,
+  "imgNoAlt": 0,
+  "hashLinks": [
+   "𝕏",
+   "in",
+   "f",
+   "Integrations",
+   "Changelog",
+   "About",
+   "Careers"
+  ],
+  "tinyText": 0,
+  "fonts": [
+   "__DM_Sans_0b9930",
+   "__Plus_Jakarta_Sans_64a611"
+  ],
+  "sizes": [
+   "14px",
+   "12px",
+   "36px",
+   "18px",
+   "20px",
+   "16px"
+  ],
+  "viewportMeta": true
+ },
+ {
+  "url": "/privacy",
+  "status": 200,
+  "finalPath": "/privacy",
+  "consoleErrors": [],
+  "title": "Privacy Policy · Calvy",
+  "h1": 1,
+  "lang": "en",
+  "scrollW": 375,
+  "vw": 375,
+  "overflowX": false,
+  "wide": [],
+  "smallTargets": 22,
+  "smallSample": [
+   "/ 110x28",
+   "BUTTON 36x36",
+   "support@calvy.io 124x20",
+   "𝕏 36x36",
+   "in 36x36"
+  ],
+  "unlabeledInputs": 1,
+  "unlabeledSample": [
+   "you@business.com"
+  ],
+  "iconBtnNoName": 3,
+  "imgNoAlt": 0,
+  "hashLinks": [
+   "𝕏",
+   "in",
+   "f",
+   "Integrations",
+   "Changelog",
+   "About",
+   "Careers"
+  ],
+  "tinyText": 0,
+  "fonts": [
+   "__DM_Sans_0b9930",
+   "__Plus_Jakarta_Sans_64a611"
+  ],
+  "sizes": [
+   "14px",
+   "30px",
+   "15px",
+   "20px",
+   "16px"
+  ],
+  "viewportMeta": true
+ },
+ {
+  "url": "/terms",
+  "status": 200,
+  "finalPath": "/terms",
+  "consoleErrors": [],
+  "title": "Terms & Conditions · Calvy",
+  "h1": 1,
+  "lang": "en",
+  "scrollW": 375,
+  "vw": 375,
+  "overflowX": false,
+  "wide": [],
+  "smallTargets": 22,
+  "smallSample": [
+   "/ 110x28",
+   "BUTTON 36x36",
+   "support@calvy.io 124x20",
+   "𝕏 36x36",
+   "in 36x36"
+  ],
+  "unlabeledInputs": 1,
+  "unlabeledSample": [
+   "you@business.com"
+  ],
+  "iconBtnNoName": 3,
+  "imgNoAlt": 0,
+  "hashLinks": [
+   "𝕏",
+   "in",
+   "f",
+   "Integrations",
+   "Changelog",
+   "About",
+   "Careers"
+  ],
+  "tinyText": 0,
+  "fonts": [
+   "__DM_Sans_0b9930",
+   "__Plus_Jakarta_Sans_64a611"
+  ],
+  "sizes": [
+   "14px",
+   "30px",
+   "15px",
+   "20px",
+   "16px"
+  ],
+  "viewportMeta": true
+ },
+ {
+  "url": "/refund-policy",
+  "status": 200,
+  "finalPath": "/refund-policy",
+  "consoleErrors": [],
+  "title": "Refund Policy · Calvy",
+  "h1": 1,
+  "lang": "en",
+  "scrollW": 375,
+  "vw": 375,
+  "overflowX": false,
+  "wide": [],
+  "smallTargets": 23,
+  "smallSample": [
+   "/ 110x28",
+   "BUTTON 36x36",
+   "support@calvy.io 124x20",
+   "support@calvy.io 124x20",
+   "𝕏 36x36"
+  ],
+  "unlabeledInputs": 1,
+  "unlabeledSample": [
+   "you@business.com"
+  ],
+  "iconBtnNoName": 3,
+  "imgNoAlt": 0,
+  "hashLinks": [
+   "𝕏",
+   "in",
+   "f",
+   "Integrations",
+   "Changelog",
+   "About",
+   "Careers"
+  ],
+  "tinyText": 0,
+  "fonts": [
+   "__DM_Sans_0b9930",
+   "__Plus_Jakarta_Sans_64a611"
+  ],
+  "sizes": [
+   "14px",
+   "30px",
+   "15px",
+   "20px",
+   "16px"
+  ],
+  "viewportMeta": true
+ },
+ {
+  "url": "/signup",
+  "status": 200,
+  "finalPath": "/signup",
+  "consoleErrors": [],
+  "title": "Calvy — Smart Appointment Booking",
+  "h1": 1,
+  "lang": "en",
+  "scrollW": 375,
+  "vw": 375,
+  "overflowX": false,
+  "wide": [],
+  "smallTargets": 3,
+  "smallSample": [
+   "Terms 34x16",
+   "Privacy Policy 153x32",
+   "Sign in 43x18"
+  ],
+  "unlabeledInputs": 5,
+  "unlabeledSample": [
+   "Alex Johnson",
+   "My Salon",
+   "you@business.com",
+   "Min. 8 characters"
+  ],
+  "iconBtnNoName": 0,
+  "imgNoAlt": 0,
+  "hashLinks": [],
+  "tinyText": 0,
+  "fonts": [
+   "__Plus_Jakarta_Sans_64a611",
+   "__DM_Sans_0b9930"
+  ],
+  "sizes": [
+   "24px",
+   "14px",
+   "12px",
+   "16px"
+  ],
+  "viewportMeta": true
+ },
+ {
+  "url": "/login",
+  "status": 200,
+  "finalPath": "/login",
+  "consoleErrors": [],
+  "title": "Calvy — Smart Appointment Booking",
+  "h1": 1,
+  "lang": "en",
+  "scrollW": 375,
+  "vw": 375,
+  "overflowX": false,
+  "wide": [],
+  "smallTargets": 1,
+  "smallSample": [
+   "Get started free 106x18"
+  ],
+  "unlabeledInputs": 2,
+  "unlabeledSample": [
+   "you@business.com",
+   "••••••••"
+  ],
+  "iconBtnNoName": 0,
+  "imgNoAlt": 0,
+  "hashLinks": [],
+  "tinyText": 0,
+  "fonts": [
+   "__Plus_Jakarta_Sans_64a611",
+   "__DM_Sans_0b9930"
+  ],
+  "sizes": [
+   "24px",
+   "14px",
+   "12px",
+   "16px"
+  ],
+  "viewportMeta": true
+ },
+ {
+  "url": "/alex-johnson-studio",
+  "status": 200,
+  "finalPath": "/alex-johnson-studio",
+  "consoleErrors": [],
+  "title": "Alex Johnson Studio",
+  "h1": 1,
+  "lang": "en",
+  "scrollW": 375,
+  "vw": 375,
+  "overflowX": false,
+  "wide": [],
+  "smallTargets": 7,
+  "smallSample": [
+   "#about 28x28",
+   "Book an appointment 166x20",
+   "About Us 51x16",
+   "Our Services 71x16",
+   "Our Team 53x16"
+  ],
+  "unlabeledInputs": 0,
+  "unlabeledSample": [],
+  "iconBtnNoName": 2,
+  "imgNoAlt": 0,
+  "hashLinks": [],
+  "tinyText": 0,
+  "fonts": [
+   "__DM_Sans_0b9930"
+  ],
+  "sizes": [
+   "16px",
+   "20px",
+   "14px",
+   "12px",
+   "48px",
+   "18px",
+   "36px",
+   "24px",
+   "30px"
+  ],
+  "viewportMeta": true
+ },
+ {
+  "url": "/alex-johnson-studio/book-now",
+  "status": 200,
+  "finalPath": "/alex-johnson-studio/book-now",
+  "consoleErrors": [],
+  "title": "Book an appointment — Alex Johnson Studio",
+  "h1": 1,
+  "lang": "en",
+  "scrollW": 375,
+  "vw": 375,
+  "overflowX": false,
+  "wide": [],
+  "smallTargets": 1,
+  "smallSample": [
+   "Back to website 109x16"
+  ],
+  "unlabeledInputs": 1,
+  "unlabeledSample": [
+   "Search services..."
+  ],
+  "iconBtnNoName": 0,
+  "imgNoAlt": 0,
+  "hashLinks": [],
+  "tinyText": 0,
+  "fonts": [
+   "__DM_Sans_0b9930",
+   "__Plus_Jakarta_Sans_64a611"
+  ],
+  "sizes": [
+   "12px",
+   "24px",
+   "14px",
+   "16px",
+   "18px"
+  ],
+  "viewportMeta": true
+ },
+ {
+  "url": "/b/alex-johnson-studio",
+  "status": 200,
+  "finalPath": "/b/alex-johnson-studio",
+  "consoleErrors": [],
+  "title": "Calvy — Smart Appointment Booking",
+  "h1": 1,
+  "lang": "en",
+  "scrollW": 375,
+  "vw": 375,
+  "overflowX": false,
+  "wide": [],
+  "smallTargets": 1,
+  "smallSample": [
+   "Back to website 109x16"
+  ],
+  "unlabeledInputs": 1,
+  "unlabeledSample": [
+   "Search services..."
+  ],
+  "iconBtnNoName": 0,
+  "imgNoAlt": 0,
+  "hashLinks": [],
+  "tinyText": 0,
+  "fonts": [
+   "__DM_Sans_0b9930",
+   "__Plus_Jakarta_Sans_64a611"
+  ],
+  "sizes": [
+   "12px",
+   "24px",
+   "14px",
+   "16px",
+   "18px"
+  ],
+  "viewportMeta": true
+ },
+ {
+  "url": "/booking/success",
+  "status": 200,
+  "finalPath": "/booking/success",
+  "consoleErrors": [],
+  "title": "Calvy — Smart Appointment Booking",
+  "h1": 1,
+  "lang": "en",
+  "scrollW": 375,
+  "vw": 375,
+  "overflowX": false,
+  "wide": [],
+  "smallTargets": 0,
+  "smallSample": [],
+  "unlabeledInputs": 0,
+  "unlabeledSample": [],
+  "iconBtnNoName": 0,
+  "imgNoAlt": 0,
+  "hashLinks": [],
+  "tinyText": 0,
+  "fonts": [
+   "__Plus_Jakarta_Sans_64a611",
+   "__DM_Sans_0b9930"
+  ],
+  "sizes": [
+   "24px",
+   "16px",
+   "14px"
+  ],
+  "viewportMeta": true
+ },
+ {
+  "url": "/blog/test-how-to-reduce-no-shows",
+  "status": 200,
+  "finalPath": "/blog/test-how-to-reduce-no-shows",
+  "consoleErrors": [],
+  "title": "How to Reduce No-Shows at Your Appointment Business · Calvy",
+  "h1": 2,
+  "lang": "en",
+  "scrollW": 375,
+  "vw": 375,
+  "overflowX": false,
+  "wide": [],
+  "smallTargets": 24,
+  "smallSample": [
+   "/ 110x28",
+   "BUTTON 36x36",
+   "All posts 80x20",
+   "Send reminders 102x18",
+   "Take deposits 89x18"
+  ],
+  "unlabeledInputs": 1,
+  "unlabeledSample": [
+   "you@business.com"
+  ],
+  "iconBtnNoName": 3,
+  "imgNoAlt": 0,
+  "hashLinks": [
+   "𝕏",
+   "in",
+   "f",
+   "Integrations",
+   "Changelog",
+   "About",
+   "Careers"
+  ],
+  "tinyText": 2,
+  "fonts": [
+   "__DM_Sans_0b9930",
+   "__Plus_Jakarta_Sans_64a611"
+  ],
+  "sizes": [
+   "14px",
+   "16px",
+   "11px",
+   "30px",
+   "12px",
+   "24px"
+  ],
+  "viewportMeta": true
+ },
+ {
+  "url": "/dashboard",
+  "status": 200,
+  "finalPath": "/dashboard",
+  "consoleErrors": [],
+  "title": "Calvy — Smart Appointment Booking",
+  "h1": 1,
+  "lang": "en",
+  "scrollW": 375,
+  "vw": 375,
+  "overflowX": false,
+  "wide": [],
+  "smallTargets": 8,
+  "smallSample": [
+   "/dashboard 64x16",
+   "BUTTON 34x34",
+   "BUTTON 28x28",
+   "BUTTON 28x28",
+   "BUTTON 28x28"
+  ],
+  "unlabeledInputs": 0,
+  "unlabeledSample": [],
+  "iconBtnNoName": 6,
+  "imgNoAlt": 0,
+  "hashLinks": [],
+  "tinyText": 35,
+  "fonts": [
+   "__DM_Sans_0b9930",
+   "__Plus_Jakarta_Sans_64a611"
+  ],
+  "sizes": [
+   "16px",
+   "10px",
+   "14px",
+   "15px",
+   "12px",
+   "24px",
+   "11px"
+  ],
+  "viewportMeta": true
+ },
+ {
+  "url": "/dashboard/analytics",
+  "status": 200,
+  "finalPath": "/dashboard/analytics",
+  "consoleErrors": [],
+  "title": "Calvy — Smart Appointment Booking",
+  "h1": 1,
+  "lang": "en",
+  "scrollW": 375,
+  "vw": 375,
+  "overflowX": false,
+  "wide": [],
+  "smallTargets": 3,
+  "smallSample": [
+   "/dashboard 64x16",
+   "BUTTON 34x34",
+   "BUTTON 30x30"
+  ],
+  "unlabeledInputs": 0,
+  "unlabeledSample": [],
+  "iconBtnNoName": 2,
+  "imgNoAlt": 0,
+  "hashLinks": [],
+  "tinyText": 28,
+  "fonts": [
+   "__DM_Sans_0b9930",
+   "__Plus_Jakarta_Sans_64a611"
+  ],
+  "sizes": [
+   "16px",
+   "10px",
+   "14px",
+   "15px",
+   "12px",
+   "24px",
+   "11px"
+  ],
+  "viewportMeta": true
+ },
+ {
+  "url": "/dashboard/appointments",
+  "status": 200,
+  "finalPath": "/dashboard/appointments",
+  "consoleErrors": [],
+  "title": "Calvy — Smart Appointment Booking",
+  "h1": 1,
+  "lang": "en",
+  "scrollW": 375,
+  "vw": 375,
+  "overflowX": false,
+  "wide": [
+   "table.w-full",
+   "thead.",
+   "tr.bg-[#fafaf8] border-b border-[#f0ede8]",
+   "th.text-left text-xs font-semibold text-[#6b6b80] px-"
+  ],
+  "smallTargets": 20,
+  "smallSample": [
+   "/dashboard 64x16",
+   "BUTTON 34x34",
+   "All 48x32",
+   "Confirmed 102x32",
+   "Pending 85x32"
+  ],
+  "unlabeledInputs": 1,
+  "unlabeledSample": [
+   "Search appointments..."
+  ],
+  "iconBtnNoName": 2,
+  "imgNoAlt": 0,
+  "hashLinks": [],
+  "tinyText": 24,
+  "fonts": [
+   "__DM_Sans_0b9930",
+   "__Plus_Jakarta_Sans_64a611"
+  ],
+  "sizes": [
+   "16px",
+   "10px",
+   "14px",
+   "15px",
+   "12px",
+   "11px"
+  ],
+  "viewportMeta": true
+ },
+ {
+  "url": "/dashboard/billing",
+  "status": 200,
+  "finalPath": "/dashboard/billing",
+  "consoleErrors": [],
+  "title": "Calvy — Smart Appointment Booking",
+  "h1": 1,
+  "lang": "en",
+  "scrollW": 375,
+  "vw": 375,
+  "overflowX": false,
+  "wide": [
+   "table.w-full text-sm",
+   "thead.",
+   "tr.bg-[#fafaf8] border-b border-[#f0ede8]",
+   "th.text-center px-4 py-3 text-xs font-semibold text-a"
+  ],
+  "smallTargets": 7,
+  "smallSample": [
+   "/dashboard 64x16",
+   "BUTTON 34x34",
+   "Monthly 86x32",
+   "Switch plan 293x40",
+   "Switch plan 293x40"
+  ],
+  "unlabeledInputs": 0,
+  "unlabeledSample": [],
+  "iconBtnNoName": 2,
+  "imgNoAlt": 0,
+  "hashLinks": [],
+  "tinyText": 19,
+  "fonts": [
+   "__DM_Sans_0b9930",
+   "__Plus_Jakarta_Sans_64a611"
+  ],
+  "sizes": [
+   "10px",
+   "14px",
+   "15px",
+   "12px",
+   "18px",
+   "24px",
+   "16px",
+   "30px",
+   "11px"
+  ],
+  "viewportMeta": true
+ },
+ {
+  "url": "/dashboard/booking-page",
+  "status": 200,
+  "finalPath": "/dashboard/booking-page",
+  "consoleErrors": [],
+  "title": "Calvy — Smart Appointment Booking",
+  "h1": 1,
+  "lang": "en",
+  "scrollW": 375,
+  "vw": 375,
+  "overflowX": false,
+  "wide": [
+   "div.xl:col-span-2 space-y-5",
+   "div.bg-white rounded-2xl border border-[#e8e6e0] shado",
+   "div.flex items-center justify-between px-6 py-4 border",
+   "div.px-6 py-4"
+  ],
+  "smallTargets": 16,
+  "smallSample": [
+   "/dashboard 64x16",
+   "BUTTON 34x34",
+   "Copy link 201x38",
+   "Open page 199x38",
+   "BUTTON 32x32"
+  ],
+  "unlabeledInputs": 3,
+  "unlabeledSample": [
+   "INPUT",
+   "Brief description shown on you",
+   "INPUT"
+  ],
+  "iconBtnNoName": 11,
+  "imgNoAlt": 0,
+  "hashLinks": [],
+  "tinyText": 19,
+  "fonts": [
+   "__DM_Sans_0b9930",
+   "__Plus_Jakarta_Sans_64a611",
+   "ui-monospace"
+  ],
+  "sizes": [
+   "10px",
+   "14px",
+   "15px",
+   "12px",
+   "11px",
+   "20px",
+   "18px",
+   "16px"
+  ],
+  "viewportMeta": true
+ },
+ {
+  "url": "/dashboard/broadcasts",
+  "status": 200,
+  "finalPath": "/dashboard/broadcasts",
+  "consoleErrors": [],
+  "title": "Calvy — Smart Appointment Booking",
+  "h1": 1,
+  "lang": "en",
+  "scrollW": 375,
+  "vw": 375,
+  "overflowX": false,
+  "wide": [],
+  "smallTargets": 5,
+  "smallSample": [
+   "/dashboard 64x16",
+   "BUTTON 34x34",
+   "e.g. Special offer just for yo 293x42",
+   "Send broadcast 168x40",
+   "BUTTON 30x30"
+  ],
+  "unlabeledInputs": 2,
+  "unlabeledSample": [
+   "e.g. Special offer just for yo",
+   "Hi! We have an exclusive offer"
+  ],
+  "iconBtnNoName": 2,
+  "imgNoAlt": 0,
+  "hashLinks": [],
+  "tinyText": 19,
+  "fonts": [
+   "__DM_Sans_0b9930",
+   "__Plus_Jakarta_Sans_64a611"
+  ],
+  "sizes": [
+   "16px",
+   "10px",
+   "14px",
+   "15px",
+   "12px",
+   "18px",
+   "11px"
+  ],
+  "viewportMeta": true
+ },
+ {
+  "url": "/dashboard/calendar",
+  "status": 200,
+  "finalPath": "/dashboard/calendar",
+  "consoleErrors": [],
+  "title": "Calvy — Smart Appointment Booking",
+  "h1": 1,
+  "lang": "en",
+  "scrollW": 375,
+  "vw": 375,
+  "overflowX": false,
+  "wide": [],
+  "smallTargets": 8,
+  "smallSample": [
+   "/dashboard 64x16",
+   "BUTTON 34x34",
+   "BUTTON 32x32",
+   "BUTTON 32x32",
+   "Today 34x16"
+  ],
+  "unlabeledInputs": 0,
+  "unlabeledSample": [],
+  "iconBtnNoName": 4,
+  "imgNoAlt": 0,
+  "hashLinks": [],
+  "tinyText": 50,
+  "fonts": [
+   "__DM_Sans_0b9930",
+   "__Plus_Jakarta_Sans_64a611"
+  ],
+  "sizes": [
+   "10px",
+   "14px",
+   "15px",
+   "12px",
+   "16px",
+   "11px"
+  ],
+  "viewportMeta": true
+ },
+ {
+  "url": "/dashboard/clients",
+  "status": 200,
+  "finalPath": "/dashboard/clients",
+  "consoleErrors": [
+   "Warning: Expected server HTML to contain a matching <%s> in <%s>.%s div a \n    at div\n    at Card (webpack-internal:///(app-pages-browser)/.",
+   "Warning: In HTML, %s cannot be a descendant of <%s>.\nThis will cause a hydration error.%s <a> a \n    at a\n    at div\n    at div\n    at Card "
+  ],
+  "title": "Calvy — Smart Appointment Booking",
+  "h1": 1,
+  "lang": "en",
+  "scrollW": 375,
+  "vw": 375,
+  "overflowX": false,
+  "wide": [],
+  "smallTargets": 23,
+  "smallSample": [
+   "/dashboard 64x16",
+   "BUTTON 34x34",
+   "Search clients... 229x40",
+   "Grid 48x30",
+   "List 44x30"
+  ],
+  "unlabeledInputs": 1,
+  "unlabeledSample": [
+   "Search clients..."
+  ],
+  "iconBtnNoName": 2,
+  "imgNoAlt": 0,
+  "hashLinks": [],
+  "tinyText": 32,
+  "fonts": [
+   "__DM_Sans_0b9930",
+   "__Plus_Jakarta_Sans_64a611"
+  ],
+  "sizes": [
+   "16px",
+   "10px",
+   "14px",
+   "15px",
+   "12px",
+   "11px"
+  ],
+  "viewportMeta": true
+ },
+ {
+  "url": "/dashboard/expenses",
+  "status": 200,
+  "finalPath": "/dashboard/expenses",
+  "consoleErrors": [],
+  "title": "Calvy — Smart Appointment Booking",
+  "h1": 1,
+  "lang": "en",
+  "scrollW": 375,
+  "vw": 375,
+  "overflowX": false,
+  "wide": [],
+  "smallTargets": 6,
+  "smallSample": [
+   "/dashboard 64x16",
+   "BUTTON 34x34",
+   "All time 80x32",
+   "Add 66x28",
+   "Add expense 125x32"
+  ],
+  "unlabeledInputs": 1,
+  "unlabeledSample": [
+   "All time"
+  ],
+  "iconBtnNoName": 2,
+  "imgNoAlt": 0,
+  "hashLinks": [],
+  "tinyText": 16,
+  "fonts": [
+   "__DM_Sans_0b9930",
+   "__Plus_Jakarta_Sans_64a611"
+  ],
+  "sizes": [
+   "16px",
+   "10px",
+   "14px",
+   "15px",
+   "12px",
+   "20px",
+   "11px"
+  ],
+  "viewportMeta": true
+ },
+ {
+  "url": "/dashboard/payments",
+  "status": 200,
+  "finalPath": "/dashboard/payments",
+  "consoleErrors": [],
+  "title": "Calvy — Smart Appointment Booking",
+  "h1": 1,
+  "lang": "en",
+  "scrollW": 375,
+  "vw": 375,
+  "overflowX": false,
+  "wide": [
+   "table.w-full",
+   "thead.",
+   "tr.bg-[#fafaf8] border-b border-[#f0ede8]",
+   "th.text-left text-xs font-semibold text-[#6b6b80] px-"
+  ],
+  "smallTargets": 4,
+  "smallSample": [
+   "/dashboard 64x16",
+   "BUTTON 34x34",
+   "Export CSV 64x16",
+   "BUTTON 30x30"
+  ],
+  "unlabeledInputs": 0,
+  "unlabeledSample": [],
+  "iconBtnNoName": 2,
+  "imgNoAlt": 0,
+  "hashLinks": [],
+  "tinyText": 16,
+  "fonts": [
+   "__DM_Sans_0b9930",
+   "__Plus_Jakarta_Sans_64a611"
+  ],
+  "sizes": [
+   "10px",
+   "14px",
+   "15px",
+   "12px",
+   "24px",
+   "16px",
+   "11px"
+  ],
+  "viewportMeta": true
+ },
+ {
+  "url": "/dashboard/services",
+  "status": 200,
+  "finalPath": "/dashboard/services",
+  "consoleErrors": [],
+  "title": "Calvy — Smart Appointment Booking",
+  "h1": 1,
+  "lang": "en",
+  "scrollW": 375,
+  "vw": 375,
+  "overflowX": false,
+  "wide": [],
+  "smallTargets": 27,
+  "smallSample": [
+   "/dashboard 64x16",
+   "BUTTON 34x34",
+   "BUTTON 22x22",
+   "BUTTON 28x28",
+   "BUTTON 28x28"
+  ],
+  "unlabeledInputs": 0,
+  "unlabeledSample": [],
+  "iconBtnNoName": 20,
+  "imgNoAlt": 0,
+  "hashLinks": [],
+  "tinyText": 16,
+  "fonts": [
+   "__DM_Sans_0b9930",
+   "__Plus_Jakarta_Sans_64a611"
+  ],
+  "sizes": [
+   "10px",
+   "14px",
+   "15px",
+   "12px",
+   "16px",
+   "11px"
+  ],
+  "viewportMeta": true
+ },
+ {
+  "url": "/dashboard/settings",
+  "status": 200,
+  "finalPath": "/dashboard/settings",
+  "consoleErrors": [],
+  "title": "Calvy — Smart Appointment Booking",
+  "h1": 1,
+  "lang": "en",
+  "scrollW": 375,
+  "vw": 375,
+  "overflowX": false,
+  "wide": [
+   "div.flex gap-1 bg-[#f0ede8] p-1 rounded-xl w-fit"
+  ],
+  "smallTargets": 14,
+  "smallSample": [
+   "/dashboard 64x16",
+   "BUTTON 34x34",
+   "BUTTON 32x32",
+   "BUTTON 32x32",
+   "BUTTON 32x32"
+  ],
+  "unlabeledInputs": 9,
+  "unlabeledSample": [
+   "INPUT",
+   "Hair Salon\nBarbershop\nMedical ",
+   "Brief description of your busi",
+   "+1 555-0000"
+  ],
+  "iconBtnNoName": 11,
+  "imgNoAlt": 0,
+  "hashLinks": [],
+  "tinyText": 16,
+  "fonts": [
+   "__DM_Sans_0b9930",
+   "__Plus_Jakarta_Sans_64a611",
+   "ui-monospace"
+  ],
+  "sizes": [
+   "10px",
+   "14px",
+   "15px",
+   "12px",
+   "20px",
+   "16px",
+   "11px"
+  ],
+  "viewportMeta": true
+ },
+ {
+  "url": "/dashboard/staff",
+  "status": 200,
+  "finalPath": "/dashboard/staff",
+  "consoleErrors": [],
+  "title": "Calvy — Smart Appointment Booking",
+  "h1": 1,
+  "lang": "en",
+  "scrollW": 375,
+  "vw": 375,
+  "overflowX": false,
+  "wide": [],
+  "smallTargets": 15,
+  "smallSample": [
+   "/dashboard 64x16",
+   "BUTTON 34x34",
+   "BUTTON 25x25",
+   "BUTTON 25x25",
+   "Email 301x32"
+  ],
+  "unlabeledInputs": 0,
+  "unlabeledSample": [],
+  "iconBtnNoName": 8,
+  "imgNoAlt": 0,
+  "hashLinks": [],
+  "tinyText": 16,
+  "fonts": [
+   "__DM_Sans_0b9930",
+   "__Plus_Jakarta_Sans_64a611"
+  ],
+  "sizes": [
+   "10px",
+   "14px",
+   "15px",
+   "12px",
+   "16px",
+   "11px"
+  ],
+  "viewportMeta": true
+ },
+ {
+  "url": "/dashboard/support",
+  "status": 200,
+  "finalPath": "/dashboard/support",
+  "consoleErrors": [],
+  "title": "Calvy — Smart Appointment Booking",
+  "h1": 1,
+  "lang": "en",
+  "scrollW": 375,
+  "vw": 375,
+  "overflowX": false,
+  "wide": [],
+  "smallTargets": 4,
+  "smallSample": [
+   "/dashboard 64x16",
+   "BUTTON 34x34",
+   "Upgrade your plan 184x40",
+   "BUTTON 30x30"
+  ],
+  "unlabeledInputs": 0,
+  "unlabeledSample": [],
+  "iconBtnNoName": 2,
+  "imgNoAlt": 0,
+  "hashLinks": [],
+  "tinyText": 16,
+  "fonts": [
+   "__DM_Sans_0b9930",
+   "__Plus_Jakarta_Sans_64a611"
+  ],
+  "sizes": [
+   "10px",
+   "14px",
+   "15px",
+   "12px",
+   "18px",
+   "16px",
+   "11px"
+  ],
+  "viewportMeta": true
+ },
+ {
+  "url": "/dashboard/wallet",
+  "status": 200,
+  "finalPath": "/dashboard/wallet",
+  "consoleErrors": [],
+  "title": "Calvy — Smart Appointment Booking",
+  "h1": 1,
+  "lang": "en",
+  "scrollW": 375,
+  "vw": 375,
+  "overflowX": false,
+  "wide": [],
+  "smallTargets": 5,
+  "smallSample": [
+   "/dashboard 64x16",
+   "BUTTON 34x34",
+   "bank account details 197x38",
+   "Submit withdrawal request 247x40",
+   "BUTTON 30x30"
+  ],
+  "unlabeledInputs": 2,
+  "unlabeledSample": [
+   "0.00",
+   "Reference, invoice no., etc."
+  ],
+  "iconBtnNoName": 2,
+  "imgNoAlt": 0,
+  "hashLinks": [],
+  "tinyText": 16,
+  "fonts": [
+   "__DM_Sans_0b9930",
+   "__Plus_Jakarta_Sans_64a611"
+  ],
+  "sizes": [
+   "16px",
+   "10px",
+   "14px",
+   "15px",
+   "12px",
+   "30px",
+   "11px"
+  ],
+  "viewportMeta": true
+ },
+ {
+  "url": "/dashboard/website",
+  "status": 200,
+  "finalPath": "/dashboard/website",
+  "consoleErrors": [],
+  "title": "Calvy — Smart Appointment Booking",
+  "h1": 1,
+  "lang": "en",
+  "scrollW": 375,
+  "vw": 375,
+  "overflowX": false,
+  "wide": [],
+  "smallTargets": 20,
+  "smallSample": [
+   "/dashboard 64x16",
+   "BUTTON 34x34",
+   "BUTTON 14x14",
+   "Preview 105x38",
+   "Preview 105x38"
+  ],
+  "unlabeledInputs": 25,
+  "unlabeledSample": [
+   "Alex Johnson Studio",
+   "Brief description...",
+   "e.g. Professional Clinic Servi",
+   "Welcome to..."
+  ],
+  "iconBtnNoName": 11,
+  "imgNoAlt": 0,
+  "hashLinks": [],
+  "tinyText": 16,
+  "fonts": [
+   "__DM_Sans_0b9930",
+   "__Plus_Jakarta_Sans_64a611"
+  ],
+  "sizes": [
+   "10px",
+   "14px",
+   "15px",
+   "12px",
+   "16px",
+   "11px"
+  ],
+  "viewportMeta": true
+ },
+ {
+  "url": "/admin",
+  "status": 200,
+  "finalPath": "/admin",
+  "consoleErrors": [],
+  "title": "Calvy Admin",
+  "h1": 1,
+  "lang": "en",
+  "scrollW": 375,
+  "vw": 375,
+  "overflowX": false,
+  "wide": [
+   "button.p-2 rounded-xl text-[#6b6b80] hover:bg-[#f8f7f4] h",
+   "svg.[object SVGAnimatedString]",
+   "polyline.[object SVGAnimatedString]",
+   "div.bg-white rounded-2xl border border-[#e8e6e0] p-6"
+  ],
+  "smallTargets": 14,
+  "smallSample": [
+   "Overview 215x40",
+   "Tenants 215x40",
+   "Plans & Pricing 215x40",
+   "Revenue 215x40",
+   "Withdrawals 215x40"
+  ],
+  "unlabeledInputs": 0,
+  "unlabeledSample": [],
+  "iconBtnNoName": 0,
+  "imgNoAlt": 0,
+  "hashLinks": [],
+  "tinyText": 4,
+  "fonts": [
+   "__DM_Sans_0b9930",
+   "__Plus_Jakarta_Sans_64a611"
+  ],
+  "sizes": [
+   "10px",
+   "14px",
+   "12px",
+   "24px",
+   "15px",
+   "18px",
+   "16px"
+  ],
+  "viewportMeta": true
+ },
+ {
+  "url": "/admin/blog",
+  "status": 200,
+  "finalPath": "/admin/blog",
+  "consoleErrors": [],
+  "title": "Calvy Admin",
+  "h1": 1,
+  "lang": "en",
+  "scrollW": 375,
+  "vw": 375,
+  "overflowX": false,
+  "wide": [
+   "button.p-2 rounded-xl text-[#6b6b80] hover:bg-[#f8f7f4] h",
+   "svg.[object SVGAnimatedString]",
+   "polyline.[object SVGAnimatedString]",
+   "button.flex items-center gap-2 bg-sky-600 hover:bg-sky-70"
+  ],
+  "smallTargets": 19,
+  "smallSample": [
+   "Overview 215x40",
+   "Tenants 215x40",
+   "Plans & Pricing 215x40",
+   "Revenue 215x40",
+   "Withdrawals 215x40"
+  ],
+  "unlabeledInputs": 0,
+  "unlabeledSample": [],
+  "iconBtnNoName": 0,
+  "imgNoAlt": 0,
+  "hashLinks": [],
+  "tinyText": 5,
+  "fonts": [
+   "__DM_Sans_0b9930",
+   "__Plus_Jakarta_Sans_64a611"
+  ],
+  "sizes": [
+   "10px",
+   "14px",
+   "12px",
+   "24px",
+   "16px"
+  ],
+  "viewportMeta": true
+ },
+ {
+  "url": "/admin/notifications",
+  "status": 200,
+  "finalPath": "/admin/notifications",
+  "consoleErrors": [],
+  "title": "Calvy Admin",
+  "h1": 1,
+  "lang": "en",
+  "scrollW": 375,
+  "vw": 375,
+  "overflowX": false,
+  "wide": [
+   "button.p-2 rounded-xl text-[#6b6b80] hover:bg-[#f8f7f4] h",
+   "svg.[object SVGAnimatedString]",
+   "polyline.[object SVGAnimatedString]",
+   "button.flex items-center gap-2 px-5 py-2.5 bg-accent text"
+  ],
+  "smallTargets": 20,
+  "smallSample": [
+   "Overview 215x40",
+   "Tenants 215x40",
+   "Plans & Pricing 215x40",
+   "Revenue 215x40",
+   "Withdrawals 215x40"
+  ],
+  "unlabeledInputs": 3,
+  "unlabeledSample": [
+   "e.g. New feature available!",
+   "e.g. We've added calendar sync",
+   "/dashboard"
+  ],
+  "iconBtnNoName": 0,
+  "imgNoAlt": 0,
+  "hashLinks": [],
+  "tinyText": 3,
+  "fonts": [
+   "__DM_Sans_0b9930",
+   "__Plus_Jakarta_Sans_64a611"
+  ],
+  "sizes": [
+   "10px",
+   "14px",
+   "12px",
+   "20px",
+   "16px"
+  ],
+  "viewportMeta": true
+ },
+ {
+  "url": "/admin/plans",
+  "status": 200,
+  "finalPath": "/admin/plans",
+  "consoleErrors": [
+   "Warning: Prop `%s` did not match. Server: %s Client: %s%s className \"w-2 h-2 rounded-full flex-shrink-0 bg-green-500\" \"w-2 h-2 rounded-full "
+  ],
+  "title": "Calvy Admin",
+  "h1": 1,
+  "lang": "en",
+  "scrollW": 375,
+  "vw": 375,
+  "overflowX": false,
+  "wide": [
+   "button.p-2 rounded-xl text-[#6b6b80] hover:bg-[#f8f7f4] h",
+   "svg.[object SVGAnimatedString]",
+   "polyline.[object SVGAnimatedString]",
+   "div.bg-white rounded-2xl border border-[#e8e6e0] p-6 f"
+  ],
+  "smallTargets": 17,
+  "smallSample": [
+   "Overview 215x40",
+   "Tenants 215x40",
+   "Plans & Pricing 215x40",
+   "Revenue 215x40",
+   "Withdrawals 215x40"
+  ],
+  "unlabeledInputs": 0,
+  "unlabeledSample": [],
+  "iconBtnNoName": 0,
+  "imgNoAlt": 0,
+  "hashLinks": [],
+  "tinyText": 6,
+  "fonts": [
+   "__DM_Sans_0b9930",
+   "__Plus_Jakarta_Sans_64a611",
+   "ui-monospace"
+  ],
+  "sizes": [
+   "10px",
+   "14px",
+   "12px",
+   "24px",
+   "16px",
+   "30px",
+   "15px"
+  ],
+  "viewportMeta": true
+ },
+ {
+  "url": "/admin/revenue",
+  "status": 200,
+  "finalPath": "/admin/revenue",
+  "consoleErrors": [],
+  "title": "Calvy Admin",
+  "h1": 1,
+  "lang": "en",
+  "scrollW": 375,
+  "vw": 375,
+  "overflowX": false,
+  "wide": [
+   "button.p-2 rounded-xl text-[#6b6b80] hover:bg-[#f8f7f4] h",
+   "svg.[object SVGAnimatedString]",
+   "polyline.[object SVGAnimatedString]",
+   "div.flex-1 flex flex-col items-center gap-2"
+  ],
+  "smallTargets": 13,
+  "smallSample": [
+   "Overview 215x40",
+   "Tenants 215x40",
+   "Plans & Pricing 215x40",
+   "Revenue 215x40",
+   "Withdrawals 215x40"
+  ],
+  "unlabeledInputs": 0,
+  "unlabeledSample": [],
+  "iconBtnNoName": 0,
+  "imgNoAlt": 0,
+  "hashLinks": [],
+  "tinyText": 9,
+  "fonts": [
+   "__DM_Sans_0b9930",
+   "__Plus_Jakarta_Sans_64a611"
+  ],
+  "sizes": [
+   "10px",
+   "14px",
+   "12px",
+   "24px",
+   "15px",
+   "16px"
+  ],
+  "viewportMeta": true
+ },
+ {
+  "url": "/admin/settings",
+  "status": 200,
+  "finalPath": "/admin",
+  "consoleErrors": [],
+  "title": "Calvy Admin",
+  "h1": 1,
+  "lang": "en",
+  "scrollW": 375,
+  "vw": 375,
+  "overflowX": false,
+  "wide": [
+   "button.p-2 rounded-xl text-[#6b6b80] hover:bg-[#f8f7f4] h",
+   "svg.[object SVGAnimatedString]",
+   "polyline.[object SVGAnimatedString]",
+   "div.bg-white rounded-2xl border border-[#e8e6e0] p-6"
+  ],
+  "smallTargets": 14,
+  "smallSample": [
+   "Overview 215x40",
+   "Tenants 215x40",
+   "Plans & Pricing 215x40",
+   "Revenue 215x40",
+   "Withdrawals 215x40"
+  ],
+  "unlabeledInputs": 0,
+  "unlabeledSample": [],
+  "iconBtnNoName": 0,
+  "imgNoAlt": 0,
+  "hashLinks": [],
+  "tinyText": 4,
+  "fonts": [
+   "__DM_Sans_0b9930",
+   "__Plus_Jakarta_Sans_64a611"
+  ],
+  "sizes": [
+   "10px",
+   "14px",
+   "12px",
+   "24px",
+   "15px",
+   "18px",
+   "16px"
+  ],
+  "viewportMeta": true
+ },
+ {
+  "url": "/admin/support",
+  "status": 200,
+  "finalPath": "/admin/support",
+  "consoleErrors": [],
+  "title": "Calvy Admin",
+  "h1": 1,
+  "lang": "en",
+  "scrollW": 375,
+  "vw": 375,
+  "overflowX": false,
+  "wide": [
+   "button.p-2 rounded-xl text-[#6b6b80] hover:bg-[#f8f7f4] h",
+   "svg.[object SVGAnimatedString]",
+   "polyline.[object SVGAnimatedString]",
+   "div.flex gap-1 bg-[#f8f7f4] rounded-xl p-1 w-fit borde"
+  ],
+  "smallTargets": 14,
+  "smallSample": [
+   "Overview 215x40",
+   "Tenants 215x40",
+   "Plans & Pricing 215x40",
+   "Revenue 215x40",
+   "Withdrawals 215x40"
+  ],
+  "unlabeledInputs": 0,
+  "unlabeledSample": [],
+  "iconBtnNoName": 0,
+  "imgNoAlt": 0,
+  "hashLinks": [],
+  "tinyText": 3,
+  "fonts": [
+   "__DM_Sans_0b9930",
+   "__Plus_Jakarta_Sans_64a611"
+  ],
+  "sizes": [
+   "10px",
+   "14px",
+   "12px",
+   "24px",
+   "18px",
+   "16px"
+  ],
+  "viewportMeta": true
+ },
+ {
+  "url": "/admin/tenants",
+  "status": 200,
+  "finalPath": "/admin/tenants",
+  "consoleErrors": [],
+  "title": "Calvy Admin",
+  "h1": 1,
+  "lang": "en",
+  "scrollW": 375,
+  "vw": 375,
+  "overflowX": false,
+  "wide": [
+   "button.p-2 rounded-xl text-[#6b6b80] hover:bg-[#f8f7f4] h",
+   "svg.[object SVGAnimatedString]",
+   "polyline.[object SVGAnimatedString]",
+   "button.flex items-center gap-2 px-4 py-2 rounded-xl bg-wh"
+  ],
+  "smallTargets": 22,
+  "smallSample": [
+   "Overview 215x40",
+   "Tenants 215x40",
+   "Plans & Pricing 215x40",
+   "Revenue 215x40",
+   "Withdrawals 215x40"
+  ],
+  "unlabeledInputs": 5,
+  "unlabeledSample": [
+   "Search by name, email, slug…",
+   "All plans\ntrial\nstarter\nprofes",
+   "All statuses\ntrialing\nactive\np",
+   "trial\nstarter\nprofessional\nbus"
+  ],
+  "iconBtnNoName": 1,
+  "imgNoAlt": 0,
+  "hashLinks": [],
+  "tinyText": 3,
+  "fonts": [
+   "__DM_Sans_0b9930",
+   "__Plus_Jakarta_Sans_64a611"
+  ],
+  "sizes": [
+   "10px",
+   "14px",
+   "12px",
+   "24px",
+   "16px"
+  ],
+  "viewportMeta": true
+ },
+ {
+  "url": "/admin/withdrawals",
+  "status": 200,
+  "finalPath": "/admin/withdrawals",
+  "consoleErrors": [],
+  "title": "Calvy Admin",
+  "h1": 1,
+  "lang": "en",
+  "scrollW": 375,
+  "vw": 375,
+  "overflowX": false,
+  "wide": [
+   "button.p-2 rounded-xl text-[#6b6b80] hover:bg-[#f8f7f4] h",
+   "svg.[object SVGAnimatedString]",
+   "polyline.[object SVGAnimatedString]"
+  ],
+  "smallTargets": 13,
+  "smallSample": [
+   "Overview 215x40",
+   "Tenants 215x40",
+   "Plans & Pricing 215x40",
+   "Revenue 215x40",
+   "Withdrawals 215x40"
+  ],
+  "unlabeledInputs": 0,
+  "unlabeledSample": [],
+  "iconBtnNoName": 0,
+  "imgNoAlt": 0,
+  "hashLinks": [],
+  "tinyText": 3,
+  "fonts": [
+   "__DM_Sans_0b9930",
+   "__Plus_Jakarta_Sans_64a611"
+  ],
+  "sizes": [
+   "10px",
+   "14px",
+   "12px",
+   "24px",
+   "16px"
+  ],
+  "viewportMeta": true
+ },
+ {
+  "url": "/crm",
+  "status": 200,
+  "finalPath": "/crm",
+  "consoleErrors": [],
+  "title": "CRM · Calvy",
+  "h1": 1,
+  "lang": "en",
+  "scrollW": 375,
+  "vw": 375,
+  "overflowX": false,
+  "wide": [
+   "div.flex gap-4 min-w-max",
+   "div.w-72 flex-shrink-0",
+   "div.flex items-center gap-2 mb-3 px-1",
+   "span.text-sm font-semibold text-[#0f0f1a]"
+  ],
+  "smallTargets": 1,
+  "smallSample": [
+   "Admin → 61x20"
+  ],
+  "unlabeledInputs": 0,
+  "unlabeledSample": [],
+  "iconBtnNoName": 0,
+  "imgNoAlt": 0,
+  "hashLinks": [],
+  "tinyText": 0,
+  "fonts": [
+   "__Plus_Jakarta_Sans_64a611",
+   "__DM_Sans_0b9930"
+  ],
+  "sizes": [
+   "18px",
+   "12px",
+   "14px",
+   "16px"
+  ],
+  "viewportMeta": true
+ }
+]
