@@ -3,7 +3,10 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { isActivePlan } from "@/lib/plans";
-import { normalizeEmail, findClientByEmail } from "@/lib/email-normalize";
+import { findClientByEmail } from "@/lib/email-normalize";
+
+import { parseBody } from "@/lib/validation/common";
+import { clientCreateSchema } from "@/lib/validation/dashboard";
 
 export const dynamic = 'force-dynamic';
 
@@ -13,25 +16,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const body = await request.json();
-  const { name, email: rawEmail, phone, notes } = body;
-  const email: string = typeof rawEmail === "string" ? normalizeEmail(rawEmail) : rawEmail;
-
-  if (!name || !email) {
-    return NextResponse.json({ error: "Name and email are required" }, { status: 400 });
-  }
-
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(email)) {
-    return NextResponse.json({ error: "Please enter a valid email address" }, { status: 400 });
-  }
-
-  if (phone) {
-    const phoneRegex = /^\+?[0-9\s\-\.\(\)]{10,20}$/;
-    if (!phoneRegex.test(phone.trim())) {
-      return NextResponse.json({ error: "Please enter a valid phone number" }, { status: 400 });
-    }
-  }
+  const parsed = await parseBody(request, clientCreateSchema);
+  if (!parsed.ok) return parsed.res;
+  const { name, email, phone, notes } = parsed.data;
 
   const business = await prisma.business.findUnique({
     where: { id: session.user.businessId },

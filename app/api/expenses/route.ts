@@ -3,14 +3,18 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
+import { parseBody, parseQuery } from "@/lib/validation/common";
+import { expenseCreateSchema, expenseListQuery } from "@/lib/validation/dashboard";
+
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.businessId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { searchParams } = new URL(req.url);
-  const month = searchParams.get("month"); // e.g. "2024-01"
+  const q = parseQuery(req.url, expenseListQuery);
+  if (!q.ok) return q.res;
+  const { month } = q.data; // e.g. "2024-01"
 
   let dateFilter = {};
   if (month) {
@@ -32,16 +36,16 @@ export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.businessId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { amount, category, description, date } = await req.json();
-  if (!amount || amount <= 0) return NextResponse.json({ error: "Valid amount required" }, { status: 400 });
-  if (!category) return NextResponse.json({ error: "Category required" }, { status: 400 });
+  const parsed = await parseBody(req, expenseCreateSchema);
+  if (!parsed.ok) return parsed.res;
+  const { amount, category, description, date } = parsed.data;
 
   const expense = await prisma.expense.create({
     data: {
       businessId: session.user.businessId,
-      amount: parseFloat(amount),
+      amount,
       category,
-      description: description?.trim() || null,
+      description: description || null,
       date: date ? new Date(date) : new Date(),
     },
   });

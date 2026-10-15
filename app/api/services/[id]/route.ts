@@ -3,6 +3,9 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
+import { parseBody } from "@/lib/validation/common";
+import { servicePatchSchema } from "@/lib/validation/dashboard";
+
 export const dynamic = 'force-dynamic';
 
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
@@ -18,14 +21,10 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  const body = await request.json();
+  const parsed = await parseBody(request, servicePatchSchema);
+  if (!parsed.ok) return parsed.res;
+  const body = parsed.data;
 
-  if (body.duration !== undefined && Number(body.duration) < 1) {
-    return NextResponse.json({ error: "Duration must be at least 1 minute" }, { status: 400 });
-  }
-  if (body.price !== undefined && Number(body.price) < 0) {
-    return NextResponse.json({ error: "Price cannot be negative" }, { status: 400 });
-  }
   if (body.name && body.name !== service.name) {
     const duplicate = await prisma.service.findFirst({
       where: { businessId: session.user.businessId, name: { equals: body.name, mode: "insensitive" }, NOT: { id: params.id } },
@@ -35,9 +34,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     }
   }
 
-  const updateData = { ...body };
-  if (updateData.capacity !== undefined) updateData.capacity = Math.max(1, Number(updateData.capacity));
-  const updated = await prisma.service.update({ where: { id: params.id }, data: updateData });
+  const updated = await prisma.service.update({ where: { id: params.id }, data: body });
   return NextResponse.json({ service: updated });
 }
 
