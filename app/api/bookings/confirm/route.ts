@@ -1,4 +1,4 @@
-import { zonedTimeToUtc } from "@/lib/time";
+import { zonedTimeToUtc, safeTimeZone } from "@/lib/time";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { razorpay } from "@/lib/razorpay";
@@ -70,7 +70,7 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  const appointmentDate = zonedTimeToUtc(meta.date, meta.time, business.timezone);
+  const appointmentDate = zonedTimeToUtc(meta.date, meta.time, safeTimeZone(business.timezone));
 
   const appointment = await prisma.appointment.create({
     data: {
