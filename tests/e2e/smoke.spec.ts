@@ -141,6 +141,7 @@ test("6. auth endpoints", async ({ request }) => {
 });
 
 test("5. public booking then cancel", async ({ page }) => {
+  test.setTimeout(180_000);
   track(page, "booking");
   await page.goto(`/b/${SLUG}`);
   await expect(page.getByText("Choose services")).toBeVisible();

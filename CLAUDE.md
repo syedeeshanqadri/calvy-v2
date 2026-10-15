@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 npm run dev                 # next dev on :3000
 npm run build               # prisma generate && next build  (no db push; schema changes are migrations, see docs/migrations.md)
-npm run lint                # next lint
+npm run lint                # eslint .
 npm test                    # vitest run (tests/**/*.test.ts, node env, "@" alias -> repo root)
 npx vitest run tests/booking.test.ts            # single test file
 npx vitest run -t "name pattern"                # single test by name
@@ -18,10 +18,10 @@ Env vars are in `.env.local` (see README "Environment Variables"). Tests only co
 
 ## Architecture
 
-Next.js 14 App Router, TypeScript, Prisma 5 on PostgreSQL (Neon), NextAuth v4 (JWT + credentials), Tailwind, Resend email, Vercel Blob uploads, Web Push. Deployed on Vercel; `vercel.json` schedules `/api/cron/reminders` daily.
+Next.js 16 App Router (React 19), TypeScript, Prisma 5 on PostgreSQL (Neon), NextAuth v4 (JWT + credentials), Tailwind, Resend email, Vercel Blob uploads, Web Push. Deployed on Vercel; `vercel.json` schedules `/api/cron/reminders` daily.
 
 ### Multi-tenancy via subdomains
-[middleware.ts](middleware.ts) rewrites `{slug}.calvy.io/<path>` to `/{slug}/<path>` internally (never for `/api/*`), so tenant public sites live in `app/[slug]/` (incl. `book-now`). `/dashboard`, `/admin`, `/crm` are wrapped in NextAuth `withAuth`; logged-in users hitting `/login`/`/signup` are redirected to `/dashboard`. Root domain comes from `NEXT_PUBLIC_ROOT_DOMAIN`. Every tenant-scoped query must be filtered by the session user's `businessId`.
+[proxy.ts](proxy.ts) (formerly middleware.ts) rewrites `{slug}.calvy.io/<path>` to `/{slug}/<path>` internally (never for `/api/*`), so tenant public sites live in `app/[slug]/` (incl. `book-now`). `/dashboard`, `/admin`, `/crm` are wrapped in NextAuth `withAuth`; logged-in users hitting `/login`/`/signup` are redirected to `/dashboard`. Root domain comes from `NEXT_PUBLIC_ROOT_DOMAIN`. Every tenant-scoped query must be filtered by the session user's `businessId`.
 
 ### Plan-based feature gating (DB-driven)
 Plan limits/flags live in the `PlanConfig` table (editable at `/admin/plans`, no redeploy). [lib/plans.ts](lib/plans.ts) defines the `PlanLimits` shape and defaults/`getLimitsFromDB`; [lib/getFeatures.ts](lib/getFeatures.ts) `getBusinessFeatures(businessId)` resolves a business's limits. Gating is enforced in **both** the page (render `<UpgradeGate>`) and the API route — add both when introducing a gated feature. Adding a flag means touching `PlanLimits`, defaults, the admin plans UI, and the gated page/API.
