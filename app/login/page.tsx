@@ -3,8 +3,10 @@ import { useState, useEffect } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import Image from "next/image";
 import SocialAuthButtons from "@/components/auth/SocialAuthButtons";
+import AuthShell, { inputClass, primaryBtn, secondaryBtn, linkClass } from "@/components/auth/AuthShell";
+import PasswordInput from "@/components/auth/PasswordInput";
+import { postAuth } from "@/components/auth/authApi";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -13,23 +15,42 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
+  const [canResend, setCanResend] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [resendMsg, setResendMsg] = useState("");
+  const [resendError, setResendError] = useState("");
+  const [emailError, setEmailError] = useState("");
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("verified") === "1") setSuccess("Email verified! You can now sign in.");
-    if (params.get("error") === "expired-token") setError("Your verification link has expired. Please sign up again.");
-    if (params.get("error") === "invalid-token") setError("Invalid verification link. Please sign up again.");
+    if (params.get("reset") === "1") setSuccess("Your password was changed. Sign in with your new password.");
+    if (params.get("error") === "expired-token") {
+      setError("Your verification link has expired. Enter your email below and choose Resend verification email.");
+      setCanResend(true);
+    }
+    if (params.get("error") === "invalid-token") {
+      setError("Invalid verification link. Enter your email below and choose Resend verification email.");
+      setCanResend(true);
+    }
   }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
     setSuccess("");
+    setResendMsg("");
+    setResendError("");
+    setEmailError("");
+    setCanResend(false);
     setLoading(true);
     const result = await signIn("credentials", { email, password, redirect: false });
     setLoading(false);
     if (result?.error === "EmailNotVerified") {
-      setError("Please verify your email first. Check your inbox for the verification link.");
+      setError("Your email is not verified yet. Check your inbox for the verification link, or send a new one.");
+      setCanResend(true);
+    } else if (result?.error === "TooManyAttempts") {
+      setError("Too many attempts. Please wait a minute and try again.");
     } else if (result?.error) {
       setError("Invalid email or password.");
     } else {
@@ -38,69 +59,90 @@ export default function LoginPage() {
     }
   }
 
+  async function handleResend() {
+    setResendMsg("");
+    setResendError("");
+    setEmailError("");
+    if (!email.trim()) {
+      setEmailError("Enter your email address first.");
+      document.getElementById("login-email")?.focus();
+      return;
+    }
+    setResending(true);
+    const r = await postAuth("/api/auth/resend-verification", { email: email.trim() });
+    setResending(false);
+    if (r.ok) setResendMsg("If that account is not verified yet, we've sent a new link.");
+    else setResendError(r.message);
+  }
+
   return (
-    <div className="min-h-dvh bg-[#0f0f1a] flex items-center justify-center p-4" style={{ paddingTop: "max(1rem, env(safe-area-inset-top))", paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}>
-      <div className="w-full max-w-md">
-        <div className="flex justify-center mb-10">
-          <Image src="/calvy.svg" alt="Calvy" width={120} height={35} className="brightness-0 invert" />
+    <AuthShell>
+      <h1 className="font-syne font-bold text-2xl text-[#0f0f1a] mb-1">Welcome back</h1>
+      <p className="text-[#6b6b80] text-sm mb-7">Sign in to your business dashboard</p>
+
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label htmlFor="login-email" className="text-sm font-medium text-[#0f0f1a] block mb-1.5">Email</label>
+          <input
+            id="login-email"
+            type="email"
+            required
+            autoComplete="username"
+            value={email}
+            onChange={e => { setEmail(e.target.value); setEmailError(""); }}
+            placeholder="you@business.com"
+            aria-invalid={emailError ? true : undefined}
+            aria-describedby={emailError ? "login-email-error" : undefined}
+            className={inputClass}
+          />
+          {emailError && <p id="login-email-error" role="alert" className="text-sm text-red-600 mt-1.5">{emailError}</p>}
         </div>
-
-        <div className="bg-white rounded-3xl p-8 shadow-2xl">
-          <h1 className="font-syne font-bold text-2xl text-[#0f0f1a] mb-1">Welcome back</h1>
-          <p className="text-[#6b6b80] text-sm mb-7">Sign in to your business dashboard</p>
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="text-sm font-medium text-[#0f0f1a] block mb-1.5">Email</label>
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                placeholder="you@business.com"
-                className="w-full rounded-xl border border-[#e8e6e0] px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#0284c7]/20 focus:border-[#0284c7] transition-all"
-              />
-            </div>
-            <div>
-              <label className="text-sm font-medium text-[#0f0f1a] block mb-1.5">Password</label>
-              <input
-                type="password"
-                required
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                placeholder="••••••••"
-                className="w-full rounded-xl border border-[#e8e6e0] px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#0284c7]/20 focus:border-[#0284c7] transition-all"
-              />
-            </div>
-
-            {success && (
-              <p className="text-sm text-green-700 bg-green-50 rounded-xl px-4 py-3">{success}</p>
-            )}
-            {error && (
-              <p className="text-sm text-red-600 bg-red-50 rounded-xl px-4 py-3">{error}</p>
-            )}
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-[#0284c7] text-white font-semibold rounded-xl py-3 text-sm hover:bg-[#0369a1] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              {loading ? "Signing in…" : "Sign in"}
-            </button>
-          </form>
-
-          <SocialAuthButtons callbackUrl="/dashboard" />
-
-          <p className="text-center text-sm text-[#6b6b80] mt-6">
-            No account?{" "}
-            <Link href="/signup" className="text-[#0284c7] font-semibold hover:underline">
-              Get started free
+        <PasswordInput
+          id="login-password"
+          label="Password"
+          autoComplete="current-password"
+          value={password}
+          onChange={setPassword}
+          placeholder="••••••••"
+          labelAction={
+            <Link href="/forgot-password" className={`${linkClass} text-sm min-h-11 inline-flex items-center`}>
+              Forgot password?
             </Link>
-          </p>
+          }
+        />
+
+        <div aria-live="polite">
+          {success && <p className="text-sm text-green-700 bg-green-50 rounded-xl px-4 py-3">{success}</p>}
+        </div>
+        <div role="alert">
+          {error && <p className="text-sm text-red-600 bg-red-50 rounded-xl px-4 py-3">{error}</p>}
         </div>
 
-        <p className="text-center text-white/20 text-xs mt-6">© 2026 Calvy · All rights reserved</p>
-      </div>
-    </div>
+        {canResend && (
+          <div className="space-y-2">
+            <button type="button" onClick={handleResend} disabled={resending} className={secondaryBtn}>
+              {resending ? "Sending…" : "Resend verification email"}
+            </button>
+            <div role="status">
+              {resendMsg && <p className="text-sm text-green-700 bg-green-50 rounded-xl px-4 py-3">{resendMsg}</p>}
+            </div>
+            <div role="alert">
+              {resendError && <p className="text-sm text-red-600 bg-red-50 rounded-xl px-4 py-3">{resendError}</p>}
+            </div>
+          </div>
+        )}
+
+        <button type="submit" disabled={loading} className={primaryBtn}>
+          {loading ? "Signing in…" : "Sign in"}
+        </button>
+      </form>
+
+      <SocialAuthButtons callbackUrl="/dashboard" />
+
+      <p className="text-center text-sm text-[#6b6b80] mt-6">
+        No account?{" "}
+        <Link href="/signup" className={linkClass}>Get started free</Link>
+      </p>
+    </AuthShell>
   );
 }

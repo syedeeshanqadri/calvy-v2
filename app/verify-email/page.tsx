@@ -1,13 +1,17 @@
 "use client";
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import Image from "next/image";
 import Link from "next/link";
+import AuthShell, { primaryBtn, secondaryBtn } from "@/components/auth/AuthShell";
 
 function VerifyEmailInner() {
   const searchParams = useSearchParams();
   const token = searchParams.get("token");
   const [status, setStatus] = useState<"verifying" | "success" | "error" | "expired">("verifying");
+
+  useEffect(() => {
+    document.title = "Verify your email | Calvy";
+  }, []);
 
   useEffect(() => {
     if (!token) { setStatus("error"); return; }
@@ -27,7 +31,7 @@ function VerifyEmailInner() {
   }, [token]);
 
   return (
-    <div className="bg-white rounded-3xl p-8 shadow-2xl text-center">
+    <div className="text-center" aria-live="polite">
       {status === "verifying" && (
         <>
           <div className="w-16 h-16 rounded-2xl bg-sky-50 flex items-center justify-center mx-auto mb-4">
@@ -36,7 +40,7 @@ function VerifyEmailInner() {
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
             </svg>
           </div>
-          <h2 className="font-syne font-bold text-xl text-[#0f0f1a] mb-2">Verifying your email…</h2>
+          <h1 className="font-syne font-bold text-xl text-[#0f0f1a] mb-2">Verifying your email…</h1>
           <p className="text-sm text-[#6b6b80]">Please wait a moment.</p>
         </>
       )}
@@ -48,9 +52,9 @@ function VerifyEmailInner() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>
           </div>
-          <h2 className="font-syne font-bold text-xl text-[#0f0f1a] mb-2">Email verified!</h2>
+          <h1 className="font-syne font-bold text-xl text-[#0f0f1a] mb-2">Email verified!</h1>
           <p className="text-sm text-[#6b6b80] mb-6">Your account is now active. You can sign in.</p>
-          <Link href="/login" className="block w-full bg-[#0284c7] text-white font-semibold rounded-xl py-3 text-sm hover:bg-[#0369a1] transition-colors">
+          <Link href="/login" className={primaryBtn}>
             Sign in to your dashboard
           </Link>
         </>
@@ -63,10 +67,10 @@ function VerifyEmailInner() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
-          <h2 className="font-syne font-bold text-xl text-[#0f0f1a] mb-2">Link expired</h2>
-          <p className="text-sm text-[#6b6b80] mb-6">Your verification link has expired. Sign up again to get a new one.</p>
-          <Link href="/signup" className="block w-full bg-[#0284c7] text-white font-semibold rounded-xl py-3 text-sm hover:bg-[#0369a1] transition-colors">
-            Sign up again
+          <h1 className="font-syne font-bold text-xl text-[#0f0f1a] mb-2">Link expired</h1>
+          <p className="text-sm text-[#6b6b80] mb-6">Your verification link has expired. We can send you a new one.</p>
+          <Link href="/login?error=expired-token" className={primaryBtn}>
+            Send a new verification link
           </Link>
         </>
       )}
@@ -78,11 +82,16 @@ function VerifyEmailInner() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </div>
-          <h2 className="font-syne font-bold text-xl text-[#0f0f1a] mb-2">Invalid link</h2>
-          <p className="text-sm text-[#6b6b80] mb-6">This verification link is not valid or has already been used.</p>
-          <Link href="/signup" className="block w-full bg-[#0284c7] text-white font-semibold rounded-xl py-3 text-sm hover:bg-[#0369a1] transition-colors">
-            Sign up again
-          </Link>
+          <h1 className="font-syne font-bold text-xl text-[#0f0f1a] mb-2">Invalid link</h1>
+          <p className="text-sm text-[#6b6b80] mb-6">This verification link is not valid or has already been used. If your account is not verified yet, we can send you a new link.</p>
+          <div className="space-y-3">
+            <Link href="/login?error=expired-token" className={primaryBtn}>
+              Send a new verification link
+            </Link>
+            <Link href="/signup" className={secondaryBtn}>
+              Sign up again
+            </Link>
+          </div>
         </>
       )}
     </div>
@@ -91,19 +100,10 @@ function VerifyEmailInner() {
 
 export default function VerifyEmailPage() {
   return (
-    <div className="min-h-dvh bg-[#0f0f1a] flex items-center justify-center p-4" style={{ paddingTop: "max(1rem, env(safe-area-inset-top))", paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}>
-      <div className="w-full max-w-md">
-        <div className="flex justify-center mb-10">
-          <Image src="/calvy.svg" alt="Calvy" width={120} height={35} className="brightness-0 invert" />
-        </div>
-        <Suspense fallback={
-          <div className="bg-white rounded-3xl p-8 shadow-2xl text-center">
-            <p className="text-sm text-[#6b6b80]">Loading…</p>
-          </div>
-        }>
-          <VerifyEmailInner />
-        </Suspense>
-      </div>
-    </div>
+    <AuthShell>
+      <Suspense fallback={<p className="text-sm text-[#6b6b80] text-center">Loading…</p>}>
+        <VerifyEmailInner />
+      </Suspense>
+    </AuthShell>
   );
 }
