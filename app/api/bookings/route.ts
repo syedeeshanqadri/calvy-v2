@@ -11,7 +11,7 @@ import { isPastBooking, hasBookingConflict } from "@/lib/booking";
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
-  const rl = rateLimit(`booking:${clientIp(req)}`, 10, 60_000);
+  const rl = await rateLimit(`booking:${clientIp(req)}`, 10, 60_000);
   if (!rl.ok) {
     return NextResponse.json(
       { error: "Too many booking attempts. Please try again shortly." },

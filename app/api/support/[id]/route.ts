@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getBusinessFeatures } from "@/lib/getFeatures";
+import { rateLimit } from "@/lib/ratelimit";
 
 export const dynamic = 'force-dynamic';
 
@@ -40,6 +41,14 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   const features = await getBusinessFeatures(businessId);
   if (!features.prioritySupport) {
     return NextResponse.json({ error: "Support is not available on your current plan" }, { status: 403 });
+  }
+
+  const rl = await rateLimit(`support:${businessId}`, 20, 60_000);
+  if (!rl.ok) {
+    return NextResponse.json(
+      { error: "Too many requests. Please try again shortly." },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfter) } },
+    );
   }
 
   const ticket = await prisma.supportTicket.findUnique({ where: { id: params.id } });
