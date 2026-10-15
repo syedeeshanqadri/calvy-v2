@@ -37,6 +37,7 @@ npx prisma generate        # regenerate the client (also runs on npm install and
 3. Read the generated SQL before committing it. It must not drop or rewrite data you care about.
 4. Commit the migration folder together with the schema change and the code that uses it.
 5. Never edit a migration that has been merged. Fix forward with a new one.
+6. Migration files must stay byte-identical on every machine (Prisma checksums them). `.gitattributes` forces LF line endings for `prisma/migrations/**/*.sql`; do not change that.
 
 Rules for safe migrations (zero-downtime style):
 - Add new columns as nullable or with a default; backfill; only then tighten (`NOT NULL`, unique) in a later migration.
