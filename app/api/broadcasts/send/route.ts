@@ -5,6 +5,8 @@ import { prisma } from "@/lib/prisma";
 import { parseBody } from "@/lib/validation/common";
 import { broadcastSchema } from "@/lib/validation/misc";
 import { Resend } from "resend";
+import { getBusinessFeatures } from "@/lib/getFeatures";
+import { rateLimit } from "@/lib/ratelimit";
 import { sendWhatsApp } from "@/lib/whatsapp";
 import { logger } from "@/lib/logger";
 
@@ -15,6 +17,8 @@ function getResend() {
   if (!resendClient) resendClient = new Resend(process.env.RESEND_API_KEY);
   return resendClient;
 }
+const MAX_RECIPIENTS = 500;
+const WA_CONCURRENCY = 20;
 const FROM = process.env.EMAIL_FROM ?? "Calvy <onboarding@resend.dev>";
 
 const esc = (v: string) => v.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -54,10 +58,44 @@ export async function POST(req: NextRequest) {
   if (!parsed.ok) return parsed.res;
   const { subject, message, medium } = parsed.data;
 
+  // Plan limits come from PlanConfig (admin-editable), not hard-coded plan names.
+  const limits = await getBusinessFeatures(business.id);
+  if (!limits.broadcasts || limits.maxBroadcastsPerMonth === 0) {
+    return NextResponse.json({ error: "Broadcasts are not available on your plan" }, { status: 403 });
+  }
+  if (limits.maxBroadcastsPerMonth > 0) {
+    const monthStart = new Date();
+    monthStart.setDate(1);
+    monthStart.setHours(0, 0, 0, 0);
+    const sentThisMonth = await prisma.broadcast.count({
+      where: { businessId: business.id, createdAt: { gte: monthStart } },
+    });
+    if (sentThisMonth >= limits.maxBroadcastsPerMonth) {
+      return NextResponse.json(
+        { error: `Monthly broadcast limit (${limits.maxBroadcastsPerMonth}) reached. Upgrade your plan.`, code: "LIMIT_REACHED" },
+        { status: 402 },
+      );
+    }
+  }
+
+  // Burst guard on top of the monthly cap.
+  const rl = await rateLimit(`broadcast:${business.id}`, 3, 60 * 60_000);
+  if (!rl.ok) {
+    return NextResponse.json(
+      { error: "Too many broadcasts. Please try again later." },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfter) } },
+    );
+  }
+
+  // Safe batch size: one request never fans out to more than MAX_RECIPIENTS clients.
   const clients = await prisma.client.findMany({
     where: { businessId: business.id },
     select: { email: true, phone: true, name: true },
+    orderBy: { createdAt: "asc" },
+    take: MAX_RECIPIENTS + 1,
   });
+  const capped = clients.length > MAX_RECIPIENTS;
+  if (capped) clients.length = MAX_RECIPIENTS;
 
   let sentTo = 0;
 
@@ -80,7 +118,7 @@ export async function POST(req: NextRequest) {
         await getResend().batch.send(emails);
         sentTo += chunk.length;
       } catch (err) {
-        logger.error("[Broadcast] Email batch error:", { err });
+        logger.error("broadcast email batch failed", { err });
       }
     }
   }
@@ -88,10 +126,12 @@ export async function POST(req: NextRequest) {
   // ── WhatsApp ───────────────────────────────────────────────────────────────
   if (medium === "whatsapp" || medium === "both") {
     const waClients = clients.filter(c => c.phone);
-    const results = await Promise.allSettled(
-      waClients.map(c => sendWhatsApp(c.phone!, message))
-    );
-    sentTo += results.filter(r => r.status === "fulfilled" && r.value).length;
+    for (let i = 0; i < waClients.length; i += WA_CONCURRENCY) {
+      const results = await Promise.allSettled(
+        waClients.slice(i, i + WA_CONCURRENCY).map(c => sendWhatsApp(c.phone!, message))
+      );
+      sentTo += results.filter(r => r.status === "fulfilled" && r.value).length;
+    }
   }
 
   await prisma.broadcast.create({
@@ -104,5 +144,5 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  return NextResponse.json({ ok: true, sentTo });
+  return NextResponse.json({ ok: true, sentTo, ...(capped ? { capped: true, limit: MAX_RECIPIENTS } : {}) });
 }
