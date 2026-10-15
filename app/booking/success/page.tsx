@@ -1,3 +1,4 @@
+import { zonedTimeToUtc, safeTimeZone } from "@/lib/time";
 import Link from "next/link";
 import { Check } from "lucide-react";
 import { razorpay } from "@/lib/razorpay";
@@ -74,7 +75,7 @@ export default async function BookingSuccessPage(
                 });
               }
 
-              const appointmentDate = new Date(`${meta.date}T${meta.time}:00`);
+              const appointmentDate = zonedTimeToUtc(meta.date, meta.time, safeTimeZone(business.timezone));
 
               await prisma.appointment.create({
                 data: {
@@ -83,6 +84,7 @@ export default async function BookingSuccessPage(
                   staffId: meta.staffId || null,
                   serviceId: orderedServices[0].id,
                   date: appointmentDate,
+                  endAt: new Date(appointmentDate.getTime() + totalDuration * 60_000),
                   duration: totalDuration,
                   price: totalPrice,
                   status: "confirmed",

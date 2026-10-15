@@ -39,7 +39,7 @@ export default function OnboardingClient({ name }: { name: string }) {
     const res = await fetch("/api/onboarding", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ businessName, currency }),
+      body: JSON.stringify({ businessName, currency, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone }),
     });
     const data = await res.json().catch(() => ({}));
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { generateSlots, parseHHMM } from "@/lib/booking";
+import { safeTimeZone, weekdayOf, zonedDayRange, utcToZoned } from "@/lib/time";
 import { rateLimit, clientIp } from "@/lib/ratelimit";
 import { parseQuery } from "@/lib/validation/common";
 import { availabilityQuery } from "@/lib/validation/bookings";
@@ -32,7 +33,7 @@ export async function GET(request: NextRequest) {
 
   const business = await prisma.business.findUnique({
     where: { slug },
-    select: { id: true, availabilityJson: true, slotInterval: true },
+    select: { id: true, availabilityJson: true, slotInterval: true, timezone: true },
   });
   if (!business) return NextResponse.json({ error: "Business not found" }, { status: 404 });
 
@@ -42,8 +43,9 @@ export async function GET(request: NextRequest) {
   // Parse availability settings
   const availability = safeAvailability(business.availabilityJson);
 
-  const dateObj = new Date(date + "T00:00:00Z");
-  const dayOfWeek = dateObj.getUTCDay();
+  // `date` is a calendar day in the business timezone, not a UTC day.
+  const tz = safeTimeZone(business.timezone);
+  const dayOfWeek = weekdayOf(date);
   const dayConfig = availability[String(dayOfWeek)];
 
   const workStart = parseHHMM(dayConfig?.start) !== null ? dayConfig!.start : "09:00";
@@ -67,12 +69,11 @@ export async function GET(request: NextRequest) {
   }
 
   // Fetch existing appointments for the day
-  const dayStart = new Date(date + "T00:00:00Z");
-  const dayEnd = new Date(date + "T23:59:59Z");
+  const { start: dayStart, end: dayEnd } = zonedDayRange(date, tz);
   const booked = await prisma.appointment.findMany({
     where: {
       businessId: business.id,
-      date: { gte: dayStart, lte: dayEnd },
+      date: { gte: dayStart, lt: dayEnd },
       status: { notIn: ["cancelled", "no-show"] },
     },
     select: { date: true, duration: true, serviceId: true },
@@ -84,9 +85,7 @@ export async function GET(request: NextRequest) {
     // Group booking: count how many bookings start at each exact slot time
     const bookingCountBySlot = new Map<string, number>();
     for (const appt of booked) {
-      const h = new Date(appt.date).getUTCHours().toString().padStart(2, "0");
-      const m = new Date(appt.date).getUTCMinutes().toString().padStart(2, "0");
-      const key = `${h}:${m}`;
+      const key = utcToZoned(appt.date, tz).time;
       bookingCountBySlot.set(key, (bookingCountBySlot.get(key) ?? 0) + 1);
     }
 
@@ -113,9 +112,7 @@ export async function GET(request: NextRequest) {
   // Individual booking: block all minutes covered by any appointment
   const blockedMinutes = new Set<number>();
   for (const appt of booked) {
-    const apptH = new Date(appt.date).getUTCHours();
-    const apptM = new Date(appt.date).getUTCMinutes();
-    const start = apptH * 60 + apptM;
+    const start = utcToZoned(appt.date, tz).minutes;
     for (let t = start; t < start + appt.duration; t++) {
       blockedMinutes.add(t);
     }

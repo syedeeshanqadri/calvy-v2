@@ -71,3 +71,81 @@ export function generateSlots(start: string, end: string, stepMin: number): stri
   return slots;
 }
 
+
+/* ── Atomic booking (S2-02) ───────────────────────────────────────── */
+
+/** Thrown inside the transaction when the slot is taken; routes map it to 409. */
+export class SlotConflictError extends Error {
+  constructor(public readonly capacity: number) {
+    super("slot conflict");
+    this.name = "SlotConflictError";
+  }
+}
+
+/** The slice of a Prisma transaction client the booking lock needs (fakeable in tests). */
+export interface BookingTx {
+  $executeRaw(strings: TemplateStringsArray, ...values: unknown[]): Promise<number>;
+  appointment: {
+    findMany(args: {
+      where: Record<string, unknown>;
+      select: { date: true; duration: true };
+    }): Promise<{ date: Date; duration: number }[]>;
+  };
+}
+export interface BookingDb<Tx extends BookingTx = BookingTx> {
+  $transaction<R>(fn: (tx: Tx) => Promise<R>): Promise<R>;
+}
+
+/**
+ * Conflict check + insert as one unit. Takes a transaction-scoped advisory
+ * lock, re-reads the overlapping appointments, throws SlotConflictError when
+ * the slot is taken, otherwise runs `create` in the same transaction. The lock
+ * is per business (the conflict rule is business-wide today); it releases at
+ * commit, so concurrent requests for one slot serialise and exactly one wins.
+ * Run side effects (email, push) after this resolves.
+ */
+export async function bookExclusive<R, Tx extends BookingTx = BookingTx>(
+  db: BookingDb<Tx>,
+  p: {
+    businessId: string;
+    start: Date;
+    durationMin: number;
+    capacity: number;
+    /** Owner override: skip the conflict check (still serialised). */
+    allowOverlap?: boolean;
+    /** Appointment being rescheduled; ignored by the check. */
+    excludeId?: string;
+  },
+  create: (tx: Tx) => Promise<R>,
+): Promise<R> {
+  return db.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${p.businessId}, 0))`;
+    if (!p.allowOverlap) {
+      const end = new Date(p.start.getTime() + p.durationMin * 60_000);
+      const rows = await tx.appointment.findMany({
+        where: {
+          businessId: p.businessId,
+          status: { notIn: ["cancelled", "no-show"] },
+          date: { lt: end },
+          endAt: { gt: p.start },
+          ...(p.excludeId ? { id: { not: p.excludeId } } : {}),
+        },
+        select: { date: true, duration: true },
+      });
+      const conflict = hasBookingConflict({
+        start: p.start.getTime(),
+        durationMin: p.durationMin,
+        capacity: p.capacity,
+        existing: rows.map((r) => ({ start: r.date.getTime(), durationMin: r.duration })),
+      });
+      if (conflict) throw new SlotConflictError(p.capacity);
+    }
+    return create(tx);
+  });
+}
+
+export function conflictMessage(capacity: number): string {
+  return capacity > 1
+    ? "This time slot is fully booked. Please choose another."
+    : "This time slot is no longer available. Please choose another.";
+}

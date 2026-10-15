@@ -96,6 +96,7 @@ model Business {
   addressPostalCode      String?
   websiteJson            String              @default("{}")
   slotInterval           Int                 @default(30)
+  timezone               String              @default("Asia/Kolkata")
   createdAt              DateTime            @default(now())
   updatedAt              DateTime            @updatedAt
   appointments           Appointment[]
@@ -208,7 +209,8 @@ model Appointment {
   clientId        String
   staffId         String?
   serviceId       String
-  date            DateTime
+  date            DateTime @db.Timestamptz(3)
+  endAt           DateTime @db.Timestamptz(3)
   duration        Int
   price           Float
   status          String   @default("pending")

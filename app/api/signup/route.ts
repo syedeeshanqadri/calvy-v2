@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
 
   const parsed = await parseBody(req, signupSchema);
   if (!parsed.ok) return parsed.res;
-  const { name, businessName, email, password, currency } = parsed.data;
+  const { name, businessName, email, password, currency, timezone } = parsed.data;
 
   const existing = await prisma.user.findFirst({ where: { email: { equals: email, mode: "insensitive" } } });
   if (existing) {
@@ -40,6 +40,7 @@ export async function POST(req: NextRequest) {
     ownerEmail: email,
     businessName,
     currency,
+    timezone,
   });
 
   // Create a 24-hour verification token

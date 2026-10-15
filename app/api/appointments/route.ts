@@ -9,6 +9,8 @@ import { sendPushToBusiness } from "@/lib/push";
 import { parseBody, parseQuery } from "@/lib/validation/common";
 import { appointmentCreateSchema, appointmentListQuery } from "@/lib/validation/appointments";
 import { logger } from "@/lib/logger";
+import { bookExclusive, SlotConflictError, conflictMessage } from "@/lib/booking";
+import { safeTimeZone, zonedDayRange, zonedTimeToUtc, utcToZoned, formatDateLabel } from "@/lib/time";
 
 export const dynamic = 'force-dynamic';
 
@@ -22,12 +24,13 @@ export async function GET(request: NextRequest) {
   if (!q.ok) return q.res;
   const { date, status, staffId } = q.data;
 
+  const biz = await prisma.business.findUnique({ where: { id: session.user.businessId }, select: { timezone: true } });
+  const tz = safeTimeZone(biz?.timezone);
+
   const where: Record<string, unknown> = { businessId: session.user.businessId };
   if (date) {
-    const d = new Date(date);
-    const next = new Date(d);
-    next.setDate(d.getDate() + 1);
-    where.date = { gte: d, lt: next };
+    const { start, end } = zonedDayRange(date, tz);
+    where.date = { gte: start, lt: end };
   }
   if (status) where.status = status;
   if (staffId) where.staffId = staffId;
@@ -43,8 +46,8 @@ export async function GET(request: NextRequest) {
     clientName: a.client.name,
     serviceName: a.service.name,
     staffName: a.staff?.name ?? null,
-    date: new Date(a.date).toISOString().split("T")[0],
-    time: `${new Date(a.date).getHours().toString().padStart(2, "0")}:${new Date(a.date).getMinutes().toString().padStart(2, "0")}`,
+    date: utcToZoned(a.date, tz).date,
+    time: utcToZoned(a.date, tz).time,
     duration: a.duration,
     price: a.price,
     status: a.status,
@@ -62,7 +65,7 @@ export async function POST(request: NextRequest) {
 
   const parsed = await parseBody(request, appointmentCreateSchema);
   if (!parsed.ok) return parsed.res;
-  const { clientName, clientEmail, clientPhone, staffId, date, time, notes } = parsed.data;
+  const { clientName, clientEmail, clientPhone, staffId, date, time, notes, allowOverlap } = parsed.data;
 
   // Support serviceIds[] (multi) and legacy serviceId (single)
   const serviceIds: string[] = parsed.data.serviceIds?.length ? parsed.data.serviceIds : [parsed.data.serviceId!];
@@ -70,7 +73,7 @@ export async function POST(request: NextRequest) {
   // Plan limit check + fetch business name in one query
   const business = await prisma.business.findUnique({
     where: { id: session.user.businessId },
-    select: { name: true, plan: true, planStatus: true, trialEndsAt: true, currency: true },
+    select: { name: true, plan: true, planStatus: true, trialEndsAt: true, currency: true, timezone: true },
   });
   if (!business || !isActivePlan(business.planStatus, business.plan, business.trialEndsAt)) {
     return NextResponse.json({ error: "Your trial has expired. Please upgrade to continue.", code: "PLAN_EXPIRED" }, { status: 402 });
@@ -107,9 +110,11 @@ export async function POST(request: NextRequest) {
     return notes || "";
   })();
 
-  const [hours, minutes] = time.split(":").map(Number);
-  const apptDate = new Date(date);
-  apptDate.setHours(hours, minutes, 0, 0);
+  const tz = safeTimeZone(business.timezone);
+  const apptDate = zonedTimeToUtc(date, time, tz);
+  if (isNaN(apptDate.getTime())) {
+    return NextResponse.json({ error: "Invalid date or time." }, { status: 400 });
+  }
 
   const client =
     (await findClientByEmail(prisma, session.user.businessId, clientEmail)) ??
@@ -129,22 +134,40 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Staff member not found" }, { status: 404 });
   }
 
-  const appointment = await prisma.appointment.create({
-    data: {
-      businessId: session.user.businessId,
-      clientId: client.id,
-      serviceId: orderedServices[0].id,
-      staffId: staffId || null,
-      date: apptDate,
-      duration: totalDuration,
-      price: totalPrice,
-      notes: combinedNotes,
-      status: "confirmed",
-      paymentStatus: "unpaid",
-    },
-  });
+  // Same conflict rule as public bookings, under the same lock. The owner may
+  // explicitly allow an overlap (allowOverlap: true).
+  const capacity = Math.max(1, orderedServices[0].capacity ?? 1);
+  const businessId = session.user.businessId;
+  let appointment;
+  try {
+    appointment = await bookExclusive(
+      prisma,
+      { businessId, start: apptDate, durationMin: totalDuration, capacity, allowOverlap },
+      (tx) =>
+        tx.appointment.create({
+          data: {
+            businessId,
+            clientId: client.id,
+            serviceId: orderedServices[0].id,
+            staffId: staffId || null,
+            date: apptDate,
+            endAt: new Date(apptDate.getTime() + totalDuration * 60_000),
+            duration: totalDuration,
+            price: totalPrice,
+            notes: combinedNotes,
+            status: "confirmed",
+            paymentStatus: "unpaid",
+          },
+        }),
+    );
+  } catch (err) {
+    if (err instanceof SlotConflictError) {
+      return NextResponse.json({ error: conflictMessage(capacity), code: "SLOT_CONFLICT" }, { status: 409 });
+    }
+    throw err;
+  }
 
-  const dateLabel = apptDate.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
+  const dateLabel = formatDateLabel(apptDate, tz);
 
   sendPushToBusiness(session.user.businessId, {
     title: "New appointment booked",

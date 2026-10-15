@@ -5,6 +5,7 @@ import { sendBookingReminder } from "@/lib/email";
 import { sendReminderWhatsApp } from "@/lib/whatsapp";
 import { sendPushToBusiness } from "@/lib/push";
 import { logger } from "@/lib/logger";
+import { safeTimeZone, utcToZoned, addDays, formatDateLabel, formatTimeLabel } from "@/lib/time";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -32,27 +33,29 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // Tomorrow, 00:00 → day-after 00:00 (UTC).
-  const windowStart = new Date();
-  windowStart.setUTCHours(0, 0, 0, 0);
-  windowStart.setUTCDate(windowStart.getUTCDate() + 1);
-  const windowEnd = new Date(windowStart);
-  windowEnd.setUTCDate(windowEnd.getUTCDate() + 1);
-
-  const appointments = await prisma.appointment.findMany({
+  // "Tomorrow" is each business's own calendar day, so fetch a wide UTC window
+  // (now → +49h covers tomorrow in every zone) and keep the rows whose local
+  // date is exactly one day after the business's local today.
+  const now = new Date();
+  const candidates = await prisma.appointment.findMany({
     where: {
-      date: { gte: windowStart, lt: windowEnd },
+      date: { gte: now, lt: new Date(now.getTime() + 49 * 3_600_000) },
       reminderSent: false,
       status: { notIn: ["cancelled", "no-show"] },
     },
     include: { client: true, service: true, business: true },
   });
+  const appointments = candidates.filter((a) => {
+    const tz = safeTimeZone(a.business.timezone);
+    return utcToZoned(a.date, tz).date === addDays(utcToZoned(now, tz).date, 1);
+  });
 
   let sent = 0;
   const results = await Promise.allSettled(
     appointments.map(async (appt) => {
-      const dateLabel = appt.date.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
-      const timeLabel = appt.date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+      const tz = safeTimeZone(appt.business.timezone);
+      const dateLabel = formatDateLabel(appt.date, tz);
+      const timeLabel = formatTimeLabel(appt.date, tz);
 
       // Client reminders (email + WhatsApp) — best effort, never block the others.
       // sendBookingReminder resolves { ok } (ok=false when skipped/failed).
