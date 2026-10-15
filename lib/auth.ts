@@ -5,6 +5,19 @@ import FacebookProvider from "next-auth/providers/facebook";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { rateLimit } from "@/lib/ratelimit";
+import { normalizeEmail, tryNormalizeEmail } from "@/lib/email-normalize";
+
+// Case-insensitive user lookup; an exact lowercase match wins over legacy
+// mixed-case duplicates.
+async function findUserByEmail(email: string) {
+  const e = normalizeEmail(email);
+  const exact = await prisma.user.findUnique({ where: { email: e } });
+  if (exact) return exact;
+  return prisma.user.findFirst({
+    where: { email: { equals: e, mode: "insensitive" } },
+    orderBy: { createdAt: "asc" },
+  });
+}
 
 // OAuth providers are only registered when their credentials are configured,
 // so the social buttons stay inert until env vars are set.
@@ -47,9 +60,7 @@ export const authOptions: NextAuthOptions = {
         if (!rl.ok) throw new Error("TooManyAttempts");
 
         try {
-          const user = await prisma.user.findUnique({
-            where: { email: credentials.email },
-          });
+          const user = await findUserByEmail(credentials.email);
 
           if (!user || !user.password) return null; // OAuth-only accounts have no password
           if (!await bcrypt.compare(credentials.password, user.password)) return null;
@@ -72,12 +83,14 @@ export const authOptions: NextAuthOptions = {
       if (!account || account.provider === "credentials") return true;
       if (!user.email) return false; // provider didn't share an email — can't proceed
 
-      const existing = await prisma.user.findUnique({ where: { email: user.email } });
+      const oauthEmail = tryNormalizeEmail(user.email);
+      if (!oauthEmail) return false;
+      const existing = await findUserByEmail(oauthEmail);
       if (!existing) {
         await prisma.user.create({
           data: {
-            name: user.name ?? user.email.split("@")[0],
-            email: user.email,
+            name: user.name ?? oauthEmail.split("@")[0],
+            email: oauthEmail,
             image: user.image ?? null,
             emailVerified: new Date(), // OAuth emails are pre-verified
           },
@@ -90,12 +103,13 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user }) {
       // On sign-in, resolve our DB user by email (works for credentials + OAuth,
       // since OAuth token.sub is the provider's id, not ours).
-      const email = (user?.email ?? token.email) as string | undefined;
+      const rawEmail = (user?.email ?? token.email) as string | undefined;
+      const email = tryNormalizeEmail(rawEmail) ?? undefined;
       if (user && email) {
-        const dbUser = await prisma.user.findUnique({
-          where: { email },
-          include: { business: true },
-        });
+        const found = await findUserByEmail(email);
+        const dbUser = found
+          ? await prisma.user.findUnique({ where: { id: found.id }, include: { business: true } })
+          : null;
         if (dbUser) {
           token.uid = dbUser.id;
           token.role = dbUser.role;

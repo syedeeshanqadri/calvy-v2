@@ -187,3 +187,15 @@ export function sendLeadAcknowledgment({ to, name, demoRequested }: { to: string
     react: <LeadAcknowledgmentEmail name={name} demoRequested={demoRequested} />,
   });
 }
+
+// Imported here (not in the header list) to keep this change append-only.
+import { PasswordResetEmail } from "@/emails/templates";
+
+export function sendPasswordResetEmail({ to, name, token, baseUrl }: { to: string; name: string; token: string; baseUrl?: string }) {
+  const appUrl = baseUrl ?? process.env.NEXT_PUBLIC_APP_URL ?? "https://calvy.io";
+  return dispatch({
+    to, type: "password_reset",
+    subject: "Reset your Calvy password",
+    react: <PasswordResetEmail name={name} resetUrl={`${appUrl}/reset-password?token=${token}`} />,
+  });
+}
