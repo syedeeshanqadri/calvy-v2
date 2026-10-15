@@ -6,7 +6,9 @@ import { sendBookingConfirmationWhatsApp } from "@/lib/whatsapp";
 import { sendPushToBusiness } from "@/lib/push";
 import { DEFAULT_CURRENCY } from "@/lib/currency";
 import { rateLimit, clientIp } from "@/lib/ratelimit";
-import { normalizeEmail, findClientByEmail } from "@/lib/email-normalize";
+import { findClientByEmail } from "@/lib/email-normalize";
+import { parseBody } from "@/lib/validation/common";
+import { bookingSchema } from "@/lib/validation/bookings";
 import { isPastBooking, hasBookingConflict } from "@/lib/booking";
 
 export const dynamic = 'force-dynamic';
@@ -20,27 +22,24 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const body = await req.json();
-  const { businessSlug, staffId, date, time, clientName, clientEmail: rawClientEmail, clientPhone, notes } = body;
-  const clientEmail: string = typeof rawClientEmail === "string" ? normalizeEmail(rawClientEmail) : rawClientEmail;
+  const parsed = await parseBody(req, bookingSchema);
+  if (!parsed.ok) return parsed.res;
+  const { businessSlug, staffId, date, time, clientName, clientEmail, clientPhone, notes } = parsed.data;
 
   // Support serviceIds[] (multi-service) and legacy serviceId (single)
-  const serviceIds: string[] =
-    Array.isArray(body.serviceIds) && body.serviceIds.length > 0
-      ? body.serviceIds
-      : body.serviceId
-      ? [body.serviceId]
-      : [];
-
-  if (!businessSlug || serviceIds.length === 0 || !date || !time || !clientName || !clientEmail) {
-    return NextResponse.json({ error: "Missing required fields." }, { status: 400 });
-  }
+  const serviceIds: string[] = parsed.data.serviceIds?.length ? parsed.data.serviceIds : [parsed.data.serviceId!];
 
   const business = await prisma.business.findUnique({
     where: { slug: businessSlug },
     include: { services: true },
   });
   if (!business) return NextResponse.json({ error: "Business not found." }, { status: 404 });
+
+  // Tenant isolation: a staff member must belong to this business.
+  if (staffId) {
+    const staffOk = await prisma.staff.findFirst({ where: { id: staffId, businessId: business.id }, select: { id: true } });
+    if (!staffOk) return NextResponse.json({ error: "Staff member not found." }, { status: 404 });
+  }
 
   const servicesMap = new Map(business.services.map(s => [s.id, s]));
   const orderedServices = serviceIds.map(id => servicesMap.get(id)).filter(Boolean) as typeof business.services;
@@ -147,7 +146,7 @@ export async function POST(req: NextRequest) {
 
     const dateLabel = appointmentDate.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
     const staffMember = staffId
-      ? await prisma.staff.findUnique({ where: { id: staffId }, select: { name: true } })
+      ? await prisma.staff.findFirst({ where: { id: staffId, businessId: business.id }, select: { name: true } })
       : null;
 
     sendPushToBusiness(business.id, {
@@ -261,7 +260,7 @@ export async function POST(req: NextRequest) {
 
   const dateLabel = appointmentDate.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
   const staffMember = staffId
-    ? await prisma.staff.findUnique({ where: { id: staffId }, select: { name: true } })
+    ? await prisma.staff.findFirst({ where: { id: staffId, businessId: business.id }, select: { name: true } })
     : null;
 
   sendPushToBusiness(business.id, {

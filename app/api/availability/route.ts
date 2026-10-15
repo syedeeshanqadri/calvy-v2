@@ -2,10 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { generateSlots, parseHHMM } from "@/lib/booking";
 import { rateLimit, clientIp } from "@/lib/ratelimit";
+import { parseQuery } from "@/lib/validation/common";
+import { availabilityQuery } from "@/lib/validation/bookings";
 
 export const dynamic = 'force-dynamic';
-
-const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 function safeAvailability(json: string | null): Record<string, { enabled: boolean; start: string; end: string }> {
   if (!json || json === "{}") return {};
@@ -18,22 +18,9 @@ function safeAvailability(json: string | null): Record<string, { enabled: boolea
 }
 
 export async function GET(request: NextRequest) {
-  const { searchParams } = new URL(request.url);
-  const slug = searchParams.get("slug");
-  const date = searchParams.get("date"); // YYYY-MM-DD
-  const rawDuration = Math.floor(Number(searchParams.get("duration") || "30"));
-  const serviceDuration = Number.isFinite(rawDuration) ? Math.min(1440, Math.max(1, rawDuration)) : 30;
-  const serviceId = searchParams.get("serviceId") ?? null;
-
-  if (!slug || !date) {
-    return NextResponse.json({ error: "slug and date are required" }, { status: 400 });
-  }
-  if (slug.length > 100) {
-    return NextResponse.json({ error: "Invalid slug" }, { status: 400 });
-  }
-  if (!DATE_RE.test(date) || Number.isNaN(new Date(date + "T00:00:00Z").getTime())) {
-    return NextResponse.json({ error: "date must be YYYY-MM-DD" }, { status: 400 });
-  }
+  const q = parseQuery(request.url, availabilityQuery);
+  if (!q.ok) return q.res;
+  const { slug, date, duration: serviceDuration, serviceId = null } = q.data;
 
   const limit = await rateLimit(`availability:${clientIp(request)}`, 60, 60_000);
   if (!limit.ok) {
