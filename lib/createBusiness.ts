@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { defaultWebsiteConfig } from "@/lib/website";
 import { isReservedSlug } from "@/lib/slugs";
+import { safeTimeZone } from "@/lib/time";
 
 function toBaseSlug(name: string): string {
   return name
@@ -44,6 +45,7 @@ export async function createBusinessForUser(params: {
   ownerEmail: string;
   businessName: string;
   currency: string;
+  timezone?: string;
   businessType?: string;
 }) {
   const businessType = params.businessType ?? "general";
@@ -59,6 +61,7 @@ export async function createBusinessForUser(params: {
       plan: "free",
       planStatus: "free",
       currency: params.currency,
+      timezone: safeTimeZone(params.timezone),
       owner: { connect: { id: params.ownerId } },
       services: {
         create: [

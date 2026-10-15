@@ -9,6 +9,7 @@ import { AppointmentList } from "@/components/dashboard/AppointmentList";
 import { MiniCalendar } from "@/components/dashboard/MiniCalendar";
 import { TeamWidget } from "@/components/dashboard/TeamWidget";
 import { QuickActions } from "@/components/dashboard/QuickActions";
+import { safeTimeZone, utcToZoned, zonedDayRange, formatDateLabel } from "@/lib/time";
 
 export const dynamic = 'force-dynamic';
 
@@ -26,13 +27,15 @@ export default async function DashboardPage() {
   const businessId = session.user.businessId;
   const firstName = session.user.name?.split(" ")[0] ?? "there";
 
+  const tz = safeTimeZone((await prisma.business.findUnique({ where: { id: businessId }, select: { timezone: true } }))?.timezone);
   const now = new Date();
-  const hour = now.getHours();
+  const hour = utcToZoned(now, tz).minutes / 60;
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
-  const dateStr = now.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
+  const dateStr = formatDateLabel(now, tz);
 
-  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const todayEnd = new Date(todayStart.getTime() + 86400000 - 1);
+  // Today is the business's calendar day, not the server's.
+  const { start: todayStart, end: todayEndExcl } = zonedDayRange(utcToZoned(now, tz).date, tz);
+  const todayEnd = new Date(todayEndExcl.getTime() - 1);
 
   // Last 7 days
   const weekStart = new Date(todayStart);
@@ -121,7 +124,7 @@ export default async function DashboardPage() {
       clientEmail: a.client.email,
       serviceName,
       staffName: a.staff?.name ?? "—",
-      time: `${new Date(a.date).getHours().toString().padStart(2, "0")}:${new Date(a.date).getMinutes().toString().padStart(2, "0")}`,
+      time: utcToZoned(a.date, tz).time,
       duration: a.duration,
       price: a.price,
       status: a.status,

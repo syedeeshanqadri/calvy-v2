@@ -9,7 +9,8 @@ import { rateLimit, clientIp } from "@/lib/ratelimit";
 import { findClientByEmail } from "@/lib/email-normalize";
 import { parseBody } from "@/lib/validation/common";
 import { bookingSchema } from "@/lib/validation/bookings";
-import { isPastBooking, hasBookingConflict } from "@/lib/booking";
+import { isPastBooking, bookExclusive, SlotConflictError, conflictMessage } from "@/lib/booking";
+import { zonedTimeToUtc, formatDateLabel } from "@/lib/time";
 import { logger } from "@/lib/logger";
 
 export const dynamic = 'force-dynamic';
@@ -51,9 +52,10 @@ export async function POST(req: NextRequest) {
   const serviceNamesLabel = orderedServices.map(s => s.name).join(" & ");
 
   // Server-side slot validation. The availability endpoint is advisory only,
-  // so we re-check here authoritatively to prevent past-dated and
-  // double-booked appointments (direct API calls or client races).
-  const appointmentStart = new Date(`${date}T${time}:00`);
+  // so we re-check here authoritatively. Wall-clock input is read in the
+  // business's own timezone and stored as a UTC instant.
+  const tz = business.timezone;
+  const appointmentStart = zonedTimeToUtc(date, time, tz);
   if (isNaN(appointmentStart.getTime())) {
     return NextResponse.json({ error: "Invalid date or time." }, { status: 400 });
   }
@@ -61,31 +63,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "That time has already passed. Please pick a future slot." }, { status: 400 });
   }
 
-  // Conflict check — mirrors the availability endpoint (business-wide, capacity-aware).
   const capacity = Math.max(1, orderedServices[0].capacity ?? 1);
-  const newStart = appointmentStart.getTime();
-  const dayStart = new Date(appointmentStart); dayStart.setHours(0, 0, 0, 0);
-  const dayEnd = new Date(appointmentStart); dayEnd.setHours(23, 59, 59, 999);
-  const sameDay = await prisma.appointment.findMany({
-    where: {
-      businessId: business.id,
-      status: { notIn: ["cancelled", "no-show"] },
-      date: { gte: dayStart, lte: dayEnd },
-    },
-    select: { date: true, duration: true },
-  });
-  const conflict = hasBookingConflict({
-    start: newStart,
-    durationMin: totalDuration,
-    capacity,
-    existing: sameDay.map(a => ({ start: a.date.getTime(), durationMin: a.duration })),
-  });
-  if (conflict) {
-    const msg = capacity > 1
-      ? "This time slot is fully booked. Please choose another."
-      : "This time slot is no longer available. Please choose another.";
-    return NextResponse.json({ error: msg }, { status: 409 });
-  }
+  const slot = { businessId: business.id, start: appointmentStart, durationMin: totalDuration, capacity };
 
   const paymentMode = (business as { paymentMode?: string }).paymentMode ?? "postpaid";
 
@@ -103,54 +82,50 @@ export async function POST(req: NextRequest) {
     return notes || null;
   })();
 
-  async function createAppointment(
+  // Conflict check + insert run in one transaction under an advisory lock, so
+  // two requests for the same slot can never both succeed.
+  function createAppointment(
     clientId: string,
-    baseDate: Date,
     paymentStatus: string,
     paymentModeVal: string,
-    razorpayPaymentId?: string,
   ) {
-    return prisma.appointment.create({
-      data: {
-        businessId: business!.id,
-        clientId,
-        staffId: staffId || null,
-        serviceId: orderedServices[0].id,
-        date: baseDate,
-        duration: totalDuration,
-        price: totalPrice,
-        status: "confirmed",
-        notes: combinedNotes,
-        paymentStatus,
-        paymentMode: paymentModeVal,
-        ...(razorpayPaymentId ? { razorpayPaymentId } : {}),
-      },
-    });
+    return bookExclusive(prisma, slot, (tx) =>
+      tx.appointment.create({
+        data: {
+          businessId: business!.id,
+          clientId,
+          staffId: staffId || null,
+          serviceId: orderedServices[0].id,
+          date: appointmentStart,
+          endAt: new Date(appointmentStart.getTime() + totalDuration * 60_000),
+          duration: totalDuration,
+          price: totalPrice,
+          status: "confirmed",
+          notes: combinedNotes,
+          paymentStatus,
+          paymentMode: paymentModeVal,
+        },
+      }),
+    );
   }
 
-  // Postpaid path — create appointments directly, client pays at visit
-  if (paymentMode === "postpaid") {
-    let client = await findClientByEmail(prisma, business.id, clientEmail);
-    if (!client) {
-      client = await prisma.client.create({
-        data: { businessId: business.id, name: clientName, email: clientEmail, phone: clientPhone || null },
-      });
-    }
-
-    const appointmentDate = new Date(`${date}T${time}:00`);
-    const appointment = await createAppointment(client.id, appointmentDate, "unpaid", "postpaid");
-
+  // Post-commit work shared by the postpaid and demo paths.
+  async function notify(appointmentId: string, spent: number) {
     await prisma.client.update({
       where: { id: client.id },
-      data: { totalAppointments: { increment: 1 }, lastVisit: appointmentDate },
+      data: {
+        totalAppointments: { increment: 1 },
+        ...(spent ? { totalSpent: { increment: spent } } : {}),
+        lastVisit: appointmentStart,
+      },
     });
 
-    const dateLabel = appointmentDate.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
+    const dateLabel = formatDateLabel(appointmentStart, tz);
     const staffMember = staffId
-      ? await prisma.staff.findFirst({ where: { id: staffId, businessId: business.id }, select: { name: true } })
+      ? await prisma.staff.findFirst({ where: { id: staffId, businessId: business!.id }, select: { name: true } })
       : null;
 
-    sendPushToBusiness(business.id, {
+    sendPushToBusiness(business!.id, {
       title: "New booking received",
       body: `${clientName} — ${serviceNamesLabel} on ${dateLabel} at ${time}`,
       url: "/dashboard/appointments",
@@ -161,16 +136,16 @@ export async function POST(req: NextRequest) {
       await sendBookingConfirmation({
         to: clientEmail,
         clientName,
-        businessName: business.name,
+        businessName: business!.name,
         serviceName: serviceNamesLabel,
         staffName: staffMember?.name ?? "Your provider",
         date: dateLabel,
         time,
         duration: totalDuration,
         price: totalPrice,
-        currency: business.currency ?? DEFAULT_CURRENCY,
-        appointmentDate,
-        ctx: { appointmentId: appointment.id, businessId: business.id },
+        currency: business!.currency ?? DEFAULT_CURRENCY,
+        appointmentDate: appointmentStart,
+        ctx: { appointmentId, businessId: business!.id },
       });
     } catch (err) {
       logger.error("[Email] Failed:", { err });
@@ -182,7 +157,7 @@ export async function POST(req: NextRequest) {
           to: clientPhone,
           clientName,
           serviceName: serviceNamesLabel,
-          businessName: business.name,
+          businessName: business!.name,
           date: dateLabel,
           time,
         });
@@ -190,7 +165,32 @@ export async function POST(req: NextRequest) {
         logger.error("[WhatsApp] Failed:", { err });
       }
     }
+  }
 
+  async function getOrCreateClient() {
+    const existing = await findClientByEmail(prisma, business!.id, clientEmail);
+    if (existing) return existing;
+    return prisma.client.create({
+      data: { businessId: business!.id, name: clientName, email: clientEmail, phone: clientPhone || null },
+    });
+  }
+
+  const conflictResponse = () =>
+    NextResponse.json({ error: conflictMessage(capacity) }, { status: 409 });
+
+  let client: Awaited<ReturnType<typeof getOrCreateClient>>;
+
+  // Postpaid path — create appointments directly, client pays at visit
+  if (paymentMode === "postpaid") {
+    client = await getOrCreateClient();
+    let appointment;
+    try {
+      appointment = await createAppointment(client.id, "unpaid", "postpaid");
+    } catch (err) {
+      if (err instanceof SlotConflictError) return conflictResponse();
+      throw err;
+    }
+    await notify(appointment.id, 0);
     return NextResponse.json({ success: true, appointmentId: appointment.id, paymentMode: "postpaid" });
   }
 
@@ -208,6 +208,13 @@ export async function POST(req: NextRequest) {
   }
 
   if (razorpayKey) {
+    // Early, non-binding check: the slot is re-checked when the paid booking is stored.
+    try {
+      await bookExclusive(prisma, slot, async () => null);
+    } catch (err) {
+      if (err instanceof SlotConflictError) return conflictResponse();
+      throw err;
+    }
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? `http://localhost:${process.env.PORT ?? 3000}`;
     const currency = (business.currency ?? DEFAULT_CURRENCY).toUpperCase();
 
@@ -240,70 +247,14 @@ export async function POST(req: NextRequest) {
   }
 
   // Dev/demo mode — create appointments without payment
-  let client = await findClientByEmail(prisma, business.id, clientEmail);
-  if (!client) {
-    client = await prisma.client.create({
-      data: { businessId: business.id, name: clientName, email: clientEmail, phone: clientPhone || null },
-    });
-  }
-
-  const appointmentDate = new Date(`${date}T${time}:00`);
-  const appointment = await createAppointment(client.id, appointmentDate, "unpaid", "prepaid");
-
-  await prisma.client.update({
-    where: { id: client.id },
-    data: {
-      totalAppointments: { increment: 1 },
-      totalSpent: { increment: totalPrice },
-      lastVisit: appointmentDate,
-    },
-  });
-
-  const dateLabel = appointmentDate.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
-  const staffMember = staffId
-    ? await prisma.staff.findFirst({ where: { id: staffId, businessId: business.id }, select: { name: true } })
-    : null;
-
-  sendPushToBusiness(business.id, {
-    title: "New booking received",
-    body: `${clientName} — ${serviceNamesLabel} on ${dateLabel} at ${time}`,
-    url: "/dashboard/appointments",
-    tag: "new-booking",
-  }).catch(() => {});
-
+  client = await getOrCreateClient();
+  let appointment;
   try {
-    await sendBookingConfirmation({
-      to: clientEmail,
-      clientName,
-      businessName: business.name,
-      serviceName: serviceNamesLabel,
-      staffName: staffMember?.name ?? "Your provider",
-      date: dateLabel,
-      time,
-      duration: totalDuration,
-      price: totalPrice,
-      currency: business.currency ?? DEFAULT_CURRENCY,
-      appointmentDate,
-      ctx: { appointmentId: appointment.id, businessId: business.id },
-    });
+    appointment = await createAppointment(client.id, "unpaid", "prepaid");
   } catch (err) {
-    logger.error("[Email] Failed:", { err });
+    if (err instanceof SlotConflictError) return conflictResponse();
+    throw err;
   }
-
-  if (clientPhone) {
-    try {
-      await sendBookingConfirmationWhatsApp({
-        to: clientPhone,
-        clientName,
-        serviceName: serviceNamesLabel,
-        businessName: business.name,
-        date: dateLabel,
-        time,
-      });
-    } catch (err) {
-      logger.error("[WhatsApp] Failed:", { err });
-    }
-  }
-
+  await notify(appointment.id, totalPrice);
   return NextResponse.json({ success: true, appointmentId: appointment.id });
 }

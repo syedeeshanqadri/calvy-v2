@@ -164,6 +164,7 @@ async function main() {
     return d;
   }
 
+  const withEnd = <T extends { date: Date; duration: number }>(a: T) => ({ ...a, endAt: new Date(a.date.getTime() + a.duration * 60_000) });
   await prisma.appointment.createMany({
     data: [
       { businessId: business.id, clientId: clients[0].id, staffId: st1.id, serviceId: s1.id, date: dt(0, 10),     duration: 60,  price: 85,  status: "confirmed",  paymentStatus: "paid" },
@@ -174,7 +175,7 @@ async function main() {
       { businessId: business.id, clientId: clients[5].id, staffId: st2.id, serviceId: s6.id, date: dt(0, 9),      duration: 120, price: 140, status: "completed",  paymentStatus: "paid" },
       { businessId: business.id, clientId: clients[6].id, staffId: st3.id, serviceId: s3.id, date: dt(1, 10),     duration: 90,  price: 120, status: "confirmed",  paymentStatus: "paid" },
       { businessId: business.id, clientId: clients[7].id, staffId: st2.id, serviceId: s1.id, date: dt(1, 14),     duration: 60,  price: 85,  status: "pending",    paymentStatus: "unpaid" },
-    ],
+    ].map(withEnd),
   });
 
   console.log("✅ Seed complete!");

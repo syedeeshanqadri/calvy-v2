@@ -1,3 +1,4 @@
+import { safeTimeZone, utcToZoned } from "@/lib/time";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -12,6 +13,7 @@ export default async function PaymentsPage() {
   if (!getFlags().payments) notFound();
   const session = await getServerSession(authOptions);
   if (!session?.user?.businessId) redirect("/login");
+  const tz = safeTimeZone((await prisma.business.findUnique({ where: { id: session.user.businessId }, select: { timezone: true } }))?.timezone);
 
   const [appointments, features] = await Promise.all([
     prisma.appointment.findMany({
@@ -35,7 +37,7 @@ export default async function PaymentsPage() {
       price: a.price,
       paymentStatus: a.paymentStatus,
       paymentMode: (a as { paymentMode?: string }).paymentMode ?? "prepaid",
-      date: new Date(a.date).toISOString().split("T")[0],
+      date: utcToZoned(a.date, tz).date,
     };
   });
 

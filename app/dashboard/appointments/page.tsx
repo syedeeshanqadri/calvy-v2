@@ -1,3 +1,4 @@
+import { safeTimeZone, utcToZoned } from "@/lib/time";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -10,6 +11,7 @@ export const dynamic = 'force-dynamic';
 export default async function AppointmentsPage() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.businessId) redirect("/login");
+  const tz = safeTimeZone((await prisma.business.findUnique({ where: { id: session.user.businessId }, select: { timezone: true } }))?.timezone);
 
   const features = await getBusinessFeatures(session.user.businessId);
 
@@ -39,8 +41,8 @@ export default async function AppointmentsPage() {
       clientEmail: a.client.email,
       serviceName,
       staffName: a.staff?.name ?? "—",
-      date: new Date(a.date).toISOString().split("T")[0],
-      time: `${new Date(a.date).getHours().toString().padStart(2, "0")}:${new Date(a.date).getMinutes().toString().padStart(2, "0")}`,
+      date: utcToZoned(a.date, tz).date,
+      time: utcToZoned(a.date, tz).time,
       duration: a.duration,
       price: a.price,
       status: a.status,

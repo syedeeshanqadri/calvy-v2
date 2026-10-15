@@ -20,7 +20,7 @@ function appt(client: { email: string; phone: string | null }) {
     date: new Date("2026-10-16T10:00:00Z"),
     client: { name: "C", ...client },
     service: { name: "S" },
-    business: { name: "B" },
+    business: { name: "B", timezone: "Asia/Kolkata" },
   };
 }
 const req = (auth?: string) =>
@@ -33,13 +33,16 @@ async function call(auth?: string) {
 
 describe("cron reminders", () => {
   beforeEach(() => {
+    // 15 Oct 2026 11:30 IST, so the fixture appointment (16 Oct 15:30 IST) is "tomorrow" in the business zone.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-15T06:00:00Z"));
     vi.resetModules();
     findMany.mockReset().mockResolvedValue([]);
     update.mockReset().mockResolvedValue({});
     sendBookingReminder.mockReset();
     sendReminderWhatsApp.mockReset().mockResolvedValue(undefined);
   });
-  afterEach(() => vi.unstubAllEnvs());
+  afterEach(() => { vi.unstubAllEnvs(); vi.useRealTimers(); });
 
   describe("auth", () => {
     it("production without CRON_SECRET -> 401 and does not run", async () => {

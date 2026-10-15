@@ -1,3 +1,4 @@
+import { safeTimeZone, utcToZoned } from "@/lib/time";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -9,6 +10,7 @@ export const dynamic = 'force-dynamic';
 export default async function CalendarPage() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.businessId) redirect("/login");
+  const tz = safeTimeZone((await prisma.business.findUnique({ where: { id: session.user.businessId }, select: { timezone: true } }))?.timezone);
 
   const now = new Date();
   const rangeStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 14);
@@ -34,8 +36,8 @@ export default async function CalendarPage() {
       id: a.id,
       clientName: a.client.name,
       serviceName,
-      date: new Date(a.date).toISOString().split("T")[0],
-      time: `${new Date(a.date).getHours().toString().padStart(2, "0")}:${new Date(a.date).getMinutes().toString().padStart(2, "0")}`,
+      date: utcToZoned(a.date, tz).date,
+      time: utcToZoned(a.date, tz).time,
       duration: a.duration,
       color: a.service.color,
       status: a.status,

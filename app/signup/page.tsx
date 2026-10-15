@@ -69,7 +69,7 @@ export default function SignupPage() {
       res = await fetch("/api/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify({ ...form, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone }),
       });
       data = await res.json().catch(() => ({}));
     } catch {

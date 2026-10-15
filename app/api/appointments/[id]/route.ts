@@ -6,12 +6,12 @@ import { parseBody } from "@/lib/validation/common";
 import { appointmentPatchSchema } from "@/lib/validation/appointments";
 import { sendBookingCancellation, sendBookingReschedule, sendInvoice, type BookingDetails } from "@/lib/email";
 import { logger } from "@/lib/logger";
+import { bookExclusive, SlotConflictError, conflictMessage, isPastBooking } from "@/lib/booking";
+import { safeTimeZone, formatDateLabel, formatTimeLabel } from "@/lib/time";
 
 export const dynamic = 'force-dynamic';
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://calvy.io";
-const fmtDate = (d: Date) => d.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
-const fmtTime = (d: Date) => d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
 
 export async function PATCH(req: NextRequest, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
@@ -36,7 +36,10 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
   if (date !== undefined) {
     const d = new Date(date);
     if (isNaN(d.getTime())) return NextResponse.json({ error: "Invalid date" }, { status: 400 });
-    if (d.getTime() !== appointment.date.getTime()) newDate = d;
+    if (d.getTime() !== appointment.date.getTime()) {
+      if (isPastBooking(d.getTime())) return NextResponse.json({ error: "That time has already passed." }, { status: 400 });
+      newDate = d;
+    }
   }
 
   // Detect transitions (before applying the update)
@@ -44,15 +47,38 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
   const willPay = paymentStatus === "paid" && appointment.paymentStatus !== "paid";
   const willReschedule = !!newDate && !willCancel;
 
-  const updated = await prisma.appointment.update({
-    where: { id: params.id },
-    data: {
-      ...(status && { status }),
-      ...(paymentStatus && { paymentStatus }),
-      ...(paymentMode && { paymentMode }),
-      ...(newDate && { date: newDate }),
-    },
-  });
+  const biz = await prisma.business.findUnique({ where: { id: session.user.businessId }, select: { timezone: true } });
+  const tz = safeTimeZone(biz?.timezone);
+  const fmtDate = (d: Date) => formatDateLabel(d, tz);
+  const fmtTime = (d: Date) => formatTimeLabel(d, tz);
+
+  const data = {
+    ...(status && { status }),
+    ...(paymentStatus && { paymentStatus }),
+    ...(paymentMode && { paymentMode }),
+    ...(newDate && { date: newDate, endAt: new Date(newDate.getTime() + appointment.duration * 60_000) }),
+  };
+
+  let updated;
+  if (willReschedule && newDate) {
+    // Moving to a new time re-checks the slot under the booking lock.
+    const service = await prisma.service.findUnique({ where: { id: appointment.serviceId }, select: { capacity: true } });
+    const capacity = Math.max(1, service?.capacity ?? 1);
+    try {
+      updated = await bookExclusive(
+        prisma,
+        { businessId: session.user.businessId, start: newDate, durationMin: appointment.duration, capacity, excludeId: appointment.id },
+        (tx) => (tx as unknown as typeof prisma).appointment.update({ where: { id: params.id }, data }),
+      );
+    } catch (err) {
+      if (err instanceof SlotConflictError) {
+        return NextResponse.json({ error: conflictMessage(capacity), code: "SLOT_CONFLICT" }, { status: 409 });
+      }
+      throw err;
+    }
+  } else {
+    updated = await prisma.appointment.update({ where: { id: params.id }, data });
+  }
 
   // Fire the matching transactional emails (awaited so delivery is logged before we respond)
   if (willCancel || willReschedule || willPay) {

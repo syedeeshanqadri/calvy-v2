@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
 
   const parsed = await parseBody(req, onboardingSchema);
   if (!parsed.ok) return parsed.res;
-  const { businessName, currency } = parsed.data;
+  const { businessName, currency, timezone } = parsed.data;
 
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
@@ -38,6 +38,7 @@ export async function POST(req: NextRequest) {
     ownerEmail: user.email,
     businessName,
     currency,
+    timezone,
   });
 
   return NextResponse.json({ success: true });
