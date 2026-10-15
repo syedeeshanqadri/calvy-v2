@@ -1,0 +1,107 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: calvy_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d calvy_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    # Everything below is a dummy value or a throwaway CI database.
+    # No repository secrets are used.
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/calvy_ci
+      NEXTAUTH_SECRET: ci-dummy-secret-not-for-real-use
+      NEXTAUTH_URL: http://localhost:3000
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+      NEXT_PUBLIC_ROOT_DOMAIN: localhost
+      # The three dummy values below are needed only until the lazy third-party
+      # client fix (clients created inside functions, not at import time) is
+      # merged. They can be removed afterwards.
+      RAZORPAY_KEY_ID: rzp_test_dummy
+      RAZORPAY_KEY_SECRET: dummy
+      RESEND_API_KEY: re_dummy
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      # Applies all migrations to the empty throwaway database, proving they
+      # work from scratch. This is the only step that changes a database, and
+      # it never uses db push.
+      - name: Apply migrations (migrate deploy)
+        run: npx prisma migrate deploy
+
+      # After migrate deploy, the database must equal prisma/schema.prisma.
+      # Fails (exit code 2) if someone changed the schema without a migration.
+      - name: Check migrations match the schema
+        run: npx prisma migrate diff --from-url "$DATABASE_URL" --to-schema-datamodel prisma/schema.prisma --exit-code
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Type check
+        run: npx tsc --noEmit
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      # Informational only. `next` has a known advisory with no fix inside
+      # Next.js 14, so this cannot block until the Next.js 15/16 migration
+      # (S1-28). Make it blocking after that.
+      - name: Dependency audit (informational)
+        run: npm audit --omit=dev --audit-level=high
+        continue-on-error: true
+
+  # Placeholder: Playwright smoke tests are not part of CI yet. They need
+  # seeded data and a running server; that is a later item.
+  # smoke:
+  #   needs: checks
+  #   runs-on: ubuntu-latest
+  #   timeout-minutes: 20
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - uses: actions/setup-node@v4
+  #       with: { node-version: 22, cache: npm }
+  #     - run: npm ci
+  #     - run: npx playwright install --with-deps chromium
+  #     # start Postgres, migrate deploy, seed, build, start server, then:
+  #     - run: npx playwright test
