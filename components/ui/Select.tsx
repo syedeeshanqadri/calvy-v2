@@ -1,5 +1,7 @@
+"use client";
 import { cn } from "@/lib/utils";
 import { ChevronDown } from "lucide-react";
+import { useId } from "react";
 
 interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
   label?: string;
@@ -7,12 +9,15 @@ interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
   error?: string;
 }
 
-export function Select({ label, options, error, className, ...props }: SelectProps) {
+export function Select({ label, options, error, className, id, ...props }: SelectProps) {
+  const autoId = useId();
+  const selectId = id ?? autoId;
   return (
     <div className="flex flex-col gap-1.5">
-      {label && <label className="text-sm font-medium text-brand-800">{label}</label>}
+      {label && <label htmlFor={selectId} className="text-sm font-medium text-brand-800">{label}</label>}
       <div className="relative">
         <select
+          id={selectId}
           className={cn(
             "w-full h-11 rounded-xl border border-[#e8e6e0] bg-white px-4 pr-10 text-sm text-brand-900 appearance-none transition-all duration-200",
             "focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent hover:border-[#c8c6c0]",

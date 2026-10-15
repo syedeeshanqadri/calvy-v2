@@ -73,8 +73,15 @@ export function ClientsClient({ clients }: { clients: ClientRow[] }) {
       {view === "grid" ? (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {filtered.map((client, i) => (
-            <Link key={client.id} href={`/dashboard/clients/${client.id}`}>
-            <Card hover className="p-5">
+            // Stretched-link card: the Link overlays the card and the mailto/tel
+            // anchors sit above it, so no <a> is nested inside another <a>.
+            <div key={client.id} className="relative">
+            <Card hover className="p-5 h-full">
+              <Link
+                href={`/dashboard/clients/${client.id}`}
+                aria-label={`View ${client.name}`}
+                className="absolute inset-0 z-0 rounded-2xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
+              />
               <div className="flex items-start justify-between mb-4">
                 <Avatar name={client.name} color={COLORS[i % COLORS.length]} size="lg" />
                 {client.totalSpent > 500 && <span className="flex items-center gap-1 text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-1 rounded-full"><Star size={10} fill="currentColor" />VIP</span>}
@@ -92,17 +99,17 @@ export function ClientsClient({ clients }: { clients: ClientRow[] }) {
                 </div>
               </div>
               <div className="flex gap-2">
-                <a href={`mailto:${client.email}`} onClick={e => e.stopPropagation()} className="flex-1 flex items-center justify-center gap-1.5 h-8 rounded-lg bg-[#f8f7f4] hover:bg-[#f0ede8] text-xs font-medium text-[#6b6b80] hover:text-brand-800 transition-colors">
+                <a href={`mailto:${client.email}`} className="relative z-10 flex-1 flex items-center justify-center gap-1.5 h-8 rounded-lg bg-[#f8f7f4] hover:bg-[#f0ede8] text-xs font-medium text-[#6b6b80] hover:text-brand-800 transition-colors">
                   <Mail size={12} /> Email
                 </a>
                 {client.phone && (
-                  <a href={`tel:${client.phone}`} onClick={e => e.stopPropagation()} className="flex-1 flex items-center justify-center gap-1.5 h-8 rounded-lg bg-[#f8f7f4] hover:bg-[#f0ede8] text-xs font-medium text-[#6b6b80] hover:text-brand-800 transition-colors">
+                  <a href={`tel:${client.phone}`} className="relative z-10 flex-1 flex items-center justify-center gap-1.5 h-8 rounded-lg bg-[#f8f7f4] hover:bg-[#f0ede8] text-xs font-medium text-[#6b6b80] hover:text-brand-800 transition-colors">
                     <Phone size={12} /> Call
                   </a>
                 )}
               </div>
             </Card>
-            </Link>
+            </div>
           ))}
           {filtered.length === 0 && (
             <div className="col-span-full text-center py-16 text-[#6b6b80] text-sm">No clients found</div>

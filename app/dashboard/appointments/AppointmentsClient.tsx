@@ -184,7 +184,7 @@ export function AppointmentsClient({ appointments, services, staff, csvExport = 
           <div className="flex gap-2 w-full sm:w-auto">
             <div className="relative flex-1 sm:flex-none">
               <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#6b6b80]" />
-              <input className="w-full sm:w-52 h-9 pl-9 pr-4 rounded-xl bg-[#f8f7f4] text-sm outline-none border border-transparent focus:border-accent/30 focus:bg-white transition-all" placeholder="Search appointments..." value={search} onChange={(e) => setSearch(e.target.value)} />
+              <input aria-label="Search appointments" className="w-full sm:w-52 h-9 pl-9 pr-4 rounded-xl bg-[#f8f7f4] text-sm outline-none border border-transparent focus:border-accent/30 focus:bg-white transition-all" placeholder="Search appointments..." value={search} onChange={(e) => setSearch(e.target.value)} />
             </div>
             <div className="relative">
               <button
@@ -200,8 +200,8 @@ export function AppointmentsClient({ appointments, services, staff, csvExport = 
                     <button onClick={() => { setFilterStaff(""); setFilterDateFrom(""); setFilterDateTo(""); }} className="text-xs text-accent hover:underline">Clear all</button>
                   </div>
                   <div>
-                    <label className="text-xs font-medium text-[#6b6b80] block mb-1">Staff member</label>
-                    <select className="w-full h-9 rounded-xl border border-[#e8e6e0] px-3 text-sm bg-white focus:outline-none focus:border-accent/40"
+                    <label htmlFor="appt-staff-member" className="text-xs font-medium text-[#6b6b80] block mb-1">Staff member</label>
+                    <select id="appt-staff-member" className="w-full h-9 rounded-xl border border-[#e8e6e0] px-3 text-sm bg-white focus:outline-none focus:border-accent/40"
                       value={filterStaff} onChange={e => setFilterStaff(e.target.value)}>
                       <option value="">All staff</option>
                       {staff.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
@@ -209,13 +209,13 @@ export function AppointmentsClient({ appointments, services, staff, csvExport = 
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <label className="text-xs font-medium text-[#6b6b80] block mb-1">From</label>
-                      <input type="date" className="w-full h-9 rounded-xl border border-[#e8e6e0] px-3 text-sm bg-white focus:outline-none focus:border-accent/40"
+                      <label htmlFor="appt-from" className="text-xs font-medium text-[#6b6b80] block mb-1">From</label>
+                      <input id="appt-from" type="date" className="w-full h-9 rounded-xl border border-[#e8e6e0] px-3 text-sm bg-white focus:outline-none focus:border-accent/40"
                         value={filterDateFrom} onChange={e => setFilterDateFrom(e.target.value)} />
                     </div>
                     <div>
-                      <label className="text-xs font-medium text-[#6b6b80] block mb-1">To</label>
-                      <input type="date" className="w-full h-9 rounded-xl border border-[#e8e6e0] px-3 text-sm bg-white focus:outline-none focus:border-accent/40"
+                      <label htmlFor="appt-to" className="text-xs font-medium text-[#6b6b80] block mb-1">To</label>
+                      <input id="appt-to" type="date" className="w-full h-9 rounded-xl border border-[#e8e6e0] px-3 text-sm bg-white focus:outline-none focus:border-accent/40"
                         value={filterDateTo} onChange={e => setFilterDateTo(e.target.value)} />
                     </div>
                   </div>
@@ -328,8 +328,8 @@ export function AppointmentsClient({ appointments, services, staff, csvExport = 
 
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="text-xs font-medium text-[#6b6b80] block mb-1.5">Appointment status</label>
-                  <select
+                  <label htmlFor="appt-appointment-status" className="text-xs font-medium text-[#6b6b80] block mb-1.5">Appointment status</label>
+                  <select id="appt-appointment-status"
                     value={editStatus}
                     onChange={e => setEditStatus(e.target.value)}
                     className="w-full h-9 rounded-xl border border-[#e8e6e0] px-3 text-sm bg-white focus:outline-none focus:border-accent/40 transition-all"
@@ -343,8 +343,8 @@ export function AppointmentsClient({ appointments, services, staff, csvExport = 
                 </div>
 
                 <div>
-                  <label className="text-xs font-medium text-[#6b6b80] block mb-1.5">Payment status</label>
-                  <select
+                  <label htmlFor="appt-payment-status" className="text-xs font-medium text-[#6b6b80] block mb-1.5">Payment status</label>
+                  <select id="appt-payment-status"
                     value={editPaymentStatus}
                     onChange={e => setEditPaymentStatus(e.target.value)}
                     className="w-full h-9 rounded-xl border border-[#e8e6e0] px-3 text-sm bg-white focus:outline-none focus:border-accent/40 transition-all"
@@ -356,8 +356,8 @@ export function AppointmentsClient({ appointments, services, staff, csvExport = 
                 </div>
 
                 <div>
-                  <label className="text-xs font-medium text-[#6b6b80] block mb-1.5">Payment mode</label>
-                  <select
+                  <label htmlFor="appt-payment-mode" className="text-xs font-medium text-[#6b6b80] block mb-1.5">Payment mode</label>
+                  <select id="appt-payment-mode"
                     value={editPaymentMode}
                     onChange={e => setEditPaymentMode(e.target.value)}
                     className="w-full h-9 rounded-xl border border-[#e8e6e0] px-3 text-sm bg-white focus:outline-none focus:border-accent/40 transition-all"
@@ -393,7 +393,7 @@ export function AppointmentsClient({ appointments, services, staff, csvExport = 
             <Input label="Client email" type="email" placeholder="jane@email.com" value={form.clientEmail} onChange={e => setForm({ ...form, clientEmail: e.target.value })} />
           </div>
           <div>
-            <label className="text-sm font-medium text-brand-800 block mb-1.5">Services <span className="text-[#6b6b80] font-normal">(select one or more)</span></label>
+            <p className="text-sm font-medium text-brand-800 block mb-1.5">Services <span className="text-[#6b6b80] font-normal">(select one or more)</span></p>
             <div className="space-y-1.5 max-h-48 overflow-y-auto rounded-xl border border-[#e8e6e0] p-1">
               {services.map(s => {
                 const selected = form.serviceIds.includes(s.id);

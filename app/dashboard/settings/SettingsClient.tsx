@@ -225,8 +225,8 @@ export function SettingsClient({ business, customSlotInterval = false, stripePay
               <div className="grid sm:grid-cols-2 gap-4">
                 <Input label="Business name" value={profile.name} onChange={e => setProfile({ ...profile, name: e.target.value })} />
                 <div>
-                  <label className="text-sm font-medium text-brand-800 block mb-1.5">Business type</label>
-                  <select className="w-full h-11 rounded-xl border border-[#e8e6e0] bg-white px-4 text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent"
+                  <label htmlFor="settings-business-type" className="text-sm font-medium text-brand-800 block mb-1.5">Business type</label>
+                  <select id="settings-business-type" className="w-full h-11 rounded-xl border border-[#e8e6e0] bg-white px-4 text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent"
                     value={profile.businessType} onChange={e => setProfile({ ...profile, businessType: e.target.value })}>
                     {BUSINESS_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                   </select>
@@ -234,8 +234,8 @@ export function SettingsClient({ business, customSlotInterval = false, stripePay
               </div>
 
               <div>
-                <label className="text-sm font-medium text-brand-800 block mb-1.5">Description</label>
-                <textarea className="w-full rounded-xl border border-[#e8e6e0] px-4 py-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent transition-all" rows={2}
+                <label htmlFor="settings-description" className="text-sm font-medium text-brand-800 block mb-1.5">Description</label>
+                <textarea id="settings-description" className="w-full rounded-xl border border-[#e8e6e0] px-4 py-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent transition-all" rows={2}
                   placeholder="Brief description of your business..." value={profile.description} onChange={e => setProfile({ ...profile, description: e.target.value })} />
               </div>
 
@@ -259,10 +259,11 @@ export function SettingsClient({ business, customSlotInterval = false, stripePay
               </div>
 
               <div>
-                <label className="text-sm font-medium text-brand-800 block mb-1.5 flex items-center gap-1.5">
+                <label htmlFor="settings-currency" className="text-sm font-medium text-brand-800 block mb-1.5 flex items-center gap-1.5">
                   <DollarSign size={14} /> Currency
                 </label>
                 <select
+                  id="settings-currency"
                   className="w-full sm:w-64 h-11 rounded-xl border border-[#e8e6e0] bg-white px-4 text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent"
                   value={profile.currency}
                   onChange={e => setProfile({ ...profile, currency: e.target.value })}
@@ -276,21 +277,21 @@ export function SettingsClient({ business, customSlotInterval = false, stripePay
 
               {customBranding ? (
                 <div>
-                  <label className="text-sm font-medium text-brand-800 block mb-2">Brand color</label>
+                  <label htmlFor="settings-brand-color" className="text-sm font-medium text-brand-800 block mb-2">Brand color</label>
                   <div className="flex items-center gap-2 flex-wrap">
                     {ACCENT_COLORS.map(c => (
                       <button key={c} onClick={() => setProfile({ ...profile, primaryColor: c })}
                         className={`w-8 h-8 rounded-full border-2 transition-all ${profile.primaryColor === c ? "border-brand-900 scale-110" : "border-transparent"}`}
                         style={{ background: c }} />
                     ))}
-                    <input type="color" value={profile.primaryColor} onChange={e => setProfile({ ...profile, primaryColor: e.target.value })}
+                    <input id="settings-brand-color" type="color" value={profile.primaryColor} onChange={e => setProfile({ ...profile, primaryColor: e.target.value })}
                       className="w-8 h-8 rounded-full border border-[#e8e6e0] cursor-pointer p-0.5 bg-white" title="Custom color" />
                     <span className="text-xs font-mono text-[#6b6b80] ml-1">{profile.primaryColor}</span>
                   </div>
                 </div>
               ) : (
                 <div>
-                  <label className="text-sm font-medium text-brand-800 block mb-2">Brand color</label>
+                  <p className="text-sm font-medium text-brand-800 block mb-2">Brand color</p>
                   <div className="flex items-center gap-2">
                     <div className="w-8 h-8 rounded-full border border-[#e8e6e0]" style={{ background: profile.primaryColor }} />
                     <span className="text-xs font-mono text-[#6b6b80]">{profile.primaryColor}</span>
@@ -370,10 +371,10 @@ export function SettingsClient({ business, customSlotInterval = false, stripePay
                     <span className="text-sm font-medium w-24 flex-shrink-0">{label}</span>
                     {day.enabled ? (
                       <div className="flex items-center gap-2 flex-1">
-                        <input type="time" value={day.start} onChange={e => updateTime(key, "start", e.target.value)}
+                        <input type="time" aria-label={`${key} opening time`} value={day.start} onChange={e => updateTime(key, "start", e.target.value)}
                           className="h-9 rounded-xl border border-[#e8e6e0] px-3 text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent bg-white" />
                         <span className="text-[#6b6b80] text-sm">to</span>
-                        <input type="time" value={day.end} onChange={e => updateTime(key, "end", e.target.value)}
+                        <input type="time" aria-label={`${key} closing time`} value={day.end} onChange={e => updateTime(key, "end", e.target.value)}
                           className="h-9 rounded-xl border border-[#e8e6e0] px-3 text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent bg-white" />
                       </div>
                     ) : (
@@ -503,8 +504,8 @@ export function SettingsClient({ business, customSlotInterval = false, stripePay
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-[#374151] mb-1.5">Business type</label>
-                    <select
+                    <label htmlFor="settings-business-type-2" className="block text-sm font-medium text-[#374151] mb-1.5">Business type</label>
+                    <select id="settings-business-type-2"
                       className="w-full h-11 rounded-xl border border-[#e8e6e0] bg-white px-4 text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent"
                       value={payout.rzpBusinessType}
                       onChange={e => setPayout(p => ({ ...p, rzpBusinessType: e.target.value }))}

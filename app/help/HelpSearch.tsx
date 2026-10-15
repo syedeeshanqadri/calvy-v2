@@ -50,6 +50,7 @@ export function HelpSearch({ index, categories }: { index: IndexItem[]; categori
           <div className="relative max-w-xl mx-auto">
             <Search size={20} className="absolute left-5 top-1/2 -translate-y-1/2 text-[#9b9b9b]" />
             <input
+              aria-label="Search help articles"
               autoFocus
               value={q}
               onChange={e => setQ(e.target.value)}
