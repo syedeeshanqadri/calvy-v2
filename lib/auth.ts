@@ -75,7 +75,9 @@ export const authOptions: NextAuthOptions = {
     }),
     ...oauthProviders,
   ],
-  session: { strategy: "jwt" },
+  // 7-day sessions (refreshed at most once a day); the JWT lifetime matches.
+  session: { strategy: "jwt", maxAge: 7 * 24 * 60 * 60, updateAge: 24 * 60 * 60 },
+  jwt: { maxAge: 7 * 24 * 60 * 60 },
   callbacks: {
     // For OAuth sign-ins, ensure a matching User exists (linked by verified
     // email). The business is created later in the onboarding step.
