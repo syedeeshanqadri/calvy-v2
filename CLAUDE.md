@@ -6,12 +6,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```bash
 npm run dev                 # next dev on :3000
-npm run build               # prisma generate && prisma db push && next build  (NOTE: pushes schema to the DB in DATABASE_URL)
+npm run build               # prisma generate && next build  (no db push; schema changes are migrations, see docs/migrations.md)
 npm run lint                # next lint
 npm test                    # vitest run (tests/**/*.test.ts, node env, "@" alias -> repo root)
 npx vitest run tests/booking.test.ts            # single test file
 npx vitest run -t "name pattern"                # single test by name
-npm run db:migrate | db:seed | db:studio        # prisma migrate dev / tsx prisma/seed.ts / studio
+npm run db:migrate | db:status | db:deploy | db:seed | db:studio   # migrate dev / status / migrate deploy / seed / studio (db:migrate, db:status, db:seed load .env.local)
 ```
 
 Env vars are in `.env.local` (see README "Environment Variables"). Tests only cover pure lib logic (booking, currency, plans, ratelimit) — no DB or route tests.

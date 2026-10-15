@@ -17,3 +17,9 @@ node_modules
 .next
 .idea
 tsconfig.tsbuildinfo
+
+
+# test and tooling output
+.playwright-mcp/
+test-results/
+playwright-report/
