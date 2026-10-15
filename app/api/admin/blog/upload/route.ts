@@ -1,5 +1,6 @@
 import { put } from "@vercel/blob";
 import { NextRequest, NextResponse } from "next/server";
+import { checkImageUpload } from "@/lib/validation/upload";
 import { isAdminSession } from "@/lib/adminAuth";
 
 export const dynamic = "force-dynamic";
@@ -18,21 +19,13 @@ export async function POST(req: NextRequest) {
 
   const formData = await req.formData();
   const file = formData.get("file") as File | null;
-  if (!file || file.size === 0) {
-    return NextResponse.json({ error: "No file provided" }, { status: 400 });
-  }
-  if (file.size > 5 * 1024 * 1024) {
-    return NextResponse.json({ error: "File too large (max 5 MB)" }, { status: 400 });
-  }
-  if (!file.type.startsWith("image/")) {
-    return NextResponse.json({ error: "Only image files are allowed" }, { status: 400 });
-  }
+  const check = checkImageUpload(file);
+  if (!check.ok) return NextResponse.json({ error: check.error }, { status: 400 });
 
-  const ext = file.name.split(".").pop()?.toLowerCase() ?? "jpg";
-  const pathname = `blog/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+  const pathname = `blog/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${check.ext}`;
 
   try {
-    const blob = await put(pathname, file, { access: "public" });
+    const blob = await put(pathname, file as File, { access: "public" });
     return NextResponse.json({ url: blob.url });
   } catch (err) {
     console.error("[Blog upload] Error:", err);

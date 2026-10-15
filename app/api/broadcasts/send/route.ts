@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { parseBody } from "@/lib/validation/common";
+import { broadcastSchema } from "@/lib/validation/misc";
 import { Resend } from "resend";
 import { sendWhatsApp } from "@/lib/whatsapp";
 
@@ -14,8 +16,12 @@ function getResend() {
 }
 const FROM = process.env.EMAIL_FROM ?? "Calvy <onboarding@resend.dev>";
 
-function buildEmailHtml(businessName: string, subject: string, message: string) {
-  const escaped = message.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br/>");
+const esc = (v: string) => v.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
+function buildEmailHtml(rawBusinessName: string, rawSubject: string, message: string) {
+  const businessName = esc(rawBusinessName);
+  const subject = esc(rawSubject);
+  const escaped = esc(message).replace(/\n/g, "<br/>");
   return `<!DOCTYPE html><html><head><meta charset="utf-8"/></head><body style="margin:0;padding:0;background:#f5f5f7;font-family:system-ui,-apple-system,sans-serif;">
 <div style="max-width:560px;margin:40px auto;padding:0 16px;">
   <div style="background:#fff;border-radius:20px;padding:36px;border:1px solid #e8e6e0;">
@@ -43,16 +49,9 @@ export async function POST(req: NextRequest) {
   const isFree = business.plan === "free" || business.plan === "trial";
   if (isFree) return NextResponse.json({ error: "Upgrade to a paid plan to send broadcasts" }, { status: 403 });
 
-  const { subject, message, medium } = await req.json() as {
-    subject?: string;
-    message: string;
-    medium: "email" | "whatsapp" | "both";
-  };
-
-  if (!message?.trim()) return NextResponse.json({ error: "Message is required" }, { status: 400 });
-  if ((medium === "email" || medium === "both") && !subject?.trim()) {
-    return NextResponse.json({ error: "Subject is required for email" }, { status: 400 });
-  }
+  const parsed = await parseBody(req, broadcastSchema);
+  if (!parsed.ok) return parsed.res;
+  const { subject, message, medium } = parsed.data;
 
   const clients = await prisma.client.findMany({
     where: { businessId: business.id },

@@ -47,3 +47,14 @@ export const ticketCreateSchema = z.object({
   priority: z.enum(["low", "normal", "high", "urgent"]).default("normal"),
 });
 export const ticketMessageSchema = z.object({ body: text(5000).min(1, "Message body is required") });
+
+export const broadcastSchema = z
+  .object({
+    subject: text(200).optional(),
+    message: text(5000).min(1, "Message is required"),
+    medium: z.enum(["email", "whatsapp", "both"]),
+  })
+  .refine((b) => b.medium === "whatsapp" || !!b.subject, {
+    message: "Subject is required for email",
+    path: ["subject"],
+  });
