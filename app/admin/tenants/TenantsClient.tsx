@@ -57,9 +57,14 @@ export function TenantsClient({ initialTenants }: { initialTenants: Tenant[] }) 
   }
 
   async function deleteTenant(t: Tenant) {
-    if (!confirm(`Permanently delete "${t.name}" and ALL their data?`)) return;
+    const typed = window.prompt(`Permanently delete "${t.name}" and ALL their data?\nType the slug "${t.slug}" to confirm.`);
+    if (typed !== t.slug) return;
     setSaving(t.id);
-    await fetch(`/api/admin/tenants/${t.id}`, { method: "DELETE" });
+    await fetch(`/api/admin/tenants/${t.id}`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ confirm: typed }),
+    });
     await reload();
     setSaving(null);
   }

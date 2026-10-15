@@ -3,6 +3,9 @@ import { prisma } from "@/lib/prisma";
 import { isAdminSession, slugifyTitle, normalizeFaq } from "@/lib/adminAuth";
 import { submitToIndexNow } from "@/lib/indexnow";
 
+import { parseBody } from "@/lib/validation/common";
+import { postPatchSchema } from "@/lib/validation/admin";
+
 export const dynamic = "force-dynamic";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://calvy.io";
@@ -13,7 +16,9 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   const existing = await prisma.post.findUnique({ where: { id: params.id } });
   if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  const body = await req.json();
+  const parsed = await parseBody(req, postPatchSchema);
+  if (!parsed.ok) return parsed.res;
+  const body = parsed.data;
   const data: Record<string, unknown> = {};
 
   if (body.title !== undefined) data.title = String(body.title).trim();
@@ -27,7 +32,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   if (body.faq !== undefined) data.faq = normalizeFaq(body.faq);
 
   // Slug change (validate uniqueness)
-  if (body.slug !== undefined && body.slug.trim()) {
+  if (body.slug && body.slug.trim()) {
     const newSlug = slugifyTitle(body.slug);
     if (newSlug !== existing.slug) {
       const taken = await prisma.post.findUnique({ where: { slug: newSlug } });

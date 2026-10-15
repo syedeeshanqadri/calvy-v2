@@ -4,6 +4,9 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { sendPushToAll, sendPushToBusinessIds } from "@/lib/push";
 
+import { parseBody } from "@/lib/validation/common";
+import { adminNotificationSchema } from "@/lib/validation/admin";
+
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
@@ -13,17 +16,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  let body2: { title?: string; body?: string; url?: string; targetPlan?: string; targetAll?: boolean };
-  try {
-    body2 = await req.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
-  }
-
-  const { title, body: msg, url, targetPlan, targetAll } = body2;
-  if (!title || !msg) {
-    return NextResponse.json({ error: "title and body are required" }, { status: 400 });
-  }
+  const parsed = await parseBody(req, adminNotificationSchema);
+  if (!parsed.ok) return parsed.res;
+  const { title, body: msg, url, targetPlan, targetAll } = parsed.data;
 
   const payload = { title, body: msg, icon: "/icon.svg", url: url || "/dashboard" };
 

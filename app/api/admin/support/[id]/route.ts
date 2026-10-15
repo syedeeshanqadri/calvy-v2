@@ -3,6 +3,9 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
+import { parseBody } from "@/lib/validation/common";
+import { adminMessageSchema, adminTicketPatchSchema } from "@/lib/validation/admin";
+
 export const dynamic = 'force-dynamic';
 
 function isAdmin(session: Awaited<ReturnType<typeof getServerSession>> & { user?: { role?: string; email?: string | null } } | null) {
@@ -38,12 +41,9 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   const ticket = await prisma.supportTicket.findUnique({ where: { id: params.id } });
   if (!ticket) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  const body = await req.json();
-  const { body: messageBody } = body;
-
-  if (!messageBody?.trim()) {
-    return NextResponse.json({ error: "Message body is required" }, { status: 400 });
-  }
+  const parsed = await parseBody(req, adminMessageSchema);
+  if (!parsed.ok) return parsed.res;
+  const { body: messageBody } = parsed.data;
 
   const newStatus = ticket.status === "open" ? "in_progress" : ticket.status;
 
@@ -52,7 +52,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       data: {
         ticketId: params.id,
         senderRole: "admin",
-        body: messageBody.trim(),
+        body: messageBody,
       },
     }),
     prisma.supportTicket.update({
@@ -71,8 +71,9 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   const ticket = await prisma.supportTicket.findUnique({ where: { id: params.id } });
   if (!ticket) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  const body = await req.json();
-  const { status, priority } = body;
+  const parsed2 = await parseBody(req, adminTicketPatchSchema);
+  if (!parsed2.ok) return parsed2.res;
+  const { status, priority } = parsed2.data;
 
   const updated = await prisma.supportTicket.update({
     where: { id: params.id },

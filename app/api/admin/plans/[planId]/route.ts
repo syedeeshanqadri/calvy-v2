@@ -3,6 +3,9 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
+import { parseBody } from "@/lib/validation/common";
+import { planPatchSchema } from "@/lib/validation/admin";
+
 export const dynamic = 'force-dynamic';
 
 function isAdmin(session: Awaited<ReturnType<typeof getServerSession>> & { user?: { role?: string; email?: string | null } } | null) {
@@ -13,7 +16,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { planId: st
   const session = await getServerSession(authOptions) as Awaited<ReturnType<typeof getServerSession>> & { user?: { role?: string; email?: string | null } } | null;
   if (!isAdmin(session)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  const body = await req.json();
+  const parsed = await parseBody(req, planPatchSchema);
+  if (!parsed.ok) return parsed.res;
   const {
     name, price, annualPrice, description,
     maxStaff, maxServices, maxMonthlyAppointments, maxBroadcastsPerMonth,
@@ -22,20 +26,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { planId: st
     broadcasts, csvExport, expenseTracking, wallet, customSlotInterval,
     removeBranding, prioritySupport,
     features,
-  } = body;
-
-  if (price !== undefined && Number(price) < 0) {
-    return NextResponse.json({ error: "Price cannot be negative" }, { status: 400 });
-  }
-  if (annualPrice !== undefined && Number(annualPrice) < 0) {
-    return NextResponse.json({ error: "Annual price cannot be negative" }, { status: 400 });
-  }
-  for (const field of ["maxStaff", "maxServices", "maxMonthlyAppointments", "maxBroadcastsPerMonth"] as const) {
-    const val = body[field];
-    if (val !== undefined && Number(val) < -1) {
-      return NextResponse.json({ error: `${field} must be -1 (unlimited) or a positive number` }, { status: 400 });
-    }
-  }
+  } = parsed.data;
 
   const updated = await prisma.planConfig.update({
     where: { planId: params.planId },

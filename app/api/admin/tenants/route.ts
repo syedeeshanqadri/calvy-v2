@@ -1,7 +1,10 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+
+import { parseQuery } from "@/lib/validation/common";
+import { adminPageQuery } from "@/lib/validation/admin";
 
 export const dynamic = 'force-dynamic';
 
@@ -9,9 +12,13 @@ function isAdmin(session: Awaited<ReturnType<typeof getServerSession>> & { user?
   return session?.user?.role === "admin" || session?.user?.email === process.env.SUPER_ADMIN_EMAIL;
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!isAdmin(session)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+  const q = parseQuery(req.url, adminPageQuery);
+  if (!q.ok) return q.res;
+  const { page, limit } = q.data;
 
   const tenants = await prisma.business.findMany({
     include: {
@@ -19,6 +26,8 @@ export async function GET() {
       _count: { select: { appointments: true, clients: true, staff: true, services: true } },
     },
     orderBy: { createdAt: "desc" },
+    skip: (page - 1) * limit,
+    take: limit,
   });
 
   const monthStart = new Date();

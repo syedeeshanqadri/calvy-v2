@@ -3,6 +3,9 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
+import { parseBody } from "@/lib/validation/common";
+import { makeAdminSchema } from "@/lib/validation/admin";
+
 export const dynamic = 'force-dynamic';
 
 // Grant admin role. Two allowed callers:
@@ -11,8 +14,9 @@ export const dynamic = 'force-dynamic';
 // Once an admin exists, the secret path is closed so a leaked secret can't be
 // used to escalate.
 export async function POST(req: NextRequest) {
-  const { email, secret } = await req.json();
-  if (!email) return NextResponse.json({ error: "Email is required" }, { status: 400 });
+  const parsed = await parseBody(req, makeAdminSchema);
+  if (!parsed.ok) return parsed.res;
+  const { email, secret } = parsed.data;
 
   const session = await getServerSession(authOptions);
   const callerIsAdmin =
