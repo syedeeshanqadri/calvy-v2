@@ -3,9 +3,13 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
+import { parseBody } from "@/lib/validation/common";
+import { staffPatchSchema } from "@/lib/validation/dashboard";
+
 export const dynamic = 'force-dynamic';
 
-export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(request: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const session = await getServerSession(authOptions);
   if (!session?.user?.businessId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -16,8 +20,9 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   });
   if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  const body = await request.json();
-  const { name, role, email, phone, color, isActive } = body;
+  const parsed = await parseBody(request, staffPatchSchema);
+  if (!parsed.ok) return parsed.res;
+  const { name, role, email, phone, color, isActive } = parsed.data;
 
   const staff = await prisma.staff.update({
     where: { id: params.id },
@@ -34,7 +39,8 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   return NextResponse.json({ staff });
 }
 
-export async function DELETE(_: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(_: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const session = await getServerSession(authOptions);
   if (!session?.user?.businessId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

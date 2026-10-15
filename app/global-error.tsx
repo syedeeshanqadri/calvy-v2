@@ -1,5 +1,6 @@
 "use client";
 import { useEffect } from "react";
+import { reportClientError } from "@/lib/clientErrors";
 
 // Replaces the root layout when it fails, so it renders its own <html>/<body>.
 // In production the layout's stylesheet, fonts and providers are NOT available here
@@ -25,7 +26,7 @@ const css = `
 
 export default function GlobalError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   useEffect(() => {
-    console.error("App error (root)", error.digest ?? "");
+    reportClientError(error);
   }, [error]);
 
   return (

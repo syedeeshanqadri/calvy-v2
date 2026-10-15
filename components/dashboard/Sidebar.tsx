@@ -6,10 +6,10 @@ import {
   BarChart2, Wrench, Link2, ChevronLeft, SlidersHorizontal,
   Sparkles, UserCog, Wallet, Globe, Megaphone, Receipt, LifeBuoy,
 } from "lucide-react";
-import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { useFlags } from "@/components/providers/FlagsProvider";
 import type { FeatureFlag } from "@/lib/flags";
+import { Logo } from "@/components/ui/Logo";
 
 const NAV_ITEMS: { label: string; href: string; icon: typeof LayoutDashboard; flag?: FeatureFlag }[] = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -43,10 +43,10 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
       <div className={cn("flex items-center h-16 px-4 border-b border-[#e8e6e0]", collapsed ? "justify-center" : "justify-between")}>
         {!collapsed && (
           <Link href="/">
-            <Image src="/calvy.svg" alt="Calvy" width={80} height={24} />
+            <Logo width={80} />
           </Link>
         )}
-        {collapsed && <Image src="/calvy.svg" alt="Calvy" width={28} height={28} />}
+        {collapsed && <Logo width={28} />}
         <button
           onClick={onToggle}
           className={cn("p-1.5 rounded-lg text-[#6b6b80] hover:text-[#0f0f1a] hover:bg-[#f8f7f4] transition-colors", collapsed && "rotate-180")}

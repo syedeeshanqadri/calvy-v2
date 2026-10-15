@@ -4,8 +4,11 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getLimits, isActivePlan } from "@/lib/plans";
 import { sendBookingConfirmation } from "@/lib/email";
-import { normalizeEmail, findClientByEmail } from "@/lib/email-normalize";
+import { findClientByEmail } from "@/lib/email-normalize";
 import { sendPushToBusiness } from "@/lib/push";
+import { parseBody, parseQuery } from "@/lib/validation/common";
+import { appointmentCreateSchema, appointmentListQuery } from "@/lib/validation/appointments";
+import { logger } from "@/lib/logger";
 
 export const dynamic = 'force-dynamic';
 
@@ -15,10 +18,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { searchParams } = new URL(request.url);
-  const date = searchParams.get("date");
-  const status = searchParams.get("status");
-  const staffId = searchParams.get("staffId");
+  const q = parseQuery(request.url, appointmentListQuery);
+  if (!q.ok) return q.res;
+  const { date, status, staffId } = q.data;
 
   const where: Record<string, unknown> = { businessId: session.user.businessId };
   if (date) {
@@ -58,21 +60,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const body = await request.json();
-  const { clientName, clientEmail: rawClientEmail, clientPhone, staffId, date, time, notes } = body;
-  const clientEmail: string = typeof rawClientEmail === "string" ? normalizeEmail(rawClientEmail) : rawClientEmail;
+  const parsed = await parseBody(request, appointmentCreateSchema);
+  if (!parsed.ok) return parsed.res;
+  const { clientName, clientEmail, clientPhone, staffId, date, time, notes } = parsed.data;
 
   // Support serviceIds[] (multi) and legacy serviceId (single)
-  const serviceIds: string[] =
-    Array.isArray(body.serviceIds) && body.serviceIds.length > 0
-      ? body.serviceIds
-      : body.serviceId
-      ? [body.serviceId]
-      : [];
-
-  if (!clientName || !clientEmail || serviceIds.length === 0 || !date || !time) {
-    return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
-  }
+  const serviceIds: string[] = parsed.data.serviceIds?.length ? parsed.data.serviceIds : [parsed.data.serviceId!];
 
   // Plan limit check + fetch business name in one query
   const business = await prisma.business.findUnique({
@@ -94,7 +87,7 @@ export async function POST(request: NextRequest) {
   const allServices = await prisma.service.findMany({
     where: { id: { in: serviceIds }, businessId: session.user.businessId },
   });
-  if (allServices.length === 0) {
+  if (allServices.length !== new Set(serviceIds).size) {
     return NextResponse.json({ error: "Services not found" }, { status: 404 });
   }
   // Preserve the order of selection
@@ -130,8 +123,11 @@ export async function POST(request: NextRequest) {
     }));
 
   const staffMember = staffId
-    ? await prisma.staff.findUnique({ where: { id: staffId }, select: { name: true } })
+    ? await prisma.staff.findFirst({ where: { id: staffId, businessId: session.user.businessId }, select: { name: true } })
     : null;
+  if (staffId && !staffMember) {
+    return NextResponse.json({ error: "Staff member not found" }, { status: 404 });
+  }
 
   const appointment = await prisma.appointment.create({
     data: {
@@ -172,7 +168,7 @@ export async function POST(request: NextRequest) {
       appointmentDate: apptDate,
     });
   } catch (err) {
-    console.error("[Email] Failed to send confirmation for panel booking:", err);
+    logger.error("[Email] Failed to send confirmation for panel booking:", { err });
   }
 
   return NextResponse.json({ appointment }, { status: 201 });

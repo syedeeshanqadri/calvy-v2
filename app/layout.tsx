@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import SentryClient from "@/components/providers/SentryClient";
 import { Plus_Jakarta_Sans, DM_Sans } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import { Providers } from "@/components/Providers";
@@ -57,8 +58,8 @@ export const viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${plusJakartaSans.variable} ${dmSans.variable}`}>
-      <body><Providers>{children}<PWAInstallPrompt /></Providers><Analytics /></body>
+    <html lang="en" data-scroll-behavior="smooth" className={`${plusJakartaSans.variable} ${dmSans.variable}`}>
+      <body><Providers>{children}<PWAInstallPrompt /><SentryClient /></Providers><Analytics /></body>
     </html>
   );
 }

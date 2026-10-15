@@ -13,7 +13,8 @@ export function generateStaticParams() {
   return HELP_ARTICLES.map(a => ({ slug: a.slug }));
 }
 
-export function generateMetadata({ params }: { params: { slug: string } }): Metadata {
+export async function generateMetadata(props: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+  const params = await props.params;
   const a = getArticle(params.slug);
   if (!a) return { title: "Article not found · Calvy Help" };
   const url = `${APP_URL}/help/${a.slug}`;
@@ -26,7 +27,8 @@ export function generateMetadata({ params }: { params: { slug: string } }): Meta
   };
 }
 
-export default async function HelpArticlePage({ params }: { params: { slug: string } }) {
+export default async function HelpArticlePage(props: { params: Promise<{ slug: string }> }) {
+  const params = await props.params;
   const article = getArticle(params.slug);
   if (!article) notFound();
 

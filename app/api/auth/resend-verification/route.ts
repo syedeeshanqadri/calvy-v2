@@ -5,6 +5,7 @@ import { sendVerificationEmail } from "@/lib/email";
 import { resendVerificationSchema } from "@/lib/validation/auth";
 import { generateToken, tokenExpiry, VERIFY_TOKEN_TTL_MS } from "@/lib/auth-tokens";
 import { readJsonBody, parseWith, tooManyRequests, testTokenHookEnabled } from "@/lib/auth-http";
+import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
 
@@ -39,11 +40,11 @@ export async function POST(req: NextRequest) {
       try {
         await sendVerificationEmail({ to: user.email, name: user.name, token });
       } catch (err) {
-        console.error("[auth] verification email failed", err instanceof Error ? err.message : "unknown");
+        logger.error("[auth] verification email failed", { err });
       }
     }
   } catch (err) {
-    console.error("[auth] resend-verification error", err instanceof Error ? err.message : "unknown");
+    logger.error("[auth] resend-verification error", { err });
   }
 
   const res: { ok: true; devToken?: string } = { ok: true };

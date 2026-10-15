@@ -66,7 +66,7 @@ export function PWAInstallPrompt() {
 
   if (showIOSSteps) {
     return (
-      <div className="fixed bottom-0 left-0 right-0 z-[200] p-4" style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}>
+      <div className="fixed bottom-0 left-0 right-0 z-[200] px-4 pt-4 safe-pb-4">
         <div className="bg-[#0f0f1a] border border-white/10 rounded-2xl p-5 shadow-2xl max-w-sm mx-auto">
           <div className="flex items-center justify-between mb-4">
             <p className="font-semibold text-white text-sm">Add Calvy to Home Screen</p>
@@ -94,7 +94,7 @@ export function PWAInstallPrompt() {
   }
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-[200] p-4" style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}>
+    <div className="fixed bottom-0 left-0 right-0 z-[200] px-4 pt-4 safe-pb-4">
       <div className="bg-[#0f0f1a] border border-white/10 rounded-2xl p-4 shadow-2xl max-w-sm mx-auto flex items-center gap-3">
         <div className="w-11 h-11 rounded-xl bg-[#0284c7] flex items-center justify-center flex-shrink-0 text-white text-lg font-bold">
           C

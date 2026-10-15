@@ -3,9 +3,9 @@ import { prisma } from "@/lib/prisma";
 import { sendLeadAcknowledgment } from "@/lib/email";
 import { rateLimit, clientIp } from "@/lib/ratelimit";
 
+import { parseBody } from "@/lib/validation/common";
+import { leadSchema } from "@/lib/validation/public";
 export const dynamic = "force-dynamic";
-
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export async function POST(req: NextRequest) {
   const rl = await rateLimit(`lead:${clientIp(req)}`, 5, 60_000);
@@ -16,19 +16,13 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const body = await req.json().catch(() => ({}));
-  const { name, email, phone, businessType, demoRequested, message, source } = body;
-
-  if (!email?.trim()) {
-    return NextResponse.json({ error: "Email is required." }, { status: 400 });
-  }
-  const cleanEmail = String(email).trim().toLowerCase();
-  if (!EMAIL_RE.test(cleanEmail)) {
-    return NextResponse.json({ error: "Please enter a valid email address." }, { status: 400 });
-  }
+  const parsed = await parseBody(req, leadSchema);
+  if (!parsed.ok) return parsed.res;
+  const { name, email, phone, businessType, demoRequested, message, source } = parsed.data;
+  const cleanEmail = email;
 
   // Email-only forms (newsletter, hero) may omit name — derive from the address.
-  const cleanName = name?.trim() || cleanEmail.split("@")[0];
+  const cleanName = name || cleanEmail.split("@")[0];
 
   // Attribution: sanitize the source to a short slug so the CRM can show origin.
   const cleanSource = typeof source === "string"
@@ -39,10 +33,10 @@ export async function POST(req: NextRequest) {
     data: {
       name: cleanName,
       email: cleanEmail,
-      phone: phone?.trim() || null,
-      businessType: businessType?.trim() || null,
+      phone: phone || null,
+      businessType: businessType || null,
       demoRequested: !!demoRequested,
-      message: message?.trim() || null,
+      message: message || null,
       source: cleanSource,
       status: "new",
     },

@@ -5,7 +5,8 @@ import { prisma } from "@/lib/prisma";
 import { createBusinessForUser } from "@/lib/createBusiness";
 import { sendVerificationEmail } from "@/lib/email";
 import { rateLimit, clientIp } from "@/lib/ratelimit";
-import { normalizeEmail } from "@/lib/email-normalize";
+import { parseBody } from "@/lib/validation/common";
+import { signupSchema } from "@/lib/validation/public";
 
 export const dynamic = 'force-dynamic';
 
@@ -19,24 +20,9 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const body = await req.json();
-  const { name, businessName, password, currency } = body;
-  const rawEmail = body.email;
-
-  if (!name || !businessName || !rawEmail || !password) {
-    return NextResponse.json({ error: "All fields are required." }, { status: 400 });
-  }
-  const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (typeof rawEmail !== "string" || !EMAIL_RE.test(rawEmail.trim())) {
-    return NextResponse.json({ error: "Please enter a valid email address." }, { status: 400 });
-  }
-  const email = normalizeEmail(rawEmail);
-  if (password.length < 8) {
-    return NextResponse.json({ error: "Password must be at least 8 characters." }, { status: 400 });
-  }
-  if (!currency) {
-    return NextResponse.json({ error: "Please select your region." }, { status: 400 });
-  }
+  const parsed = await parseBody(req, signupSchema);
+  if (!parsed.ok) return parsed.res;
+  const { name, businessName, email, password, currency } = parsed.data;
 
   const existing = await prisma.user.findFirst({ where: { email: { equals: email, mode: "insensitive" } } });
   if (existing) {

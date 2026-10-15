@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { isAdminUser } from "@/lib/adminAuth";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -7,7 +8,7 @@ import { PLAN_LIMITS, PLAN_META } from "@/lib/plans";
 export const dynamic = 'force-dynamic';
 
 function isAdmin(session: Awaited<ReturnType<typeof getServerSession>> & { user?: { role?: string; email?: string | null } } | null) {
-  return session?.user?.role === "admin" || session?.user?.email === process.env.SUPER_ADMIN_EMAIL;
+  return isAdminUser(session?.user);
 }
 
 const PLAN_IDS = ["free", "starter", "professional", "business"] as const;

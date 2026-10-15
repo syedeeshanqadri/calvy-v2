@@ -237,6 +237,7 @@ export function BookingClient({ business }: { business: Business }) {
               <div className="relative mb-4">
                 <input
                   type="text"
+                  aria-label="Search services"
                   placeholder="Search services..."
                   value={serviceSearch}
                   onChange={e => setServiceSearch(e.target.value)}
@@ -406,20 +407,20 @@ export function BookingClient({ business }: { business: Business }) {
               <div className="grid sm:grid-cols-2 gap-4">
                 {[{ label: "Full name", key: "name", type: "text", placeholder: "Jane Smith" }, { label: "Phone number", key: "phone", type: "tel", placeholder: "+1 555-0000" }].map(f => (
                   <div key={f.key}>
-                    <label className="text-sm font-medium text-[#0f0f1a] block mb-1.5">{f.label}</label>
-                    <input type={f.type} placeholder={f.placeholder} value={form[f.key as keyof typeof form]} onChange={e => setForm({ ...form, [f.key]: e.target.value })}
+                    <label htmlFor={`booking-${f.key}`} className="text-sm font-medium text-[#0f0f1a] block mb-1.5">{f.label}</label>
+                    <input id={`booking-${f.key}`} type={f.type} placeholder={f.placeholder} value={form[f.key as keyof typeof form]} onChange={e => setForm({ ...form, [f.key]: e.target.value })}
                       className="w-full rounded-xl border border-[#e8e6e0] px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:border-accent transition-all" style={{"--tw-ring-color": color + "33"} as React.CSSProperties} />
                   </div>
                 ))}
               </div>
               <div>
-                <label className="text-sm font-medium text-[#0f0f1a] block mb-1.5">Email address</label>
-                <input type="email" required placeholder="jane@email.com" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })}
+                <label htmlFor="booking-email-address" className="text-sm font-medium text-[#0f0f1a] block mb-1.5">Email address</label>
+                <input id="booking-email-address" type="email" required placeholder="jane@email.com" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })}
                   className="w-full rounded-xl border border-[#e8e6e0] px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:border-accent transition-all" />
               </div>
               <div>
-                <label className="text-sm font-medium text-[#0f0f1a] block mb-1.5">Notes (optional)</label>
-                <textarea rows={3} placeholder="Anything we should know?" value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })}
+                <label htmlFor="booking-notes-optional" className="text-sm font-medium text-[#0f0f1a] block mb-1.5">Notes (optional)</label>
+                <textarea id="booking-notes-optional" rows={3} placeholder="Anything we should know?" value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })}
                   className="w-full rounded-xl border border-[#e8e6e0] px-4 py-3 text-sm resize-none focus:outline-none focus:ring-2 focus:border-accent transition-all" />
               </div>
             </div>

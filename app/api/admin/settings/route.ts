@@ -1,14 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isAdminUser } from "@/lib/adminAuth";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+
+import { parseBody } from "@/lib/validation/common";
+import { appSettingsPatchSchema } from "@/lib/validation/admin";
 
 export const dynamic = "force-dynamic";
 
 type Session = Awaited<ReturnType<typeof getServerSession<typeof authOptions>>>;
 
 function isAdmin(session: Session) {
-  return session?.user?.role === "admin" || session?.user?.email === process.env.SUPER_ADMIN_EMAIL;
+  return isAdminUser(session?.user);
 }
 
 export async function GET() {
@@ -29,9 +33,10 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const body = await req.json();
+  const parsed = await parseBody(req, appSettingsPatchSchema);
+  if (!parsed.ok) return parsed.res;
   await Promise.all(
-    Object.entries(body).map(([key, value]) =>
+    Object.entries(parsed.data).map(([key, value]) =>
       prisma.appSetting.upsert({
         where: { key },
         update: { value: String(value) },

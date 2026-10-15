@@ -4,6 +4,9 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getLimits, isActivePlan } from "@/lib/plans";
 
+import { parseBody } from "@/lib/validation/common";
+import { serviceCreateSchema } from "@/lib/validation/dashboard";
+
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
@@ -12,18 +15,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const body = await request.json();
-  const { name, description, duration, price, color, category, capacity } = body;
-
-  if (!name || !duration || price === undefined) {
-    return NextResponse.json({ error: "Name, duration, and price are required" }, { status: 400 });
-  }
-  if (Number(duration) < 1) {
-    return NextResponse.json({ error: "Duration must be at least 1 minute" }, { status: 400 });
-  }
-  if (Number(price) < 0) {
-    return NextResponse.json({ error: "Price cannot be negative" }, { status: 400 });
-  }
+  const parsed = await parseBody(request, serviceCreateSchema);
+  if (!parsed.ok) return parsed.res;
+  const { name, description, duration, price, color, category, capacity } = parsed.data;
 
   const duplicate = await prisma.service.findFirst({
     where: { businessId: session.user.businessId, name: { equals: name, mode: "insensitive" } },
@@ -52,11 +46,11 @@ export async function POST(request: NextRequest) {
       businessId: session.user.businessId,
       name,
       description: description || "",
-      duration: Number(duration),
-      price: Number(price),
+      duration,
+      price,
       color: color || "#0284c7",
       category: category || "General",
-      capacity: capacity ? Math.max(1, Number(capacity)) : 1,
+      capacity: capacity ?? 1,
       isActive: true,
     },
   });

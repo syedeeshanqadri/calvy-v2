@@ -41,6 +41,8 @@ const optionalVars = {
   SHADOW_DATABASE_URL: optional,
   UPSTASH_REDIS_REST_URL: optional,
   UPSTASH_REDIS_REST_TOKEN: optional,
+  SENTRY_DSN: optional,
+  NEXT_PUBLIC_SENTRY_DSN: optional,
 };
 
 export const envSchema = z.object({ ...requiredInProduction, ...optionalVars });

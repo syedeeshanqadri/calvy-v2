@@ -7,11 +7,11 @@ import {
   ShieldCheck, LogOut, ChevronRight, ArrowDownToLine, Bell, X, Send,
   Users, HelpCircle, LifeBuoy, Newspaper, Contact,
 } from "lucide-react";
-import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { useFlags } from "@/components/providers/FlagsProvider";
 import type { FeatureFlag } from "@/lib/flags";
 import { useState } from "react";
+import { Logo } from "@/components/ui/Logo";
 
 const NAV: { label: string; href: string; icon: typeof LayoutDashboard; exact?: boolean; flag?: FeatureFlag }[] = [
   { label: "Overview", href: "/admin", icon: LayoutDashboard, exact: true },
@@ -41,7 +41,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
       <aside className="w-60 flex flex-col bg-white border-r border-[#e8e6e0] flex-shrink-0">
         {/* Logo */}
         <div className="flex items-center gap-2.5 px-5 h-16 border-b border-[#e8e6e0]">
-          <Image src="/calvy.svg" alt="Calvy" width={72} height={22} />
+          <Logo width={72} />
           <div className="flex items-center gap-1 ml-1">
             <ShieldCheck size={13} className="text-accent" />
             <p className="text-[10px] text-[#6b6b80]">Admin</p>
@@ -91,7 +91,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
       {/* Main */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Top nav */}
-        <header className="bg-white border-b border-[#e8e6e0] flex items-center px-6 gap-2 sticky top-0 z-30" style={{ paddingTop: "env(safe-area-inset-top)", minHeight: "calc(4rem + env(safe-area-inset-top))" }}>
+        <header className="bg-white border-b border-[#e8e6e0] flex items-center px-6 gap-2 sticky top-0 z-30 safe-header-16">
           <div className="flex-1" />
           <button
             onClick={() => { setToast("Help center coming soon!"); setTimeout(() => setToast(""), 3000); }}

@@ -1,4 +1,5 @@
 import { getServerSession } from "next-auth";
+import { isAdminUser } from "@/lib/adminAuth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
@@ -8,7 +9,7 @@ export const dynamic = 'force-dynamic';
 
 export default async function AdminTenantsPage() {
   const session = await getServerSession(authOptions);
-  const isAdmin = session?.user?.role === "admin" || session?.user?.email === process.env.SUPER_ADMIN_EMAIL;
+  const isAdmin = isAdminUser(session?.user);
   if (!isAdmin) redirect("/login");
 
   const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0);

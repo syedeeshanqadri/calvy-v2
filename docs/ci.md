@@ -10,7 +10,7 @@ Workflow: `.github/workflows/ci.yml`. Runs on every pull request and on every pu
 | `npx prisma generate` | Builds the typed client the code imports |
 | `npx prisma migrate deploy` | Applies all migrations to an empty throwaway Postgres 16 (`calvy_ci`); proves they work from scratch. Never `db push`. |
 | `npx prisma migrate diff --from-url ... --to-schema-datamodel prisma/schema.prisma --exit-code` | Fails if `schema.prisma` changed without a migration |
-| `npm run lint` | ESLint via `next lint` |
+| `npm run lint` | ESLint (flat config, `eslint .`) |
 | `npx tsc --noEmit` | Type check |
 | `npm test` | Vitest unit tests |
 | `npm run build` | Production build (`prisma generate && next build`) |

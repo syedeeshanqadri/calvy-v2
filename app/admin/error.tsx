@@ -1,5 +1,6 @@
 "use client";
 import { useEffect } from "react";
+import { reportClientError } from "@/lib/clientErrors";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { StatusPage, statusSecondaryLink } from "@/components/ui/StatusPage";
@@ -7,7 +8,7 @@ import { StatusPage, statusSecondaryLink } from "@/components/ui/StatusPage";
 // Rendered inside AdminLayout (app/admin/layout.tsx), so the admin shell stays visible.
 export default function AdminError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   useEffect(() => {
-    console.error("Admin error", error.digest ?? "");
+    reportClientError(error);
   }, [error]);
 
   return (

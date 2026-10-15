@@ -3,6 +3,9 @@ import { prisma } from "@/lib/prisma";
 import { isAdminSession, slugifyTitle, normalizeFaq } from "@/lib/adminAuth";
 import { submitToIndexNow } from "@/lib/indexnow";
 
+import { parseBody, parseQuery } from "@/lib/validation/common";
+import { adminPageQuery, postCreateSchema } from "@/lib/validation/admin";
+
 export const dynamic = "force-dynamic";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://calvy.io";
@@ -18,9 +21,12 @@ async function uniqueSlug(base: string): Promise<string> {
 }
 
 // List all posts (admin)
-export async function GET() {
+export async function GET(req: NextRequest) {
   if (!(await isAdminSession())) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  const posts = await prisma.post.findMany({ orderBy: { createdAt: "desc" } });
+  const q = parseQuery(req.url, adminPageQuery);
+  if (!q.ok) return q.res;
+  const { page, limit } = q.data;
+  const posts = await prisma.post.findMany({ orderBy: { createdAt: "desc" }, skip: (page - 1) * limit, take: limit });
   return NextResponse.json({ posts });
 }
 
@@ -28,11 +34,10 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   if (!(await isAdminSession())) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  const body = await req.json();
+  const parsed = await parseBody(req, postCreateSchema);
+  if (!parsed.ok) return parsed.res;
+  const body = parsed.data;
   const { title, content } = body;
-  if (!title?.trim() || !content?.trim()) {
-    return NextResponse.json({ error: "Title and content are required." }, { status: 400 });
-  }
 
   const slug = await uniqueSlug(body.slug?.trim() ? slugifyTitle(body.slug) : slugifyTitle(title));
   const published = !!body.published;

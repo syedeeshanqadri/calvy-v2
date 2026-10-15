@@ -2,7 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { parseBody } from "@/lib/validation/common";
+import { appointmentPatchSchema } from "@/lib/validation/appointments";
 import { sendBookingCancellation, sendBookingReschedule, sendInvoice, type BookingDetails } from "@/lib/email";
+import { logger } from "@/lib/logger";
 
 export const dynamic = 'force-dynamic';
 
@@ -10,7 +13,8 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://calvy.io";
 const fmtDate = (d: Date) => d.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
 const fmtTime = (d: Date) => d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const session = await getServerSession(authOptions);
   if (!session?.user?.businessId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -23,22 +27,9 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     return NextResponse.json({ error: "Appointment not found" }, { status: 404 });
   }
 
-  const body = await req.json();
-  const { status, paymentStatus, paymentMode, date } = body;
-
-  const VALID_STATUSES = ["confirmed", "pending", "completed", "cancelled", "no-show"];
-  const VALID_PAYMENT_STATUSES = ["unpaid", "paid", "refunded"];
-  const VALID_PAYMENT_MODES = ["prepaid", "postpaid"];
-
-  if (status && !VALID_STATUSES.includes(status)) {
-    return NextResponse.json({ error: "Invalid status" }, { status: 400 });
-  }
-  if (paymentStatus && !VALID_PAYMENT_STATUSES.includes(paymentStatus)) {
-    return NextResponse.json({ error: "Invalid payment status" }, { status: 400 });
-  }
-  if (paymentMode && !VALID_PAYMENT_MODES.includes(paymentMode)) {
-    return NextResponse.json({ error: "Invalid payment mode" }, { status: 400 });
-  }
+  const parsed = await parseBody(req, appointmentPatchSchema);
+  if (!parsed.ok) return parsed.res;
+  const { status, paymentStatus, paymentMode, date } = parsed.data;
 
   // Reschedule support
   let newDate: Date | undefined;
@@ -66,8 +57,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   // Fire the matching transactional emails (awaited so delivery is logged before we respond)
   if (willCancel || willReschedule || willPay) {
     try {
-      const full = await prisma.appointment.findUnique({
-        where: { id: params.id },
+      const full = await prisma.appointment.findFirst({
+        where: { id: params.id, businessId: session.user.businessId },
         include: { client: true, service: true, staff: true, business: true },
       });
       if (full?.client?.email) {
@@ -100,14 +91,15 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
         }
       }
     } catch (err) {
-      console.error("[Appointments] transactional email error:", err);
+      logger.error("[Appointments] transactional email error:", { err });
     }
   }
 
   return NextResponse.json({ appointment: updated });
 }
 
-export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const session = await getServerSession(authOptions);
   if (!session?.user?.businessId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

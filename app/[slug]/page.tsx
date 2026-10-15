@@ -25,7 +25,8 @@ async function getBusiness(slug: string) {
 const ROOT_DOMAIN = process.env.NEXT_PUBLIC_ROOT_DOMAIN ?? "calvy.io";
 const publicUrlFor = (slug: string) => `https://${slug}.${ROOT_DOMAIN}`;
 
-export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
+export async function generateMetadata(props: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+  const params = await props.params;
   const business = await getBusiness(params.slug);
   if (!business) return { title: "Not Found" };
   const cfg: WebsiteConfig =
@@ -51,7 +52,8 @@ export async function generateMetadata({ params }: { params: { slug: string } })
 
 const STAFF_COLORS = ["#0284c7","#3b82f6","#22c55e","#8b5cf6","#f59e0b","#ec4899","#14b8a6","#f97316"];
 
-export default async function TenantWebsitePage({ params }: { params: { slug: string } }) {
+export default async function TenantWebsitePage(props: { params: Promise<{ slug: string }> }) {
+  const params = await props.params;
   const business = await getBusiness(params.slug);
   if (!business) notFound();
 

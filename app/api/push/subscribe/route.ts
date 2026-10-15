@@ -3,6 +3,8 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
+import { parseBody } from "@/lib/validation/common";
+import { pushSubscribeSchema, pushUnsubscribeSchema } from "@/lib/validation/misc";
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
@@ -11,10 +13,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { endpoint, keys } = await req.json();
-  if (!endpoint || !keys?.p256dh || !keys?.auth) {
-    return NextResponse.json({ error: "Invalid subscription" }, { status: 400 });
-  }
+  const parsed = await parseBody(req, pushSubscribeSchema);
+  if (!parsed.ok) return parsed.res;
+  const { endpoint, keys } = parsed.data;
 
   await prisma.pushSubscription.upsert({
     where: { endpoint },
@@ -31,7 +32,9 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { endpoint } = await req.json();
+  const parsed = await parseBody(req, pushUnsubscribeSchema);
+  if (!parsed.ok) return parsed.res;
+  const { endpoint } = parsed.data;
   if (endpoint) {
     await prisma.pushSubscription.deleteMany({
       where: { endpoint, businessId: session.user.businessId },

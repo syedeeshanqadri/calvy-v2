@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
-import Image from "next/image";
+import { Logo } from "@/components/ui/Logo";
 
 const REGIONS = [
   { currency: "USD", label: "United States — US Dollar (USD $)" },
@@ -59,7 +59,7 @@ export default function OnboardingClient({ name }: { name: string }) {
     <div className="min-h-dvh bg-[#0f0f1a] flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="flex justify-center mb-8">
-          <Image src="/calvy.svg" alt="Calvy" width={110} height={32} className="brightness-0 invert" />
+          <Logo width={110} className="brightness-0 invert" />
         </div>
 
         <div className="bg-white rounded-3xl p-8 shadow-xl">

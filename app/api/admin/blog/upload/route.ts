@@ -1,6 +1,8 @@
 import { put } from "@vercel/blob";
 import { NextRequest, NextResponse } from "next/server";
+import { checkImageUpload, MAX_UPLOAD_BYTES } from "@/lib/validation/upload";
 import { isAdminSession } from "@/lib/adminAuth";
+import { logger, getRequestId } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
 
@@ -10,33 +12,25 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   if (!process.env.BLOB_READ_WRITE_TOKEN) {
-    return NextResponse.json(
-      { error: "Image upload not configured. Add BLOB_READ_WRITE_TOKEN to your environment." },
-      { status: 503 },
-    );
+    return NextResponse.json({ error: "Image upload is not available right now." }, { status: 503 });
   }
 
-  const formData = await req.formData();
-  const file = formData.get("file") as File | null;
-  if (!file || file.size === 0) {
-    return NextResponse.json({ error: "No file provided" }, { status: 400 });
+  const declared = Number(req.headers.get("content-length") ?? 0);
+  if (declared > MAX_UPLOAD_BYTES + 64 * 1024) {
+    return NextResponse.json({ error: "File too large (max 5 MB)" }, { status: 413 });
   }
-  if (file.size > 5 * 1024 * 1024) {
-    return NextResponse.json({ error: "File too large (max 5 MB)" }, { status: 400 });
-  }
-  if (!file.type.startsWith("image/")) {
-    return NextResponse.json({ error: "Only image files are allowed" }, { status: 400 });
-  }
-
-  const ext = file.name.split(".").pop()?.toLowerCase() ?? "jpg";
-  const pathname = `blog/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
 
   try {
-    const blob = await put(pathname, file, { access: "public" });
+    const formData = await req.formData();
+    const file = formData.get("file");
+    const check = await checkImageUpload(file instanceof File ? file : null);
+    if (!check.ok) return NextResponse.json({ error: check.error }, { status: 400 });
+
+    const pathname = `blog/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${check.ext}`;
+    const blob = await put(pathname, file as File, { access: "public", contentType: check.contentType });
     return NextResponse.json({ url: blob.url });
   } catch (err) {
-    console.error("[Blog upload] Error:", err);
-    const message = err instanceof Error ? err.message : "Upload failed";
-    return NextResponse.json({ error: message }, { status: 500 });
+    logger.error("blog upload failed", { err, requestId: getRequestId(req) });
+    return NextResponse.json({ error: "Upload failed. Please try again." }, { status: 500 });
   }
 }

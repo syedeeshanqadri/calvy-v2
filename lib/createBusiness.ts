@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { defaultWebsiteConfig } from "@/lib/website";
+import { isReservedSlug } from "@/lib/slugs";
 
 function toBaseSlug(name: string): string {
   return name
@@ -11,11 +12,12 @@ function toBaseSlug(name: string): string {
 
 export async function generateSlug(name: string): Promise<string> {
   const base = toBaseSlug(name) || "business";
-  const exists = await prisma.business.findUnique({ where: { slug: base } });
+  // A reserved word (e.g. "Admin") is never used bare; it falls through to "admin-2".
+  const exists = isReservedSlug(base) || (await prisma.business.findUnique({ where: { slug: base } }));
   if (!exists) return base;
   for (let i = 2; i <= 99; i++) {
     const candidate = `${base}-${i}`;
-    const taken = await prisma.business.findUnique({ where: { slug: candidate } });
+    const taken = isReservedSlug(candidate) || (await prisma.business.findUnique({ where: { slug: candidate } }));
     if (!taken) return candidate;
   }
   return `${base}-${Date.now()}`;

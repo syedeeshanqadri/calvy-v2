@@ -5,6 +5,7 @@ import { sendPasswordResetEmail } from "@/lib/email";
 import { forgotPasswordSchema } from "@/lib/validation/auth";
 import { createResetToken } from "@/lib/auth-tokens";
 import { readJsonBody, parseWith, tooManyRequests, testTokenHookEnabled, appBaseUrl } from "@/lib/auth-http";
+import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
 
@@ -39,11 +40,11 @@ export async function POST(req: NextRequest) {
       try {
         await sendPasswordResetEmail({ to: user.email, name: user.name, token, baseUrl: appBaseUrl(req) });
       } catch (err) {
-        console.error("[auth] reset email failed", err instanceof Error ? err.message : "unknown");
+        logger.error("[auth] reset email failed", { err });
       }
     }
   } catch (err) {
-    console.error("[auth] forgot-password error", err instanceof Error ? err.message : "unknown");
+    logger.error("[auth] forgot-password error", { err });
   }
 
   const res: { ok: true; devToken?: string } = { ok: true };

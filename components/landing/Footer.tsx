@@ -1,6 +1,6 @@
 import Link from "next/link";
-import Image from "next/image";
 import { NewsletterForm } from "./NewsletterForm";
+import { Logo } from "@/components/ui/Logo";
 
 const LINKS: Record<string, { label: string; href: string }[]> = {
   Product: [
@@ -34,7 +34,7 @@ export function Footer() {
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-10 mb-12">
           <div className="col-span-2 lg:col-span-1">
             <div className="mb-5">
-              <Image src="/calvy.svg" alt="Calvy" width={90} height={26} className="brightness-0 invert" />
+              <Logo width={90} className="brightness-0 invert" />
             </div>
             <p className="text-sm text-gray-500 leading-relaxed mb-5">The smartest appointment booking platform for modern service businesses.</p>
             <div className="flex gap-3">

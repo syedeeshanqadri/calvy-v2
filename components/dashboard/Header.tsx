@@ -2,9 +2,9 @@
 import { Bell, X, HelpCircle, LogOut, Calendar, CreditCard } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
 import { useSession, signOut } from "next-auth/react";
-import Image from "next/image";
 import Link from "next/link";
 import { requestPushPermission } from "./PushSetup";
+import { Logo } from "@/components/ui/Logo";
 
 interface Notification {
   id: string;
@@ -85,10 +85,10 @@ export function Header({ title, subtitle }: HeaderProps) {
 
   return (
     <>
-      <header className="bg-white border-b border-[#e8e6e0] flex items-center px-4 sm:px-6 gap-3 sticky top-0 z-30" style={{ paddingTop: "env(safe-area-inset-top)", minHeight: "calc(3.5rem + env(safe-area-inset-top))" }}>
+      <header className="bg-white border-b border-[#e8e6e0] flex items-center px-4 sm:px-6 gap-3 sticky top-0 z-30 safe-header-14">
         {/* Mobile: logo */}
         <Link href="/dashboard" className="lg:hidden flex-shrink-0">
-          <Image src="/calvy.svg" alt="Calvy" width={64} height={20} priority />
+          <Logo width={64} priority />
         </Link>
 
         {/* Title */}

@@ -1,0 +1,52 @@
+import { z } from "zod";
+import { NextResponse } from "next/server";
+import { readJsonBody } from "@/lib/auth-http";
+
+export const text = (max: number) => z.string().trim().max(max);
+export const id = z.string().trim().min(1).max(64);
+export const emailField = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .max(254)
+  .regex(/^[^\s@]+@[^\s@]+\.[^\s@]+$/, "Invalid email address");
+/** Loose E.164-ish phone: optional +, digits, spaces, dashes, parentheses. */
+export const phoneField = z
+  .string()
+  .trim()
+  .max(30)
+  .regex(/^\+?[0-9 ()\-]{6,30}$/, "Invalid phone number");
+export const dateField = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "date must be YYYY-MM-DD");
+export const timeField = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "time must be HH:MM");
+export const money = z.coerce.number().finite().min(0).max(10_000_000);
+export const positiveInt = (max: number) => z.coerce.number().int().min(1).max(max);
+export const pageParams = z.object({
+  page: z.coerce.number().int().min(1).max(10_000).default(1),
+  limit: z.coerce.number().int().min(1).max(200).default(50),
+});
+
+/** Treat "" / null as absent for optional text inputs sent by forms. */
+export const blankToUndef = (v: unknown) => (v === "" || v === null ? undefined : v);
+
+type Parsed<T> = { ok: true; data: T } | { ok: false; res: NextResponse };
+
+/** 400 with the first issue as `error` (shown to users) and all issues in `details`. */
+function invalid(err: z.ZodError): { ok: false; res: NextResponse } {
+  const details = err.issues.map((i) => ({ path: i.path.join("."), message: i.message }));
+  return {
+    ok: false,
+    res: NextResponse.json({ error: details[0]?.message ?? "Invalid input.", details }, { status: 400 }),
+  };
+}
+
+export async function parseBody<S extends z.ZodTypeAny>(req: Request, schema: S): Promise<Parsed<z.infer<S>>> {
+  const body = await readJsonBody(req);
+  if (!body.ok) return body;
+  const r = schema.safeParse(body.data);
+  return r.success ? { ok: true, data: r.data } : invalid(r.error);
+}
+
+export function parseQuery<S extends z.ZodTypeAny>(url: string | URL, schema: S): Parsed<z.infer<S>> {
+  const r = schema.safeParse(Object.fromEntries(new URL(url).searchParams.entries()));
+  return r.success ? { ok: true, data: r.data } : invalid(r.error);
+}
