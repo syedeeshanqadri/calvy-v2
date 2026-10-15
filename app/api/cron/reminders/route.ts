@@ -1,3 +1,4 @@
+import { timingSafeEqual } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendBookingReminder } from "@/lib/email";
@@ -11,14 +12,23 @@ export const maxDuration = 60;
 // Reminds every appointment scheduled for the *next calendar day*: email +
 // WhatsApp to the client, and a push to the business owner. reminderSent
 // guarantees each appointment is reminded at most once.
-export async function GET(req: NextRequest) {
-  // Vercel Cron sends `Authorization: Bearer ${CRON_SECRET}` when CRON_SECRET is set.
+/**
+ * Fails closed: in production a missing CRON_SECRET rejects every call.
+ * In non-production an unset secret is allowed so local/dev runs can hit the route.
+ * When set, `Authorization: Bearer <secret>` is compared in constant time.
+ */
+function isAuthorized(req: NextRequest): boolean {
   const secret = process.env.CRON_SECRET;
-  if (secret) {
-    const auth = req.headers.get("authorization");
-    if (auth !== `Bearer ${secret}`) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+  if (!secret) return process.env.NODE_ENV !== "production";
+  const auth = req.headers.get("authorization") ?? "";
+  const expected = Buffer.from(`Bearer ${secret}`);
+  const given = Buffer.from(auth);
+  return given.length === expected.length && timingSafeEqual(given, expected);
+}
+
+export async function GET(req: NextRequest) {
+  if (!isAuthorized(req)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   // Tomorrow, 00:00 → day-after 00:00 (UTC).
@@ -44,8 +54,17 @@ export async function GET(req: NextRequest) {
       const timeLabel = appt.date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
 
       // Client reminders (email + WhatsApp) — best effort, never block the others.
-      if (appt.client.email) {
-        await sendBookingReminder({
+      // sendBookingReminder resolves { ok } (ok=false when skipped/failed).
+      // sendReminderWhatsApp resolves void and swallows its own errors, so a
+      // WhatsApp send can only be counted as "attempted" (it did not throw).
+      // Rule: reminderSent = true only if the email was delivered, or (no email
+      // on file) the WhatsApp attempt did not throw, or the client has neither
+      // channel (nothing to send; avoids retry loops).
+      const hasEmail = !!appt.client.email;
+      const hasPhone = !!appt.client.phone;
+      let delivered = !hasEmail && !hasPhone;
+      if (hasEmail) {
+        const res = await sendBookingReminder({
           to: appt.client.email,
           clientName: appt.client.name,
           businessName: appt.business.name,
@@ -53,15 +72,24 @@ export async function GET(req: NextRequest) {
           date: dateLabel,
           time: timeLabel,
           ctx: { appointmentId: appt.id, businessId: appt.businessId },
-        }).catch((e) => console.error("[Cron] reminder email failed:", e));
+        }).catch((e) => {
+          console.error("[Cron] reminder email failed:", e);
+          return { ok: false };
+        });
+        if (res.ok) delivered = true;
       }
-      if (appt.client.phone) {
+      if (hasPhone) {
+        let attempted = true;
         await sendReminderWhatsApp({
-          to: appt.client.phone,
+          to: appt.client.phone!,
           clientName: appt.client.name,
           serviceName: appt.service.name,
           time: timeLabel,
-        }).catch((e) => console.error("[Cron] reminder WhatsApp failed:", e));
+        }).catch((e) => {
+          attempted = false;
+          console.error("[Cron] reminder WhatsApp failed:", e);
+        });
+        if (attempted && !hasEmail) delivered = true;
       }
 
       // Push to the business owner's dashboard/PWA.
@@ -72,11 +100,15 @@ export async function GET(req: NextRequest) {
         tag: `reminder-${appt.id}`,
       }).catch((e) => console.error("[Cron] reminder push failed:", e));
 
-      await prisma.appointment.update({
-        where: { id: appt.id },
-        data: { reminderSent: true },
-      });
-      sent++;
+      if (delivered) {
+        await prisma.appointment.update({
+          where: { id: appt.id },
+          data: { reminderSent: true },
+        });
+        sent++;
+      } else {
+        console.warn("[Cron] reminder not delivered; will stay unsent", appt.id);
+      }
     })
   );
 

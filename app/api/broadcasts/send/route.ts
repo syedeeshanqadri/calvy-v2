@@ -7,7 +7,11 @@ import { sendWhatsApp } from "@/lib/whatsapp";
 
 export const dynamic = "force-dynamic";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+let resendClient: Resend | null = null;
+function getResend() {
+  if (!resendClient) resendClient = new Resend(process.env.RESEND_API_KEY);
+  return resendClient;
+}
 const FROM = process.env.EMAIL_FROM ?? "Calvy <onboarding@resend.dev>";
 
 function buildEmailHtml(businessName: string, subject: string, message: string) {
@@ -73,7 +77,7 @@ export async function POST(req: NextRequest) {
         html,
       }));
       try {
-        await resend.batch.send(emails);
+        await getResend().batch.send(emails);
         sentTo += chunk.length;
       } catch (err) {
         console.error("[Broadcast] Email batch error:", err);
