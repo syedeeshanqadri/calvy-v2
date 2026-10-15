@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { Check, Globe, Phone, Mail, MapPin, DollarSign, Wallet, CreditCard, Lock } from "lucide-react";
 import { CURRENCIES } from "@/lib/currency";
+import { useFlags } from "@/components/providers/FlagsProvider";
 
 const BUSINESS_TYPES = [
   { value: "salon", label: "Hair Salon" },
@@ -62,6 +63,7 @@ type Tab = "profile" | "availability" | "payout";
 
 export function SettingsClient({ business, customSlotInterval = false, stripePayments = false, customBranding = false }: { business: BusinessData; customSlotInterval?: boolean; stripePayments?: boolean; customBranding?: boolean }) {
   const router = useRouter();
+  const { payments: paymentsEnabled } = useFlags();
   const [tab, setTab] = useState<Tab>("profile");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -184,7 +186,7 @@ export function SettingsClient({ business, customSlotInterval = false, stripePay
   const TABS: { key: Tab; label: string; icon: React.ElementType }[] = [
     { key: "profile", label: "Business Profile", icon: Globe },
     { key: "availability", label: "Availability", icon: Phone },
-    { key: "payout", label: "Payout Settings", icon: Wallet },
+    ...(paymentsEnabled ? [{ key: "payout" as Tab, label: "Payout Settings", icon: Wallet }] : []),
   ];
 
   return (
@@ -300,6 +302,16 @@ export function SettingsClient({ business, customSlotInterval = false, stripePay
           </Card>
         )}
 
+        {/* Payments are switched off: keep postpaid as the only choice; show an existing prepaid mode read-only. */}
+        {tab === "profile" && !paymentsEnabled && business.paymentMode === "prepaid" && (
+          <Card>
+            <CardHeader><CardTitle className="flex items-center gap-2"><CreditCard size={16} /> Booking Payment Mode</CardTitle></CardHeader>
+            <CardContent>
+              <p className="text-sm text-[#3d3d4d]">Online payment (currently unavailable)</p>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Availability tab */}
         {tab === "availability" && (
           <>
@@ -376,7 +388,7 @@ export function SettingsClient({ business, customSlotInterval = false, stripePay
         )}
 
         {/* Payout tab */}
-        {tab === "payout" && (
+        {paymentsEnabled && tab === "payout" && (
           <div className="space-y-5">
             {/* Payment Mode */}
             <Card>

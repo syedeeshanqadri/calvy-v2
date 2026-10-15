@@ -1,13 +1,15 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { redirect } from "next/navigation";
+import { redirect, notFound } from "next/navigation";
+import { getFlags } from "@/lib/flags";
 import { CURRENCIES } from "@/lib/currency";
 import { WithdrawalsClient } from "./WithdrawalsClient";
 
 export const dynamic = 'force-dynamic';
 
 export default async function AdminWithdrawalsPage() {
+  if (!getFlags().wallet) notFound();
   const session = await getServerSession(authOptions);
   if (!session?.user) redirect("/login");
 

@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Check, X, Zap, Crown, Building2, Gift, AlertTriangle, Clock, ExternalLink, RefreshCw } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
+import { useFlags } from "@/components/providers/FlagsProvider";
 import { Card } from "@/components/ui/Card";
 import type { PlanData } from "./page";
 
@@ -73,6 +74,11 @@ export default function BillingClient({
   plans,
 }: Props) {
   const router = useRouter();
+  const flags = useFlags();
+  // UI-only flag: hide "Remove branding" unless FEATURE_REMOVE_BRANDING is on.
+  const hideBranding = !flags.removeBranding;
+  const comparisonRows = hideBranding ? COMPARISON_ROWS.filter(r => r.key !== "removeBranding") : COMPARISON_ROWS;
+  const isBrandingText = (f: string) => /remove\s+(calvy\s+)?branding/i.test(f);
   const [loading, setLoading] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [syncMsg, setSyncMsg] = useState("");
@@ -303,7 +309,7 @@ export default function BillingClient({
                   {/* Feature highlights — use custom list if set, else auto-build */}
                   {plan.features.length > 0 ? (
                     <ul className="space-y-2 flex-1 mb-5">
-                      {plan.features.map((f) => (
+                      {plan.features.filter((f) => !hideBranding || !isBrandingText(f)).map((f) => (
                         <li key={f} className="flex items-start gap-2 text-sm text-[#3d3d4d]">
                           <Check size={14} className="mt-0.5 flex-shrink-0 text-accent" />
                           {f}
@@ -377,7 +383,7 @@ export default function BillingClient({
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#f5f3ef]">
-                {COMPARISON_ROWS.map(({ label, key }) => (
+                {comparisonRows.map(({ label, key }) => (
                   <tr key={label} className="hover:bg-[#fafaf8] transition-colors">
                     <td className="px-6 py-3 text-[#3d3d4d] font-medium">{label}</td>
                     {plans.map(p => (

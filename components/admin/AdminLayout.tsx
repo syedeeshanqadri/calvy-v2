@@ -9,14 +9,16 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
+import { useFlags } from "@/components/providers/FlagsProvider";
+import type { FeatureFlag } from "@/lib/flags";
 import { useState } from "react";
 
-const NAV = [
+const NAV: { label: string; href: string; icon: typeof LayoutDashboard; exact?: boolean; flag?: FeatureFlag }[] = [
   { label: "Overview", href: "/admin", icon: LayoutDashboard, exact: true },
   { label: "Tenants", href: "/admin/tenants", icon: Building2 },
   { label: "Plans & Pricing", href: "/admin/plans", icon: CreditCard },
   { label: "Revenue", href: "/admin/revenue", icon: TrendingUp },
-  { label: "Withdrawals", href: "/admin/withdrawals", icon: ArrowDownToLine },
+  { label: "Withdrawals", href: "/admin/withdrawals", icon: ArrowDownToLine, flag: "wallet" },
   { label: "Notifications", href: "/admin/notifications", icon: Send },
   { label: "Blog", href: "/admin/blog", icon: Newspaper },
   { label: "CRM (Leads)", href: "/crm", icon: Contact },
@@ -25,6 +27,7 @@ const NAV = [
 
 export function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const flags = useFlags();
   const { data: session } = useSession();
   const [showNotifications, setShowNotifications] = useState(false);
   const [toast, setToast] = useState("");
@@ -48,7 +51,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
         {/* Nav */}
         <nav className="flex-1 py-4 px-3 space-y-0.5">
           <p className="text-[10px] font-bold tracking-[2px] text-[#b0b0c0] uppercase px-2 pb-2 pt-1">Management</p>
-          {NAV.map((item) => {
+          {NAV.filter((item) => !item.flag || flags[item.flag]).map((item) => {
             const isActive = item.exact ? pathname === item.href : pathname.startsWith(item.href);
             return (
               <Link

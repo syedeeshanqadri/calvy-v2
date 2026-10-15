@@ -8,22 +8,24 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
+import { useFlags } from "@/components/providers/FlagsProvider";
+import type { FeatureFlag } from "@/lib/flags";
 
-const NAV_ITEMS = [
+const NAV_ITEMS: { label: string; href: string; icon: typeof LayoutDashboard; flag?: FeatureFlag }[] = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { label: "Appointments", href: "/dashboard/appointments", icon: Calendar },
   { label: "Clients", href: "/dashboard/clients", icon: Users },
   { label: "Staff", href: "/dashboard/staff", icon: UserCog },
   { label: "Calendar", href: "/dashboard/calendar", icon: CalendarDays },
-  { label: "Payments", href: "/dashboard/payments", icon: CreditCard },
-  { label: "Wallet", href: "/dashboard/wallet", icon: Wallet },
+  { label: "Payments", href: "/dashboard/payments", icon: CreditCard, flag: "payments" },
+  { label: "Wallet", href: "/dashboard/wallet", icon: Wallet, flag: "wallet" },
   { label: "Analytics", href: "/dashboard/analytics", icon: BarChart2 },
   { label: "Expenses", href: "/dashboard/expenses", icon: Receipt },
   { label: "Services", href: "/dashboard/services", icon: Wrench },
-  { label: "Broadcasts", href: "/dashboard/broadcasts", icon: Megaphone },
+  { label: "Broadcasts", href: "/dashboard/broadcasts", icon: Megaphone, flag: "broadcasts" },
   { label: "Booking Page", href: "/dashboard/booking-page", icon: Link2 },
   { label: "Website", href: "/dashboard/website", icon: Globe },
-  { label: "Billing", href: "/dashboard/billing", icon: Sparkles },
+  { label: "Billing", href: "/dashboard/billing", icon: Sparkles, flag: "payments" },
   { label: "Support", href: "/dashboard/support", icon: LifeBuoy },
   { label: "Settings", href: "/dashboard/settings", icon: SlidersHorizontal },
 ];
@@ -32,6 +34,8 @@ interface SidebarProps { collapsed?: boolean; onToggle?: () => void; }
 
 export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const pathname = usePathname();
+  const flags = useFlags();
+  const items = NAV_ITEMS.filter((i) => !i.flag || flags[i.flag]);
 
   return (
     <aside className={cn("flex flex-col bg-white h-dvh border-r border-[#e8e6e0] transition-all duration-300", collapsed ? "w-16" : "w-64")}>
@@ -54,7 +58,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
       {/* Nav */}
       <nav className="flex-1 min-h-0 py-4 px-2 space-y-0.5 overflow-y-auto">
         {!collapsed && <p className="text-[10px] font-bold tracking-[2px] text-[#b0b0c0] uppercase px-3 pb-2">Main</p>}
-        {NAV_ITEMS.slice(0, 4).map((item) => {
+        {items.slice(0, 4).map((item) => {
           const isActive = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href));
           return (
             <Link
@@ -73,7 +77,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
         })}
 
         {!collapsed && <p className="text-[10px] font-bold tracking-[2px] text-[#b0b0c0] uppercase px-3 pb-2 pt-4">Business</p>}
-        {NAV_ITEMS.slice(4).map((item) => {
+        {items.slice(4).map((item) => {
           const isActive = pathname === item.href || pathname.startsWith(item.href);
           return (
             <Link
