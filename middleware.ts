@@ -1,6 +1,7 @@
 import { withAuth } from "next-auth/middleware";
 import { getToken } from "next-auth/jwt";
 import { NextResponse, type NextRequest } from "next/server";
+import { featureForApiPath, isFeatureEnabled } from "@/lib/flags";
 
 const ROOT_DOMAIN = process.env.NEXT_PUBLIC_ROOT_DOMAIN ?? "calvy.io";
 
@@ -46,6 +47,14 @@ const authMiddleware = withAuth(
 
 export default async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
+
+  // Feature-flag guard: API entry points of disabled features return 404.
+  if (pathname.startsWith("/api/")) {
+    const flag = featureForApiPath(pathname);
+    if (flag && !isFeatureEnabled(flag)) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+  }
 
   // Already-authenticated users should never see the auth pages — send them
   // straight to the dashboard (which itself routes to onboarding if needed).
