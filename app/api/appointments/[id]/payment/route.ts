@@ -9,13 +9,12 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   const session = await getServerSession(authOptions);
   if (!session?.user?.businessId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const appointment = await prisma.appointment.findUnique({
-    where: { id: params.id },
+  const appointment = await prisma.appointment.findFirst({
+    where: { id: params.id, businessId: session.user.businessId },
     select: { id: true, businessId: true, clientId: true, price: true, paymentStatus: true, paymentMode: true },
   });
 
   if (!appointment) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  if (appointment.businessId !== session.user.businessId) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   if (appointment.paymentStatus === "paid") return NextResponse.json({ error: "Already marked as paid" }, { status: 400 });
 
   const [updated] = await prisma.$transaction([
