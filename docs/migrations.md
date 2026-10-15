@@ -68,21 +68,33 @@ npx prisma migrate status                                  # expect: Database sc
 Remove-Item Env:\DATABASE_URL
 ```
 
-Take a database backup or a Neon branch first. If the `migrate diff` step reports differences, stop and compare them with `prisma/schema.prisma` before resolving anything.
+**Step 0: take a database backup or create a Neon branch of production first.** If the `migrate diff` step reports differences, stop and compare them with `prisma/schema.prisma` before resolving anything.
 
 After that, every release that contains new migrations runs `npm run db:deploy` **before** the new code starts serving traffic.
 
 ### Vercel
 
-`npm run build` no longer pushes the schema, so on Vercel set the **Build Command** to:
+`npm run build` no longer pushes the schema, so something else has to apply migrations on deploy. **Preconditions (do these first):**
+
+1. Do the one-time production step above.
+2. `DATABASE_URL` in Vercel must be scoped to **Production only**. Preview and Development must use a different database (a Neon branch). Vercel runs one Build Command for Production and Preview, so if Preview inherits the production `DATABASE_URL`, a pull-request preview would run its unmerged migrations against production. Check Project Settings, then Environment Variables, and confirm the Production-only scope before changing the Build Command.
+3. For the migration step use the **direct** (non-pooled) Neon connection string, not the `-pooler` host. Migrations take a database lock that pooled connections can hang on. The easiest way is a second variable, for example `MIGRATE_DATABASE_URL` (direct URL, Production only), and the command below passes it to Prisma.
+
+Then set the **Build Command** to a guarded form that migrates only for Production:
 
 ```
-npm run db:deploy && npm run build
+if [ "$VERCEL_ENV" = "production" ]; then DATABASE_URL="$MIGRATE_DATABASE_URL" npm run db:deploy; fi && npm run build
 ```
 
-(or run `db:deploy` in a release step; Step 7, item S7-03 of `docs/PLAN.md`, formalises this). Do this only after the one-time production step above. If `db:deploy` fails, the deploy stops and the old version keeps serving.
+If `db:deploy` fails the deploy stops and the previous version keeps serving. Step 7 (S7-02, S7-03 in `docs/PLAN.md`) replaces this with environments and a proper release step.
 
-Preview deployments must not use the production `DATABASE_URL` (see S7-02).
+## Safety checks before any Prisma command
+
+- Node's `--env-file` does not override variables that are already set in your shell. If you ran the production procedure and left `$env:DATABASE_URL` set, `npm run db:migrate` will target **production**. Always finish that procedure with `Remove-Item Env:\DATABASE_URL`, and run `echo $env:DATABASE_URL` (it should be empty) before `npm run db:migrate`.
+- `DATABASE_URL` and `SHADOW_DATABASE_URL` must be different databases. If they were the same, `migrate dev` would wipe the main database.
+- Never run `prisma migrate reset` or `prisma db push` against anything but a throwaway local database. The production procedure uses only `migrate status`, `migrate diff` and `migrate resolve`.
+- Typing the production connection string into PowerShell can leave it in the command history. Prefer `$env:DATABASE_URL = Read-Host "Production URL"` (type it when asked) and clear it afterwards.
+- The `--env-file-if-exists` flag used by `db:migrate`, `db:status` and `db:seed` needs Node 22.9 or newer on your machine (Node 24 is installed here). CI and Vercel do not use these scripts.
 
 ## Troubleshooting
 
