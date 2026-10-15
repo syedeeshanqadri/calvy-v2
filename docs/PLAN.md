@@ -1,6 +1,6 @@
 # Calvy v2 — Delivery plan (9 steps)
 
-This replaces the earlier phase-based backlog. It keeps every item from the audit (reports `01-frontend-ux`, `02-backend`, `03-product`, on branch `audit/phase-1`) and regroups them into the approved 9 steps, adds the items the audit did not cover, and says which items can run in parallel and which agent owns each.
+This replaces the earlier phase-based backlog. It keeps every item from the audit (reports `docs/audit/01-frontend-ux.md`, `02-backend.md`, `03-product.md`; the product description is `docs/PRODUCT-SPEC.md`) and regroups them into the approved 9 steps, adds the items the audit did not cover, and says which items can run in parallel and which agent owns each.
 
 **Status:** planning only. No app code has been changed by this document.
 
@@ -49,14 +49,14 @@ If any of these is open, v2 should not take real customers. Where each one lives
 | D: validation, route group 2 (dashboard CRUD) | BE | after S1-04 → S1-06, S1-08 |
 | E: validation, route group 3 (admin, cron, upload, broadcasts) | BE | after S1-04 → S1-07, S1-13, S1-21, S1-22, S1-23 |
 | F: edge and headers | BE | S1-12, S1-14, S1-15, S1-17 |
-| G: frontend | FE | S1-16 |
+| G: frontend | FE | S1-16, S1-27 |
 | H: tests | QA | S1-24 → S1-25; SEC S1-26 last |
 
 | ID | Title | Eff | Agent | Lane / depends | Files | Acceptance criteria |
 |---|---|---|---|---|---|---|
 | S1-01 | Rotate leaked credentials and purge them [B-01] | S | owner | start immediately | `.claude/settings.json` (owner only; agents never read it), Neon console, git history | Neon password and the test login password rotated; the secrets removed from tracked files and from history (rewrite or recreate the repository); `.gitignore` covers `.claude/settings.local.json`; old credentials confirmed dead |
 | S1-02 | Central env config, `.env.example`, boot-time validation [B-02] | M | BE | A | new `lib/env.ts`, `.env.example`, `instrumentation.ts`, `README.md` | Starting without `DATABASE_URL` or `NEXTAUTH_SECRET` fails with a clear message that does not print values; optional services (email, WhatsApp, blob, push) log "disabled" instead of crashing; README table matches `.env.example`; no `process.env` reads outside `lib/env.ts` for new code |
-| S1-03 | Lazy third-party clients; fix `/booking/success` 500 [B-03] | S | BE | A, after S1-02 | `lib/email.tsx:16`, `app/api/broadcasts/send/route.ts:10`, `lib/razorpay.ts:3` (**explicitly authorised: change only the client construction to lazy**, nothing else in payment code), `app/booking/success/page.tsx` | With every key unset, `/booking/success`, `/api/broadcasts/send` and all pages load without a 500; `getResend()` and `getRazorpay()` are created on first use; a test imports every module with an empty environment |
+| S1-03 | Lazy third-party clients; fix `/booking/success` 500 [B-03] | S | BE | A, after S1-02 | `lib/email.tsx:16`, `app/api/broadcasts/send/route.ts:10`, `lib/razorpay.ts:3` (**explicitly authorised: change only the client construction to lazy**, nothing else in payment code), `app/booking/success/page.tsx` | With every key unset, `/booking/success`, `/api/broadcasts/send` and all pages load without a 500; `getResend()` and `getRazorpay()` are created on first use; a test imports every module with an empty environment; **`next build` succeeds with `RAZORPAY_*` and `RESEND_API_KEY` unset** (today it fails at `/api/billing/portal` with "`key_id` or `oauthToken` is mandatory") |
 | S1-04 | Validation and API wrapper foundation [B-07, B-17] | M | BE | C (first) | new `lib/validation/*` (shared schemas: email, phone E.164, id, money, pagination, timezone), `lib/api.ts` (`withApi`: auth, Zod parse, error mapping, request id, safe logging), `package.json` (add `zod`) | `withApi` returns 400 `{error, details}` for invalid and malformed JSON, 401/403/404 consistently, 500 without leaking internals; schemas unit-tested; documented in a short `docs/api-conventions.md` |
 | S1-05 | Apply validation: signup, login helpers, leads, verify, onboarding, availability, public bookings (input only) [B-07] | M | BE | C, after S1-04 | `app/api/signup`, `leads`, `onboarding`, `auth/verify-email`, `availability`, `bookings` (not `bookings/confirm`) | Every handler parses params, query and body with Zod; emails trimmed and lowercased; `slotInterval`/`duration`/`date`/`time` bounded; length limits on all strings; tests for valid, invalid, oversized and malformed input |
 | S1-06 | Apply validation: dashboard CRUD routes [B-07] | M | BE | D, after S1-04 | `app/api/appointments`, `clients`, `services`, `staff`, `expenses`, `settings`, `website`, `notifications`, `push`, `support` | Same standard as S1-05; `settings` validates `availabilityJson`, `currency` (allow-list), `primaryColor` (hex), `slotInterval` (integer 5 to 240); `website` validates `websiteJson` against a schema; no raw `req.json()` left in these routes |
@@ -80,6 +80,7 @@ If any of these is open, v2 should not take real customers. Where each one lives
 | S1-24 | Test infrastructure and tenant-isolation suite [B-37 start] | M | QA | H | `tests/helpers/*`, `tests/api/*`, `vitest.config.ts` | Disposable test database and seed helper; helper to call route handlers with a fake session; for every dashboard route a cross-tenant test proves 404; tests run in CI-ready form; tests do not touch the dev database |
 | S1-25 | Auth and validation regression tests | M | QA | H, after S1-05, S1-06, S1-09 | `tests/api/auth.test.ts`, `tests/api/validation.test.ts` | Mixed-case login, reset flow, resend, rate limits, malformed JSON, oversized input, unauthenticated access; evidence of pass counts |
 | S1-26 | Security review of Step 1 | S | SEC | H, last | n/a (read-only) | Report by severity with file:line; no Critical or High open before Step 2 merges |
+| S1-27 | Local Windows build: `/apple-icon` prerender fails [new] | S | FE | G | `app/apple-icon.tsx`, `public/`, possibly `package.json` (Next version via S1-18) | `next build` completes on Windows and Linux; either the icon is served as a static PNG from `public/` or the Next upgrade in S1-18 fixes the `next/og` "Invalid URL" error; no change to the icon's appearance; screenshot of the icon in the browser tab |
 
 ---
 
