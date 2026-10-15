@@ -1,4 +1,4 @@
-import { defineConfig } from "playwright/test";
+import { defineConfig } from "@playwright/test";
 
 // Minimal smoke config. Vitest only picks up tests/**/*.test.ts, so these specs are not run by `npm test`.
 export default defineConfig({
