@@ -551,10 +551,10 @@ test.describe("security", () => {
     page.on("console", (m) => printed.push(m.text()));
     const resp = await page.goto(`/reset-password?token=${TOKEN}`);
     await hydrated(page);
-    test.info().annotations.push({ type: "hosts", description: [...hosts].join(", ") });
+    test.info().annotations.push({ type: "hosts", description: Array.from(hosts).join(", ") });
     fs.writeFileSync(path.join(SHOTS, `reset-requests-${vp(page)}.txt`), urls.join("\n"));
     const origin = new URL(page.url()).host;
-    expect([...hosts].filter((h) => h !== origin)).toEqual([]);
+    expect(Array.from(hosts).filter((h) => h !== origin)).toEqual([]);
     expect(await page.locator("body").innerText()).not.toContain(TOKEN);
     expect(await page.title()).not.toContain(TOKEN);
     const hrefs = await page.locator("a").evaluateAll((as) => as.map((a) => a.getAttribute("href")));

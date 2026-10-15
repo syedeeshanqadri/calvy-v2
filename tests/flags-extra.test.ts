@@ -19,10 +19,10 @@ describe("path boundaries", () => {
     ["/api/walletx", null],
     ["/api/wallet/", "wallet"],
     ["/api/wallet?x=1", null], // pathname never contains a query; documents behaviour
-    ["/api/WALLET", null],
-    ["/api/Wallet", null],
-    ["/api//wallet", null],
-    ["/api/wallet%2Fx", null],
+    ["/api/WALLET", "wallet"],
+    ["/api/Wallet", "wallet"],
+    ["/api//wallet", "wallet"],
+    ["/api/wallet%2Fx", "wallet"],
     ["/api/wallet.", null],
     ["/api/broadcasts/", "broadcasts"],
     ["/api/billing/status/", "payments"],
@@ -61,7 +61,7 @@ describe("prefix to flag mapping", () => {
   });
   it("only wallet, payments, broadcasts are guarded at the API layer", () => {
     const used = new Set(Object.values(map));
-    expect([...used].sort()).toEqual(["broadcasts", "payments", "wallet"]);
+    expect(Array.from(used).sort()).toEqual(["broadcasts", "payments", "wallet"]);
     for (const f of FEATURE_FLAGS) if (!used.has(f)) expect(f).toMatch(/chatWidget|demoBooking|removeBranding/);
   });
 });
@@ -78,4 +78,24 @@ describe("webhook exemptions", () => {
 describe("non-API paths", () => {
   it.each(["/dashboard/wallet", "/wallet", "/dashboard/broadcasts", "/billing/status", "/", "/dashboard/settings/payout"])(
     "%s -> null", (p) => { expect(featureForApiPath(p)).toBeNull(); });
+});
+
+describe("featureForApiPath normalisation", () => {
+  it.each([
+    "//api//wallet",
+    "/api/wallet/",
+    "/API/Wallet",
+    "/api/%77allet",
+    "/api/./wallet",
+    "/api/x/../wallet",
+    "/api%2Fwallet",
+    "/api\\wallet",
+    "/api/%2577allet",
+  ])("guards %s", (p) => {
+    expect(featureForApiPath(p)).toBe("wallet");
+  });
+  it("does not guard unrelated paths or malformed encodings", () => {
+    expect(featureForApiPath("/api/walletx")).toBeNull();
+    expect(featureForApiPath("/api/%E0%A4%A")).toBeNull();
+  });
 });

@@ -64,7 +64,29 @@ const BROADCAST_PREFIXES = ["/api/broadcasts"];
  * Which flag guards an /api path, or null. Webhooks are deliberately never
  * guarded so payment events are not lost.
  */
-export function featureForApiPath(pathname: string): FeatureFlag | null {
+/** Canonical form so encoded, repeated-slash or dot-segment paths cannot dodge the prefix match. */
+export function normalizeApiPath(pathname: string): string {
+  let p = pathname;
+  for (let i = 0; i < 3; i++) {
+    try {
+      const d = decodeURIComponent(p);
+      if (d === p) break;
+      p = d;
+    } catch {
+      break;
+    }
+  }
+  const out: string[] = [];
+  for (const seg of p.replace(/\\/g, "/").split("/")) {
+    if (seg === "" || seg === ".") continue;
+    if (seg === "..") out.pop();
+    else out.push(seg.toLowerCase());
+  }
+  return "/" + out.join("/");
+}
+
+export function featureForApiPath(rawPathname: string): FeatureFlag | null {
+  const pathname = normalizeApiPath(rawPathname);
   if (WALLET_PREFIXES.some((p) => matchesPrefix(pathname, p))) return "wallet";
   if (PAYMENT_PREFIXES.some((p) => matchesPrefix(pathname, p))) return "payments";
   if (/^\/api\/appointments\/[^/]+\/payment(\/.*)?$/.test(pathname)) return "payments";
