@@ -13,7 +13,11 @@ import {
   type BookingProps,
 } from "@/emails/templates";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+let resendClient: Resend | null = null;
+function getResend() {
+  if (!resendClient) resendClient = new Resend(process.env.RESEND_API_KEY);
+  return resendClient;
+}
 const FROM = process.env.EMAIL_FROM ?? "Calvy <onboarding@resend.dev>";
 
 function isConfigured() {
@@ -61,7 +65,7 @@ async function dispatch(opts: {
 
   try {
     const html = await render(opts.react);
-    const result = await resend.emails.send({
+    const result = await getResend().emails.send({
       from: FROM, to: opts.to, subject: opts.subject, html,
       attachments: opts.attachments,
     });
@@ -185,5 +189,17 @@ export function sendLeadAcknowledgment({ to, name, demoRequested }: { to: string
     to, type: "lead",
     subject: demoRequested ? "Your Calvy demo — let's get it booked" : "Thanks for reaching out to Calvy",
     react: <LeadAcknowledgmentEmail name={name} demoRequested={demoRequested} />,
+  });
+}
+
+// Imported here (not in the header list) to keep this change append-only.
+import { PasswordResetEmail } from "@/emails/templates";
+
+export function sendPasswordResetEmail({ to, name, token, baseUrl }: { to: string; name: string; token: string; baseUrl?: string }) {
+  const appUrl = baseUrl ?? process.env.NEXT_PUBLIC_APP_URL ?? "https://calvy.io";
+  return dispatch({
+    to, type: "password_reset",
+    subject: "Reset your Calvy password",
+    react: <PasswordResetEmail name={name} resetUrl={`${appUrl}/reset-password?token=${token}`} />,
   });
 }

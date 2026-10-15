@@ -6,12 +6,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```bash
 npm run dev                 # next dev on :3000
-npm run build               # prisma generate && prisma db push && next build  (NOTE: pushes schema to the DB in DATABASE_URL)
+npm run build               # prisma generate && next build  (no db push; schema changes are migrations, see docs/migrations.md)
 npm run lint                # next lint
 npm test                    # vitest run (tests/**/*.test.ts, node env, "@" alias -> repo root)
 npx vitest run tests/booking.test.ts            # single test file
 npx vitest run -t "name pattern"                # single test by name
-npm run db:migrate | db:seed | db:studio        # prisma migrate dev / tsx prisma/seed.ts / studio
+npm run db:migrate | db:status | db:deploy | db:seed | db:studio   # migrate dev / status / migrate deploy / seed / studio (db:migrate, db:status, db:seed load .env.local)
 ```
 
 Env vars are in `.env.local` (see README "Environment Variables"). Tests only cover pure lib logic (booking, currency, plans, ratelimit) — no DB or route tests.
@@ -48,13 +48,19 @@ Despite README/docs saying Stripe, the live payment integration is **Razorpay** 
 
 ## How we work
 
-- **One branch per task**, named `step-N/short-name` (for example `step-2/booking-transactions`). Branch from the latest agreed base; never work on `main`.
-- **Non-trivial tasks: show a plan first and wait for the owner's OK** before editing code. Trivial fixes (typos, one-line changes) can go straight in.
-- **Use the subagents in `.claude/agents/`, in parallel where tasks are independent:** `backend-engineer` and `frontend-designer` build, `qa-tester` writes and runs tests, `security-auditor` reviews the diff (read-only). **Never let two agents edit the same file at the same time**; split work by file ownership, and run agents that touch the same files one after the other.
-- **Before reporting a task done, all of these must pass and the results must be reported honestly:** `npm run lint`, `npx tsc --noEmit`, `npm test`, and `npm run build`. Never run a build or any command that pushes the schema (`prisma db push`) against a database you have not confirmed is the dev database. If a check cannot run, say so; do not report done.
+Lean mode: one session, sequential work, small outputs.
+
+- **One session, sequentially. Do NOT spawn subagents** (the files in `.claude/agents/` stay as reference) **unless the owner explicitly asks.**
+- **One branch per chunk**, named `step-N/chunk-name` (for example `step-2/booking-transactions`). A chunk groups 3 to 6 related items from `docs/PLAN.md`. Branch from the latest agreed base; never work on `main`.
+- **Non-trivial chunks: show a short plan first and wait for the owner's OK** before editing code. Trivial fixes (typos, one-line changes) can go straight in.
+- **After each change run only:** `npm run lint`, `npx tsc --noEmit` and `npm test` (unit tests). Pipe each through `tail` and show only the last ~20 lines. **No Playwright and no screenshots per chunk.** Report results honestly; if a check cannot run, say so.
+- **Once at the end of each step, when the owner asks:** run the Playwright smoke test, the full `npm run build`, and the `security-auditor` review (the one time a subagent is used, and only on request).
+- **Do not start the dev server unless the owner asks. Never poll, sleep or wait on long commands;** run them once, in the background if they are long, and report back.
+- **Never run a build or any command that pushes the schema (`prisma db push`)** against a database that is not confirmed to be the dev database. Database changes use migrations only (`prisma migrate dev`).
+- **Reports: 15 lines maximum:** items done, files changed, test result, click-test steps.
 - **Commit locally with clear messages. Never push, merge or force anything**; the owner does that.
 - **Never read or print `.env*` files or `.claude/settings.json`**, and never put secrets in code, logs, tests or commits.
 - **Do not touch payment gateway code** (`lib/razorpay.ts`, `app/api/razorpay/**`, `app/api/billing/**`, wallet and withdrawal code, `app/booking/success`) unless the task says so.
 - **Landing-page marketing claims are out of scope until Step 9** (customer counts, ratings, testimonials, prices shown on the marketing site). Do not add, remove or reword them in earlier steps, and never invent any.
-- **Database changes use migrations only** (`prisma migrate dev`); never `db push`.
-- **Plans and status:** the backlog lives in `docs/PLAN.md`, organised in 9 steps; reference item IDs in branch names, commits and tests.
+- **`docs/PLAN.md` is not rewritten**; only tick off finished items. Reference item IDs in branch names, commits and tests.
+- **The owner is on Windows: give every command the owner has to run in PowerShell syntax** (for example `$env:NAME="value"; npm run dev`, `Remove-Item Env:NAME`, `cd C:\path`).

@@ -6,12 +6,13 @@ import { sendBookingConfirmationWhatsApp } from "@/lib/whatsapp";
 import { sendPushToBusiness } from "@/lib/push";
 import { DEFAULT_CURRENCY } from "@/lib/currency";
 import { rateLimit, clientIp } from "@/lib/ratelimit";
+import { normalizeEmail, findClientByEmail } from "@/lib/email-normalize";
 import { isPastBooking, hasBookingConflict } from "@/lib/booking";
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
-  const rl = rateLimit(`booking:${clientIp(req)}`, 10, 60_000);
+  const rl = await rateLimit(`booking:${clientIp(req)}`, 10, 60_000);
   if (!rl.ok) {
     return NextResponse.json(
       { error: "Too many booking attempts. Please try again shortly." },
@@ -20,7 +21,8 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json();
-  const { businessSlug, staffId, date, time, clientName, clientEmail, clientPhone, notes } = body;
+  const { businessSlug, staffId, date, time, clientName, clientEmail: rawClientEmail, clientPhone, notes } = body;
+  const clientEmail: string = typeof rawClientEmail === "string" ? normalizeEmail(rawClientEmail) : rawClientEmail;
 
   // Support serviceIds[] (multi-service) and legacy serviceId (single)
   const serviceIds: string[] =
@@ -128,9 +130,7 @@ export async function POST(req: NextRequest) {
 
   // Postpaid path — create appointments directly, client pays at visit
   if (paymentMode === "postpaid") {
-    let client = await prisma.client.findUnique({
-      where: { businessId_email: { businessId: business.id, email: clientEmail } },
-    });
+    let client = await findClientByEmail(prisma, business.id, clientEmail);
     if (!client) {
       client = await prisma.client.create({
         data: { businessId: business.id, name: clientName, email: clientEmail, phone: clientPhone || null },
@@ -240,9 +240,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Dev/demo mode — create appointments without payment
-  let client = await prisma.client.findUnique({
-    where: { businessId_email: { businessId: business.id, email: clientEmail } },
-  });
+  let client = await findClientByEmail(prisma, business.id, clientEmail);
   if (!client) {
     client = await prisma.client.create({
       data: { businessId: business.id, name: clientName, email: clientEmail, phone: clientPhone || null },

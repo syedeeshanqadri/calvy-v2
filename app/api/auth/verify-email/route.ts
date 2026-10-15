@@ -22,8 +22,17 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(`${base}/login?error=expired-token`);
   }
 
+  // Tokens store the email exactly as saved on the user; fall back to a
+  // case-insensitive match for tokens issued before emails were lowercased.
+  const verifyUser =
+    (await prisma.user.findUnique({ where: { email: vt.email } })) ??
+    (await prisma.user.findFirst({ where: { email: { equals: vt.email, mode: "insensitive" } }, orderBy: { createdAt: "asc" } }));
+  if (!verifyUser) {
+    await prisma.verificationToken.delete({ where: { token } }).catch(() => null);
+    return NextResponse.redirect(`${base}/login?error=invalid-token`);
+  }
   await prisma.user.update({
-    where: { email: vt.email },
+    where: { id: verifyUser.id },
     data: { emailVerified: new Date() },
   });
 

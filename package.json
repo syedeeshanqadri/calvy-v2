@@ -4,13 +4,15 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && prisma db push && next build",
+    "build": "prisma generate && next build",
     "postinstall": "prisma generate",
     "start": "next start",
     "lint": "next lint",
     "test": "vitest run",
-    "db:migrate": "prisma migrate dev",
-    "db:seed": "tsx prisma/seed.ts",
+    "db:migrate": "node --env-file-if-exists=.env.local node_modules/prisma/build/index.js migrate dev",
+    "db:status": "node --env-file-if-exists=.env.local node_modules/prisma/build/index.js migrate status",
+    "db:deploy": "prisma migrate deploy",
+    "db:seed": "tsx --env-file-if-exists=.env.local prisma/seed.ts",
     "db:studio": "prisma studio"
   },
   "prisma": {
@@ -26,6 +28,7 @@
     "@radix-ui/react-tooltip": "^1.1.2",
     "@react-email/components": "^1.0.12",
     "@react-email/render": "^2.0.8",
+    "@upstash/redis": "^1.39.0",
     "@vercel/analytics": "^2.0.1",
     "@vercel/blob": "^2.3.3",
     "bcryptjs": "^3.0.3",
@@ -42,7 +45,8 @@
     "recharts": "^2.12.7",
     "resend": "^6.12.2",
     "tailwind-merge": "^2.4.0",
-    "web-push": "^3.6.7"
+    "web-push": "^3.6.7",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@playwright/test": "^1.64.1",

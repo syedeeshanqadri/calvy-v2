@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getLimits, isActivePlan } from "@/lib/plans";
 import { sendBookingConfirmation } from "@/lib/email";
+import { normalizeEmail, findClientByEmail } from "@/lib/email-normalize";
 import { sendPushToBusiness } from "@/lib/push";
 
 export const dynamic = 'force-dynamic';
@@ -58,7 +59,8 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json();
-  const { clientName, clientEmail, clientPhone, staffId, date, time, notes } = body;
+  const { clientName, clientEmail: rawClientEmail, clientPhone, staffId, date, time, notes } = body;
+  const clientEmail: string = typeof rawClientEmail === "string" ? normalizeEmail(rawClientEmail) : rawClientEmail;
 
   // Support serviceIds[] (multi) and legacy serviceId (single)
   const serviceIds: string[] =
@@ -116,16 +118,16 @@ export async function POST(request: NextRequest) {
   const apptDate = new Date(date);
   apptDate.setHours(hours, minutes, 0, 0);
 
-  const client = await prisma.client.upsert({
-    where: { businessId_email: { businessId: session.user.businessId, email: clientEmail } },
-    update: {},
-    create: {
-      businessId: session.user.businessId,
-      name: clientName,
-      email: clientEmail,
-      phone: clientPhone || "",
-    },
-  });
+  const client =
+    (await findClientByEmail(prisma, session.user.businessId, clientEmail)) ??
+    (await prisma.client.create({
+      data: {
+        businessId: session.user.businessId,
+        name: clientName,
+        email: clientEmail,
+        phone: clientPhone || "",
+      },
+    }));
 
   const staffMember = staffId
     ? await prisma.staff.findUnique({ where: { id: staffId }, select: { name: true } })

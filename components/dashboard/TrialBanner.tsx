@@ -2,19 +2,22 @@
 import Link from "next/link";
 import { AlertTriangle, X } from "lucide-react";
 import { useState, useEffect } from "react";
+import { useFlags } from "@/components/providers/FlagsProvider";
 
 export function TrialBanner() {
+  const { payments } = useFlags();
   const [dismissed, setDismissed] = useState(false);
   const [status, setStatus] = useState<{ plan: string; planStatus: string } | null>(null);
 
   useEffect(() => {
+    if (!payments) return;
     fetch("/api/billing/status")
       .then((r) => r.json())
       .then((d) => { if (!d.error) setStatus(d); })
       .catch(() => {});
-  }, []);
+  }, [payments]);
 
-  if (dismissed || !status) return null;
+  if (!payments || dismissed || !status) return null;
 
   const { planStatus } = status;
   const isPastDue = planStatus === "past_due";

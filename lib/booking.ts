@@ -36,3 +36,38 @@ export function hasBookingConflict(params: {
     return start < eEnd && e.start < end;
   });
 }
+
+/** Hard cap so a bad interval can never produce an unbounded list (24h at 5 min). */
+export const MAX_SLOTS = 288;
+
+/** Parse "HH:MM" to minutes since midnight, or null when invalid. */
+export function parseHHMM(value: unknown): number | null {
+  if (typeof value !== "string") return null;
+  const m = /^(\d{1,2}):(\d{2})$/.exec(value.trim());
+  if (!m) return null;
+  const h = Number(m[1]);
+  const min = Number(m[2]);
+  if (h > 24 || min > 59 || (h === 24 && min > 0)) return null;
+  return h * 60 + min;
+}
+
+/**
+ * Slot start times ("HH:MM") from `start` (inclusive) to `end` (exclusive).
+ * Returns [] for any invalid input and never more than MAX_SLOTS entries.
+ */
+export function generateSlots(start: string, end: string, stepMin: number): string[] {
+  if (typeof stepMin !== "number" || !Number.isFinite(stepMin) || stepMin <= 0) return [];
+  const startMin = parseHHMM(start);
+  const endMin = parseHHMM(end);
+  if (startMin === null || endMin === null || endMin <= startMin) return [];
+  const slots: string[] = [];
+  let cur = startMin;
+  while (cur < endMin && slots.length < MAX_SLOTS) {
+    const h = Math.floor(cur / 60).toString().padStart(2, "0");
+    const m = Math.floor(cur % 60).toString().padStart(2, "0");
+    slots.push(`${h}:${m}`);
+    cur += stepMin;
+  }
+  return slots;
+}
+

@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { parseWebsiteConfig, defaultWebsiteConfig, WebsiteConfig } from "@/lib/website";
 import { MapPin, Phone, Mail, Clock, ChevronDown, ArrowRight, Star, CheckCircle2 } from "lucide-react";
 import { formatCurrencyAmount } from "@/lib/currency";
+import { getFlags } from "@/lib/flags";
 import { ChatWidget } from "@/components/chatbot/ChatWidget";
 import { getBusinessFeatures } from "@/lib/getFeatures";
 
@@ -419,7 +420,7 @@ export default async function TenantWebsitePage({ params }: { params: { slug: st
       </footer>
 
       {/* Chat booking widget — plan-gated */}
-      {features.chatbotWidget && (
+      {features.chatbotWidget && getFlags().chatWidget && (
         <ChatWidget business={{
           slug: business.slug,
           name: business.name,

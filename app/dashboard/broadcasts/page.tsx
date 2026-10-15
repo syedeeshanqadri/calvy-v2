@@ -1,7 +1,8 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { redirect } from "next/navigation";
+import { redirect, notFound } from "next/navigation";
+import { getFlags } from "@/lib/flags";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import BroadcastsClient from "./BroadcastsClient";
 import { getBusinessFeatures } from "@/lib/getFeatures";
@@ -10,6 +11,7 @@ import { UpgradeGate } from "@/components/dashboard/UpgradeGate";
 export const dynamic = "force-dynamic";
 
 export default async function BroadcastsPage() {
+  if (!getFlags().broadcasts) notFound();
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) redirect("/login");
 

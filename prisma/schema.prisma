@@ -6,6 +6,7 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
 }
 
 model User {
@@ -16,9 +17,34 @@ model User {
   image         String?
   role          String    @default("user")
   emailVerified DateTime?
+  passwordChangedAt DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   business      Business?
+  passwordResetTokens PasswordResetToken[]
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  createdAt DateTime  @default(now())
+  usedAt    DateTime?
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// Written once by the auth_lifecycle migration: groups of records whose emails
+// collide when lowercased. Rows are only flagged, never merged or deleted.
+model EmailDuplicateReport {
+  id              String   @id @default(cuid())
+  entity          String
+  normalizedEmail String
+  recordIds       String[]
+  businessId      String?
+  detectedAt      DateTime @default(now())
 }
 
 model VerificationToken {

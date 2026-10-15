@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { isActivePlan } from "@/lib/plans";
+import { normalizeEmail, findClientByEmail } from "@/lib/email-normalize";
 
 export const dynamic = 'force-dynamic';
 
@@ -13,7 +14,8 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json();
-  const { name, email, phone, notes } = body;
+  const { name, email: rawEmail, phone, notes } = body;
+  const email: string = typeof rawEmail === "string" ? normalizeEmail(rawEmail) : rawEmail;
 
   if (!name || !email) {
     return NextResponse.json({ error: "Name and email are required" }, { status: 400 });
@@ -39,9 +41,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Your trial has expired. Please upgrade to continue.", code: "PLAN_EXPIRED" }, { status: 402 });
   }
 
-  const existing = await prisma.client.findUnique({
-    where: { businessId_email: { businessId: session.user.businessId, email } },
-  });
+  const existing = await findClientByEmail(prisma, session.user.businessId, email);
   if (existing) {
     return NextResponse.json({ error: "A client with this email already exists" }, { status: 409 });
   }

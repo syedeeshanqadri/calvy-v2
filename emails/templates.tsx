@@ -134,6 +134,17 @@ export function EmailVerificationEmail({ name, verifyUrl }: { name: string; veri
   );
 }
 
+export function PasswordResetEmail({ name, resetUrl }: { name: string; resetUrl: string }) {
+  return (
+    <EmailLayout preview="Reset your Calvy password">
+      <H>Reset your password</H>
+      <P>Hi {name.split(" ")[0]}, we received a request to reset the password for your Calvy account.</P>
+      <CTA href={resetUrl} label="Choose a new password" />
+      <P>This link expires in 1 hour. If you did not ask for this, ignore this email.</P>
+    </EmailLayout>
+  );
+}
+
 export function LeadAcknowledgmentEmail({ name, demoRequested }: { name: string; demoRequested: boolean }) {
   return (
     <EmailLayout preview="Thanks for reaching out to Calvy">
