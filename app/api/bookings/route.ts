@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
 
   const servicesMap = new Map(business.services.map(s => [s.id, s]));
   const orderedServices = serviceIds.map(id => servicesMap.get(id)).filter(Boolean) as typeof business.services;
-  if (orderedServices.length === 0) return NextResponse.json({ error: "Services not found." }, { status: 404 });
+  if (orderedServices.length !== new Set(serviceIds).size) return NextResponse.json({ error: "Services not found." }, { status: 404 });
 
   const totalPrice = orderedServices.reduce((sum, s) => sum + s.price, 0);
   const totalDuration = orderedServices.reduce((sum, s) => sum + s.duration, 0);

@@ -86,7 +86,7 @@ export async function POST(request: NextRequest) {
   const allServices = await prisma.service.findMany({
     where: { id: { in: serviceIds }, businessId: session.user.businessId },
   });
-  if (allServices.length === 0) {
+  if (allServices.length !== new Set(serviceIds).size) {
     return NextResponse.json({ error: "Services not found" }, { status: 404 });
   }
   // Preserve the order of selection
