@@ -1,3 +1,4 @@
+import { zonedTimeToUtc, safeTimeZone } from "@/lib/time";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { transferPaymentToAccount } from "@/lib/razorpay";
@@ -87,7 +88,7 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  const appointmentDate = new Date(`${meta.date}T${meta.time}:00`);
+  const appointmentDate = zonedTimeToUtc(meta.date, meta.time, safeTimeZone(business.timezone));
 
   const combinedNotes = (() => {
     const prefix =
@@ -127,6 +128,7 @@ export async function POST(req: NextRequest) {
       staffId: meta.staffId || null,
       serviceId: orderedServices[0].id,
       date: appointmentDate,
+      endAt: new Date(appointmentDate.getTime() + totalDuration * 60_000),
       duration: totalDuration,
       price: totalPrice,
       status: "confirmed",
