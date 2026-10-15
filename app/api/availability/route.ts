@@ -1,32 +1,46 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { generateSlots, parseHHMM } from "@/lib/booking";
+import { rateLimit, clientIp } from "@/lib/ratelimit";
 
 export const dynamic = 'force-dynamic';
 
-function generateSlots(start: string, end: string, stepMin: number): string[] {
-  const slots: string[] = [];
-  const [sh, sm] = start.split(":").map(Number);
-  const [eh, em] = end.split(":").map(Number);
-  let cur = sh * 60 + sm;
-  const endMin = eh * 60 + em;
-  while (cur < endMin) {
-    const h = Math.floor(cur / 60).toString().padStart(2, "0");
-    const m = (cur % 60).toString().padStart(2, "0");
-    slots.push(`${h}:${m}`);
-    cur += stepMin;
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+function safeAvailability(json: string | null): Record<string, { enabled: boolean; start: string; end: string }> {
+  if (!json || json === "{}") return {};
+  try {
+    const parsed = JSON.parse(json);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
   }
-  return slots;
 }
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const slug = searchParams.get("slug");
   const date = searchParams.get("date"); // YYYY-MM-DD
-  const serviceDuration = Number(searchParams.get("duration") || "30");
+  const rawDuration = Math.floor(Number(searchParams.get("duration") || "30"));
+  const serviceDuration = Number.isFinite(rawDuration) ? Math.min(1440, Math.max(1, rawDuration)) : 30;
   const serviceId = searchParams.get("serviceId") ?? null;
 
   if (!slug || !date) {
     return NextResponse.json({ error: "slug and date are required" }, { status: 400 });
+  }
+  if (slug.length > 100) {
+    return NextResponse.json({ error: "Invalid slug" }, { status: 400 });
+  }
+  if (!DATE_RE.test(date) || Number.isNaN(new Date(date + "T00:00:00Z").getTime())) {
+    return NextResponse.json({ error: "date must be YYYY-MM-DD" }, { status: 400 });
+  }
+
+  const limit = await rateLimit(`availability:${clientIp(request)}`, 60, 60_000);
+  if (!limit.ok) {
+    return NextResponse.json(
+      { error: "Too many requests" },
+      { status: 429, headers: { "Retry-After": String(limit.retryAfter) } },
+    );
   }
 
   const business = await prisma.business.findUnique({
@@ -35,20 +49,18 @@ export async function GET(request: NextRequest) {
   });
   if (!business) return NextResponse.json({ error: "Business not found" }, { status: 404 });
 
-  const slotInterval = (business as { slotInterval?: number }).slotInterval ?? 30;
+  const rawInterval = (business as { slotInterval?: number }).slotInterval ?? 30;
+  const slotInterval = Number.isInteger(rawInterval) && rawInterval >= 5 && rawInterval <= 240 ? rawInterval : 30;
 
   // Parse availability settings
-  const availability: Record<string, { enabled: boolean; start: string; end: string }> =
-    business.availabilityJson && business.availabilityJson !== "{}"
-      ? JSON.parse(business.availabilityJson)
-      : {};
+  const availability = safeAvailability(business.availabilityJson);
 
   const dateObj = new Date(date + "T00:00:00Z");
   const dayOfWeek = dateObj.getUTCDay();
   const dayConfig = availability[String(dayOfWeek)];
 
-  const workStart = dayConfig?.start ?? "09:00";
-  const workEnd = dayConfig?.end ?? "18:00";
+  const workStart = parseHHMM(dayConfig?.start) !== null ? dayConfig!.start : "09:00";
+  const workEnd = parseHHMM(dayConfig?.end) !== null ? dayConfig!.end : "18:00";
   const isWorkingDay = dayConfig ? dayConfig.enabled : dayOfWeek >= 1 && dayOfWeek <= 5;
 
   if (!isWorkingDay) {
@@ -79,8 +91,7 @@ export async function GET(request: NextRequest) {
     select: { date: true, duration: true, serviceId: true },
   });
 
-  const [workEndH, workEndM] = workEnd.split(":").map(Number);
-  const workEndMinutes = workEndH * 60 + workEndM;
+  const workEndMinutes = parseHHMM(workEnd) ?? 18 * 60;
 
   if (capacity > 1) {
     // Group booking: count how many bookings start at each exact slot time

@@ -1,8 +1,22 @@
 import Razorpay from "razorpay";
 
-export const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID ?? "",
-  key_secret: process.env.RAZORPAY_KEY_SECRET ?? "",
+// Built on first use so a missing key never crashes import/build.
+let client: Razorpay | null = null;
+
+function getRazorpay(): Razorpay {
+  if (client) return client;
+  const key_id = process.env.RAZORPAY_KEY_ID;
+  const key_secret = process.env.RAZORPAY_KEY_SECRET;
+  if (!key_id || !key_secret) throw new Error("Razorpay is not configured");
+  client = new Razorpay({ key_id, key_secret });
+  return client;
+}
+
+// Lazy proxy: existing callers keep using `razorpay.x.y(...)` unchanged.
+export const razorpay: Razorpay = new Proxy({} as Razorpay, {
+  get(_t, prop) {
+    return Reflect.get(getRazorpay() as object, prop);
+  },
 });
 
 // The razorpay SDK ships without types for the Route (linked account) APIs,
