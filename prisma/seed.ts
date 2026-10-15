@@ -14,10 +14,17 @@ const WH = JSON.stringify({
 });
 
 // Shared password for all dev-only test accounts (printed at the end of the run).
-const TEST_PASSWORD = "CalvyDev#2026";
+const TEST_PASSWORD = process.env.TEST_PASSWORD || "CalvyDev#2026";
+
+// The test accounts include a super admin with a known password, so they are never created in production.
+const TEST_ACCOUNTS_ENABLED = process.env.NODE_ENV !== "production" || process.env.SEED_TEST_ACCOUNTS === "1";
 
 // Idempotent: upserts by unique email/slug, safe to run repeatedly. Runs even if demo data exists.
 async function seedTestAccounts() {
+  if (!TEST_ACCOUNTS_ENABLED) {
+    console.log("Skipping test accounts (NODE_ENV=production; set SEED_TEST_ACCOUNTS=1 to override).");
+    return;
+  }
   const password = await bcrypt.hash(TEST_PASSWORD, 12);
 
   // Super admin: the app treats role === "admin" as admin (lib/adminAuth.ts), no env var needed.
@@ -178,6 +185,7 @@ async function main() {
 }
 
 function printTestAccounts() {
+  if (!TEST_ACCOUNTS_ENABLED) return;
   console.log("   Test accounts (dev only), shared password: " + TEST_PASSWORD);
   console.log("     admin@calvy.test     (super admin)");
   console.log("     newowner@calvy.test  (verified, not onboarded)");

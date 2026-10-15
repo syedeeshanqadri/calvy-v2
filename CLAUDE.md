@@ -44,3 +44,17 @@ Despite README/docs saying Stripe, the live payment integration is **Razorpay** 
 - `.env.local.example` referenced in README does not exist; use README's "Environment Variables" table.
 - `AUDIT.md` is a read-only security/codebase audit (sampled, not exhaustive); read it before touching auth, tenant isolation, or payments.
 - `scripts/update-slugs.ts` is a one-off tenant-slug migration script (run with `npx tsx`); it writes to the DB in `DATABASE_URL`.
+- `docs/PRODUCT-SPEC.md` describes what the product actually does today; `docs/audit/` holds the audit reports (frontend, backend, product) and screenshots; `docs/PLAN.md` is the 9-step delivery plan.
+
+## How we work
+
+- **One branch per task**, named `step-N/short-name` (for example `step-2/booking-transactions`). Branch from the latest agreed base; never work on `main`.
+- **Non-trivial tasks: show a plan first and wait for the owner's OK** before editing code. Trivial fixes (typos, one-line changes) can go straight in.
+- **Use the subagents in `.claude/agents/`, in parallel where tasks are independent:** `backend-engineer` and `frontend-designer` build, `qa-tester` writes and runs tests, `security-auditor` reviews the diff (read-only). **Never let two agents edit the same file at the same time**; split work by file ownership, and run agents that touch the same files one after the other.
+- **Before reporting a task done, all of these must pass and the results must be reported honestly:** `npm run lint`, `npx tsc --noEmit`, `npm test`, and `npm run build`. Never run a build or any command that pushes the schema (`prisma db push`) against a database you have not confirmed is the dev database. If a check cannot run, say so; do not report done.
+- **Commit locally with clear messages. Never push, merge or force anything**; the owner does that.
+- **Never read or print `.env*` files or `.claude/settings.json`**, and never put secrets in code, logs, tests or commits.
+- **Do not touch payment gateway code** (`lib/razorpay.ts`, `app/api/razorpay/**`, `app/api/billing/**`, wallet and withdrawal code, `app/booking/success`) unless the task says so.
+- **Landing-page marketing claims are out of scope until Step 9** (customer counts, ratings, testimonials, prices shown on the marketing site). Do not add, remove or reword them in earlier steps, and never invent any.
+- **Database changes use migrations only** (`prisma migrate dev`); never `db push`.
+- **Plans and status:** the backlog lives in `docs/PLAN.md`, organised in 9 steps; reference item IDs in branch names, commits and tests.
