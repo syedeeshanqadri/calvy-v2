@@ -5,6 +5,8 @@ import { prisma } from "@/lib/prisma";
 import { getBusinessFeatures } from "@/lib/getFeatures";
 import { rateLimit } from "@/lib/ratelimit";
 
+import { parseBody } from "@/lib/validation/common";
+import { ticketCreateSchema } from "@/lib/validation/misc";
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
@@ -50,22 +52,19 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const body = await req.json();
-  const { subject, body: messageBody, priority } = body;
-
-  if (!subject?.trim() || !messageBody?.trim()) {
-    return NextResponse.json({ error: "Subject and message are required" }, { status: 400 });
-  }
+  const parsed = await parseBody(req, ticketCreateSchema);
+  if (!parsed.ok) return parsed.res;
+  const { subject, body: messageBody, priority } = parsed.data;
 
   const ticket = await prisma.supportTicket.create({
     data: {
       businessId,
-      subject: subject.trim(),
-      priority: priority ?? "normal",
+      subject,
+      priority,
       messages: {
         create: {
           senderRole: "tenant",
-          body: messageBody.trim(),
+          body: messageBody,
         },
       },
     },

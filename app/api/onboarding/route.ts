@@ -4,6 +4,8 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { createBusinessForUser } from "@/lib/createBusiness";
 
+import { parseBody } from "@/lib/validation/common";
+import { onboardingSchema } from "@/lib/validation/public";
 export const dynamic = "force-dynamic";
 
 // Completes registration for a logged-in user who has no business yet
@@ -17,13 +19,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Registration already complete." }, { status: 400 });
   }
 
-  const { businessName, currency } = await req.json();
-  if (!businessName?.trim()) {
-    return NextResponse.json({ error: "Business name is required." }, { status: 400 });
-  }
-  if (!currency) {
-    return NextResponse.json({ error: "Please select your region." }, { status: 400 });
-  }
+  const parsed = await parseBody(req, onboardingSchema);
+  if (!parsed.ok) return parsed.res;
+  const { businessName, currency } = parsed.data;
 
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
@@ -38,7 +36,7 @@ export async function POST(req: NextRequest) {
     ownerId: user.id,
     ownerName: user.name,
     ownerEmail: user.email,
-    businessName: businessName.trim(),
+    businessName,
     currency,
   });
 

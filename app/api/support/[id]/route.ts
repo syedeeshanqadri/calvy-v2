@@ -5,6 +5,8 @@ import { prisma } from "@/lib/prisma";
 import { getBusinessFeatures } from "@/lib/getFeatures";
 import { rateLimit } from "@/lib/ratelimit";
 
+import { parseBody } from "@/lib/validation/common";
+import { ticketMessageSchema } from "@/lib/validation/misc";
 export const dynamic = 'force-dynamic';
 
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
@@ -51,24 +53,21 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     );
   }
 
-  const ticket = await prisma.supportTicket.findUnique({ where: { id: params.id } });
+  const ticket = await prisma.supportTicket.findFirst({ where: { id: params.id, businessId } });
   if (!ticket || ticket.businessId !== businessId) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  const body = await req.json();
-  const { body: messageBody } = body;
-
-  if (!messageBody?.trim()) {
-    return NextResponse.json({ error: "Message body is required" }, { status: 400 });
-  }
+  const parsed = await parseBody(req, ticketMessageSchema);
+  if (!parsed.ok) return parsed.res;
+  const { body: messageBody } = parsed.data;
 
   const [message] = await prisma.$transaction([
     prisma.supportMessage.create({
       data: {
         ticketId: params.id,
         senderRole: "tenant",
-        body: messageBody.trim(),
+        body: messageBody,
       },
     }),
     prisma.supportTicket.update({
