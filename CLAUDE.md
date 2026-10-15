@@ -41,7 +41,10 @@ Despite README/docs saying Stripe, the live payment integration is **Razorpay** 
 
 ## Repo notes
 - `.claude/settings.json` contains stale allow-rules from another machine, including a hard-coded Neon `DATABASE_URL` with credentials and a test login password — those secrets should be rotated and the entries removed.
-- `.env.local.example` referenced in README may not exist; check before relying on it.
+- `.env.local.example` referenced in README does not exist; use README's "Environment Variables" table.
+- `AUDIT.md` is a read-only security/codebase audit (sampled, not exhaustive); read it before touching auth, tenant isolation, or payments.
+- `scripts/update-slugs.ts` is a one-off tenant-slug migration script (run with `npx tsx`); it writes to the DB in `DATABASE_URL`.
+- `docs/PRODUCT-SPEC.md` describes what the product actually does today; `docs/audit/` holds the audit reports (frontend, backend, product) and screenshots; `docs/PLAN.md` is the 9-step delivery plan.
 
 ## How we work
 
