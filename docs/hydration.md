@@ -2,7 +2,7 @@
 
 ## S1-31: "Extra attributes from the server: style" / "Prop `style` did not match"
 
-Status: **fix applied, not yet verified in a browser.** Verify in a clean profile (no extensions).
+Status: **NOT resolved.** The safe-area change below is harmless but did not remove the warning. In the final Step 1 smoke run (clean Playwright Chromium, no extensions) "Extra attributes from the server: style" still appears on `<input>` elements (`HelpSearch`, `BookingClient`, the newsletter inputs). The server HTML for `/help` and `/` was checked with curl: those inputs have **no** `style` attribute, so the attribute is added in the browser before hydration, not by our markup. Next step: reproduce in a plain Chrome profile, then bisect (autofill / password-manager style injection, `autoFocus`, dev-only overlays). S1-31 stays open.
 
 Likely causes, in order:
 
