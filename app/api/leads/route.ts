@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
   const { name, email, phone, businessType, demoRequested, message, source } = parsed.data;
   const cleanEmail = email;
 
-  // Email-only forms (newsletter, hero) may omit name — derive from the address.
+  // Email-only forms (newsletter, hero) may omit name â€” derive from the address.
   const cleanName = name || cleanEmail.split("@")[0];
 
   // Attribution: sanitize the source to a short slug so the CRM can show origin.

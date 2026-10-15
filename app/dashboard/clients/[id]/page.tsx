@@ -6,7 +6,8 @@ import { ClientDetailClient } from "./ClientDetailClient";
 
 export const dynamic = 'force-dynamic';
 
-export default async function ClientDetailPage({ params }: { params: { id: string } }) {
+export default async function ClientDetailPage(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const session = await getServerSession(authOptions);
   if (!session?.user?.businessId) redirect("/login");
 

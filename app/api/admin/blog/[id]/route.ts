@@ -10,7 +10,8 @@ export const dynamic = "force-dynamic";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://calvy.io";
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   if (!(await isAdminSession())) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const existing = await prisma.post.findUnique({ where: { id: params.id } });
@@ -57,7 +58,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   return NextResponse.json({ post });
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(_req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   if (!(await isAdminSession())) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   await prisma.post.delete({ where: { id: params.id } }).catch(() => {});
   return NextResponse.json({ ok: true });

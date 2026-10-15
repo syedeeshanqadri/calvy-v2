@@ -15,7 +15,8 @@ async function getBusiness(slug: string) {
   });
 }
 
-export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
+export async function generateMetadata(props: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+  const params = await props.params;
   const business = await getBusiness(params.slug);
   if (!business) return { title: "Not Found" };
   return {
@@ -24,7 +25,8 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   };
 }
 
-export default async function BookNowPage({ params }: { params: { slug: string } }) {
+export default async function BookNowPage(props: { params: Promise<{ slug: string }> }) {
+  const params = await props.params;
   const business = await getBusiness(params.slug);
   if (!business) notFound();
 

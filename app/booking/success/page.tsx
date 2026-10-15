@@ -6,14 +6,15 @@ import { sendBookingConfirmation } from "@/lib/email";
 
 export const dynamic = 'force-dynamic';
 
-export default async function BookingSuccessPage({
-  searchParams,
-}: {
-  searchParams: {
-    razorpay_payment_link_id?: string;
-    razorpay_payment_link_status?: string;
-  };
-}) {
+export default async function BookingSuccessPage(
+  props: {
+    searchParams: Promise<{
+      razorpay_payment_link_id?: string;
+      razorpay_payment_link_status?: string;
+    }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   let meta: Record<string, string> = {};
   let paymentVerified = false;
   let businessName = "";

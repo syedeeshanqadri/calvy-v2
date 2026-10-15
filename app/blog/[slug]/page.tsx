@@ -20,7 +20,8 @@ async function getPost(slug: string) {
   return prisma.post.findFirst({ where: { slug, published: true } });
 }
 
-export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
+export async function generateMetadata(props: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+  const params = await props.params;
   const post = await getPost(params.slug);
   if (!post) return { title: "Post not found · Calvy" };
 
@@ -54,7 +55,8 @@ function fmtDate(d: Date) {
   return d.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
 }
 
-export default async function BlogPostPage({ params }: { params: { slug: string } }) {
+export default async function BlogPostPage(props: { params: Promise<{ slug: string }> }) {
+  const params = await props.params;
   const post = await getPost(params.slug);
   if (!post) notFound();
 

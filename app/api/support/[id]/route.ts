@@ -5,11 +5,14 @@ import { prisma } from "@/lib/prisma";
 import { getBusinessFeatures } from "@/lib/getFeatures";
 import { rateLimit } from "@/lib/ratelimit";
 
-import { parseBody } from "@/lib/validation/common";
-import { ticketMessageSchema } from "@/lib/validation/misc";
+import { parseBody } from "@/lib/validation/common";
+
+import { ticketMessageSchema } from "@/lib/validation/misc";
+
 export const dynamic = 'force-dynamic';
 
-export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(_req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const session = await getServerSession(authOptions);
   const businessId = (session?.user as { businessId?: string } | undefined)?.businessId;
   if (!session?.user || !businessId) {
@@ -33,7 +36,8 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   return NextResponse.json(ticket);
 }
 
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const session = await getServerSession(authOptions);
   const businessId = (session?.user as { businessId?: string } | undefined)?.businessId;
   if (!session?.user || !businessId) {
