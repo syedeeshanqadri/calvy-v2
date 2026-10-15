@@ -42,3 +42,16 @@ Despite README/docs saying Stripe, the live payment integration is **Razorpay** 
 ## Repo notes
 - `.claude/settings.json` contains stale allow-rules from another machine, including a hard-coded Neon `DATABASE_URL` with credentials and a test login password — those secrets should be rotated and the entries removed.
 - `.env.local.example` referenced in README may not exist; check before relying on it.
+
+## How we work
+
+- **One branch per task**, named `step-N/short-name` (for example `step-2/booking-transactions`). Branch from the latest agreed base; never work on `main`.
+- **Non-trivial tasks: show a plan first and wait for the owner's OK** before editing code. Trivial fixes (typos, one-line changes) can go straight in.
+- **Use the subagents in `.claude/agents/`, in parallel where tasks are independent:** `backend-engineer` and `frontend-designer` build, `qa-tester` writes and runs tests, `security-auditor` reviews the diff (read-only). **Never let two agents edit the same file at the same time**; split work by file ownership, and run agents that touch the same files one after the other.
+- **Before reporting a task done, all of these must pass and the results must be reported honestly:** `npm run lint`, `npx tsc --noEmit`, `npm test`, and `npm run build`. Never run a build or any command that pushes the schema (`prisma db push`) against a database you have not confirmed is the dev database. If a check cannot run, say so; do not report done.
+- **Commit locally with clear messages. Never push, merge or force anything**; the owner does that.
+- **Never read or print `.env*` files or `.claude/settings.json`**, and never put secrets in code, logs, tests or commits.
+- **Do not touch payment gateway code** (`lib/razorpay.ts`, `app/api/razorpay/**`, `app/api/billing/**`, wallet and withdrawal code, `app/booking/success`) unless the task says so.
+- **Landing-page marketing claims are out of scope until Step 9** (customer counts, ratings, testimonials, prices shown on the marketing site). Do not add, remove or reword them in earlier steps, and never invent any.
+- **Database changes use migrations only** (`prisma migrate dev`); never `db push`.
+- **Plans and status:** the backlog lives in `docs/PLAN.md`, organised in 9 steps; reference item IDs in branch names, commits and tests.
