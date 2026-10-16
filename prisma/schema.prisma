@@ -53,6 +53,9 @@ model VerificationToken {
   email     String
   expiresAt DateTime
   createdAt DateTime @default(now())
+
+  @@index([email])
+  @@index([expiresAt])
 }
 
 model Business {
@@ -97,6 +100,11 @@ model Business {
   websiteJson            String              @default("{}")
   slotInterval           Int                 @default(30)
   timezone               String              @default("Asia/Kolkata")
+  minNoticeMinutes       Int                 @default(0)
+  maxAdvanceDays         Int                 @default(90)
+  cancellationCutoffHours Int                @default(0)
+  workingHours           WorkingHours[]
+  timeOff                TimeOff[]
   createdAt              DateTime            @default(now())
   updatedAt              DateTime            @updatedAt
   appointments           Appointment[]
@@ -126,6 +134,8 @@ model Staff {
   appointments Appointment[]
   business     Business       @relation(fields: [businessId], references: [id], onDelete: Cascade)
   services     StaffService[]
+  hours        WorkingHours[]
+  timeOff      TimeOff[]
 }
 
 model Service {
@@ -138,6 +148,8 @@ model Service {
   category     String         @default("other")
   color        String         @default("#e84545")
   capacity     Int            @default(1)
+  bufferBeforeMin Int         @default(0)
+  bufferAfterMin  Int         @default(0)
   isActive     Boolean        @default(true)
   createdAt    DateTime       @default(now())
   appointments Appointment[]
@@ -169,6 +181,8 @@ model Client {
   business          Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
   @@unique([businessId, email])
+
+  @@index([businessId])
 }
 
 model PlanConfig {
@@ -211,6 +225,8 @@ model Appointment {
   serviceId       String
   date            DateTime @db.Timestamptz(3)
   endAt           DateTime @db.Timestamptz(3)
+  bufferBeforeMin Int      @default(0)
+  bufferAfterMin  Int      @default(0)
   duration        Int
   price           Float
   status          String   @default("pending")
@@ -226,6 +242,10 @@ model Appointment {
   staff           Staff?   @relation(fields: [staffId], references: [id])
   client          Client   @relation(fields: [clientId], references: [id])
   business        Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@index([businessId, date])
+  @@index([staffId, date])
+  @@index([date, reminderSent])
 }
 
 model WithdrawalRequest {
@@ -288,6 +308,8 @@ model Notification {
   read       Boolean  @default(false)
   createdAt  DateTime @default(now())
   business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@index([businessId, createdAt])
 }
 
 model SupportTicket {
@@ -362,4 +384,31 @@ model EmailLog {
 
   @@index([appointmentId])
   @@index([businessId, createdAt])
+}
+
+model WorkingHours {
+  id         String   @id @default(cuid())
+  businessId String
+  staffId    String?  // null = business hours
+  weekday    Int      // 0 = Sunday .. 6 = Saturday
+  startMin   Int      // minutes since local midnight (Business.timezone)
+  endMin     Int
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  staff      Staff?   @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@index([businessId, staffId, weekday])
+}
+
+model TimeOff {
+  id         String   @id @default(cuid())
+  businessId String
+  staffId    String?  // null = holiday / closure for the whole business
+  startAt    DateTime @db.Timestamptz(3)
+  endAt      DateTime @db.Timestamptz(3)
+  reason     String   @default("")
+  createdAt  DateTime @default(now())
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  staff      Staff?   @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@index([businessId, startAt])
 }

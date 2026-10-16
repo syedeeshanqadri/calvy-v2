@@ -40,6 +40,7 @@ const serviceCore = {
   color: hexColor,
   category: text(80).min(1),
   capacity: z.coerce.number().int().min(1).max(500),
+  buffer: z.coerce.number().int().min(0).max(240),
 };
 
 export const serviceCreateSchema = z.object({
@@ -50,6 +51,8 @@ export const serviceCreateSchema = z.object({
   color: z.preprocess(blankToUndef, serviceCore.color.optional()),
   category: z.preprocess(blankToUndef, serviceCore.category.optional()),
   capacity: z.preprocess(blankToUndef, serviceCore.capacity.optional()),
+  bufferBeforeMin: z.preprocess(blankToUndef, serviceCore.buffer.optional()),
+  bufferAfterMin: z.preprocess(blankToUndef, serviceCore.buffer.optional()),
 });
 
 /** Allow-list only: businessId, isActive and any other column cannot be mass-assigned. */
@@ -61,6 +64,8 @@ export const servicePatchSchema = z.object({
   color: serviceCore.color.optional(),
   category: serviceCore.category.optional(),
   capacity: serviceCore.capacity.optional(),
+  bufferBeforeMin: serviceCore.buffer.optional(),
+  bufferAfterMin: serviceCore.buffer.optional(),
   isActive: z.boolean().optional(),
 });
 

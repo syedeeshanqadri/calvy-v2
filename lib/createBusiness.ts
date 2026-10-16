@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { defaultWebsiteConfig } from "@/lib/website";
 import { isReservedSlug } from "@/lib/slugs";
 import { safeTimeZone } from "@/lib/time";
+import { syncBusinessHours } from "@/lib/schedule";
 
 function toBaseSlug(name: string): string {
   return name
@@ -52,7 +53,7 @@ export async function createBusinessForUser(params: {
   const slug = await generateSlug(params.businessName);
   const websiteJson = JSON.stringify(defaultWebsiteConfig(params.businessName, businessType));
 
-  return prisma.business.create({
+  const business = await prisma.business.create({
     data: {
       name: params.businessName,
       slug,
@@ -89,5 +90,12 @@ export async function createBusinessForUser(params: {
         ],
       },
     },
+    include: { staff: { select: { id: true } }, services: { select: { id: true } } },
   });
+  await syncBusinessHours(prisma, business.id, "{}");
+  await prisma.staffService.createMany({
+    data: business.staff.flatMap((st) => business.services.map((sv) => ({ staffId: st.id, serviceId: sv.id }))),
+    skipDuplicates: true,
+  });
+  return business;
 }

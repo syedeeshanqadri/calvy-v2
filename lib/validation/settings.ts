@@ -67,6 +67,24 @@ export const settingsPatchSchema = z.object({
     .trim()
     .regex(/^[A-Z]{3}$/, "currency must be 3 uppercase letters")
     .optional(),
+  minNoticeMinutes: z.coerce
+    .number({ error: "minNoticeMinutes must be a number" })
+    .int()
+    .min(0, "minNoticeMinutes must be between 0 and 43200")
+    .max(43200, "minNoticeMinutes must be between 0 and 43200")
+    .optional(),
+  maxAdvanceDays: z.coerce
+    .number({ error: "maxAdvanceDays must be a number" })
+    .int()
+    .min(1, "maxAdvanceDays must be between 1 and 730")
+    .max(730, "maxAdvanceDays must be between 1 and 730")
+    .optional(),
+  cancellationCutoffHours: z.coerce
+    .number({ error: "cancellationCutoffHours must be a number" })
+    .int()
+    .min(0, "cancellationCutoffHours must be between 0 and 720")
+    .max(720, "cancellationCutoffHours must be between 0 and 720")
+    .optional(),
   slotInterval: z.coerce
     .number({ error: "slotInterval must be a number" })
     .int("slotInterval must be an integer")

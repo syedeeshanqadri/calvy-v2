@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { syncBusinessHours } from "@/lib/schedule";
 import { settingsPatchSchema } from "@/lib/validation/settings";
 
 export const dynamic = 'force-dynamic';
@@ -55,9 +56,14 @@ export async function PATCH(request: NextRequest) {
     if (value !== undefined) data[key] = value;
   }
 
-  const business = await prisma.business.update({
-    where: { id: session.user.businessId },
-    data,
+  const businessId = session.user.businessId;
+  // The booking engine reads WorkingHours, so a changed week is written there too.
+  const business = await prisma.$transaction(async (tx) => {
+    const updated = await tx.business.update({ where: { id: businessId }, data });
+    if (typeof data.availabilityJson === "string") {
+      await syncBusinessHours(tx, businessId, data.availabilityJson);
+    }
+    return updated;
   });
 
   return NextResponse.json({ business });

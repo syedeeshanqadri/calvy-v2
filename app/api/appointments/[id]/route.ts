@@ -67,7 +67,7 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
     try {
       updated = await bookExclusive(
         prisma,
-        { businessId: session.user.businessId, start: newDate, durationMin: appointment.duration, capacity, excludeId: appointment.id },
+        { businessId: session.user.businessId, staffId: appointment.staffId, start: newDate, durationMin: appointment.duration, capacity, excludeId: appointment.id },
         (tx) => (tx as unknown as typeof prisma).appointment.update({ where: { id: params.id }, data }),
       );
     } catch (err) {

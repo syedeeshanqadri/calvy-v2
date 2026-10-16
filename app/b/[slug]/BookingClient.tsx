@@ -102,7 +102,7 @@ export function BookingClient({ business }: { business: Business }) {
     const firstServiceId = selectedServices[0];
     setSlotsLoading(true);
     setSelectedTime(null);
-    fetch(`/api/availability?slug=${business.slug}&date=${dateStr}&duration=${totalDuration}&serviceId=${firstServiceId}`)
+    fetch(`/api/availability?slug=${business.slug}&date=${dateStr}&duration=${totalDuration}&serviceId=${firstServiceId}&serviceIds=${selectedServices.join(",")}${selectedStaff && selectedStaff !== "any" ? `&staffId=${selectedStaff}` : ""}`)
       .then(r => r.json())
       .then(data => {
         setAvailableSlots(data.slots ?? []);
@@ -111,7 +111,7 @@ export function BookingClient({ business }: { business: Business }) {
         setIsGroupService(!!data.isGroup);
       })
       .finally(() => setSlotsLoading(false));
-  }, [selectedDate, selectedServices, viewMonth, viewYear, business.slug, totalDuration]);
+  }, [selectedDate, selectedServices, selectedStaff, viewMonth, viewYear, business.slug, totalDuration]);
 
   const staff = business.staff.find(s => s.id === selectedStaff);
   const stepIndex = STEPS.indexOf(step);
