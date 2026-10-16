@@ -9,11 +9,13 @@
     "start": "next start",
     "lint": "eslint .",
     "test": "vitest run",
-    "db:migrate": "node --env-file-if-exists=.env.local node_modules/prisma/build/index.js migrate dev",
-    "db:status": "node --env-file-if-exists=.env.local node_modules/prisma/build/index.js migrate status",
+    "db:migrate": "dotenv -e .env.local -- prisma migrate deploy",
+    "db:migrate:dev": "dotenv -e .env.local -- prisma migrate dev",
+    "db:generate": "dotenv -e .env.local -- prisma generate",
+    "db:status": "dotenv -e .env.local -- prisma migrate status",
     "db:deploy": "prisma migrate deploy",
-    "db:seed": "tsx --env-file-if-exists=.env.local prisma/seed.ts",
-    "db:studio": "prisma studio"
+    "db:seed": "dotenv -e .env.local -- tsx prisma/seed.ts",
+    "db:studio": "dotenv -e .env.local -- prisma studio"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
@@ -58,6 +60,7 @@
     "@types/web-push": "^3.6.4",
     "@vitest/coverage-v8": "^4.1.7",
     "autoprefixer": "^10.4.19",
+    "dotenv-cli": "^11.0.0",
     "eslint": "^9.39.5",
     "eslint-config-next": "^16.4.1",
     "playwright": "^1.64.1",

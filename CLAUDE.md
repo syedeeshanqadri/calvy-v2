@@ -11,8 +11,10 @@ npm run lint                # eslint .
 npm test                    # vitest run (tests/**/*.test.ts, node env, "@" alias -> repo root)
 npx vitest run tests/booking.test.ts            # single test file
 npx vitest run -t "name pattern"                # single test by name
-npm run db:migrate | db:status | db:deploy | db:seed | db:studio   # migrate dev / status / migrate deploy / seed / studio (db:migrate, db:status, db:seed load .env.local)
+npm run db:migrate | db:migrate:dev | db:generate | db:status | db:seed | db:studio   # migrate deploy / migrate dev / prisma generate / status / seed / studio (all load .env.local via dotenv-cli); db:deploy = plain migrate deploy for CI/hosting
 ```
+
+When telling the owner to run database commands, always use these scripts (for example `npm run db:migrate`), never bare `npx prisma ...`.
 
 Env vars are in `.env.local` (see README "Environment Variables"). Tests only cover pure lib logic (booking, currency, plans, ratelimit) — no DB or route tests.
 
