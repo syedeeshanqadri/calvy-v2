@@ -22,3 +22,5 @@ tsconfig.tsbuildinfo
 .playwright-mcp/
 test-results/
 playwright-report/
+# stray screenshots in the repo root
+/*.png
