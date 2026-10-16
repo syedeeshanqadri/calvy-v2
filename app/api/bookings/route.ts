@@ -17,6 +17,8 @@ import { logger } from "@/lib/logger";
 
 export const dynamic = 'force-dynamic';
 
+class LimitReachedError extends Error {}
+
 /** In-app notice to the owner that online booking is paused, at most once a day. */
 async function notifyLimitReached(businessId: string, limit: number) {
   const title = "Online booking paused: monthly limit reached";
@@ -59,18 +61,21 @@ export async function POST(req: NextRequest) {
   // cap returns 402 with a customer-facing message (never an upgrade prompt).
   const bizTz = safeTimeZone(business.timezone);
   const limits = await getEffectiveLimits(business);
+  const limitResponse = async () => {
+    await notifyLimitReached(business.id, limits.maxMonthlyAppointments);
+    return NextResponse.json(
+      {
+        error: `Online booking is unavailable right now, please contact ${business.name}${business.phone ? ` on ${business.phone}` : ""}.`,
+        code: "LIMIT_REACHED",
+      },
+      { status: 402 },
+    );
+  };
+  const monthStart = zonedToUtc(utcToZoned(new Date(), bizTz).date.slice(0, 8) + "01", 0, bizTz);
   if (limits.maxMonthlyAppointments !== -1) {
-    const monthStart = zonedToUtc(utcToZoned(new Date(), bizTz).date.slice(0, 8) + "01", 0, bizTz);
     const used = await prisma.appointment.count({ where: { businessId: business.id, createdAt: { gte: monthStart } } });
     if (used >= limits.maxMonthlyAppointments) {
-      await notifyLimitReached(business.id, limits.maxMonthlyAppointments);
-      return NextResponse.json(
-        {
-          error: `Online booking is unavailable right now, please contact ${business.name}${business.phone ? ` on ${business.phone}` : ""}.`,
-          code: "LIMIT_REACHED",
-        },
-        { status: 402 },
-      );
+      return await limitResponse();
     }
   }
 
@@ -152,6 +157,14 @@ export async function POST(req: NextRequest) {
             durationMin: totalDuration,
             capacity,
             verify: async (tx) => {
+              // Monthly cap re-checked under its own business lock (always taken after the
+              // staff lock, so the order is fixed): parallel bookings for different staff
+              // cannot overshoot the limit.
+              if (limits.maxMonthlyAppointments !== -1) {
+                await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${"limit:" + business!.id}, 0))`;
+                const used = await tx.appointment.count({ where: { businessId: business!.id, createdAt: { gte: monthStart } } });
+                if (used >= limits.maxMonthlyAppointments) throw new LimitReachedError();
+              }
               const r = await loadAvailability(tx, { ...query, staffId: cand });
               return r.ok && (r.available.get(time)?.resourceIds.includes(cand) ?? false);
             },
@@ -261,6 +274,7 @@ export async function POST(req: NextRequest) {
       appointment = await createAppointment(client.id, "unpaid", "postpaid");
     } catch (err) {
       if (err instanceof SlotConflictError) return conflictResponse();
+      if (err instanceof LimitReachedError) return await limitResponse();
       throw err;
     }
     await notify(appointment.id, 0);
@@ -320,6 +334,7 @@ export async function POST(req: NextRequest) {
     appointment = await createAppointment(client.id, "unpaid", "prepaid");
   } catch (err) {
     if (err instanceof SlotConflictError) return conflictResponse();
+    if (err instanceof LimitReachedError) return await limitResponse();
     throw err;
   }
   await notify(appointment.id, totalPrice);

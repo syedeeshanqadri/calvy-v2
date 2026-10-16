@@ -143,6 +143,15 @@ describe("POST /api/bookings: plan limits (S2-05)", () => {
     expect(db.appointment.create).not.toHaveBeenCalled();
   });
 
+  it("limit is re-checked inside the lock: parallel bookings cannot overshoot it", async () => {
+    db.business.findUnique.mockResolvedValue(business({ plan: "free", planStatus: "free" }));
+    db.appointment.count.mockResolvedValueOnce(29).mockResolvedValue(30); // passes the early check, full inside the lock
+    const res = await POST(req(valid));
+    expect(res.status).toBe(402);
+    expect(db.appointment.create).not.toHaveBeenCalled();
+    expect(db.$executeRaw.mock.calls.map((c: unknown[]) => c[1])).toContain("limit:biz");
+  });
+
   it("no phone on file -> message without a number", async () => {
     db.business.findUnique.mockResolvedValue(business({ phone: null, plan: "free", planStatus: "free" }));
     db.appointment.count.mockResolvedValue(30);
