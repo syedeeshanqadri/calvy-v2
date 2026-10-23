@@ -111,6 +111,14 @@ describe("POST /api/bookings: staff choice and locking", () => {
     expect(db.appointment.create).not.toHaveBeenCalled();
   });
 
+  it("'No preference' never assigns a staff member who is not linked to the service", async () => {
+    db.staff.findMany.mockResolvedValue([{ id: "st-a", services: [] }, staffRow("st-z")]);
+    const res = await POST(req(valid));
+    expect(res.status).toBe(200);
+    expect(db.appointment.create.mock.calls[0][0].data.staffId).toBe("st-z");
+    expect(db.$executeRaw.mock.calls[0][1]).toBe("st-z");
+  });
+
   it("staff not linked to the service are not offered", async () => {
     db.staff.findMany.mockResolvedValue([{ id: "st-a", services: [] }]);
     const res = await POST(req(valid));

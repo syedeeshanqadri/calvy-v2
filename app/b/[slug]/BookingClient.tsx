@@ -4,6 +4,7 @@ import { useSearchParams } from "next/navigation";
 import { ChevronLeft, ChevronRight, Check, Clock, Loader2, MapPin, Globe, Phone, Plus, Minus, Users, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatCurrencyAmount } from "@/lib/currency";
+import { bookableServices, providerOptions } from "@/lib/staffMatch";
 
 type Step = "service" | "staff" | "datetime" | "details" | "confirm";
 const STEPS: Step[] = ["service", "staff", "datetime", "details", "confirm"];
@@ -19,7 +20,7 @@ const BUSINESS_TYPE_LABELS: Record<string, string> = {
 };
 
 interface Service { id: string; name: string; description: string; duration: number; price: number; color: string; capacity: number; }
-interface StaffMember { id: string; name: string; role: string; color: string; }
+interface StaffMember { id: string; name: string; role: string; color: string; serviceIds: string[]; }
 interface Business {
   slug: string; name: string; primaryColor: string; businessType: string;
   description: string; phone: string; address: string; website: string;
@@ -29,11 +30,13 @@ interface Business {
 
 export function BookingClient({ business }: { business: Business }) {
   const searchParams = useSearchParams();
+  // Hide services nobody on the team is linked to (they could never be booked).
+  const services = bookableServices(business.services, business.staff);
   const [step, setStep] = useState<Step>("service");
   const [serviceSearch, setServiceSearch] = useState("");
   const [selectedServices, setSelectedServices] = useState<string[]>(() => {
     const preselect = searchParams?.get("service");
-    return preselect && business.services.some(s => s.id === preselect) ? [preselect] : [];
+    return preselect && services.some(s => s.id === preselect) ? [preselect] : [];
   });
   const [selectedStaff, setSelectedStaff] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<number | null>(null);
@@ -45,6 +48,8 @@ export function BookingClient({ business }: { business: Business }) {
   const [bookedSlots, setBookedSlots] = useState<string[]>([]);
   const [spotsMap, setSpotsMap] = useState<Record<string, number>>({});
   const [isGroupService, setIsGroupService] = useState(false);
+  // Month availability, tagged with the request it answers so stale answers are ignored.
+  const [monthData, setMonthData] = useState<{ key: string; days: Record<string, boolean> | null; next: string | null } | null>(null);
   const [booked, setBooked] = useState(false);
   const [error, setError] = useState("");
   const isValidEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -83,15 +88,59 @@ export function BookingClient({ business }: { business: Business }) {
     setSelectedServices(prev =>
       prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id]
     );
-    // Reset date/time whenever services change
+    // A different service mix can change who qualifies, so start the later steps over.
+    resetAfterServices();
+  }
+
+  function resetAfterServices() {
+    setSelectedStaff(null);
     setSelectedDate(null);
     setSelectedTime(null);
+    setMonthData(null);
   }
 
   // Derived totals from selected services
   const selectedServiceObjs = business.services.filter(s => selectedServices.includes(s.id));
   const totalDuration = selectedServiceObjs.reduce((s, svc) => s + svc.duration, 0);
   const totalPrice = selectedServiceObjs.reduce((s, svc) => s + svc.price, 0);
+
+  const staffParam = selectedStaff && selectedStaff !== "any" ? `&staffId=${selectedStaff}` : "";
+  const monthKey = `${viewYear}-${String(viewMonth + 1).padStart(2, "0")}`;
+
+  const monthRequest = `${business.slug}|${monthKey}|${selectedServices.join(",")}|${staffParam}`;
+
+  // Which days of the month have a free slot for these services + provider.
+  useEffect(() => {
+    if (step !== "datetime" || selectedServices.length === 0 || totalDuration === 0) return;
+    let cancelled = false;
+    fetch(`/api/availability/month?slug=${business.slug}&month=${monthKey}&duration=${totalDuration}&serviceIds=${selectedServices.join(",")}${staffParam}`)
+      .then(r => (r.ok ? r.json() : null))
+      .then(data => { if (!cancelled) setMonthData({ key: monthRequest, days: data?.days ?? null, next: data?.nextAvailable ?? null }); })
+      .catch(() => { if (!cancelled) setMonthData({ key: monthRequest, days: null, next: null }); });
+    return () => { cancelled = true; };
+  }, [step, selectedServices, staffParam, monthKey, monthRequest, totalDuration, business.slug]);
+
+  const monthReady = monthData?.key === monthRequest;
+  const monthDays = monthReady ? monthData.days : null;
+  const nextAvailable = monthReady ? monthData.next : null;
+  const monthLoading = !monthReady;
+
+  function dayHasSlots(day: number) {
+    if (!monthDays) return true; // unknown yet: do not grey out
+    return monthDays[`${monthKey}-${String(day).padStart(2, "0")}`] !== false;
+  }
+
+  function jumpTo(dateIso: string) {
+    const [y, m, d] = dateIso.split("-").map(Number);
+    setViewYear(y); setViewMonth(m - 1); setSelectedDate(d); setSelectedTime(null);
+  }
+
+  function formatNextAvailable(dateIso: string) {
+    const [y, m, d] = dateIso.split("-").map(Number);
+    return `${MONTHS[m - 1]} ${d}, ${y}`;
+  }
+
+  const monthHasNone = !!monthDays && !Object.values(monthDays).some(Boolean);
 
   // Fetch available slots when date or selected services change
   useEffect(() => {
@@ -102,7 +151,7 @@ export function BookingClient({ business }: { business: Business }) {
     const firstServiceId = selectedServices[0];
     setSlotsLoading(true);
     setSelectedTime(null);
-    fetch(`/api/availability?slug=${business.slug}&date=${dateStr}&duration=${totalDuration}&serviceId=${firstServiceId}&serviceIds=${selectedServices.join(",")}${selectedStaff && selectedStaff !== "any" ? `&staffId=${selectedStaff}` : ""}`)
+    fetch(`/api/availability?slug=${business.slug}&date=${dateStr}&duration=${totalDuration}&serviceId=${firstServiceId}&serviceIds=${selectedServices.join(",")}${staffParam}`)
       .then(r => r.json())
       .then(data => {
         setAvailableSlots(data.slots ?? []);
@@ -111,9 +160,10 @@ export function BookingClient({ business }: { business: Business }) {
         setIsGroupService(!!data.isGroup);
       })
       .finally(() => setSlotsLoading(false));
-  }, [selectedDate, selectedServices, selectedStaff, viewMonth, viewYear, business.slug, totalDuration]);
+  }, [selectedDate, selectedServices, staffParam, viewMonth, viewYear, business.slug, totalDuration]);
 
   const staff = business.staff.find(s => s.id === selectedStaff);
+  const provider = providerOptions(business.staff, selectedServices);
   const stepIndex = STEPS.indexOf(step);
   const color = business.primaryColor || "#0284c7";
 
@@ -233,7 +283,7 @@ export function BookingClient({ business }: { business: Business }) {
           <div>
             <h2 className="font-syne font-bold text-2xl mb-1">Choose services</h2>
             <p className="text-[#6b6b80] mb-4 text-sm">Select one or more services you&apos;d like to book.</p>
-            {business.services.length > 4 && (
+            {services.length > 4 && (
               <div className="relative mb-4">
                 <input
                   type="text"
@@ -247,7 +297,7 @@ export function BookingClient({ business }: { business: Business }) {
               </div>
             )}
             <div className="space-y-3">
-              {business.services
+              {services
                 .filter(svc => !serviceSearch || svc.name.toLowerCase().includes(serviceSearch.toLowerCase()) || svc.description.toLowerCase().includes(serviceSearch.toLowerCase()))
                 .map(svc => {
                   const isSelected = selectedServices.includes(svc.id);
@@ -280,7 +330,7 @@ export function BookingClient({ business }: { business: Business }) {
                     </button>
                   );
                 })}
-              {business.services.filter(svc => !serviceSearch || svc.name.toLowerCase().includes(serviceSearch.toLowerCase()) || svc.description.toLowerCase().includes(serviceSearch.toLowerCase())).length === 0 && (
+              {services.filter(svc => !serviceSearch || svc.name.toLowerCase().includes(serviceSearch.toLowerCase()) || svc.description.toLowerCase().includes(serviceSearch.toLowerCase())).length === 0 && (
                 <p className="text-sm text-[#6b6b80] text-center py-6">No services match your search.</p>
               )}
             </div>
@@ -293,7 +343,7 @@ export function BookingClient({ business }: { business: Business }) {
                   <span className="text-[#6b6b80] ml-2">· {totalDuration} min · {formatCurrencyAmount(totalPrice, business.currency)}</span>
                 </div>
                 {selectedServices.length > 1 && (
-                  <button onClick={() => { setSelectedServices([]); setSelectedDate(null); setSelectedTime(null); }}
+                  <button onClick={() => { setSelectedServices([]); resetAfterServices(); }}
                     className="text-xs text-[#6b6b80] hover:text-red-500 transition-colors flex items-center gap-1">
                     <Minus size={11} /> Clear
                   </button>
@@ -308,7 +358,23 @@ export function BookingClient({ business }: { business: Business }) {
           <div>
             <h2 className="font-syne font-bold text-2xl mb-2">Choose your provider</h2>
             <p className="text-[#6b6b80] mb-6">Select who you&apos;d like your appointment with.</p>
-            {[{ id: "any", name: "No preference", role: "We'll assign the best available provider", color: "#6b6b80" }, ...business.staff].map(member => (
+            {provider.kind === "none" && (
+              <div className="bg-white rounded-2xl border border-[#e8e6e0] p-6 text-center" role="alert">
+                <p className="font-semibold mb-1">No single stylist offers all of these together.</p>
+                <p className="text-sm text-[#6b6b80] mb-4">Please book them separately.</p>
+                <button onClick={() => setStep("service")}
+                  className="inline-flex items-center gap-2 text-sm font-semibold px-5 py-2.5 rounded-xl border border-[#e8e6e0] hover:bg-[#f8f7f4] transition-colors">
+                  <ChevronLeft size={16} /> Back to services
+                </button>
+              </div>
+            )}
+            {provider.kind === "shared" && (
+              <p className="text-sm text-[#6b6b80]">No provider choice is needed. Continue to pick a time.</p>
+            )}
+            {provider.kind === "choose" && [
+              { id: "any", name: "No preference", role: "We'll assign the best available provider", color: "#6b6b80" },
+              ...provider.staff,
+            ].map(member => (
               <button key={member.id} onClick={() => setSelectedStaff(member.id)}
                 className={cn("w-full bg-white rounded-2xl p-5 border-2 text-left transition-all mb-3 flex items-center gap-4 hover:shadow-md",
                   selectedStaff === member.id ? "shadow-md" : "border-[#e8e6e0]")}
@@ -346,13 +412,16 @@ export function BookingClient({ business }: { business: Business }) {
               <div className="grid grid-cols-7 gap-1">
                 {calCells.map((day, i) => {
                   const past = day ? isPastDay(day) : false;
+                  const full = !!day && !past && !dayHasSlots(day);
                   const isSelected = day === selectedDate;
                   return (
-                    <button key={i} disabled={!day || past} onClick={() => day && setSelectedDate(day)}
+                    <button key={i} disabled={!day || past || full} onClick={() => day && setSelectedDate(day)}
+                      aria-label={day && full ? `${MONTHS[viewMonth]} ${day}, no availability` : undefined}
                       className={cn("aspect-square rounded-xl text-sm transition-all font-medium",
                         !day && "invisible",
                         past && "text-[#d0cec8] cursor-not-allowed",
-                        !past && day && !isSelected && "hover:bg-[#f8f7f4] cursor-pointer",
+                        full && "text-[#d0cec8] cursor-not-allowed line-through",
+                        !past && !full && day && !isSelected && "hover:bg-[#f8f7f4] cursor-pointer",
                         isSelected && "text-white")}
                       style={isSelected ? { background: color } : {}}>
                       {day}
@@ -361,6 +430,20 @@ export function BookingClient({ business }: { business: Business }) {
                 })}
               </div>
             </div>
+            {monthHasNone && !monthLoading && (
+              <div className="bg-white rounded-2xl border border-[#e8e6e0] p-4 mb-4 text-sm flex items-center justify-between gap-3">
+                <span className="text-[#6b6b80]">
+                  {nextAvailable
+                    ? <>No availability in {MONTHS[viewMonth]}. <strong className="text-[#0f0f1a]">Next available: {formatNextAvailable(nextAvailable)}</strong></>
+                    : <>No availability in {MONTHS[viewMonth]} or the following months.</>}
+                </span>
+                {nextAvailable && (
+                  <button onClick={() => jumpTo(nextAvailable)} className="font-semibold text-xs px-3 py-2 rounded-lg text-white flex-shrink-0" style={{ background: color }}>
+                    Go to date
+                  </button>
+                )}
+              </div>
+            )}
             {selectedDate && (
               <div className="bg-white rounded-2xl border border-[#e8e6e0] p-5">
                 <p className="font-semibold text-sm mb-3">Available times — {MONTHS[viewMonth]} {selectedDate}</p>
@@ -512,7 +595,7 @@ export function BookingClient({ business }: { business: Business }) {
           ) : (
             <button onClick={next} disabled={
               (step === "service" && selectedServices.length === 0) ||
-              (step === "staff" && !selectedStaff) ||
+              (step === "staff" && (provider.kind === "none" || (provider.kind === "choose" && !selectedStaff))) ||
               (step === "datetime" && (!selectedDate || !selectedTime)) ||
               (step === "details" && (!form.name || !form.email || !isValidEmail(form.email)))
             }

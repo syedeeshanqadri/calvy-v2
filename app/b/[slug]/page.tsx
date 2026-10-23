@@ -10,7 +10,7 @@ export default async function BusinessBookingPage(props: { params: Promise<{ slu
     where: { slug: params.slug },
     include: {
       services: { where: { isActive: true }, orderBy: { createdAt: "asc" } },
-      staff: { where: { isActive: true }, orderBy: { createdAt: "asc" } },
+      staff: { where: { isActive: true }, orderBy: { createdAt: "asc" }, include: { services: { select: { serviceId: true } } } },
     },
   });
 
@@ -34,6 +34,7 @@ export default async function BusinessBookingPage(props: { params: Promise<{ slu
     })),
     staff: business.staff.map(s => ({
       id: s.id, name: s.name, role: s.role, color: s.color,
+      serviceIds: s.services.map(l => l.serviceId),
     })),
   };
 
