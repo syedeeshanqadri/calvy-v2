@@ -1,3 +1,4 @@
+import { safeRoute } from "@/lib/api";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { loadAvailability } from "@/lib/availability";
@@ -7,7 +8,7 @@ import { availabilityQuery } from "@/lib/validation/bookings";
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(request: NextRequest) {
+async function GET_handler(request: NextRequest) {
   const q = parseQuery(request.url, availabilityQuery);
   if (!q.ok) return q.res;
   const { slug, date, duration, serviceId = null, serviceIds: serviceIdsCsv, staffId = null } = q.data;
@@ -56,3 +57,5 @@ export async function GET(request: NextRequest) {
     ...(isGroup ? { spotsMap } : {}),
   });
 }
+
+export const GET = safeRoute(GET_handler);

@@ -1,3 +1,4 @@
+import { safeRoute } from "@/lib/api";
 import { NextRequest, NextResponse } from "next/server";
 import { isAdminUser } from "@/lib/adminAuth";
 import { getServerSession } from "next-auth";
@@ -13,7 +14,7 @@ function isAdmin(session: Awaited<ReturnType<typeof getServerSession>> & { user?
   return isAdminUser(session?.user);
 }
 
-export async function GET(req: NextRequest) {
+async function GET_handler(req: NextRequest) {
   const session = await getServerSession(authOptions) as Awaited<ReturnType<typeof getServerSession>> & { user?: { role?: string; email?: string | null } } | null;
   if (!isAdmin(session)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
@@ -39,3 +40,5 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json(tickets);
 }
+
+export const GET = safeRoute(GET_handler);

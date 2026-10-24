@@ -1,3 +1,4 @@
+import { safeRoute } from "@/lib/api";
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
@@ -8,7 +9,7 @@ import { expensePatchSchema } from "@/lib/validation/dashboard";
 
 export const dynamic = "force-dynamic";
 
-export async function PATCH(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+async function PATCH_handler(req: NextRequest, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
   const session = await getServerSession(authOptions);
   if (!session?.user?.businessId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -35,7 +36,7 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
   return NextResponse.json(updated);
 }
 
-export async function DELETE(_req: NextRequest, props: { params: Promise<{ id: string }> }) {
+async function DELETE_handler(_req: NextRequest, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
   const session = await getServerSession(authOptions);
   if (!session?.user?.businessId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -48,3 +49,6 @@ export async function DELETE(_req: NextRequest, props: { params: Promise<{ id: s
   await prisma.expense.delete({ where: { id: params.id } });
   return NextResponse.json({ ok: true });
 }
+
+export const PATCH = safeRoute(PATCH_handler);
+export const DELETE = safeRoute(DELETE_handler);

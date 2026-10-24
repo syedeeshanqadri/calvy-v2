@@ -1,16 +1,17 @@
+import { safeRoute } from "@/lib/api";
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { linkServiceToAllStaff } from "@/lib/schedule";
-import { getLimits, isActivePlan } from "@/lib/plans";
+import { checkLimit, denialResponse } from "@/lib/limits";
 
 import { parseBody } from "@/lib/validation/common";
 import { serviceCreateSchema } from "@/lib/validation/dashboard";
 
 export const dynamic = 'force-dynamic';
 
-export async function POST(request: NextRequest) {
+async function POST_handler(request: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.businessId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -27,20 +28,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "A service with this name already exists" }, { status: 409 });
   }
 
-  const business = await prisma.business.findUnique({
-    where: { id: session.user.businessId },
-    select: { plan: true, planStatus: true, trialEndsAt: true },
-  });
-  if (!business || !isActivePlan(business.planStatus, business.plan, business.trialEndsAt)) {
-    return NextResponse.json({ error: "Your trial has expired. Please upgrade to continue.", code: "PLAN_EXPIRED" }, { status: 402 });
-  }
-  const limits = getLimits(business.plan);
-  if (limits.maxServices !== -1) {
-    const count = await prisma.service.count({ where: { businessId: session.user.businessId } });
-    if (count >= limits.maxServices) {
-      return NextResponse.json({ error: `Service limit (${limits.maxServices}) reached. Upgrade your plan.`, code: "LIMIT_REACHED" }, { status: 402 });
-    }
-  }
+  const denied =
+    (await checkLimit(session.user.businessId, "services", { owner: true })) ??
+    (await checkLimit(session.user.businessId, "group", { capacity }));
+  if (denied) return denialResponse(denied);
 
   const service = await prisma.service.create({
     data: {
@@ -61,3 +52,5 @@ export async function POST(request: NextRequest) {
 
   return NextResponse.json({ service }, { status: 201 });
 }
+
+export const POST = safeRoute(POST_handler);

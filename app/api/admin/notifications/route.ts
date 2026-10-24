@@ -1,3 +1,4 @@
+import { safeRoute } from "@/lib/api";
 import { NextRequest, NextResponse } from "next/server";
 import { isAdminUser } from "@/lib/adminAuth";
 import { getServerSession } from "next-auth";
@@ -11,7 +12,7 @@ import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
 
-export async function POST(req: NextRequest) {
+async function POST_handler(req: NextRequest) {
   const session = await getServerSession(authOptions);
   const isAdmin = isAdminUser(session?.user);
   if (!isAdmin) {
@@ -45,3 +46,5 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Failed to send notifications" }, { status: 500 });
   }
 }
+
+export const POST = safeRoute(POST_handler);

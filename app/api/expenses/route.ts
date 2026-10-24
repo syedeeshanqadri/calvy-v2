@@ -1,3 +1,4 @@
+import { safeRoute } from "@/lib/api";
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
@@ -8,7 +9,7 @@ import { expenseCreateSchema, expenseListQuery } from "@/lib/validation/dashboar
 
 export const dynamic = "force-dynamic";
 
-export async function GET(req: NextRequest) {
+async function GET_handler(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.businessId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -32,7 +33,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json(expenses);
 }
 
-export async function POST(req: NextRequest) {
+async function POST_handler(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.businessId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -52,3 +53,6 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json(expense, { status: 201 });
 }
+
+export const GET = safeRoute(GET_handler);
+export const POST = safeRoute(POST_handler);

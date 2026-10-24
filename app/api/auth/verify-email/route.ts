@@ -1,9 +1,10 @@
+import { safeRoute } from "@/lib/api";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(req: NextRequest) {
+async function GET_handler(req: NextRequest) {
   const token = req.nextUrl.searchParams.get("token");
   const base = req.nextUrl.origin;
 
@@ -40,3 +41,5 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.redirect(`${base}/login?verified=1`);
 }
+
+export const GET = safeRoute(GET_handler);

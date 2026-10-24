@@ -84,9 +84,9 @@ export function ClientDetailClient({ client }: { client: ClientData }) {
                 </span>
               )}
               <div className="space-y-2 w-full mt-4 text-left">
-                <a href={`mailto:${client.email}`} className="flex items-center gap-2.5 text-sm text-[#3d3d4d] hover:text-accent transition-colors">
+                {client.email && <a href={`mailto:${client.email}`} className="flex items-center gap-2.5 text-sm text-[#3d3d4d] hover:text-accent transition-colors">
                   <Mail size={14} className="text-[#6b6b80] flex-shrink-0" /> {client.email}
-                </a>
+                </a>}
                 {client.phone && (
                   <a href={`tel:${client.phone}`} className="flex items-center gap-2.5 text-sm text-[#3d3d4d] hover:text-accent transition-colors">
                     <Phone size={14} className="text-[#6b6b80] flex-shrink-0" /> {client.phone}

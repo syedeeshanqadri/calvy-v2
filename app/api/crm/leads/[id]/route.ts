@@ -1,3 +1,4 @@
+import { safeRoute } from "@/lib/api";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { isAdminSession } from "@/lib/adminAuth";
@@ -7,7 +8,7 @@ import { leadPatchSchema } from "@/lib/validation/admin";
 
 export const dynamic = "force-dynamic";
 
-export async function PATCH(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+async function PATCH_handler(req: NextRequest, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
   if (!(await isAdminSession())) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
@@ -22,9 +23,12 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
   return NextResponse.json({ lead });
 }
 
-export async function DELETE(_req: NextRequest, props: { params: Promise<{ id: string }> }) {
+async function DELETE_handler(_req: NextRequest, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
   if (!(await isAdminSession())) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   await prisma.lead.delete({ where: { id: params.id } }).catch(() => {});
   return NextResponse.json({ ok: true });
 }
+
+export const PATCH = safeRoute(PATCH_handler);
+export const DELETE = safeRoute(DELETE_handler);

@@ -95,8 +95,16 @@ export interface BookingTx {
   };
 }
 export interface BookingDb<Tx extends BookingTx = BookingTx> {
-  $transaction<R>(fn: (tx: Tx) => Promise<R>): Promise<R>;
+  $transaction<R>(fn: (tx: Tx) => Promise<R>, options?: { maxWait?: number; timeout?: number }): Promise<R>;
 }
+
+/**
+ * The lock transaction runs the availability re-check (several queries) before
+ * the write. Prisma's 5 s default is too tight over a remote database: a 5.7 s
+ * reschedule was killed with "Transaction already closed" and surfaced as an
+ * empty 500. Queries inside a transaction are serial, so allow real headroom.
+ */
+export const BOOKING_TX_OPTIONS = { maxWait: 10_000, timeout: 20_000 } as const;
 
 /**
  * Conflict check + insert as one unit. Takes a transaction-scoped advisory
@@ -156,7 +164,7 @@ export async function bookExclusive<R, Tx extends BookingTx = BookingTx>(
       }
     }
     return create(tx);
-  });
+  }, BOOKING_TX_OPTIONS);
 }
 
 export function conflictMessage(capacity: number): string {

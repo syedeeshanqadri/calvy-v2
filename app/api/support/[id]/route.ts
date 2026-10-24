@@ -1,3 +1,4 @@
+import { safeRoute } from "@/lib/api";
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
@@ -11,7 +12,7 @@ import { ticketMessageSchema } from "@/lib/validation/misc";
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(_req: NextRequest, props: { params: Promise<{ id: string }> }) {
+async function GET_handler(_req: NextRequest, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
   const session = await getServerSession(authOptions);
   const businessId = (session?.user as { businessId?: string } | undefined)?.businessId;
@@ -36,7 +37,7 @@ export async function GET(_req: NextRequest, props: { params: Promise<{ id: stri
   return NextResponse.json(ticket);
 }
 
-export async function POST(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+async function POST_handler(req: NextRequest, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
   const session = await getServerSession(authOptions);
   const businessId = (session?.user as { businessId?: string } | undefined)?.businessId;
@@ -82,3 +83,6 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
 
   return NextResponse.json(message, { status: 201 });
 }
+
+export const GET = safeRoute(GET_handler);
+export const POST = safeRoute(POST_handler);

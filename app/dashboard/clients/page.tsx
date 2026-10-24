@@ -18,7 +18,7 @@ export default async function ClientsPage() {
   const rows = clients.map(c => ({
     id: c.id,
     name: c.name,
-    email: c.email,
+    email: c.email ?? "",
     phone: c.phone ?? "",
     totalAppointments: c.totalAppointments,
     totalSpent: c.totalSpent,

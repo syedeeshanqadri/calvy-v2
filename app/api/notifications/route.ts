@@ -1,3 +1,4 @@
+import { safeRoute } from "@/lib/api";
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
@@ -5,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+async function GET_handler() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.businessId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -24,7 +25,7 @@ export async function GET() {
   return NextResponse.json({ notifications, unreadCount });
 }
 
-export async function PATCH() {
+async function PATCH_handler() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.businessId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -37,3 +38,6 @@ export async function PATCH() {
 
   return NextResponse.json({ ok: true });
 }
+
+export const GET = safeRoute(GET_handler);
+export const PATCH = safeRoute(PATCH_handler);

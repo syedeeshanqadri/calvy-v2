@@ -1,3 +1,4 @@
+import { safeRoute } from "@/lib/api";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { razorpay } from "@/lib/razorpay";
@@ -6,18 +7,17 @@ import { sendBookingConfirmationWhatsApp } from "@/lib/whatsapp";
 import { sendPushToBusiness } from "@/lib/push";
 import { DEFAULT_CURRENCY } from "@/lib/currency";
 import { rateLimit, clientIp } from "@/lib/ratelimit";
-import { findClientByEmail } from "@/lib/email-normalize";
+import { findOrCreateClient } from "@/lib/clients";
 import { parseBody } from "@/lib/validation/common";
 import { bookingSchema } from "@/lib/validation/bookings";
 import { isPastBooking, bookExclusive, SlotConflictError, conflictMessage } from "@/lib/booking";
 import { loadAvailability } from "@/lib/availability";
 import { getEffectiveLimits } from "@/lib/getFeatures";
-import { zonedToUtc, zonedTimeToUtc, formatDateLabel, safeTimeZone, utcToZoned } from "@/lib/time";
+import { checkLimit, startOfBusinessMonth, assertMonthlyHeadroom, LimitReachedError } from "@/lib/limits";
+import { zonedTimeToUtc, formatDateLabel, safeTimeZone } from "@/lib/time";
 import { logger } from "@/lib/logger";
 
 export const dynamic = 'force-dynamic';
-
-class LimitReachedError extends Error {}
 
 /** In-app notice to the owner that online booking is paused, at most once a day. */
 async function notifyLimitReached(businessId: string, limit: number) {
@@ -35,7 +35,7 @@ async function notifyLimitReached(businessId: string, limit: number) {
   }).catch(() => {});
 }
 
-export async function POST(req: NextRequest) {
+async function POST_handler(req: NextRequest) {
   const rl = await rateLimit(`booking:${clientIp(req)}`, 10, 60_000);
   if (!rl.ok) {
     return NextResponse.json(
@@ -71,12 +71,9 @@ export async function POST(req: NextRequest) {
       { status: 402 },
     );
   };
-  const monthStart = zonedToUtc(utcToZoned(new Date(), bizTz).date.slice(0, 8) + "01", 0, bizTz);
-  if (limits.maxMonthlyAppointments !== -1) {
-    const used = await prisma.appointment.count({ where: { businessId: business.id, createdAt: { gte: monthStart } } });
-    if (used >= limits.maxMonthlyAppointments) {
-      return await limitResponse();
-    }
+  const monthStart = startOfBusinessMonth(bizTz);
+  if (await checkLimit(business.id, "monthlyAppointments")) {
+    return await limitResponse();
   }
 
   // Tenant isolation: a staff member must belong to this business.
@@ -90,6 +87,11 @@ export async function POST(req: NextRequest) {
   if (orderedServices.length !== new Set(serviceIds).size) return NextResponse.json({ error: "Services not found." }, { status: 404 });
   if (orderedServices.some(s => !s.isActive)) {
     return NextResponse.json({ error: "One of the selected services is no longer available." }, { status: 400 });
+  }
+
+  // A downgraded plan can no longer sell group (multi-spot) services online.
+  if (await checkLimit(business.id, "group", { capacity: Math.max(1, orderedServices[0].capacity ?? 1) })) {
+    return NextResponse.json({ error: "This service can't be booked online right now. Please contact the business." }, { status: 402 });
   }
 
   const totalPrice = orderedServices.reduce((sum, s) => sum + s.price, 0);
@@ -157,14 +159,9 @@ export async function POST(req: NextRequest) {
             durationMin: totalDuration,
             capacity,
             verify: async (tx) => {
-              // Monthly cap re-checked under its own business lock (always taken after the
-              // staff lock, so the order is fixed): parallel bookings for different staff
-              // cannot overshoot the limit.
-              if (limits.maxMonthlyAppointments !== -1) {
-                await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${"limit:" + business!.id}, 0))`;
-                const used = await tx.appointment.count({ where: { businessId: business!.id, createdAt: { gte: monthStart } } });
-                if (used >= limits.maxMonthlyAppointments) throw new LimitReachedError();
-              }
+              // Monthly cap re-checked under its own business lock (after the staff
+              // lock) so parallel bookings for different staff cannot overshoot it.
+              await assertMonthlyHeadroom(tx, business!.id, limits.maxMonthlyAppointments, monthStart);
               const r = await loadAvailability(tx, { ...query, staffId: cand });
               return r.ok && (r.available.get(time)?.resourceIds.includes(cand) ?? false);
             },
@@ -256,13 +253,8 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  async function getOrCreateClient() {
-    const existing = await findClientByEmail(prisma, business!.id, clientEmail);
-    if (existing) return existing;
-    return prisma.client.create({
-      data: { businessId: business!.id, name: clientName, email: clientEmail, phone: clientPhone || null },
-    });
-  }
+  const getOrCreateClient = () =>
+    findOrCreateClient(prisma, business!.id, { name: clientName, email: clientEmail, phone: clientPhone }, bizTz);
 
   let client: Awaited<ReturnType<typeof getOrCreateClient>>;
 
@@ -340,3 +332,5 @@ export async function POST(req: NextRequest) {
   await notify(appointment.id, totalPrice);
   return NextResponse.json({ success: true, appointmentId: appointment.id });
 }
+
+export const POST = safeRoute(POST_handler);

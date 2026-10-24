@@ -1,3 +1,4 @@
+import { safeRoute } from "@/lib/api";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { rateLimit, clientIp } from "@/lib/ratelimit";
@@ -12,7 +13,7 @@ export const dynamic = "force-dynamic";
 /** A new link is not sent while the newest one is younger than this. */
 const RESEND_COOLDOWN_MS = 60_000;
 
-export async function POST(req: NextRequest) {
+async function POST_handler(req: NextRequest) {
   const rlIp = await rateLimit(`resend:ip:${clientIp(req)}`, 5, 15 * 60_000);
   if (!rlIp.ok) return tooManyRequests(rlIp.retryAfter);
 
@@ -63,3 +64,5 @@ export async function POST(req: NextRequest) {
   if (rawToken && testTokenHookEnabled()) res.devToken = rawToken;
   return NextResponse.json(res);
 }
+
+export const POST = safeRoute(POST_handler);

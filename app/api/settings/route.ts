@@ -1,3 +1,4 @@
+import { safeRoute } from "@/lib/api";
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
@@ -7,7 +8,7 @@ import { settingsPatchSchema } from "@/lib/validation/settings";
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+async function GET_handler() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.businessId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -25,7 +26,7 @@ export async function GET() {
   return NextResponse.json({ business });
 }
 
-export async function PATCH(request: NextRequest) {
+async function PATCH_handler(request: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.businessId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -68,3 +69,6 @@ export async function PATCH(request: NextRequest) {
 
   return NextResponse.json({ business });
 }
+
+export const GET = safeRoute(GET_handler);
+export const PATCH = safeRoute(PATCH_handler);

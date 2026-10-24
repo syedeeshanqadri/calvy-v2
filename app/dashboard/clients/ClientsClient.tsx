@@ -30,7 +30,7 @@ export function ClientsClient({ clients }: { clients: ClientRow[] }) {
 
   const filtered = clients.filter((c) =>
     c.name.toLowerCase().includes(search.toLowerCase()) ||
-    c.email.toLowerCase().includes(search.toLowerCase())
+    (c.email ?? "").toLowerCase().includes(search.toLowerCase()) || (c.phone ?? "").includes(search)
   );
 
   const submit = async () => {
@@ -87,7 +87,7 @@ export function ClientsClient({ clients }: { clients: ClientRow[] }) {
                 {client.totalSpent > 500 && <span className="flex items-center gap-1 text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-1 rounded-full"><Star size={10} fill="currentColor" />VIP</span>}
               </div>
               <h3 className="font-semibold text-sm mb-0.5">{client.name}</h3>
-              <p className="text-xs text-[#6b6b80] mb-3 truncate">{client.email}</p>
+              <p className="text-xs text-[#6b6b80] mb-3 truncate">{client.email || client.phone || "No contact details"}</p>
               <div className="grid grid-cols-2 gap-2 mb-4">
                 <div className="bg-[#f8f7f4] rounded-lg p-2 text-center">
                   <div className="font-syne font-bold text-base">{client.totalAppointments}</div>
@@ -99,9 +99,9 @@ export function ClientsClient({ clients }: { clients: ClientRow[] }) {
                 </div>
               </div>
               <div className="flex gap-2">
-                <a href={`mailto:${client.email}`} className="relative z-10 flex-1 flex items-center justify-center gap-1.5 h-8 rounded-lg bg-[#f8f7f4] hover:bg-[#f0ede8] text-xs font-medium text-[#6b6b80] hover:text-brand-800 transition-colors">
+                {client.email && <a href={`mailto:${client.email}`} className="relative z-10 flex-1 flex items-center justify-center gap-1.5 h-8 rounded-lg bg-[#f8f7f4] hover:bg-[#f0ede8] text-xs font-medium text-[#6b6b80] hover:text-brand-800 transition-colors">
                   <Mail size={12} /> Email
-                </a>
+                </a>}
                 {client.phone && (
                   <a href={`tel:${client.phone}`} className="relative z-10 flex-1 flex items-center justify-center gap-1.5 h-8 rounded-lg bg-[#f8f7f4] hover:bg-[#f0ede8] text-xs font-medium text-[#6b6b80] hover:text-brand-800 transition-colors">
                     <Phone size={12} /> Call
@@ -136,7 +136,7 @@ export function ClientsClient({ clients }: { clients: ClientRow[] }) {
                       </div>
                     </td>
                     <td className="px-4 py-3">
-                      <div className="text-xs text-[#6b6b80]">{client.email}</div>
+                      <div className="text-xs text-[#6b6b80]">{client.email || client.phone}</div>
                       <div className="text-xs text-[#6b6b80]">{client.phone}</div>
                     </td>
                     <td className="px-4 py-3 text-sm font-semibold">{client.totalAppointments}</td>
@@ -173,7 +173,7 @@ export function ClientsClient({ clients }: { clients: ClientRow[] }) {
           {error && <p className="text-sm text-red-500">{error}</p>}
           <div className="flex gap-3 pt-2">
             <Button variant="outline" onClick={() => setShowModal(false)} className="flex-1 justify-center">Cancel</Button>
-            <Button onClick={submit} disabled={loading || !form.firstName || !form.email} className="flex-1 justify-center">
+            <Button onClick={submit} disabled={loading || !form.firstName || (!form.email && !form.phone)} className="flex-1 justify-center">
               {loading ? "Saving..." : "Add Client"}
             </Button>
           </div>

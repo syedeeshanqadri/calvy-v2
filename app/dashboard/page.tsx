@@ -121,7 +121,7 @@ export default async function DashboardPage() {
     return {
       id: a.id,
       clientName: a.client.name,
-      clientEmail: a.client.email,
+      clientEmail: a.client.email ?? a.client.phone ?? "",
       serviceName,
       staffName: a.staff?.name ?? "—",
       time: utcToZoned(a.date, tz).time,

@@ -1,3 +1,4 @@
+import { safeRoute } from "@/lib/api";
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
@@ -10,7 +11,7 @@ export const dynamic = "force-dynamic";
 
 const MAX_SPAN_DAYS = 366;
 
-export async function GET(request: NextRequest) {
+async function GET_handler(request: NextRequest) {
   const session = await getServerSession(authOptions);
   const businessId = session?.user?.businessId;
   if (!businessId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -42,7 +43,7 @@ export async function GET(request: NextRequest) {
   });
 }
 
-export async function POST(request: NextRequest) {
+async function POST_handler(request: NextRequest) {
   const session = await getServerSession(authOptions);
   const businessId = session?.user?.businessId;
   if (!businessId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -75,3 +76,6 @@ export async function POST(request: NextRequest) {
   });
   return NextResponse.json({ timeOff: created }, { status: 201 });
 }
+
+export const GET = safeRoute(GET_handler);
+export const POST = safeRoute(POST_handler);
