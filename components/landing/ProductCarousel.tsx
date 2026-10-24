@@ -267,14 +267,14 @@ export function ProductCarousel() {
           <button
             aria-label="Previous"
             onClick={() => go(active - 1)}
-            className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/90 backdrop-blur border border-gray-200 shadow-md flex items-center justify-center text-gray-600 hover:bg-white transition-colors"
+            className="hidden md:flex absolute left-3 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/90 backdrop-blur border border-gray-200 shadow-md flex items-center justify-center text-gray-600 hover:bg-white transition-colors"
           >
             <ChevronLeft size={18} />
           </button>
           <button
             aria-label="Next"
             onClick={() => go(active + 1)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/90 backdrop-blur border border-gray-200 shadow-md flex items-center justify-center text-gray-600 hover:bg-white transition-colors"
+            className="hidden md:flex absolute right-3 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/90 backdrop-blur border border-gray-200 shadow-md flex items-center justify-center text-gray-600 hover:bg-white transition-colors"
           >
             <ChevronRight size={18} />
           </button>
@@ -282,14 +282,17 @@ export function ProductCarousel() {
       </div>
 
       {/* Dots */}
-      <div className="flex items-center justify-center gap-2 mt-5">
+      <div className="flex items-center justify-center mt-2">
         {SLIDES.map((s, i) => (
           <button
             key={s.id}
             aria-label={`Go to ${s.label}`}
+            aria-current={i === active}
             onClick={() => go(i)}
-            className={`h-2 rounded-full transition-all ${i === active ? "w-7 bg-sky-600" : "w-2 bg-gray-300 hover:bg-gray-400"}`}
-          />
+            className="w-11 h-11 inline-flex items-center justify-center"
+          >
+            <span className={`block h-2 rounded-full transition-all ${i === active ? "w-7 bg-sky-600" : "w-2 bg-gray-300 hover:bg-gray-400"}`} />
+          </button>
         ))}
       </div>
     </div>

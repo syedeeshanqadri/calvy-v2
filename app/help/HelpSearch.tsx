@@ -1,4 +1,5 @@
 "use client";
+import { SUPPORT_EMAIL } from "@/lib/site";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Search, ArrowRight, FileText, X, LifeBuoy } from "lucide-react";
@@ -37,7 +38,7 @@ export function HelpSearch({ index, categories }: { index: IndexItem[]; categori
   return (
     <>
       {/* Hero + search */}
-      <section className="bg-gradient-to-b from-white to-[#f8f7f4] pt-32 pb-12 border-b border-[#e8e6e0]">
+      <section className="bg-gradient-to-b from-white to-[#f8f7f4] pt-28 sm:pt-32 pb-12 border-b border-[#e8e6e0]">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <div className="inline-flex items-center gap-2 bg-sky-100 text-sky-700 text-xs font-bold tracking-widest uppercase px-4 py-2 rounded-full mb-5">
             <LifeBuoy size={13} /> Help Center
@@ -76,7 +77,7 @@ export function HelpSearch({ index, categories }: { index: IndexItem[]; categori
             {results.length === 0 ? (
               <div className="text-center py-12 bg-white rounded-2xl border border-[#e8e6e0]">
                 <p className="text-[#6b6b80] mb-1">We couldn&apos;t find an article for that.</p>
-                <p className="text-sm text-[#9b9b9b]">Try different keywords, or <a href="mailto:support@calvy.io" className="text-sky-600 font-medium underline">email support</a>.</p>
+                <p className="text-sm text-[#9b9b9b]">Try different keywords, or <a href={`mailto:${SUPPORT_EMAIL}`} className="text-sky-600 font-medium underline">email support</a>.</p>
               </div>
             ) : (
               <div className="space-y-2.5">
@@ -106,7 +107,7 @@ export function HelpSearch({ index, categories }: { index: IndexItem[]; categori
         <div className="mt-12 bg-white rounded-2xl border border-[#e8e6e0] p-6 text-center">
           <p className="font-semibold text-[#0f0f1a]">Still need a hand?</p>
           <p className="text-sm text-[#6b6b80] mt-1 mb-4">Our team is happy to help.</p>
-          <a href="mailto:support@calvy.io" className="inline-flex items-center gap-2 bg-sky-600 hover:bg-sky-700 text-white text-sm font-semibold px-5 py-2.5 rounded-xl transition-colors">
+          <a href={`mailto:${SUPPORT_EMAIL}`} className="inline-flex items-center gap-2 bg-sky-600 hover:bg-sky-700 text-white text-sm font-semibold px-5 py-2.5 rounded-xl transition-colors">
             Contact support
           </a>
         </div>

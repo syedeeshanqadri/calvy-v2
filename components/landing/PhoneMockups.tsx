@@ -52,9 +52,9 @@ export function ClientPhone() {
 /* Owner mobile dashboard */
 export function OwnerPhone() {
   const upcoming = [
-    { name: "Sarah R.", time: "10:00", color: "#0284c7" },
-    { name: "Michael K.", time: "11:30", color: "#0ea5e9" },
-    { name: "Ana Lopez", time: "1:00", color: "#ec4899" },
+    { name: "Sarah R.", time: "10:00 AM", color: "#0284c7" },
+    { name: "Michael K.", time: "11:30 AM", color: "#0ea5e9" },
+    { name: "Ana Lopez", time: "1:00 PM", color: "#ec4899" },
   ];
   return (
     <PhoneFrame>
@@ -80,7 +80,7 @@ export function OwnerPhone() {
             </div>
             <div className="flex-1 min-w-0">
               <div className="font-semibold text-gray-800 truncate" style={{ fontSize: 7.5 }}>{u.name}</div>
-              <div className="text-gray-400" style={{ fontSize: 6 }}>{u.time} AM</div>
+              <div className="text-gray-400" style={{ fontSize: 6 }}>{u.time}</div>
             </div>
             <Check size={9} className="text-green-500" />
           </div>

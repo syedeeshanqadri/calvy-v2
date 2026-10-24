@@ -17,7 +17,7 @@ export function InlineCTABand() {
   }
 
   return (
-    <section className="py-16">
+    <section className="pt-0 pb-16 sm:pb-20 lg:pb-24">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-sky-600 to-sky-700 px-6 py-12 sm:px-12 shadow-2xl shadow-sky-200">
           {/* decorative orbs */}

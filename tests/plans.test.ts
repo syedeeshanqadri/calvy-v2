@@ -17,6 +17,26 @@ describe("getLimits", () => {
   });
 });
 
+describe("Free / Pro / Business limits", () => {
+  it("Free: 1 staff, 60 appointments/month", () => {
+    expect(getLimits("free")).toMatchObject({ maxStaff: 1, maxMonthlyAppointments: 60 });
+  });
+  it("Pro (professional): 3 staff, 1000 appointments, no chatbot/group/broadcasts/custom slot interval", () => {
+    expect(getLimits("professional")).toMatchObject({
+      maxStaff: 3, maxMonthlyAppointments: 1000,
+      chatbotWidget: false, groupBooking: false, broadcasts: false, customSlotInterval: false,
+      analytics: true, customBranding: true, whatsappReminders: true, csvExport: true,
+    });
+  });
+  it("Business: unlimited staff and appointments, every flag on", () => {
+    const b = getLimits("business");
+    expect(b.maxStaff).toBe(-1);
+    expect(b.maxMonthlyAppointments).toBe(-1);
+    const flags = Object.entries(b).filter(([, v]) => typeof v === "boolean");
+    expect(flags.every(([, v]) => v === true)).toBe(true);
+  });
+});
+
 describe("isActivePlan", () => {
   it("free/trial are always active regardless of status", () => {
     expect(isActivePlan("free", "free", null)).toBe(true);

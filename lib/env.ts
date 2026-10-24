@@ -21,6 +21,7 @@ const optionalVars = {
   CRON_SECRET: optional,
   RESEND_API_KEY: optional,
   EMAIL_FROM: optional,
+  NOTIFY_EMAIL: optional,
   GOOGLE_CLIENT_ID: optional,
   GOOGLE_CLIENT_SECRET: optional,
   FACEBOOK_CLIENT_ID: optional,

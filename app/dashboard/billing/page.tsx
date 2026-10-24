@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { trialDaysLeft, PLAN_LIMITS, PLAN_META } from "@/lib/plans";
 import { redirect, notFound } from "next/navigation";
 import { getFlags } from "@/lib/flags";
+import { displayPlan } from "@/lib/pricingDisplay";
 import BillingClient from "./BillingClient";
 
 export const dynamic = 'force-dynamic';
@@ -35,9 +36,31 @@ export type PlanData = {
   prioritySupport: boolean;
 };
 
-const ORDER = ["free", "starter", "professional", "business"] as const;
+// Free / Pro / Business are shown; the legacy "starter" plan stays in the database but is not offered.
+const ORDER = ["free", "professional", "business"] as const;
+
+/** Marketing name, prices and feature list come from lib/pricingDisplay.ts; limits and flags stay as loaded. */
+function withDisplay(plans: PlanData[]): PlanData[] {
+  return plans.map((p) => {
+    const d = displayPlan(p.id);
+    if (!d) return p;
+    return {
+      ...p,
+      name: d.name,
+      price: d.monthly,
+      annualPrice: d.yearlyPerMonth,
+      description: d.description,
+      features: d.features,
+      highlight: d.highlight,
+    };
+  });
+}
 
 async function getPlans(): Promise<PlanData[]> {
+  return withDisplay(await loadPlans());
+}
+
+async function loadPlans(): Promise<PlanData[]> {
   const fallback = ORDER.map((planId) => {
     const meta = PLAN_META[planId];
     const limits = PLAN_LIMITS[planId];

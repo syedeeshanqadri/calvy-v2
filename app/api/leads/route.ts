@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { sendLeadAcknowledgment } from "@/lib/email";
+import { sendLeadAcknowledgment, sendFormNotification } from "@/lib/email";
+import { after } from "next/server";
 import { rateLimit, clientIp } from "@/lib/ratelimit";
 
 import { parseBody } from "@/lib/validation/common";
@@ -45,6 +46,20 @@ export async function POST(req: NextRequest) {
   // First nurture touch — instant acknowledgment to the lead (non-blocking).
   sendLeadAcknowledgment({ to: lead.email, name: lead.name, demoRequested: lead.demoRequested })
     .catch(() => {});
+
+  // Tell the owner (after the response, errors swallowed inside the helper).
+  after(() => sendFormNotification({
+    title: lead.demoRequested ? "New demo request" : "New lead",
+    fields: {
+      Name: lead.name,
+      Email: lead.email,
+      Phone: lead.phone,
+      "Business type": lead.businessType,
+      "Demo requested": lead.demoRequested,
+      Message: lead.message,
+      Source: lead.source,
+    },
+  }));
 
   return NextResponse.json({ ok: true, id: lead.id }, { status: 201 });
 }

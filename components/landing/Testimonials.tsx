@@ -76,11 +76,11 @@ function Stars() {
 
 export function Testimonials() {
   return (
-    <section id="testimonials" className="py-28 bg-white">
+    <section id="testimonials" className="py-16 sm:py-20 lg:py-24 bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-16">
-          <span className="inline-block bg-sky-100 text-sky-700 text-xs font-bold tracking-widest uppercase px-4 py-2 rounded-full mb-5">Testimonials</span>
-          <h2 className="font-syne font-extrabold text-4xl lg:text-5xl tracking-tight text-gray-900 mb-5">Loved by 12,000+ businesses</h2>
+        <div className="text-center mb-12 lg:mb-16">
+          <span className="inline-block bg-sky-100 text-sky-700 text-xs font-bold tracking-widest uppercase px-4 py-2 rounded-full mb-4">Testimonials</span>
+          <h2 className="font-syne font-extrabold text-3xl sm:text-4xl lg:text-5xl tracking-tight text-gray-900 mb-4">Loved by 12,000+ businesses</h2>
           <p className="text-gray-500 text-lg max-w-md mx-auto">Real stories from real business owners who transformed their scheduling.</p>
           {/* Platform trust bar */}
           <div className="flex items-center justify-center gap-6 mt-6 flex-wrap">

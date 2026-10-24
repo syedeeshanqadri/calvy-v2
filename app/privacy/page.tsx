@@ -1,3 +1,4 @@
+import { SUPPORT_EMAIL } from "@/lib/site";
 import type { Metadata } from "next";
 import { LegalLayout } from "@/components/legal/LegalLayout";
 
@@ -62,7 +63,7 @@ export default function PrivacyPolicyPage() {
       <p>We may update this Privacy Policy from time to time. We will revise the “Last updated” date above and, where appropriate, notify you of material changes.</p>
 
       <h2>10. Contact Us</h2>
-      <p>If you have questions about this Privacy Policy, contact us at <a href="mailto:support@calvy.io">support@calvy.io</a>.</p>
+      <p>If you have questions about this Privacy Policy, contact us at <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>.</p>
     </LegalLayout>
   );
 }

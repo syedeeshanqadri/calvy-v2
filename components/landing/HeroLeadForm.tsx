@@ -41,7 +41,7 @@ export function HeroLeadForm() {
         <button
           type="submit"
           disabled={state === "loading"}
-          className="group inline-flex items-center justify-center gap-2 bg-sky-600 hover:bg-sky-700 text-white font-semibold px-6 py-4 rounded-2xl transition-all shadow-lg shadow-sky-200 hover:shadow-sky-300 hover:-translate-y-0.5 disabled:opacity-70 whitespace-nowrap"
+          className="group inline-flex w-full sm:w-auto min-h-12 items-center justify-center gap-2 bg-sky-600 hover:bg-sky-700 text-white font-semibold px-6 py-4 rounded-2xl transition-all shadow-lg shadow-sky-200 hover:shadow-sky-300 hover:-translate-y-0.5 disabled:opacity-70 whitespace-nowrap"
         >
           {state === "loading" ? <Loader2 size={18} className="animate-spin" /> : <>Start free <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" /></>}
         </button>

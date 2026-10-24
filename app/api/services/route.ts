@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { linkServiceToAllStaff } from "@/lib/schedule";
 import { getLimits, isActivePlan } from "@/lib/plans";
 
 import { parseBody } from "@/lib/validation/common";
@@ -17,7 +18,7 @@ export async function POST(request: NextRequest) {
 
   const parsed = await parseBody(request, serviceCreateSchema);
   if (!parsed.ok) return parsed.res;
-  const { name, description, duration, price, color, category, capacity } = parsed.data;
+  const { name, description, duration, price, color, category, capacity, bufferBeforeMin, bufferAfterMin } = parsed.data;
 
   const duplicate = await prisma.service.findFirst({
     where: { businessId: session.user.businessId, name: { equals: name, mode: "insensitive" } },
@@ -51,9 +52,12 @@ export async function POST(request: NextRequest) {
       color: color || "#0284c7",
       category: category || "General",
       capacity: capacity ?? 1,
+      bufferBeforeMin: bufferBeforeMin ?? 0,
+      bufferAfterMin: bufferAfterMin ?? 0,
       isActive: true,
     },
   });
+  await linkServiceToAllStaff(prisma, session.user.businessId, service.id);
 
   return NextResponse.json({ service }, { status: 201 });
 }

@@ -1,5 +1,4 @@
-// Runs once when the Next.js server starts (enabled via
-// experimental.instrumentationHook in next.config.mjs).
+// Runs once when the Next.js server starts.
 export async function register() {
   // Error tracking (server and edge). Disabled unless SENTRY_DSN is set.
   if (process.env.SENTRY_DSN) {
@@ -8,6 +7,14 @@ export async function register() {
   }
 
   if (process.env.NEXT_RUNTIME !== "nodejs") return;
+
+  // Appointments are stored as UTC instants and converted in each business's own
+  // timezone, so any server timezone is correct. A non-UTC process is still worth a
+  // note: logs and any code using server-local Date methods will not read as UTC.
+  const serverTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  if (serverTz !== "UTC" && serverTz !== "Etc/UTC") {
+    console.warn(`[time] server timezone is ${serverTz}, not UTC. Bookings are unaffected (stored as UTC), but running with TZ=UTC is recommended.`);
+  }
 
   const { checkEnv, disabledServices } = await import("@/lib/env");
   const { missingRequired } = checkEnv();

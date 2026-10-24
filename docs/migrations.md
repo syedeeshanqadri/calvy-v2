@@ -18,14 +18,15 @@ and verified two ways:
 
 ## Everyday commands (PowerShell, from the repo root)
 
-Prisma's own CLI reads only `.env`, not `.env.local`. `db:migrate`, `db:status` and `db:seed` load `.env.local` for you. `db:deploy` does **not**: it is for CI and hosting, where the variables are set for real, so run it locally only with `DATABASE_URL` set in your shell (see the safety checks below).
+Prisma's own CLI reads only `.env`, not `.env.local`. Every `db:*` script except `db:deploy` loads `.env.local` for you (through `dotenv-cli`). `db:deploy` does **not**: it is for CI and hosting, where the variables are set for real, so run it locally only with `DATABASE_URL` set in your shell (see the safety checks below).
 
 ```powershell
 npm run db:status          # which migrations are applied
-npm run db:migrate         # create and apply a new migration in development (asks for a name)
+npm run db:migrate         # apply pending migrations (prisma migrate deploy) using .env.local
+npm run db:migrate:dev     # create and apply a new migration in development (asks for a name)
+npm run db:generate        # regenerate the Prisma client
 npm run db:seed            # seed demo data and the dev-only test accounts
 npm run db:deploy          # apply pending migrations (production, CI, staging); no prompts, no shadow DB
-npx prisma generate        # regenerate the client (also runs on npm install and in npm run build)
 ```
 
 `npm run build` is now `prisma generate && next build`. **It never touches the database schema.**
@@ -33,7 +34,7 @@ npx prisma generate        # regenerate the client (also runs on npm install and
 ## Making a schema change
 
 1. Edit `prisma/schema.prisma`.
-2. `npm run db:migrate` and give the migration a short name (for example `add_password_reset_token`). Prisma writes `prisma/migrations/<timestamp>_<name>/migration.sql` and applies it to the database in `DATABASE_URL`.
+2. `npm run db:migrate:dev` and give the migration a short name (for example `add_password_reset_token`). Prisma writes `prisma/migrations/<timestamp>_<name>/migration.sql` and applies it to the database in `DATABASE_URL`.
 3. Read the generated SQL before committing it. It must not drop or rewrite data you care about.
 4. Commit the migration folder together with the schema change and the code that uses it.
 5. Never edit a migration that has been merged. Fix forward with a new one.
@@ -94,10 +95,10 @@ If `db:deploy` fails the deploy stops and the previous version keeps serving. St
 - `DATABASE_URL` and `SHADOW_DATABASE_URL` must be different databases. If they were the same, `migrate dev` would wipe the main database.
 - Never run `prisma migrate reset` or `prisma db push` against anything but a throwaway local database. The production procedure uses only `migrate status`, `migrate diff` and `migrate resolve`.
 - Typing the production connection string into PowerShell can leave it in the command history. Prefer `$env:DATABASE_URL = Read-Host "Production URL"` (type it when asked) and clear it afterwards.
-- The `--env-file-if-exists` flag used by `db:migrate`, `db:status` and `db:seed` needs Node 22.9 or newer on your machine (Node 24 is installed here). CI and Vercel do not use these scripts.
+- The `db:*` scripts (except `db:deploy`) use `dotenv-cli`, a dev dependency, so they work on any Node version that runs the project. CI and Vercel do not use them.
 
 ## Troubleshooting
 
 - *"Environment variable not found: DATABASE_URL"* when running `npx prisma ...` directly: the CLI does not read `.env.local`. Use the npm scripts, or `node --env-file=.env.local node_modules/prisma/build/index.js <command>`.
-- *Prisma wants to reset the database* during `db:migrate`: do not accept on a database that holds data you need. It means the migration history and the database disagree. Check `npm run db:status` and ask before resetting anything.
+- *Prisma wants to reset the database* during `db:migrate:dev`: do not accept on a database that holds data you need. It means the migration history and the database disagree. Check `npm run db:status` and ask before resetting anything.
 - *Drift detected*: someone changed the database outside migrations. Compare with `prisma migrate diff --from-schema-datasource prisma/schema.prisma --to-schema-datamodel prisma/schema.prisma`, then capture the change as a migration.

@@ -1,3 +1,4 @@
+import { SUPPORT_EMAIL } from "@/lib/site";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -73,7 +74,7 @@ export default async function HelpArticlePage(props: { params: Promise<{ slug: s
             [&_strong]:text-[#0f0f1a] [&_strong]:font-semibold
             [&_blockquote]:border-l-4 [&_blockquote]:border-sky-200 [&_blockquote]:pl-4 [&_blockquote]:italic [&_blockquote]:text-[#6b6b80] [&_blockquote]:my-5
             [&_code]:bg-[#f3f4f6] [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:rounded [&_code]:text-[14px] [&_code]:text-sky-700
-            [&_table]:w-full [&_table]:my-5 [&_table]:text-sm [&_th]:text-left [&_th]:font-semibold [&_th]:text-[#0f0f1a] [&_th]:border-b [&_th]:border-[#e8e6e0] [&_th]:py-2 [&_td]:py-2 [&_td]:border-b [&_td]:border-[#f0ede8] [&_td]:align-top [&_td]:pr-4"
+            [&_table]:block [&_table]:max-w-full [&_table]:overflow-x-auto [&_table]:w-full [&_table]:my-5 [&_table]:text-sm [&_th]:text-left [&_th]:font-semibold [&_th]:text-[#0f0f1a] [&_th]:border-b [&_th]:border-[#e8e6e0] [&_th]:py-2 [&_td]:py-2 [&_td]:border-b [&_td]:border-[#f0ede8] [&_td]:align-top [&_td]:pr-4"
           dangerouslySetInnerHTML={{ __html: html }}
         />
 
@@ -99,7 +100,7 @@ export default async function HelpArticlePage(props: { params: Promise<{ slug: s
             <p className="font-semibold text-sm text-[#0f0f1a]">Didn&apos;t find your answer?</p>
             <p className="text-xs text-[#6b6b80]">We usually reply within a few hours.</p>
           </div>
-          <a href="mailto:support@calvy.io" className="text-sm font-semibold text-sky-600 hover:text-sky-700 whitespace-nowrap">Contact support →</a>
+          <a href={`mailto:${SUPPORT_EMAIL}`} className="text-sm font-semibold text-sky-600 hover:text-sky-700 whitespace-nowrap">Contact support →</a>
         </div>
       </div>
 

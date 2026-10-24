@@ -10,7 +10,7 @@ async function getBusiness(slug: string) {
     where: { slug },
     include: {
       services: { where: { isActive: true }, orderBy: { createdAt: "asc" } },
-      staff: { where: { isActive: true }, orderBy: { createdAt: "asc" } },
+      staff: { where: { isActive: true }, orderBy: { createdAt: "asc" }, include: { services: { select: { serviceId: true } } } },
     },
   });
 }
@@ -48,6 +48,7 @@ export default async function BookNowPage(props: { params: Promise<{ slug: strin
     })),
     staff: business.staff.map(s => ({
       id: s.id, name: s.name, role: s.role, color: s.color,
+      serviceIds: s.services.map(l => l.serviceId),
     })),
   };
 

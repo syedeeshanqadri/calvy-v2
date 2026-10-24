@@ -1,9 +1,10 @@
+import { SUPPORT_EMAIL } from "@/lib/site";
 import webpush from "web-push";
 import { logger } from "@/lib/logger";
 
 const VAPID_PUBLIC = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? "";
 const VAPID_PRIVATE = process.env.VAPID_PRIVATE_KEY ?? "";
-const VAPID_SUBJECT = process.env.VAPID_SUBJECT ?? "mailto:support@calvy.io";
+const VAPID_SUBJECT = process.env.VAPID_SUBJECT ?? `mailto:${SUPPORT_EMAIL}`;
 
 function isConfigured() {
   return !!(VAPID_PUBLIC && VAPID_PRIVATE);

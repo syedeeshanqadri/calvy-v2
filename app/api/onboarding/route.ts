@@ -1,3 +1,5 @@
+import { after } from "next/server";
+import { sendFormNotification } from "@/lib/email";
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
@@ -32,7 +34,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Registration already complete." }, { status: 400 });
   }
 
-  await createBusinessForUser({
+  const business = await createBusinessForUser({
     ownerId: user.id,
     ownerName: user.name,
     ownerEmail: user.email,
@@ -40,6 +42,11 @@ export async function POST(req: NextRequest) {
     currency,
     timezone,
   });
+
+  after(() => sendFormNotification({
+    title: "New business onboarded",
+    fields: { Owner: user.name, Email: user.email, Business: business.name, Currency: business.currency, Timezone: business.timezone },
+  }));
 
   return NextResponse.json({ success: true });
 }

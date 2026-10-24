@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { linkStaffToAllServices } from "@/lib/schedule";
 import { getLimits, isActivePlan } from "@/lib/plans";
 
 import { parseBody } from "@/lib/validation/common";
@@ -71,6 +72,8 @@ export async function POST(request: NextRequest) {
       }),
     },
   });
+
+  await linkStaffToAllServices(prisma, session.user.businessId, staff.id);
 
   return NextResponse.json({ staff }, { status: 201 });
 }

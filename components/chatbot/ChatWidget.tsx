@@ -108,7 +108,7 @@ export function ChatWidget({ business }: { business: ChatBusiness }) {
     push(msg("user", label), msg("bot", "Let me check available times for you..."));
     setStep("time");
     setSlotsLoading(true);
-    fetch(`/api/availability?slug=${business.slug}&date=${d}&duration=${totalDuration}&serviceId=${selectedServices[0]}`)
+    fetch(`/api/availability?slug=${business.slug}&date=${d}&duration=${totalDuration}&serviceId=${selectedServices[0]}&serviceIds=${selectedServices.join(",")}`)
       .then(r => r.json())
       .then(data => { setSlots(data.slots ?? []); setSlotsLoading(false); })
       .catch(() => { setSlots([]); setSlotsLoading(false); });

@@ -30,13 +30,13 @@ const PAINS = [
 
 export function ProblemStatement() {
   return (
-    <section className="py-24 bg-gray-950 overflow-hidden">
+    <section className="pt-8 sm:pt-10 pb-16 sm:pb-20 lg:pb-24 bg-gray-950 overflow-hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-14">
-          <span className="inline-block bg-white/10 text-white/60 text-xs font-bold tracking-widest uppercase px-4 py-2 rounded-full mb-5 border border-white/10">
+        <div className="text-center mb-12 lg:mb-16">
+          <span className="inline-block bg-white/10 text-white/60 text-xs font-bold tracking-widest uppercase px-4 py-2 rounded-full mb-4 border border-white/10">
             Sound familiar?
           </span>
-          <h2 className="font-syne font-extrabold text-4xl lg:text-5xl tracking-tight text-white mb-4">
+          <h2 className="font-syne font-extrabold text-3xl sm:text-4xl lg:text-5xl tracking-tight text-white mb-4">
             Running a service business is hard.
             <br />
             <span className="text-sky-400">It doesn&apos;t have to be.</span>

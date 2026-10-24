@@ -142,7 +142,7 @@ export async function POST(request: NextRequest) {
   try {
     appointment = await bookExclusive(
       prisma,
-      { businessId, start: apptDate, durationMin: totalDuration, capacity, allowOverlap },
+      { businessId, staffId: staffId || null, start: apptDate, durationMin: totalDuration, capacity, allowOverlap },
       (tx) =>
         tx.appointment.create({
           data: {
@@ -152,6 +152,8 @@ export async function POST(request: NextRequest) {
             staffId: staffId || null,
             date: apptDate,
             endAt: new Date(apptDate.getTime() + totalDuration * 60_000),
+            bufferBeforeMin: orderedServices[0].bufferBeforeMin,
+            bufferAfterMin: orderedServices[orderedServices.length - 1].bufferAfterMin,
             duration: totalDuration,
             price: totalPrice,
             notes: combinedNotes,

@@ -14,6 +14,8 @@ export const signupSchema = z.object({
   password: z.string().min(8, "Password must be at least 8 characters.").max(200),
   currency,
   timezone,
+  /** The plan the visitor chose on the signup page. Reported to the owner only; accounts always start on Free. */
+  plan: z.enum(["free", "professional", "business"]).optional().catch(undefined),
 });
 
 export const onboardingSchema = z.object({

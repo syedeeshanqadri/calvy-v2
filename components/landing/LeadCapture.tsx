@@ -58,10 +58,10 @@ export function LeadCapture() {
   }
 
   return (
-    <section id="demo" className="py-24 bg-gradient-to-b from-white to-sky-50">
+    <section id="demo" className="py-16 sm:py-20 lg:py-24 bg-gradient-to-b from-white to-sky-50">
       <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-8">
-          <span className="inline-block bg-sky-100 text-sky-700 text-xs font-bold tracking-widest uppercase px-4 py-2 rounded-full mb-5">Get started</span>
+          <span className="inline-block bg-sky-100 text-sky-700 text-xs font-bold tracking-widest uppercase px-4 py-2 rounded-full mb-4">Get started</span>
           <h2 className="font-syne font-extrabold text-3xl sm:text-4xl tracking-tight text-gray-900 mb-3">
             See Calvy in action
           </h2>

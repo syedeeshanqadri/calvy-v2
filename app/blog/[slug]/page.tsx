@@ -104,7 +104,7 @@ export default async function BlogPostPage(props: { params: Promise<{ slug: stri
       <Navbar />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
 
-      <article className="pt-32 pb-16">
+      <article className="pt-28 sm:pt-32 pb-16">
         <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8">
           <Link href="/blog" className="inline-flex items-center gap-2 text-sm text-[#6b6b80] hover:text-sky-600 mb-8">
             <ArrowLeft size={16} /> All posts
@@ -153,7 +153,7 @@ export default async function BlogPostPage(props: { params: Promise<{ slug: stri
               [&_blockquote]:border-l-4 [&_blockquote]:border-sky-200 [&_blockquote]:pl-4 [&_blockquote]:italic [&_blockquote]:text-[#6b6b80] [&_blockquote]:my-6
               [&_img]:rounded-xl [&_img]:my-6
               [&_code]:bg-[#f3f4f6] [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:rounded [&_code]:text-[14px]
-              [&_pre]:bg-[#0f0f1a] [&_pre]:text-white [&_pre]:rounded-xl [&_pre]:p-4 [&_pre]:overflow-x-auto [&_pre]:my-6
+              [&_table]:block [&_table]:max-w-full [&_table]:overflow-x-auto [&_pre]:bg-[#0f0f1a] [&_pre]:text-white [&_pre]:rounded-xl [&_pre]:p-4 [&_pre]:overflow-x-auto [&_pre]:my-6
               [&_strong]:text-[#0f0f1a] [&_strong]:font-semibold"
             dangerouslySetInnerHTML={{ __html: html }}
           />

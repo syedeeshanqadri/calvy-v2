@@ -70,7 +70,7 @@ export function PWAInstallPrompt() {
         <div className="bg-[#0f0f1a] border border-white/10 rounded-2xl p-5 shadow-2xl max-w-sm mx-auto">
           <div className="flex items-center justify-between mb-4">
             <p className="font-semibold text-white text-sm">Add Calvy to Home Screen</p>
-            <button onClick={dismiss} className="p-1 text-white/40 hover:text-white transition-colors">
+            <button onClick={dismiss} aria-label="Close" className="w-11 h-11 -mr-2 inline-flex items-center justify-center text-white/50 hover:text-white transition-colors">
               <X size={16} />
             </button>
           </div>
@@ -104,13 +104,13 @@ export function PWAInstallPrompt() {
           <p className="text-white/40 text-xs mt-0.5">Add to home screen for the best experience</p>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
-          <button onClick={dismiss} className="p-1.5 text-white/30 hover:text-white/60 transition-colors">
+          <button onClick={dismiss} aria-label="Dismiss" className="w-11 h-11 inline-flex items-center justify-center text-white/40 hover:text-white/70 transition-colors">
             <X size={15} />
           </button>
           {platform === "ios" ? (
             <button
               onClick={() => setShowIOSSteps(true)}
-              className="flex items-center gap-1.5 bg-[#0284c7] px-3 py-2 rounded-xl text-white text-xs font-semibold"
+              className="flex items-center gap-1.5 bg-[#0284c7] px-4 min-h-11 rounded-xl text-white text-xs font-semibold"
             >
               <Share2 size={13} />
               How to
@@ -118,7 +118,7 @@ export function PWAInstallPrompt() {
           ) : (
             <button
               onClick={handleInstall}
-              className="flex items-center gap-1.5 bg-[#0284c7] px-3 py-2 rounded-xl text-white text-xs font-semibold"
+              className="flex items-center gap-1.5 bg-[#0284c7] px-4 min-h-11 rounded-xl text-white text-xs font-semibold"
             >
               <Download size={13} />
               Install

@@ -10,10 +10,30 @@ import { findClientByEmail } from "@/lib/email-normalize";
 import { parseBody } from "@/lib/validation/common";
 import { bookingSchema } from "@/lib/validation/bookings";
 import { isPastBooking, bookExclusive, SlotConflictError, conflictMessage } from "@/lib/booking";
-import { zonedTimeToUtc, formatDateLabel } from "@/lib/time";
+import { loadAvailability } from "@/lib/availability";
+import { getEffectiveLimits } from "@/lib/getFeatures";
+import { zonedToUtc, zonedTimeToUtc, formatDateLabel, safeTimeZone, utcToZoned } from "@/lib/time";
 import { logger } from "@/lib/logger";
 
 export const dynamic = 'force-dynamic';
+
+class LimitReachedError extends Error {}
+
+/** In-app notice to the owner that online booking is paused, at most once a day. */
+async function notifyLimitReached(businessId: string, limit: number) {
+  const title = "Online booking paused: monthly limit reached";
+  const recent = await prisma.notification.findFirst({
+    where: { businessId, title, createdAt: { gte: new Date(Date.now() - 24 * 3_600_000) } },
+    select: { id: true },
+  });
+  if (recent) return;
+  await sendPushToBusiness(businessId, {
+    title,
+    body: `You have reached the ${limit} appointments included in your plan this month, so customers cannot book online. Upgrade to reopen your booking page.`,
+    url: "/dashboard/billing",
+    tag: "booking-limit",
+  }).catch(() => {});
+}
 
 export async function POST(req: NextRequest) {
   const rl = await rateLimit(`booking:${clientIp(req)}`, 10, 60_000);
@@ -37,6 +57,28 @@ export async function POST(req: NextRequest) {
   });
   if (!business) return NextResponse.json({ error: "Business not found." }, { status: 404 });
 
+  // Plan limits. A lapsed plan falls back to Free limits; reaching the monthly
+  // cap returns 402 with a customer-facing message (never an upgrade prompt).
+  const bizTz = safeTimeZone(business.timezone);
+  const limits = await getEffectiveLimits(business);
+  const limitResponse = async () => {
+    await notifyLimitReached(business.id, limits.maxMonthlyAppointments);
+    return NextResponse.json(
+      {
+        error: `Online booking is unavailable right now, please contact ${business.name}${business.phone ? ` on ${business.phone}` : ""}.`,
+        code: "LIMIT_REACHED",
+      },
+      { status: 402 },
+    );
+  };
+  const monthStart = zonedToUtc(utcToZoned(new Date(), bizTz).date.slice(0, 8) + "01", 0, bizTz);
+  if (limits.maxMonthlyAppointments !== -1) {
+    const used = await prisma.appointment.count({ where: { businessId: business.id, createdAt: { gte: monthStart } } });
+    if (used >= limits.maxMonthlyAppointments) {
+      return await limitResponse();
+    }
+  }
+
   // Tenant isolation: a staff member must belong to this business.
   if (staffId) {
     const staffOk = await prisma.staff.findFirst({ where: { id: staffId, businessId: business.id }, select: { id: true } });
@@ -46,6 +88,9 @@ export async function POST(req: NextRequest) {
   const servicesMap = new Map(business.services.map(s => [s.id, s]));
   const orderedServices = serviceIds.map(id => servicesMap.get(id)).filter(Boolean) as typeof business.services;
   if (orderedServices.length !== new Set(serviceIds).size) return NextResponse.json({ error: "Services not found." }, { status: 404 });
+  if (orderedServices.some(s => !s.isActive)) {
+    return NextResponse.json({ error: "One of the selected services is no longer available." }, { status: 400 });
+  }
 
   const totalPrice = orderedServices.reduce((sum, s) => sum + s.price, 0);
   const totalDuration = orderedServices.reduce((sum, s) => sum + s.duration, 0);
@@ -54,7 +99,7 @@ export async function POST(req: NextRequest) {
   // Server-side slot validation. The availability endpoint is advisory only,
   // so we re-check here authoritatively. Wall-clock input is read in the
   // business's own timezone and stored as a UTC instant.
-  const tz = business.timezone;
+  const tz = bizTz;
   const appointmentStart = zonedTimeToUtc(date, time, tz);
   if (isNaN(appointmentStart.getTime())) {
     return NextResponse.json({ error: "Invalid date or time." }, { status: 400 });
@@ -64,7 +109,18 @@ export async function POST(req: NextRequest) {
   }
 
   const capacity = Math.max(1, orderedServices[0].capacity ?? 1);
-  const slot = { businessId: business.id, start: appointmentStart, durationMin: totalDuration, capacity };
+  const conflictResponse = () =>
+    NextResponse.json({ error: conflictMessage(capacity) }, { status: 409 });
+
+  // Which staff can take this start (working hours, time off, notice, buffers,
+  // service links all applied). "Any available" arrives with no staffId.
+  const query = { businessId: business.id, date, serviceIds, staffId: staffId || null };
+  const availability = await loadAvailability(prisma, query);
+  if (!availability.ok) return NextResponse.json({ error: "Services not found." }, { status: 404 });
+  const option = availability.available.get(time);
+  if (!option) return conflictResponse();
+  const candidates = option.resourceIds;
+  let chosenStaffId: string | null = candidates[0] ?? null;
 
   const paymentMode = (business as { paymentMode?: string }).paymentMode ?? "postpaid";
 
@@ -82,31 +138,64 @@ export async function POST(req: NextRequest) {
     return notes || null;
   })();
 
-  // Conflict check + insert run in one transaction under an advisory lock, so
-  // two requests for the same slot can never both succeed.
-  function createAppointment(
+  // For each candidate (preference order) take the lock on that staff member,
+  // re-check the slot inside the lock with the same engine, then insert. If a
+  // concurrent booking took it, fall through to the next candidate.
+  async function createAppointment(
     clientId: string,
     paymentStatus: string,
     paymentModeVal: string,
   ) {
-    return bookExclusive(prisma, slot, (tx) =>
-      tx.appointment.create({
-        data: {
-          businessId: business!.id,
-          clientId,
-          staffId: staffId || null,
-          serviceId: orderedServices[0].id,
-          date: appointmentStart,
-          endAt: new Date(appointmentStart.getTime() + totalDuration * 60_000),
-          duration: totalDuration,
-          price: totalPrice,
-          status: "confirmed",
-          notes: combinedNotes,
-          paymentStatus,
-          paymentMode: paymentModeVal,
-        },
-      }),
-    );
+    for (const cand of candidates) {
+      try {
+        const appt = await bookExclusive(
+          prisma,
+          {
+            businessId: business!.id,
+            staffId: cand,
+            start: appointmentStart,
+            durationMin: totalDuration,
+            capacity,
+            verify: async (tx) => {
+              // Monthly cap re-checked under its own business lock (always taken after the
+              // staff lock, so the order is fixed): parallel bookings for different staff
+              // cannot overshoot the limit.
+              if (limits.maxMonthlyAppointments !== -1) {
+                await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${"limit:" + business!.id}, 0))`;
+                const used = await tx.appointment.count({ where: { businessId: business!.id, createdAt: { gte: monthStart } } });
+                if (used >= limits.maxMonthlyAppointments) throw new LimitReachedError();
+              }
+              const r = await loadAvailability(tx, { ...query, staffId: cand });
+              return r.ok && (r.available.get(time)?.resourceIds.includes(cand) ?? false);
+            },
+          },
+          (tx) =>
+            tx.appointment.create({
+              data: {
+                businessId: business!.id,
+                clientId,
+                staffId: cand,
+                serviceId: orderedServices[0].id,
+                date: appointmentStart,
+                endAt: new Date(appointmentStart.getTime() + totalDuration * 60_000),
+                bufferBeforeMin: availability.ok ? availability.bufferBeforeMin : 0,
+                bufferAfterMin: availability.ok ? availability.bufferAfterMin : 0,
+                duration: totalDuration,
+                price: totalPrice,
+                status: "confirmed",
+                notes: combinedNotes,
+                paymentStatus,
+                paymentMode: paymentModeVal,
+              },
+            }),
+        );
+        chosenStaffId = cand;
+        return appt;
+      } catch (err) {
+        if (!(err instanceof SlotConflictError)) throw err;
+      }
+    }
+    throw new SlotConflictError(capacity);
   }
 
   // Post-commit work shared by the postpaid and demo paths.
@@ -121,8 +210,8 @@ export async function POST(req: NextRequest) {
     });
 
     const dateLabel = formatDateLabel(appointmentStart, tz);
-    const staffMember = staffId
-      ? await prisma.staff.findFirst({ where: { id: staffId, businessId: business!.id }, select: { name: true } })
+    const staffMember = chosenStaffId
+      ? await prisma.staff.findFirst({ where: { id: chosenStaffId, businessId: business!.id }, select: { name: true } })
       : null;
 
     sendPushToBusiness(business!.id, {
@@ -175,9 +264,6 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  const conflictResponse = () =>
-    NextResponse.json({ error: conflictMessage(capacity) }, { status: 409 });
-
   let client: Awaited<ReturnType<typeof getOrCreateClient>>;
 
   // Postpaid path — create appointments directly, client pays at visit
@@ -188,6 +274,7 @@ export async function POST(req: NextRequest) {
       appointment = await createAppointment(client.id, "unpaid", "postpaid");
     } catch (err) {
       if (err instanceof SlotConflictError) return conflictResponse();
+      if (err instanceof LimitReachedError) return await limitResponse();
       throw err;
     }
     await notify(appointment.id, 0);
@@ -208,13 +295,7 @@ export async function POST(req: NextRequest) {
   }
 
   if (razorpayKey) {
-    // Early, non-binding check: the slot is re-checked when the paid booking is stored.
-    try {
-      await bookExclusive(prisma, slot, async () => null);
-    } catch (err) {
-      if (err instanceof SlotConflictError) return conflictResponse();
-      throw err;
-    }
+    // The slot was checked above (non-binding); it is stored once the payment confirms.
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? `http://localhost:${process.env.PORT ?? 3000}`;
     const currency = (business.currency ?? DEFAULT_CURRENCY).toUpperCase();
 
@@ -233,7 +314,7 @@ export async function POST(req: NextRequest) {
       notes: {
         businessSlug,
         serviceIds: JSON.stringify(serviceIds),
-        staffId: staffId ?? "",
+        staffId: chosenStaffId ?? "",
         date,
         time,
         clientName,
@@ -253,6 +334,7 @@ export async function POST(req: NextRequest) {
     appointment = await createAppointment(client.id, "unpaid", "prepaid");
   } catch (err) {
     if (err instanceof SlotConflictError) return conflictResponse();
+    if (err instanceof LimitReachedError) return await limitResponse();
     throw err;
   }
   await notify(appointment.id, totalPrice);

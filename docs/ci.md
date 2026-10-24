@@ -43,7 +43,7 @@ The migration steps need a throwaway local Postgres (for example Docker: `docker
 ## When a step fails
 
 - `migrate deploy`: a migration SQL error. Fix forward with a new migration; never edit a merged one. Also check `.gitattributes` kept LF endings.
-- `migrate diff`: the schema and migrations disagree. Run `npm run db:migrate -- --name <name>` locally and commit the generated folder.
+- `migrate diff`: the schema and migrations disagree. Run `npm run db:migrate:dev -- --name <name>` locally and commit the generated folder.
 - `lint` / `tsc` / `test`: run the same command locally and fix the reported file.
 - `build`: usually a type or import error, or code reading an environment variable at import time. Reproduce with the dummy variables above.
 - Audit: informational; read the output but it does not fail the run.
