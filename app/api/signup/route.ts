@@ -3,7 +3,8 @@ import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
 import { createBusinessForUser } from "@/lib/createBusiness";
-import { sendVerificationEmail } from "@/lib/email";
+import { sendVerificationEmail, sendFormNotification } from "@/lib/email";
+import { after } from "next/server";
 import { rateLimit, clientIp } from "@/lib/ratelimit";
 import { parseBody } from "@/lib/validation/common";
 import { signupSchema } from "@/lib/validation/public";
@@ -22,7 +23,7 @@ export async function POST(req: NextRequest) {
 
   const parsed = await parseBody(req, signupSchema);
   if (!parsed.ok) return parsed.res;
-  const { name, businessName, email, password, currency, timezone } = parsed.data;
+  const { name, businessName, email, password, currency, timezone, plan } = parsed.data;
 
   const existing = await prisma.user.findFirst({ where: { email: { equals: email, mode: "insensitive" } } });
   if (existing) {
@@ -48,6 +49,12 @@ export async function POST(req: NextRequest) {
   await prisma.verificationToken.create({
     data: { token, email: user.email, expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000) },
   });
+
+  // Tell the owner (never includes the password or tokens).
+  after(() => sendFormNotification({
+    title: "New signup",
+    fields: { Name: name, Business: businessName, Email: email, "Chosen plan": plan ?? "free" },
+  }));
 
   // Send verification email (non-blocking)
   sendVerificationEmail({ to: email, name, token });
