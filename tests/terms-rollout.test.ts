@@ -73,7 +73,7 @@ describe("pack extras", () => {
   });
   it("nav/form words resolve per pack", () => {
     expect(t({ packId: "CLINIC" }, "client", { plural: true, cap: true })).toBe("Patients");
-    expect(t({ packId: "CLINIC" }, "staff", { plural: true, cap: true })).toBe("Doctors");
+    expect(t({ packId: "CLINIC" }, "staff", { plural: true, cap: true })).toBe("Staff members");
     expect(t({ packId: "LAWYER" }, "appointment", { plural: true, cap: true })).toBe("Meetings");
   });
 });

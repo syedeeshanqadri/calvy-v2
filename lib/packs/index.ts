@@ -14,7 +14,7 @@ const PACKS: Record<PackId, Pack> = {
       { name: "Health Check-up", description: "Routine check-up and basic tests", duration: 30, price: 70, category: "consultation", color: "#f59e0b" },
     ],
     terms: {
-      client: t("patient"), staff: t("doctor"), service: t("consultation"),
+      client: t("patient"), staff: t("staff member"), service: t("consultation"),
       appointment: t("appointment"), business: t("clinic"),
     },
     icons: { pack: "Stethoscope", client: "User", staff: "UserRound", service: "ClipboardList", appointment: "CalendarClock" },
@@ -31,7 +31,7 @@ const PACKS: Record<PackId, Pack> = {
       { name: "Massage", description: "Relaxing full-body massage", duration: 60, price: 70, category: "wellness", color: "#8b5cf6" },
     ],
     terms: {
-      client: t("client"), staff: t("stylist"), service: t("service"),
+      client: t("client"), staff: t("staff member"), service: t("service"),
       appointment: t("appointment"), business: t("salon"),
     },
     icons: { pack: "Scissors", client: "User", staff: "Brush", service: "Sparkles", appointment: "CalendarClock" },
@@ -48,7 +48,7 @@ const PACKS: Record<PackId, Pack> = {
       { name: "Case Strategy Meeting", description: "Plan next steps for an ongoing case", duration: 60, price: 200, category: "legal", color: "#f59e0b" },
     ],
     terms: {
-      client: t("client"), staff: t("advocate"), service: t("consultation"),
+      client: t("client"), staff: t("staff member"), service: t("consultation"),
       appointment: t("meeting"), business: t("practice", "practices"),
     },
     icons: { pack: "Scale", client: "User", staff: "Briefcase", service: "FileText", appointment: "CalendarClock" },
@@ -65,7 +65,7 @@ const PACKS: Record<PackId, Pack> = {
       { name: "Group Class", description: "Instructor-led group workout", duration: 60, price: 15, category: "class", color: "#14b8a6" },
     ],
     terms: {
-      client: t("member"), staff: t("trainer"), service: t("session"),
+      client: t("member"), staff: t("staff member"), service: t("session"),
       appointment: t("booking"), business: t("studio"),
     },
     icons: { pack: "Dumbbell", client: "User", staff: "Medal", service: "Timer", appointment: "CalendarClock" },
@@ -82,7 +82,7 @@ const PACKS: Record<PackId, Pack> = {
       { name: "Extended Session", description: "Longer in-depth session", duration: 120, price: 150, category: "general", color: "#22c55e" },
     ],
     terms: {
-      client: t("client"), staff: t("staff", "staff"), service: t("service"),
+      client: t("client"), staff: t("staff member"), service: t("service"),
       appointment: t("appointment"), business: t("business", "businesses"),
     },
     icons: { pack: "Store", client: "User", staff: "UserRound", service: "Tag", appointment: "CalendarClock" },
