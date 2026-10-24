@@ -25,9 +25,14 @@ function fmtDate(d: Date) {
 }
 
 export default async function BlogIndexPage() {
+  // Build must not depend on the database: an unreachable DB at build time yields an empty
+  // list that the 60s ISR revalidation replaces on the first real request.
   const posts = await prisma.post.findMany({
     where: { published: true },
     orderBy: { publishedAt: "desc" },
+  }).catch((e) => {
+    if (process.env.NEXT_PHASE !== "phase-production-build") throw e;
+    return [];
   });
 
   return (

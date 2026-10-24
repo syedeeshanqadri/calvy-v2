@@ -2,7 +2,9 @@
 
 A production-ready multi-tenant appointment booking platform. Every business that signs up instantly gets a subdomain, a public website, a chatbot booking widget, a dedicated `/book-now` page, and a full management dashboard — in under 60 seconds.
 
-**Live:** [calvy.io](https://calvy.io) · **Stack:** Next.js 14 · TypeScript · PostgreSQL · Prisma · Stripe · Resend · Vercel
+**Live:** [calvy.io](https://calvy.io) · **Stack:** Next.js 16 · React 19 · TypeScript · PostgreSQL · Prisma · Razorpay (Cashfree planned) · Resend · Vercel
+
+> Payments: the live integration is **Razorpay** (behind feature flags, off by default). **Cashfree is planned** to replace it for India in Step 5 (`docs/PLAN.md`); there is **no Stripe integration**, so any Stripe mention below is legacy and not current behaviour.
 
 ---
 
@@ -67,14 +69,14 @@ calvy/
 │   ├── currency.ts                     # CURRENCIES list + formatCurrencyAmount
 │   ├── email.ts                        # Resend templates (confirm, verify, remind)
 │   ├── getFeatures.ts                  # getBusinessFeatures(businessId) — DB-driven plan limits
-│   ├── plans.ts                        # Plan limits, feature flags, Stripe price ID lookup
+│   ├── plans.ts                        # Plan limits and feature flags (defaults; live values in PlanConfig)
 │   ├── prisma.ts                       # Prisma client singleton
 │   ├── push.ts                         # Web Push (VAPID) + DB notification storage
-│   ├── stripe.ts                       # Stripe client
+│   ├── razorpay.ts                     # Razorpay client (lazy; to be replaced by Cashfree in Step 5)
 │   ├── utils.ts                        # cn() + helpers
 │   ├── website.ts                      # WebsiteConfig types & defaults
 │   └── whatsapp.ts                     # Meta WhatsApp Business Cloud API
-├── middleware.ts                       # Subdomain routing (abc.calvy.io → /abc)
+├── proxy.ts                       # Subdomain routing (abc.calvy.io → /abc)
 │                                       # + auth protection for /dashboard and /admin
 ├── scripts/
 │   └── update-slugs.ts                 # One-time migration: strip random slug suffixes
@@ -95,7 +97,7 @@ Every tenant gets a clean subdomain automatically on signup:
 | `calvy.io/dashboard` | Tenant dashboard (auth-protected) |
 | `calvy.io/admin` | Super-admin panel (auth-protected) |
 
-The `middleware.ts` file rewrites subdomain requests internally to `/{slug}{path}` without redirecting. API routes (`/api/*`) are excluded from rewriting.
+The `proxy.ts` file rewrites subdomain requests internally to `/{slug}{path}` without redirecting. API routes (`/api/*`) are excluded from rewriting.
 
 **Required env var:** `NEXT_PUBLIC_ROOT_DOMAIN=calvy.io`
 
@@ -139,7 +141,7 @@ The `middleware.ts` file rewrites subdomain requests internally to `/{slug}{path
 
 | Layer | Technology |
 |---|---|
-| Framework | Next.js 14.2 (App Router) |
+| Framework | Next.js 16 (App Router), React 19 |
 | Language | TypeScript |
 | Styling | Tailwind CSS |
 | ORM | Prisma v5 |
@@ -147,8 +149,8 @@ The `middleware.ts` file rewrites subdomain requests internally to `/{slug}{path
 | Auth | NextAuth.js v4 (JWT, Credentials) |
 | Email | Resend |
 | WhatsApp | Meta WhatsApp Business Cloud API |
-| Payments | Stripe (Subscriptions + Checkout) |
-| File Storage | Vercel Blob |
+| Payments | Razorpay today (feature-flagged off); Cashfree planned (Step 5) |
+| File Storage | Local disk in dev; S3-compatible (Cloudflare R2) in production; Vercel Blob legacy |
 | Push Notifications | Web Push (VAPID) + DB-backed notification panel |
 | Analytics | Vercel Analytics |
 | Charts | Recharts |
@@ -159,14 +161,14 @@ The `middleware.ts` file rewrites subdomain requests internally to `/{slug}{path
 
 ## Key Concepts
 
-- **Multi-tenant, subdomain-per-business:** Each business gets `{slug}.calvy.io`. `middleware.ts` rewrites requests transparently. Slugs are generated from the business name with no random suffix (collision → `-2`, `-3`).
+- **Multi-tenant, subdomain-per-business:** Each business gets `{slug}.calvy.io`. `proxy.ts` rewrites requests transparently. Slugs are generated from the business name with no random suffix (collision → `-2`, `-3`).
 - **Plan-based feature gating:** Every dashboard page and feature is gated by the tenant's plan. `getBusinessFeatures(businessId)` reads live from `PlanConfig` DB. Locked features show an `<UpgradeGate>` prompt instead of the content.
 - **Dynamic plans:** All plan limits and feature flags are managed from the admin panel (`/admin/plans`) and stored in the `PlanConfig` DB table — no redeployment needed.
 - **Chatbot booking widget:** Every tenant website embeds a floating `<ChatWidget>` — a fully stateful booking assistant (services → date → time → details → confirm) that uses the same `/api/availability` and `/api/bookings` endpoints. Hidden on plans without `chatbotWidget` flag.
 - **Multi-service bookings:** Clients can select multiple services in one appointment. Duration and price are summed. The first service's ID is the primary FK; extras are encoded in the `notes` field as `__services__:Name2|Name3`.
 - **Group bookings:** Services have a `capacity` field. When `capacity > 1`, multiple clients can book the same slot until it fills up. Capacity field only visible in dashboard when `groupBooking` plan flag is enabled.
-- **Payment modes:** `postpaid` (default) — pay at appointment; `prepaid` — Stripe Checkout at booking time. Prepaid requires bank details saved first and `stripePayments` plan flag enabled.
-- **Annual billing:** Billing page supports monthly/annual toggle. Annual Stripe price IDs configured via `STRIPE_PRICE_*_ANNUAL` env vars.
+- **Payment modes:** `postpaid` (default) — pay at appointment; `prepaid` — online payment at booking time (Razorpay today, Cashfree planned). Prepaid requires bank details saved first and the `stripePayments` plan flag (legacy name, kept) enabled, and the `FEATURE_PAYMENTS` flag.
+- **Annual billing:** planned with the Cashfree subscriptions work (Step 5); not available until then.
 - **Currency:** Prices stored in the business's native currency (set at signup). `formatCurrencyAmount(amount, currency)` handles display. No conversion.
 - **Revenue/Profit:** Only appointments with `paymentStatus === "paid"` count toward revenue and profit figures.
 - **Notifications:** Every appointment event (new booking, status change, payment) creates a DB `Notification` record. The dashboard header shows an unread badge with live 30-second polling. Web Push (VAPID) sends browser notifications if the tenant has granted permission.
@@ -219,21 +221,21 @@ NEXTAUTH_URL="https://calvy.io"
 NEXT_PUBLIC_APP_URL="https://calvy.io"
 NEXT_PUBLIC_ROOT_DOMAIN="calvy.io"
 
-# Stripe — Subscriptions (Monthly)
-STRIPE_SECRET_KEY="sk_live_..."
-NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY="pk_live_..."
-STRIPE_BILLING_WEBHOOK_SECRET="whsec_..."
-STRIPE_PRICE_STARTER="price_..."
-STRIPE_PRICE_PROFESSIONAL="price_..."
-STRIPE_PRICE_BUSINESS="price_..."
+# Razorpay (payments are feature-flagged off; Cashfree replaces this in Step 5)
+RAZORPAY_KEY_ID="..."
+RAZORPAY_KEY_SECRET="..."
+RAZORPAY_WEBHOOK_SECRET="..."
+RAZORPAY_BILLING_WEBHOOK_SECRET="..."
+RAZORPAY_PLAN_STARTER="plan_..."
+RAZORPAY_PLAN_PROFESSIONAL="plan_..."
+RAZORPAY_PLAN_BUSINESS="plan_..."
 
-# Stripe — Subscriptions (Annual) — optional, falls back to monthly if not set
-STRIPE_PRICE_STARTER_ANNUAL="price_..."
-STRIPE_PRICE_PROFESSIONAL_ANNUAL="price_..."
-STRIPE_PRICE_BUSINESS_ANNUAL="price_..."
-
-# Stripe — Booking Payments
-STRIPE_WEBHOOK_SECRET="whsec_..."
+# Uploads (S3-compatible, e.g. Cloudflare R2). Required in production; dev uses local disk.
+S3_ENDPOINT="https://<account>.r2.cloudflarestorage.com"
+S3_BUCKET="..."
+S3_ACCESS_KEY_ID="..."
+S3_SECRET_ACCESS_KEY="..."
+S3_PUBLIC_URL="https://..."
 
 # Email
 RESEND_API_KEY="re_..."
