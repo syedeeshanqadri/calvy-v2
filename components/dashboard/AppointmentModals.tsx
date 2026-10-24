@@ -127,7 +127,7 @@ export function NewAppointmentModal({
   const svc1 = t("service");
   const Svc1 = t("service", { cap: true });
   const SvcN = t("service", { plural: true, cap: true });
-  const Stf1 = t("staff", { cap: true });
+  const Stf1 = "Staff";
   const { formatPrice } = useCurrency();
   const today = new Date().toISOString().split("T")[0];
   const blank = () => ({
@@ -272,7 +272,7 @@ export function AppointmentDetailModal({
   const svc1 = t("service");
   const Svc1 = t("service", { cap: true });
   const SvcN = t("service", { plural: true, cap: true });
-  const Stf1 = t("staff", { cap: true });
+  const Stf1 = "Staff";
   const { formatPrice } = useCurrency();
   const [status, setStatus] = useState("");
   const [paymentStatus, setPaymentStatus] = useState("");
@@ -407,7 +407,7 @@ export function AppointmentDetailModal({
           <div className="flex items-center justify-between">
             <p className="text-xs font-bold text-[#6b6b80] uppercase tracking-wider">Reschedule</p>
             {movable && !moving && (
-              <button type="button" onClick={() => setMoving(true)} className="text-xs font-semibold text-accent hover:underline">Change date, time or {t("staff")}</button>
+              <button type="button" onClick={() => setMoving(true)} className="text-xs font-semibold text-accent hover:underline">Change date, time or staff</button>
             )}
           </div>
           {!movable && <p className="text-sm text-[#6b6b80]">Cancelled, completed and no-show {apptN} can&apos;t be moved.</p>}

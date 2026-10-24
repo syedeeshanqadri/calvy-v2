@@ -34,7 +34,7 @@ export function AppointmentsClient({ appointments, services, staff, csvExport = 
   const { t } = useTerms();
   const apptN = t("appointment", { plural: true });
   const ApptN = t("appointment", { plural: true, cap: true });
-  const Stf1 = t("staff", { cap: true });
+  const Stf1 = "Staff";
   const { formatPrice } = useCurrency();
   const [activeTab, setActiveTab] = useState("All");
   const [search, setSearch] = useState("");
@@ -110,7 +110,7 @@ export function AppointmentsClient({ appointments, services, staff, csvExport = 
                     <label htmlFor="appt-staff-member" className="text-xs font-medium text-[#6b6b80] block mb-1">{Stf1}</label>
                     <select id="appt-staff-member" className="w-full h-9 rounded-xl border border-[#e8e6e0] px-3 text-sm bg-white focus:outline-none focus:border-accent/40"
                       value={filterStaff} onChange={e => setFilterStaff(e.target.value)}>
-                      <option value="">All {t("staff", { plural: true })}</option>
+                      <option value="">All staff</option>
                       {staff.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
                     </select>
                   </div>

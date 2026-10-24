@@ -33,9 +33,9 @@ interface Props {
 export function StaffClient({ staff, currentPlan, maxStaff }: Props) {
   const router = useRouter();
   const { t, pack, source } = useTerms();
-  const stf1 = t("staff");
-  const Stf1 = t("staff", { cap: true });
-  const StfN = t("staff", { plural: true, cap: true });
+  const stf1 = "staff";
+  const Stf1 = "Staff";
+  const StfN = "Staff";
   const [roleOther, setRoleOther] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [editStaff, setEditStaff] = useState<StaffRow | null>(null);
@@ -101,7 +101,7 @@ export function StaffClient({ staff, currentPlan, maxStaff }: Props) {
   }
 
   return (
-    <DashboardLayout title={StfN} subtitle={`${staff.length} ${t("staff", { plural: staff.length !== 1 })}`}>
+    <DashboardLayout title={StfN} subtitle={`${staff.length} staff`}>
       {/* Plan usage bar */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
@@ -134,7 +134,7 @@ export function StaffClient({ staff, currentPlan, maxStaff }: Props) {
       {/* Staff grid */}
       {staff.length === 0 ? (
         <Card className="p-16 text-center">
-          <p className="text-[#6b6b80] text-sm mb-4">No {t("staff", { plural: true })} yet. Add your first {stf1}.</p>
+          <p className="text-[#6b6b80] text-sm mb-4">No staff yet. Add your first {stf1}.</p>
           <Button size="sm" className="gap-1.5 mx-auto" onClick={openAdd}>
             <Plus size={14} /> Add {stf1}
           </Button>

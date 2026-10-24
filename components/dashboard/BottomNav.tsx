@@ -22,7 +22,7 @@ const PRIMARY: { label: string; href: string; icon: typeof LayoutDashboard; exac
 ];
 
 const ALL_MORE_ITEMS: { label: string; href: string; icon: typeof UserCog; flag?: FeatureFlag; term?: TermKey }[] = [
-  { term: "staff", label: "Staff", href: "/dashboard/staff", icon: UserCog },
+  { label: "Staff", href: "/dashboard/staff", icon: UserCog },
   { label: "Payments", href: "/dashboard/payments", icon: CreditCard, flag: "payments" },
   { label: "Wallet", href: "/dashboard/wallet", icon: Wallet, flag: "wallet" },
   { label: "Analytics", href: "/dashboard/analytics", icon: BarChart2 },

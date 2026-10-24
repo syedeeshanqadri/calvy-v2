@@ -129,8 +129,8 @@ export function CalendarClient({
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             {staff.length > 0 && (
-              <select aria-label={`Filter by ${t("staff")}`} value={filterStaff} onChange={(e) => setFilterStaff(e.target.value)} className="h-9 rounded-xl border border-[#e8e6e0] px-3 text-sm bg-white focus:outline-none focus:border-accent/40">
-                <option value="">All {t("staff", { plural: true })}</option>
+              <select aria-label={`Filter by staff`} value={filterStaff} onChange={(e) => setFilterStaff(e.target.value)} className="h-9 rounded-xl border border-[#e8e6e0] px-3 text-sm bg-white focus:outline-none focus:border-accent/40">
+                <option value="">All staff</option>
                 {staff.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
             )}
@@ -216,7 +216,7 @@ export function CalendarClient({
         </div>
 
         <div className="px-4 sm:px-6 py-3 border-t border-[#f0ede8] flex items-center gap-4 flex-wrap">
-          <span className="text-xs font-semibold text-[#6b6b80]">{t("staff", { cap: true })}:</span>
+          <span className="text-xs font-semibold text-[#6b6b80]">Staff:</span>
           {staff.map((s) => (
             <div key={s.id} className="flex items-center gap-1.5">
               <div className="w-2.5 h-2.5 rounded-full" style={{ background: s.color }} />

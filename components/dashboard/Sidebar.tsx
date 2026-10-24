@@ -17,7 +17,7 @@ const NAV_ITEMS: { label: string; href: string; icon: typeof LayoutDashboard; fl
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { term: "appointment", label: "Appointments", href: "/dashboard/appointments", icon: Calendar },
   { term: "client", label: "Clients", href: "/dashboard/clients", icon: Users },
-  { term: "staff", label: "Staff", href: "/dashboard/staff", icon: UserCog },
+  { label: "Staff", href: "/dashboard/staff", icon: UserCog },
   { label: "Calendar", href: "/dashboard/calendar", icon: CalendarDays },
   { label: "Payments", href: "/dashboard/payments", icon: CreditCard, flag: "payments" },
   { label: "Wallet", href: "/dashboard/wallet", icon: Wallet, flag: "wallet" },

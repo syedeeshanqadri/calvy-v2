@@ -143,7 +143,7 @@ export function ClientDetailClient({ client }: { client: ClientData }) {
                   <table className="w-full">
                     <thead>
                       <tr className="bg-[#fafaf8] border-b border-[#f0ede8]">
-                        {["Date & Time", t("service", { cap: true }), t("staff", { cap: true }), "Duration", "Amount", "Status", "Payment"].map(h => (
+                        {["Date & Time", t("service", { cap: true }), "Staff", "Duration", "Amount", "Status", "Payment"].map(h => (
                           <th key={h} className="text-left text-xs font-semibold text-[#6b6b80] px-4 py-3 first:pl-5 last:pr-5 whitespace-nowrap">{h}</th>
                         ))}
                       </tr>
