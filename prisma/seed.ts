@@ -336,13 +336,15 @@ async function seedPackAppointments(spec: Spec, businessId: string) {
   };
   // [client, staff, service (index into spec.services), day offset, hour, minute, status, paymentStatus]
   // Each staff member only gets services they are linked to (spec.links), at non-overlapping times.
-  const [a0, a1] = [spec.links[0], spec.links[1]];
+  // A solo business (one staff member) gives every appointment to that person.
+  const [a0, a1] = [spec.links[0], spec.links[1] ?? spec.links[0]];
+  const s1 = spec.staff.length > 1 ? 1 : 0;
   const plan: [number, number, number, number, number, number, string, string][] = [
     [0, 0, a0[0], 0, 10, 0, "confirmed", "paid"],
     [1, 0, a0[1] ?? a0[0], 0, 14, 0, "pending", "unpaid"],
-    [2, 1, a1[0], 0, 11, 30, "confirmed", "paid"],
+    [2, s1, a1[0], 0, 11, 30, "confirmed", "paid"],
     [0, 0, a0[0], 1, 11, 0, "confirmed", "unpaid"],
-    [1, 1, a1[a1.length - 1], 1, 15, 0, "pending", "unpaid"],
+    [1, s1, a1[a1.length - 1], 1, 15, 0, "pending", "unpaid"],
   ];
   await prisma.appointment.createMany({
     data: plan.map(([c, st, sv, day, h, m, status, paymentStatus]) => {
