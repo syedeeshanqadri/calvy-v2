@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Body, Container, Head, Hr, Html, Link, Preview, Section, Text } from "@react-email/components";
+import { Body, Container, Head, Hr, Html, Img, Link, Preview, Section, Text } from "@react-email/components";
 
 export const brand = {
   accent: "#0284c7",
@@ -19,7 +19,26 @@ const header = { backgroundColor: brand.ink, padding: "20px 28px" };
 const logo = { color: brand.accent, fontSize: "20px", fontWeight: 700, margin: 0, letterSpacing: "-0.2px" };
 const footer = { textAlign: "center" as const, color: brand.muted, fontSize: "12px", lineHeight: "18px", marginTop: "20px" };
 
-export function EmailLayout({ preview, children }: { preview: string; children: React.ReactNode }) {
+/** The business a tenant-facing email is sent for: its logo (absolute URL) or initials on its theme colour. */
+export interface TenantBrand { name: string; logoUrl?: string | null; color?: string; fg?: string }
+
+function TenantHeader({ t }: { t: TenantBrand }) {
+  const initials = t.name.split(/\s+/).filter(Boolean).map((w) => w[0]).join("").slice(0, 2).toUpperCase() || "?";
+  return (
+    <table role="presentation"><tbody><tr>
+      <td style={{ paddingRight: "12px" }}>
+        {t.logoUrl ? (
+          <Img src={t.logoUrl} alt={t.name} width="40" height="40" style={{ display: "block", borderRadius: "8px", objectFit: "contain", backgroundColor: "#ffffff" }} />
+        ) : (
+          <div style={{ width: "40px", height: "40px", lineHeight: "40px", textAlign: "center", borderRadius: "8px", fontWeight: 700, fontSize: "16px", backgroundColor: t.color ?? brand.accent, color: t.fg ?? "#ffffff" }}>{initials}</div>
+        )}
+      </td>
+      <td><Text style={{ ...logo, color: "#ffffff" }}>{t.name}</Text></td>
+    </tr></tbody></table>
+  );
+}
+
+export function EmailLayout({ preview, children, tenant }: { preview: string; children: React.ReactNode; tenant?: TenantBrand }) {
   return (
     <Html>
       <Head />
@@ -28,7 +47,7 @@ export function EmailLayout({ preview, children }: { preview: string; children: 
         <Container style={container}>
           <Section style={card}>
             <Section style={header}>
-              <Text style={logo}>● Calvy</Text>
+              {tenant ? <TenantHeader t={tenant} /> : <Text style={logo}>● Calvy</Text>}
             </Section>
             <Section style={{ padding: "32px 28px" }}>{children}</Section>
           </Section>

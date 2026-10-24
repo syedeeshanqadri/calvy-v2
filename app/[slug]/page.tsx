@@ -10,6 +10,9 @@ import { getFlags } from "@/lib/flags";
 import { ChatWidget } from "@/components/chatbot/ChatWidget";
 import { getBusinessFeatures } from "@/lib/getFeatures";
 import { safeThemeColor, readableForeground, themeVars } from "@/lib/theme";
+import { BrandMark, SocialIcons, ReviewButton } from "@/components/site/Brand";
+import { parseSocialLinks, safeReviewLink } from "@/lib/brandLinks";
+import { formatOpeningHours, mapsEmbedUrl } from "@/lib/hours";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +22,7 @@ async function getBusiness(slug: string) {
     include: {
       services: { where: { isActive: true }, orderBy: { createdAt: "asc" } },
       staff: { where: { isActive: true }, orderBy: { createdAt: "asc" } },
+      workingHours: { where: { staffId: null } },
     },
   });
 }
@@ -39,6 +43,7 @@ export async function generateMetadata(props: { params: Promise<{ slug: string }
   return {
     title,
     description,
+    ...(business.logoUrl ? { icons: { icon: business.logoUrl } } : {}),
     alternates: { canonical: url },
     openGraph: {
       title,
@@ -64,6 +69,10 @@ export default async function TenantWebsitePage(props: { params: Promise<{ slug:
 
   const primary = safeThemeColor(business.primaryColor);
   const primaryFg = readableForeground(primary);
+  const social = parseSocialLinks(business.socialLinks);
+  const reviewUrl = safeReviewLink(business.googleReviewUrl);
+  const hours = formatOpeningHours(business.workingHours);
+  const hasHours = business.workingHours.length > 0;
   const bookingUrl = `/book-now`;
   const features = await getBusinessFeatures(business.id);
 
@@ -81,7 +90,9 @@ export default async function TenantWebsitePage(props: { params: Promise<{ slug:
     ...(business.phone ? { telephone: business.phone } : {}),
     ...(business.email ? { email: business.email } : {}),
     ...(business.address ? { address: { "@type": "PostalAddress", streetAddress: business.address } } : {}),
+    ...(business.logoUrl ? { logo: business.logoUrl } : {}),
     ...(cfg.hero?.image ? { image: cfg.hero.image } : {}),
+    ...(Object.values(social).length ? { sameAs: Object.values(social) } : {}),
     ...(prices.length ? { priceRange: `${formatCurrencyAmount(Math.min(...prices), currency)} - ${formatCurrencyAmount(Math.max(...prices), currency)}` } : {}),
     potentialAction: {
       "@type": "ReserveAction",
@@ -109,7 +120,10 @@ export default async function TenantWebsitePage(props: { params: Promise<{ slug:
       <header className="fixed top-0 left-0 right-0 z-50">
         <div className="mx-auto max-w-7xl px-6 py-4">
           <div className="flex items-center justify-between bg-white/80 backdrop-blur-xl rounded-2xl px-6 py-3 shadow-lg shadow-black/5 border border-white/60">
-            <span className="text-xl font-black tracking-tight text-gray-900">{business.name}</span>
+            <span className="flex items-center gap-3 min-w-0">
+              <BrandMark name={business.name} logoUrl={business.logoUrl} color={primary} fg={primaryFg} size={36} />
+              <span className="text-xl font-black tracking-tight text-gray-900 truncate">{business.name}</span>
+            </span>
             <nav className="hidden md:flex items-center gap-8">
               {cfg.about.enabled    && <a href="#about"    className="text-sm font-medium text-gray-500 hover:text-gray-900 transition-colors">{cfg.about.title}</a>}
               {cfg.services.enabled && <a href="#services" className="text-sm font-medium text-gray-500 hover:text-gray-900 transition-colors">{cfg.services.title}</a>}
@@ -374,6 +388,21 @@ export default async function TenantWebsitePage(props: { params: Promise<{ slug:
                       </div>
                     )}
                   </div>
+                  {cfg.contact.showHours !== false && hasHours && (
+                    <div className="mt-8 pt-6 border-t border-white/10">
+                      <div className="flex items-center gap-2 text-[10px] text-white/35 font-semibold uppercase tracking-wider mb-3">
+                        <Clock size={12} /> Opening hours
+                      </div>
+                      <dl className="space-y-1.5 text-sm">
+                        {hours.map((h) => (
+                          <div key={h.weekday} className="flex justify-between gap-4">
+                            <dt className="text-white/60">{h.day}</dt>
+                            <dd className={h.closed ? "text-white/35" : "text-white font-medium"}>{h.label}</dd>
+                          </div>
+                        ))}
+                      </dl>
+                    </div>
+                  )}
                 </div>
 
                 {/* CTA panel */}
@@ -395,8 +424,26 @@ export default async function TenantWebsitePage(props: { params: Promise<{ slug:
                   )}
                 </div>
               </div>
+              {cfg.contact.showMap !== false && cfg.contact.showAddress && business.address && (
+                <iframe
+                  title={`Map of ${business.name}`}
+                  src={mapsEmbedUrl(business.address)}
+                  loading="lazy"
+                  referrerPolicy="no-referrer-when-downgrade"
+                  className="w-full h-72 border-0 border-t border-gray-100"
+                />
+              )}
             </div>
           </div>
+        </section>
+      )}
+
+      {/* ── REVIEW ── */}
+      {reviewUrl && (
+        <section className="py-14 px-6 bg-white text-center">
+          <h2 className="text-2xl font-black tracking-tight mb-2">Happy with your visit?</h2>
+          <p className="text-gray-500 text-sm mb-6">A quick Google review helps others find us.</p>
+          <ReviewButton href={reviewUrl} color={primary} fg={primaryFg} />
         </section>
       )}
 
@@ -406,6 +453,7 @@ export default async function TenantWebsitePage(props: { params: Promise<{ slug:
           <div>
             <div className="font-black text-lg">{business.name}</div>
             {business.address && <div className="text-white/35 text-xs mt-0.5">{business.address}</div>}
+            <SocialIcons links={social} className="mt-3" />
           </div>
           <div className="flex items-center gap-6">
             {cfg.about.enabled    && <a href="#about"    className="text-white/40 hover:text-white text-xs transition-colors">{cfg.about.title}</a>}

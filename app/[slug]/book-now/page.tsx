@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
+import { parseSocialLinks, safeReviewLink } from "@/lib/brandLinks";
 import { BookingClient } from "@/app/b/[slug]/BookingClient";
 
 export const dynamic = "force-dynamic";
@@ -20,6 +21,7 @@ export async function generateMetadata(props: { params: Promise<{ slug: string }
   const business = await getBusiness(params.slug);
   if (!business) return { title: "Not Found" };
   return {
+    ...(business.logoUrl ? { icons: { icon: business.logoUrl } } : {}),
     title: `Book an appointment — ${business.name}`,
     description: `Book your appointment with ${business.name} online. Choose your service, pick a time, and confirm instantly.`,
   };
@@ -34,6 +36,9 @@ export default async function BookNowPage(props: { params: Promise<{ slug: strin
     slug: business.slug,
     name: business.name,
     primaryColor: business.primaryColor,
+    logoUrl: business.logoUrl,
+    socialLinks: parseSocialLinks(business.socialLinks),
+    googleReviewUrl: safeReviewLink(business.googleReviewUrl),
     businessType: business.businessType,
     description: business.description ?? "",
     phone: business.phone ?? "",

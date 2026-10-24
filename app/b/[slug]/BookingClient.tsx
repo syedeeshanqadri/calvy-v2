@@ -6,6 +6,8 @@ import { cn } from "@/lib/utils";
 import { formatCurrencyAmount } from "@/lib/currency";
 import { bookableServices, providerOptions } from "@/lib/staffMatch";
 import { safeThemeColor, readableForeground, themeVars } from "@/lib/theme";
+import { BrandMark, SocialIcons, ReviewButton, initialsOf } from "@/components/site/Brand";
+import { parseSocialLinks, safeReviewLink, type SocialLinks } from "@/lib/brandLinks";
 
 type Step = "service" | "staff" | "datetime" | "details" | "confirm";
 const STEPS: Step[] = ["service", "staff", "datetime", "details", "confirm"];
@@ -26,6 +28,7 @@ interface Business {
   slug: string; name: string; primaryColor: string; businessType: string;
   description: string; phone: string; address: string; website: string;
   currency: string; paymentMode: string;
+  logoUrl?: string | null; socialLinks?: SocialLinks; googleReviewUrl?: string | null;
   services: Service[]; staff: StaffMember[];
 }
 
@@ -168,8 +171,9 @@ export function BookingClient({ business }: { business: Business }) {
   const stepIndex = STEPS.indexOf(step);
   const color = safeThemeColor(business.primaryColor);
   const fg = readableForeground(color);
+  const social = parseSocialLinks(business.socialLinks);
+  const reviewUrl = safeReviewLink(business.googleReviewUrl);
 
-  const initials = business.name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
   const typeLabel = BUSINESS_TYPE_LABELS[business.businessType] ?? "Service Business";
 
   function next() { if (stepIndex < STEPS.length - 1) setStep(STEPS[stepIndex + 1]); }
@@ -230,6 +234,12 @@ export function BookingClient({ business }: { business: Business }) {
               <span className="font-medium">{business.paymentMode === "postpaid" ? "Pay at appointment" : "Paid online"}</span>
             </div>
           </div>
+          {reviewUrl && (
+            <div className="mb-2">
+              <p className="text-xs text-[#6b6b80] mb-3">Enjoyed booking with us? We&apos;d love a quick review.</p>
+              <ReviewButton href={reviewUrl} color={color} fg={fg} />
+            </div>
+          )}
         </div>
       </div>
     );
@@ -244,8 +254,12 @@ export function BookingClient({ business }: { business: Business }) {
             <ArrowLeft size={13} /> Back to website
           </a>
           <div className="text-center">
-          <div style={{ background: fg + "26" }} className="w-16 h-16 rounded-2xl flex items-center justify-center font-syne font-bold text-2xl mx-auto mb-4">
-            {initials}
+          <div className="flex justify-center mb-4">
+            {business.logoUrl ? (
+              <span className="w-16 h-16 rounded-2xl bg-white/90 p-1.5 inline-flex"><BrandMark name={business.name} logoUrl={business.logoUrl} color={color} fg={fg} size={52} /></span>
+            ) : (
+              <span style={{ background: fg + "26" }} className="w-16 h-16 rounded-2xl flex items-center justify-center font-syne font-bold text-2xl">{initialsOf(business.name)}</span>
+            )}
           </div>
           <h1 className="font-syne font-bold text-2xl mb-1">{business.name}</h1>
           <p className="opacity-80 text-sm mb-2">{typeLabel}</p>
@@ -255,6 +269,7 @@ export function BookingClient({ business }: { business: Business }) {
             {business.phone && <span className="flex items-center gap-1 opacity-70 text-xs"><Phone size={11} />{business.phone}</span>}
             {business.website && <a href={business.website} target="_blank" rel="noreferrer" className="flex items-center gap-1 opacity-70 text-xs hover:opacity-100 transition-colors"><Globe size={11} />{business.website.replace(/^https?:\/\//, "")}</a>}
           </div>
+          {Object.keys(social).length > 0 && <SocialIcons links={social} tone="light" className="justify-center mt-3" />}
           </div>
         </div>
       </div>
