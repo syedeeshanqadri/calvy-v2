@@ -1,3 +1,4 @@
+import { safeRoute } from "@/lib/api";
 import { NextRequest, NextResponse } from "next/server";
 import { isAdminUser } from "@/lib/adminAuth";
 import { getServerSession } from "next-auth";
@@ -22,7 +23,7 @@ function safeEqual(a: string, b: string): boolean {
   return timingSafeEqual(ha, hb);
 }
 
-export async function POST(req: NextRequest) {
+async function POST_handler(req: NextRequest) {
   const rl = await rateLimit(`make-admin:${clientIp(req)}`, 5, 60_000);
   if (!rl.ok) {
     return NextResponse.json(
@@ -57,3 +58,5 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({ id: user.id, email: user.email, role: user.role });
 }
+
+export const POST = safeRoute(POST_handler);

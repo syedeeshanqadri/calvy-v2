@@ -1,3 +1,4 @@
+import { safeRoute } from "@/lib/api";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { isAdminSession, slugifyTitle, normalizeFaq } from "@/lib/adminAuth";
@@ -21,7 +22,7 @@ async function uniqueSlug(base: string): Promise<string> {
 }
 
 // List all posts (admin)
-export async function GET(req: NextRequest) {
+async function GET_handler(req: NextRequest) {
   if (!(await isAdminSession())) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const q = parseQuery(req.url, adminPageQuery);
   if (!q.ok) return q.res;
@@ -31,7 +32,7 @@ export async function GET(req: NextRequest) {
 }
 
 // Create a post
-export async function POST(req: NextRequest) {
+async function POST_handler(req: NextRequest) {
   if (!(await isAdminSession())) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const parsed = await parseBody(req, postCreateSchema);
@@ -65,3 +66,6 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({ post }, { status: 201 });
 }
+
+export const GET = safeRoute(GET_handler);
+export const POST = safeRoute(POST_handler);

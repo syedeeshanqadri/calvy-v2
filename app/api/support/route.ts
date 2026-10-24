@@ -1,3 +1,4 @@
+import { safeRoute } from "@/lib/api";
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
@@ -5,11 +6,13 @@ import { prisma } from "@/lib/prisma";
 import { getBusinessFeatures } from "@/lib/getFeatures";
 import { rateLimit } from "@/lib/ratelimit";
 
-import { parseBody } from "@/lib/validation/common";
-import { ticketCreateSchema } from "@/lib/validation/misc";
+import { parseBody } from "@/lib/validation/common";
+
+import { ticketCreateSchema } from "@/lib/validation/misc";
+
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+async function GET_handler() {
   const session = await getServerSession(authOptions);
   const businessId = (session?.user as { businessId?: string } | undefined)?.businessId;
   if (!session?.user || !businessId) {
@@ -32,7 +35,7 @@ export async function GET() {
   return NextResponse.json(tickets);
 }
 
-export async function POST(req: NextRequest) {
+async function POST_handler(req: NextRequest) {
   const session = await getServerSession(authOptions);
   const businessId = (session?.user as { businessId?: string } | undefined)?.businessId;
   if (!session?.user || !businessId) {
@@ -76,3 +79,6 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json(ticket, { status: 201 });
 }
+
+export const GET = safeRoute(GET_handler);
+export const POST = safeRoute(POST_handler);

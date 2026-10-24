@@ -1,3 +1,4 @@
+import { safeRoute } from "@/lib/api";
 import { put } from "@vercel/blob";
 import { NextRequest, NextResponse } from "next/server";
 import { checkImageUpload, MAX_UPLOAD_BYTES } from "@/lib/validation/upload";
@@ -7,7 +8,7 @@ import { logger, getRequestId } from "@/lib/logger";
 export const dynamic = "force-dynamic";
 
 // Admin-only cover-image upload. Saves to Vercel Blob under the `blog/` folder.
-export async function POST(req: NextRequest) {
+async function POST_handler(req: NextRequest) {
   if (!(await isAdminSession())) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
@@ -34,3 +35,5 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Upload failed. Please try again." }, { status: 500 });
   }
 }
+
+export const POST = safeRoute(POST_handler);

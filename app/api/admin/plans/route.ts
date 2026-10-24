@@ -1,3 +1,4 @@
+import { safeRoute } from "@/lib/api";
 import { NextResponse } from "next/server";
 import { isAdminUser } from "@/lib/adminAuth";
 import { getServerSession } from "next-auth";
@@ -43,10 +44,12 @@ async function ensureSeeded() {
   return prisma.planConfig.findMany();
 }
 
-export async function GET() {
+async function GET_handler() {
   const session = await getServerSession(authOptions) as Awaited<ReturnType<typeof getServerSession>> & { user?: { role?: string; email?: string | null } } | null;
   if (!isAdmin(session)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const plans = await ensureSeeded();
   return NextResponse.json(plans);
 }
+
+export const GET = safeRoute(GET_handler);

@@ -1,3 +1,4 @@
+import { safeRoute } from "@/lib/api";
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
@@ -14,7 +15,7 @@ export const dynamic = "force-dynamic";
  * buffers, service links), minus the customer notice/advance rules. Pass
  * `excludeId` when rescheduling so the appointment does not block its own slot.
  */
-export async function GET(request: NextRequest) {
+async function GET_handler(request: NextRequest) {
   const session = await getServerSession(authOptions);
   const businessId = session?.user?.businessId;
   if (!businessId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -61,3 +62,5 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json({ times, all: result.all, durationMin: result.durationMin });
 }
+
+export const GET = safeRoute(GET_handler);

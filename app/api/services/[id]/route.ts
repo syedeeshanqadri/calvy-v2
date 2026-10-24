@@ -1,3 +1,4 @@
+import { safeRoute } from "@/lib/api";
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
@@ -9,7 +10,7 @@ import { servicePatchSchema } from "@/lib/validation/dashboard";
 
 export const dynamic = 'force-dynamic';
 
-export async function PATCH(request: NextRequest, props: { params: Promise<{ id: string }> }) {
+async function PATCH_handler(request: NextRequest, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
   const session = await getServerSession(authOptions);
   if (!session?.user?.businessId) {
@@ -46,7 +47,7 @@ export async function PATCH(request: NextRequest, props: { params: Promise<{ id:
   return NextResponse.json({ service: updated });
 }
 
-export async function DELETE(_request: NextRequest, props: { params: Promise<{ id: string }> }) {
+async function DELETE_handler(_request: NextRequest, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
   const session = await getServerSession(authOptions);
   if (!session?.user?.businessId) {
@@ -70,3 +71,6 @@ export async function DELETE(_request: NextRequest, props: { params: Promise<{ i
   await prisma.service.delete({ where: { id: params.id } });
   return NextResponse.json({ deleted: true });
 }
+
+export const PATCH = safeRoute(PATCH_handler);
+export const DELETE = safeRoute(DELETE_handler);

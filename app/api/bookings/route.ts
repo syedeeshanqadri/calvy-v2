@@ -1,3 +1,4 @@
+import { safeRoute } from "@/lib/api";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { razorpay } from "@/lib/razorpay";
@@ -34,7 +35,7 @@ async function notifyLimitReached(businessId: string, limit: number) {
   }).catch(() => {});
 }
 
-export async function POST(req: NextRequest) {
+async function POST_handler(req: NextRequest) {
   const rl = await rateLimit(`booking:${clientIp(req)}`, 10, 60_000);
   if (!rl.ok) {
     return NextResponse.json(
@@ -331,3 +332,5 @@ export async function POST(req: NextRequest) {
   await notify(appointment.id, totalPrice);
   return NextResponse.json({ success: true, appointmentId: appointment.id });
 }
+
+export const POST = safeRoute(POST_handler);

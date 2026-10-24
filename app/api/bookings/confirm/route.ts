@@ -1,3 +1,4 @@
+import { safeRoute } from "@/lib/api";
 import { findOrCreateClient } from "@/lib/clients";
 import { zonedTimeToUtc, safeTimeZone } from "@/lib/time";
 import { NextRequest, NextResponse } from "next/server";
@@ -8,7 +9,7 @@ export const dynamic = 'force-dynamic';
 
 // Called from /booking/success as a fallback to verify a Razorpay payment link payment
 // and create the appointment if the webhook hasn't fired yet.
-export async function POST(req: NextRequest) {
+async function POST_handler(req: NextRequest) {
   const { paymentLinkId } = await req.json();
   if (!paymentLinkId) return NextResponse.json({ error: "Missing paymentLinkId" }, { status: 400 });
 
@@ -95,3 +96,5 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({ appointmentId: appointment.id });
 }
+
+export const POST = safeRoute(POST_handler);

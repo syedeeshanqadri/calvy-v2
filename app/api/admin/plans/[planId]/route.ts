@@ -1,3 +1,4 @@
+import { safeRoute } from "@/lib/api";
 import { NextRequest, NextResponse } from "next/server";
 import { isAdminUser } from "@/lib/adminAuth";
 import { getServerSession } from "next-auth";
@@ -13,7 +14,7 @@ function isAdmin(session: Awaited<ReturnType<typeof getServerSession>> & { user?
   return isAdminUser(session?.user);
 }
 
-export async function PATCH(req: NextRequest, props: { params: Promise<{ planId: string }> }) {
+async function PATCH_handler(req: NextRequest, props: { params: Promise<{ planId: string }> }) {
   const params = await props.params;
   const session = await getServerSession(authOptions) as Awaited<ReturnType<typeof getServerSession>> & { user?: { role?: string; email?: string | null } } | null;
   if (!isAdmin(session)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -64,3 +65,5 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ planId:
 
   return NextResponse.json(updated);
 }
+
+export const PATCH = safeRoute(PATCH_handler);

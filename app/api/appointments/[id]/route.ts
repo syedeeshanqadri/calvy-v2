@@ -1,3 +1,4 @@
+import { safeRoute } from "@/lib/api";
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
@@ -14,7 +15,7 @@ export const dynamic = 'force-dynamic';
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://calvy.io";
 
-export async function PATCH(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+async function PATCH_handler(req: NextRequest, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
   const session = await getServerSession(authOptions);
   if (!session?.user?.businessId) {
@@ -183,7 +184,7 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
   return NextResponse.json({ appointment: updated });
 }
 
-export async function DELETE(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+async function DELETE_handler(req: NextRequest, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
   const session = await getServerSession(authOptions);
   if (!session?.user?.businessId) {
@@ -200,3 +201,6 @@ export async function DELETE(req: NextRequest, props: { params: Promise<{ id: st
   await prisma.appointment.delete({ where: { id: params.id } });
   return NextResponse.json({ success: true });
 }
+
+export const PATCH = safeRoute(PATCH_handler);
+export const DELETE = safeRoute(DELETE_handler);

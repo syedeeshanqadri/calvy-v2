@@ -1,3 +1,4 @@
+import { safeRoute } from "@/lib/api";
 import { put, list } from "@vercel/blob";
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
@@ -14,7 +15,7 @@ import { logger, getRequestId } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
 
-export async function POST(req: NextRequest) {
+async function POST_handler(req: NextRequest) {
   const requestId = getRequestId(req);
   try {
     const session = await getServerSession(authOptions);
@@ -67,3 +68,5 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Upload failed. Please try again." }, { status: 500 });
   }
 }
+
+export const POST = safeRoute(POST_handler);

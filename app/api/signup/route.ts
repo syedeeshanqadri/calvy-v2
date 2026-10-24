@@ -1,3 +1,4 @@
+import { safeRoute } from "@/lib/api";
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
@@ -11,7 +12,7 @@ import { signupSchema } from "@/lib/validation/public";
 
 export const dynamic = 'force-dynamic';
 
-export async function POST(req: NextRequest) {
+async function POST_handler(req: NextRequest) {
   const ip = clientIp(req);
   const rl = await rateLimit(`signup:${ip}`, 5, 60_000);
   if (!rl.ok) {
@@ -61,3 +62,5 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({ message: "Account created. Please check your email to verify." }, { status: 201 });
 }
+
+export const POST = safeRoute(POST_handler);

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { Avatar } from "@/components/ui/Avatar";
 import { useCurrency } from "@/components/providers/CurrencyProvider";
 import { cn, formatTime } from "@/lib/utils";
+import { readJson } from "@/lib/fetchJson";
 import { Check, Clock, DollarSign, Trash2 } from "lucide-react";
 
 export interface ServiceOption { id: string; name: string; duration: number; price: number; }
@@ -32,6 +33,12 @@ export interface ApptDetail {
 
 interface SlotTime { time: string; staffIds: string[]; spots: number; }
 
+/** A dropped connection says "Failed to fetch"; say what it means. */
+function friendly(e: unknown): string {
+  const m = (e as Error)?.message ?? "";
+  return /failed to fetch|networkerror|load failed/i.test(m) ? "Couldn't reach the server. Check your connection and try again." : m || "Something went wrong.";
+}
+
 const selectCls =
   "w-full h-10 rounded-xl border border-[#e8e6e0] px-3 text-sm bg-white focus:outline-none focus:border-accent/40 transition-all";
 
@@ -53,9 +60,9 @@ function useSlots(enabled: boolean, params: { date: string; serviceIds?: string[
     setState((s) => ({ ...s, loading: true, error: "" }));
     fetch(`/api/appointments/slots?${qs}`, { signal: ctrl.signal })
       .then(async (res) => {
-        const data = await res.json();
+        const data = await readJson(res);
         if (!res.ok) throw new Error(data.error || "Could not load times");
-        setState({ times: data.times as SlotTime[], loading: false, error: "" });
+        setState({ times: (data.times ?? []) as SlotTime[], loading: false, error: "" });
       })
       .catch((e: Error) => {
         if (e.name !== "AbortError") setState({ times: [], loading: false, error: e.message });
@@ -147,12 +154,12 @@ export function NewAppointmentModal({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...form, ...(allowOverlap && { allowOverlap: true }) }),
       });
-      const data = await res.json();
+      const data = await readJson(res);
       if (!res.ok) throw new Error(data.error || "Failed to create appointment");
       onClose();
       onCreated();
     } catch (e) {
-      setError((e as Error).message);
+      setError(friendly(e));
     } finally {
       setSaving(false);
     }
@@ -291,7 +298,7 @@ export function AppointmentDetailModal({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
-    const data = await res.json();
+    const data = await readJson(res);
     if (!res.ok) throw new Error(data.error || "Failed to save");
   }
 
@@ -303,7 +310,7 @@ export function AppointmentDetailModal({
       setSaved(true);
       onChanged();
     } catch (e) {
-      setError((e as Error).message);
+      setError(friendly(e));
     } finally {
       setSaving(false);
     }
@@ -317,7 +324,7 @@ export function AppointmentDetailModal({
       onClose();
       onChanged();
     } catch (e) {
-      setError((e as Error).message);
+      setError(friendly(e));
     } finally {
       setSaving(false);
     }
@@ -328,12 +335,12 @@ export function AppointmentDetailModal({
     setError("");
     try {
       const res = await fetch(`/api/appointments/${appt!.id}`, { method: "DELETE" });
-      const data = await res.json().catch(() => ({}));
+      const data = await readJson(res);
       if (!res.ok) throw new Error(data.error || "Failed to delete");
       onClose();
       onChanged();
     } catch (e) {
-      setError((e as Error).message);
+      setError(friendly(e));
       setConfirmDelete(false);
     } finally {
       setSaving(false);

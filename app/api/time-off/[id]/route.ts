@@ -1,3 +1,4 @@
+import { safeRoute } from "@/lib/api";
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
@@ -5,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
-export async function DELETE(_req: NextRequest, props: { params: Promise<{ id: string }> }) {
+async function DELETE_handler(_req: NextRequest, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
   const session = await getServerSession(authOptions);
   const businessId = session?.user?.businessId;
@@ -16,3 +17,5 @@ export async function DELETE(_req: NextRequest, props: { params: Promise<{ id: s
   await prisma.timeOff.delete({ where: { id: row.id } });
   return NextResponse.json({ success: true });
 }
+
+export const DELETE = safeRoute(DELETE_handler);
