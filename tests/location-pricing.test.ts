@@ -50,7 +50,7 @@ describe("calvy_region cookie override", () => {
     const r = await resolveRegion({ cookie: "calvy_region=FR", headers: h({ "cf-ipcountry": "IN" }) });
     expect(r.region).toBe("IN");
   });
-  it("round-trips through the cookie string the switcher writes", () => {
+  it("round-trips through the cookie string the detection route writes", () => {
     const set = regionCookieString("IN");
     expect(set).toMatch(/^calvy_region=IN; Path=\/; Max-Age=\d+; SameSite=Lax$/);
     expect(regionFromCookieHeader(set.split(";")[0])).toBe("IN");

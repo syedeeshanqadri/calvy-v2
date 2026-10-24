@@ -2,10 +2,8 @@
 import Link from "next/link";
 import { Check, ChevronDown } from "lucide-react";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { PRICING_NOTE, formatMoney, getRegionPricing, isFeatureHeading, yearlySaveBadge, type Region } from "@/lib/pricing";
-import { RegionSwitcher } from "./RegionSwitcher";
 import { useRegion } from "./useRegion";
 
 const FREE_FAQ: Record<Region, string> = {
@@ -53,22 +51,16 @@ export default function PricingClient({
 }: {
   /** Region rendered on the server; the visitor's cookie / detection replaces it unless fixedRegion */
   defaultRegion?: Region;
-  /** India-only page: never swaps region on its own, "International" navigates to /pricing */
+  /** India-only page: always shows defaultRegion */
   fixedRegion?: boolean;
   headingLevel?: "h1" | "h2";
 }) {
   const [yearly, setYearly] = useState(true);
-  const router = useRouter();
-  const [region, setRegion] = useRegion(defaultRegion, fixedRegion);
+  const region = useRegion(defaultRegion, fixedRegion);
   const pricing = getRegionPricing(region);
   const plans = pricing.plans;
   const money = (n: number) => formatMoney(n, pricing);
   const Heading = headingLevel;
-
-  function changeRegion(r: Region) {
-    setRegion(r);
-    if (fixedRegion && r !== defaultRegion) router.push("/pricing");
-  }
 
   return (
     <section id="pricing" className="py-16 sm:py-20 lg:py-24 bg-gray-50">
@@ -76,10 +68,7 @@ export default function PricingClient({
         <div className="text-center mb-12 lg:mb-16">
           <span className="inline-block bg-sky-100 text-sky-700 text-xs font-bold tracking-widest uppercase px-4 py-2 rounded-full mb-4">Pricing</span>
           <Heading className="font-syne font-extrabold text-3xl sm:text-4xl lg:text-5xl tracking-tight text-gray-900 mb-4">Simple, honest pricing</Heading>
-          <p className="text-gray-500 text-lg max-w-md mx-auto mb-6">Start free forever. Upgrade when you&apos;re ready for more.</p>
-          <div className="mb-6">
-            <RegionSwitcher region={region} onChange={changeRegion} />
-          </div>
+          <p className="text-gray-500 text-lg max-w-md mx-auto mb-8">Start free forever. Upgrade when you&apos;re ready for more.</p>
           <div className="inline-flex items-center gap-1 bg-white rounded-full p-1.5 border border-gray-200 shadow-sm" role="group" aria-label="Billing period">
             <button onClick={() => setYearly(false)} aria-pressed={!yearly} className={cn("px-6 min-h-11 rounded-full text-sm font-semibold transition-all", !yearly ? "bg-gray-900 text-white shadow-sm" : "text-gray-500 hover:text-gray-900")}>
               Monthly

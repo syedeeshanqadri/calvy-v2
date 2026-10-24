@@ -33,6 +33,10 @@ export const REGION_COOKIE = "calvy_region";
 export const DEFAULT_REGION: Region = "INTL";
 export const PRICING_NOTE = "Flat price for your whole team — no per-staff fees.";
 
+// The mobile app is part of Pro and Business in every country; Business unlocks the full feature set.
+const MOBILE_APP_PRO = "Mobile app: notifications, check, cancel & reschedule bookings";
+const MOBILE_APP_BUSINESS = "Premium mobile app: approve booking requests, full client database";
+
 const INTL: RegionPricing = {
   region: "INTL",
   currency: "USD",
@@ -62,13 +66,14 @@ const INTL: RegionPricing = {
       description: "For growing service businesses",
       features: [
         "Up to 3 staff",
-        "Up to 300 appointments/month",
+        "Up to 1,000 appointments/month",
         "Everything in Free, plus:",
         "WhatsApp confirmations & reminders",
         "Custom branding & colours",
         "Analytics dashboard",
         "Image uploads & SEO controls",
         "CSV export & expense tracking",
+        MOBILE_APP_PRO,
       ],
       highlight: false,
     },
@@ -87,8 +92,8 @@ const INTL: RegionPricing = {
         "Calendar sync",
         "Custom business options",
         "Group bookings",
-        "Chatbot booking widget",
         "Client broadcasts",
+        MOBILE_APP_BUSINESS,
         "Remove \"Powered by Calvy\"",
         "Priority support",
       ],
@@ -130,12 +135,14 @@ const IN: RegionPricing = {
       features: [
         "No ₹10 platform fee",
         "Up to 3 staff",
+        "Up to 1,000 appointments/month",
         "Everything in Free, plus:",
         "WhatsApp confirmations & reminders",
         "Custom branding & colours",
         "Analytics dashboard",
         "Image uploads & SEO controls",
         "CSV export & expense tracking",
+        MOBILE_APP_PRO,
       ],
       highlight: false,
     },
@@ -149,13 +156,14 @@ const IN: RegionPricing = {
       features: [
         "No ₹10 platform fee",
         "Unlimited staff",
+        "Unlimited appointments",
         "Everything in Pro, plus:",
         "SMS reminders",
         "Calendar sync",
         "Custom business options",
         "Group bookings",
-        "Chatbot booking widget",
         "Client broadcasts",
+        MOBILE_APP_BUSINESS,
         "Remove \"Powered by Calvy\"",
         "Priority support",
       ],

@@ -1,15 +1,15 @@
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { DEFAULT_REGION, type Region } from "@/lib/pricing";
-import { regionCookieString, regionFromCookieHeader, parseRegion } from "@/lib/region";
+import { regionFromCookieHeader, parseRegion } from "@/lib/region";
 
 /**
  * Pricing region for the visitor. Pages render `initial` on the server (INTL
  * unless the page is India-only); after mount the calvy_region cookie wins,
- * and without one /api/region detects the country and sets it.
+ * and without one /api/region detects the country and sets it. There is no manual switch.
  * `fixed` pages (/in/pricing) never change region on their own.
  */
-export function useRegion(initial: Region = DEFAULT_REGION, fixed = false): [Region, (r: Region) => void] {
+export function useRegion(initial: Region = DEFAULT_REGION, fixed = false): Region {
   const [region, setRegionState] = useState<Region>(initial);
 
   useEffect(() => {
@@ -34,10 +34,5 @@ export function useRegion(initial: Region = DEFAULT_REGION, fixed = false): [Reg
     };
   }, [fixed]);
 
-  const setRegion = useCallback((r: Region) => {
-    document.cookie = regionCookieString(r);
-    setRegionState(r);
-  }, []);
-
-  return [region, setRegion];
+  return region;
 }

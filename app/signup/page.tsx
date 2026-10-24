@@ -37,7 +37,7 @@ export default function SignupPage() {
   const [resending, setResending] = useState(false);
   const [resendMsg, setResendMsg] = useState("");
   const [resendError, setResendError] = useState("");
-  const [detectedRegion] = useRegion();
+  const detectedRegion = useRegion();
 
   // Pre-selected from the visitor's detected country until they pick one themselves.
   const currency = form.currency || (detectedRegion === "IN" ? "INR" : "");
@@ -241,7 +241,7 @@ export default function SignupPage() {
               autoComplete="organization"
               value={form.businessName}
               onChange={e => set("businessName", e.target.value)}
-              placeholder="My Salon"
+              placeholder="Business name"
               className={inputClass}
             />
           </div>

@@ -19,8 +19,8 @@ describe("pricing display", () => {
   it("advertised limits match what is enforced", () => {
     expect(DISPLAY_PLANS[0].features).toContain("Up to 60 appointments/month");
     expect(getLimits("free").maxMonthlyAppointments).toBe(60);
-    expect(DISPLAY_PLANS[1].features).toContain("Up to 300 appointments/month");
-    expect(getLimits("professional").maxMonthlyAppointments).toBe(300);
+    expect(DISPLAY_PLANS[1].features).toContain("Up to 1,000 appointments/month");
+    expect(getLimits("professional").maxMonthlyAppointments).toBe(1000);
     expect(DISPLAY_PLANS[1].features).toContain("Up to 3 staff");
     expect(getLimits("professional").maxStaff).toBe(3);
   });

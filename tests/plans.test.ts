@@ -21,9 +21,9 @@ describe("Free / Pro / Business limits", () => {
   it("Free: 1 staff, 60 appointments/month", () => {
     expect(getLimits("free")).toMatchObject({ maxStaff: 1, maxMonthlyAppointments: 60 });
   });
-  it("Pro (professional): 3 staff, 300 appointments, no chatbot/group/broadcasts/custom slot interval", () => {
+  it("Pro (professional): 3 staff, 1000 appointments, no chatbot/group/broadcasts/custom slot interval", () => {
     expect(getLimits("professional")).toMatchObject({
-      maxStaff: 3, maxMonthlyAppointments: 300,
+      maxStaff: 3, maxMonthlyAppointments: 1000,
       chatbotWidget: false, groupBooking: false, broadcasts: false, customSlotInterval: false,
       analytics: true, customBranding: true, whatsappReminders: true, csvExport: true,
     });
