@@ -17,6 +17,7 @@ import { getEffectiveLimits } from "@/lib/getFeatures";
 import { checkLimit, startOfBusinessMonth, assertMonthlyHeadroom, LimitReachedError } from "@/lib/limits";
 import { zonedTimeToUtc, formatDateLabel, safeTimeZone } from "@/lib/time";
 import { logger } from "@/lib/logger";
+import { bookToken } from "@/lib/tokenBooking";
 
 export const dynamic = 'force-dynamic';
 
@@ -47,7 +48,7 @@ async function POST_handler(req: NextRequest) {
 
   const parsed = await parseBody(req, bookingSchema);
   if (!parsed.ok) return parsed.res;
-  const { businessSlug, staffId, date, time, clientName, clientEmail, clientPhone, notes } = parsed.data;
+  const { businessSlug, staffId, date, time: timeInput, tokenSessionId, clientName, clientEmail, clientPhone, notes } = parsed.data;
 
   // Support serviceIds[] (multi-service) and legacy serviceId (single)
   const serviceIds: string[] = parsed.data.serviceIds?.length ? parsed.data.serviceIds : [parsed.data.serviceId!];
@@ -98,6 +99,23 @@ async function POST_handler(req: NextRequest) {
   const totalPrice = orderedServices.reduce((sum, s) => sum + s.price, 0);
   const totalDuration = orderedServices.reduce((sum, s) => sum + s.duration, 0);
   const serviceNamesLabel = orderedServices.map(s => s.name).join(" & ");
+
+  // Token businesses book a numbered place in a session; there is no clock time to choose.
+  if (business.bookingMode === "TOKEN") {
+    if (!tokenSessionId) return NextResponse.json({ error: "Please choose a session." }, { status: 400 });
+    try {
+      return await bookToken({
+        business, services: orderedServices, tokenSessionId, date, tz: bizTz,
+        client: { name: clientName, email: clientEmail, phone: clientPhone },
+        notes, maxMonthlyAppointments: limits.maxMonthlyAppointments, monthStart,
+      });
+    } catch (err) {
+      if (err instanceof LimitReachedError) return await limitResponse();
+      throw err;
+    }
+  }
+  if (!timeInput) return NextResponse.json({ error: "Please choose a time." }, { status: 400 });
+  const time = timeInput;
 
   // Server-side slot validation. The availability endpoint is advisory only,
   // so we re-check here authoritatively. Wall-clock input is read in the

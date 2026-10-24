@@ -26,6 +26,9 @@ async function DELETE_handler(_req: NextRequest, ctx: Ctx) {
   const businessId = session?.user?.businessId;
   if (!businessId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { id } = await ctx.params;
+  // Booked tokens keep their number only while the session exists, so a used session is switched off instead.
+  const used = await prisma.appointment.count({ where: { tokenSessionId: id, businessId } });
+  if (used > 0) return NextResponse.json({ error: "This session has bookings. Set it to inactive instead of deleting it." }, { status: 409 });
   const { count } = await prisma.tokenSession.deleteMany({ where: { id, businessId } });
   if (!count) return NextResponse.json({ error: "Session not found." }, { status: 404 });
   return NextResponse.json({ ok: true });

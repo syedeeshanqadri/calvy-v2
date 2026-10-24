@@ -167,7 +167,7 @@ export function AppointmentsClient({ appointments, services, staff, csvExport = 
                       </div>
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-sm">{appt.serviceName}</td>
+                  <td className="px-4 py-3 text-sm">{appt.tokenNumber ? <span className="font-semibold mr-1.5">#{appt.tokenNumber}</span> : null}{appt.serviceName}</td>
                   <td className="px-4 py-3 text-sm text-[#6b6b80]">{appt.staffName}</td>
                   <td className="px-4 py-3 text-sm">{appt.date} · {formatTime(appt.time)}</td>
                   <td className="px-4 py-3 text-sm text-[#6b6b80]">{appt.duration}min</td>

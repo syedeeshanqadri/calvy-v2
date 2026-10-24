@@ -8,9 +8,12 @@ import { bookableServices, providerOptions } from "@/lib/staffMatch";
 import { safeThemeColor, readableForeground, themeVars } from "@/lib/theme";
 import { BrandMark, SocialIcons, ReviewButton, initialsOf } from "@/components/site/Brand";
 import { parseSocialLinks, safeReviewLink, type SocialLinks } from "@/lib/brandLinks";
+import { TokenPicker, type TokenOption } from "@/components/tokens/TokenPicker";
 
 type Step = "service" | "staff" | "datetime" | "details" | "confirm";
-const STEPS: Step[] = ["service", "staff", "datetime", "details", "confirm"];
+const SLOT_STEPS: Step[] = ["service", "staff", "datetime", "details", "confirm"];
+// Token businesses: the session picker carries the doctor/staff queue, so there is no separate staff step.
+const TOKEN_STEPS: Step[] = ["service", "datetime", "details", "confirm"];
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 const DAYS_SHORT = ["Su","Mo","Tu","We","Th","Fr","Sa"];
 
@@ -30,7 +33,7 @@ interface Business {
   slug: string; name: string; primaryColor: string; businessType: string;
   description: string; phone: string; address: string; website: string;
   currency: string; paymentMode: string;
-  packId: string; termsOverride: unknown;
+  packId: string; termsOverride: unknown; bookingMode?: "SLOT" | "TOKEN";
   logoUrl?: string | null; socialLinks?: SocialLinks; googleReviewUrl?: string | null;
   services: Service[]; staff: StaffMember[];
 }
@@ -43,7 +46,10 @@ export function BookingClient({ business }: { business: Business }) {
   // "doctor" / "advocate" when the whole team shares that role, else the pack word.
   const stf1 = providerWord(business.staff.filter(m => m.serviceIds.length > 0).map(m => m.role), word("staff"));
   const Stf1 = stf1.charAt(0).toUpperCase() + stf1.slice(1);
-  const STEP_LABELS = [Svc1, Stf1, "Date & Time", "Your Details", "Confirm"];
+  const tokenMode = business.bookingMode === "TOKEN";
+  const STEPS = tokenMode ? TOKEN_STEPS : SLOT_STEPS;
+  const STEP_LABEL: Record<Step, string> = { service: Svc1, staff: Stf1, datetime: tokenMode ? "Date & Session" : "Date & Time", details: "Your Details", confirm: "Confirm" };
+  const STEP_LABELS = STEPS.map(s => STEP_LABEL[s]);
   const searchParams = useSearchParams();
   // Hide services nobody on the team is linked to (they could never be booked).
   const services = bookableServices(business.services, business.staff);
@@ -66,6 +72,9 @@ export function BookingClient({ business }: { business: Business }) {
   // Month availability, tagged with the request it answers so stale answers are ignored.
   const [monthData, setMonthData] = useState<{ key: string; days: Record<string, boolean> | null; next: string | null } | null>(null);
   const [booked, setBooked] = useState(false);
+  const [tokenDate, setTokenDate] = useState("");
+  const [tokenPick, setTokenPick] = useState<TokenOption | null>(null);
+  const [tokenResult, setTokenResult] = useState<{ number: number; estimatedTime: string; sessionName: string; dateLabel: string; staffName: string | null } | null>(null);
   const [error, setError] = useState("");
   const isValidEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
@@ -112,6 +121,7 @@ export function BookingClient({ business }: { business: Business }) {
     setSelectedDate(null);
     setSelectedTime(null);
     setMonthData(null);
+    setTokenPick(null);
   }
 
   // Derived totals from selected services
@@ -126,14 +136,14 @@ export function BookingClient({ business }: { business: Business }) {
 
   // Which days of the month have a free slot for these services + provider.
   useEffect(() => {
-    if (step !== "datetime" || selectedServices.length === 0 || totalDuration === 0) return;
+    if (tokenMode || step !== "datetime" || selectedServices.length === 0 || totalDuration === 0) return;
     let cancelled = false;
     fetch(`/api/availability/month?slug=${business.slug}&month=${monthKey}&duration=${totalDuration}&serviceIds=${selectedServices.join(",")}${staffParam}`)
       .then(r => (r.ok ? r.json() : null))
       .then(data => { if (!cancelled) setMonthData({ key: monthRequest, days: data?.days ?? null, next: data?.nextAvailable ?? null }); })
       .catch(() => { if (!cancelled) setMonthData({ key: monthRequest, days: null, next: null }); });
     return () => { cancelled = true; };
-  }, [step, selectedServices, staffParam, monthKey, monthRequest, totalDuration, business.slug]);
+  }, [tokenMode, step, selectedServices, staffParam, monthKey, monthRequest, totalDuration, business.slug]);
 
   const monthReady = monthData?.key === monthRequest;
   const monthDays = monthReady ? monthData.days : null;
@@ -190,7 +200,8 @@ export function BookingClient({ business }: { business: Business }) {
   function next() { if (stepIndex < STEPS.length - 1) setStep(STEPS[stepIndex + 1]); }
   function back() { if (stepIndex > 0) setStep(STEPS[stepIndex - 1]); }
 
-  const dateStr = selectedDate ? `${MONTHS[viewMonth]} ${selectedDate}, ${viewYear}` : "—";
+  const tokenDateLabel = tokenDate ? (() => { const [y, m, d] = tokenDate.split("-").map(Number); return `${MONTHS[m - 1]} ${d}, ${y}`; })() : "—";
+  const dateStr = tokenMode ? tokenDateLabel : selectedDate ? `${MONTHS[viewMonth]} ${selectedDate}, ${viewYear}` : "—";
   const serviceNamesLabel = selectedServiceObjs.map(s => s.name).join(" & ") || "—";
 
   async function handleConfirm() {
@@ -202,9 +213,10 @@ export function BookingClient({ business }: { business: Business }) {
         body: JSON.stringify({
           businessSlug: business.slug,
           serviceIds: selectedServices,
-          staffId: selectedStaff === "any" ? null : selectedStaff,
-          date: `${viewYear}-${String(viewMonth + 1).padStart(2, "0")}-${String(selectedDate).padStart(2, "0")}`,
-          time: selectedTime,
+          staffId: tokenMode ? null : selectedStaff === "any" ? null : selectedStaff,
+          ...(tokenMode
+            ? { date: tokenDate, tokenSessionId: tokenPick?.id }
+            : { date: `${viewYear}-${String(viewMonth + 1).padStart(2, "0")}-${String(selectedDate).padStart(2, "0")}`, time: selectedTime }),
           clientName: form.name,
           clientEmail: form.email,
           clientPhone: form.phone || null,
@@ -213,7 +225,7 @@ export function BookingClient({ business }: { business: Business }) {
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error ?? "Something went wrong."); return; }
-      if (data.url) { window.location.href = data.url; } else { setBooked(true); }
+      if (data.url) { window.location.href = data.url; } else { if (data.token) setTokenResult(data.token); setBooked(true); }
     } catch { setError("Network error. Please try again."); }
     finally { setLoading(false); }
   }
@@ -234,8 +246,19 @@ export function BookingClient({ business }: { business: Business }) {
               <span className="font-medium text-right max-w-[60%]">{serviceNamesLabel}</span>
             </div>
             <div className="flex justify-between text-sm"><span className="text-[#6b6b80]">Date</span><span className="font-medium">{dateStr}</span></div>
-            <div className="flex justify-between text-sm"><span className="text-[#6b6b80]">Time</span><span className="font-medium">{selectedTime}</span></div>
-            <div className="flex justify-between text-sm"><span className="text-[#6b6b80]">Duration</span><span className="font-medium">{totalDuration} min</span></div>
+            {tokenResult ? (
+              <>
+                <div className="flex justify-between text-sm"><span className="text-[#6b6b80]">Token</span><span className="font-bold text-lg" style={{ color }}>#{tokenResult.number}</span></div>
+                <div className="flex justify-between text-sm"><span className="text-[#6b6b80]">Estimated time</span><span className="font-medium">{tokenResult.estimatedTime}</span></div>
+                <div className="flex justify-between text-sm"><span className="text-[#6b6b80]">Session</span><span className="font-medium">{tokenResult.sessionName}</span></div>
+                {tokenResult.staffName && <div className="flex justify-between text-sm"><span className="text-[#6b6b80]">{Stf1}</span><span className="font-medium">{tokenResult.staffName}</span></div>}
+              </>
+            ) : (
+              <>
+                <div className="flex justify-between text-sm"><span className="text-[#6b6b80]">Time</span><span className="font-medium">{selectedTime}</span></div>
+                <div className="flex justify-between text-sm"><span className="text-[#6b6b80]">Duration</span><span className="font-medium">{totalDuration} min</span></div>
+              </>
+            )}
             <div className="flex justify-between text-sm border-t border-[#f0ede8] pt-2 mt-2">
               <span className="font-semibold">Total</span>
               <span className="font-bold" style={{ color }}>{formatCurrencyAmount(totalPrice, business.currency)}</span>
@@ -424,7 +447,14 @@ export function BookingClient({ business }: { business: Business }) {
         )}
 
         {/* Step: Date & Time */}
-        {step === "datetime" && (
+        {step === "datetime" && tokenMode && (
+          <TokenPicker
+            slug={business.slug} serviceIds={selectedServices} date={tokenDate} selectedId={tokenPick?.id ?? null}
+            onPick={(d, option) => { setTokenDate(d); setTokenPick(option); }}
+            staffWord={stf1} appointmentWord={appt1} color={color} fg={fg}
+          />
+        )}
+        {step === "datetime" && !tokenMode && (
           <div>
             <h2 className="font-syne font-bold text-2xl mb-2">Pick a date & time</h2>
             <p className="text-[#6b6b80] mb-6">Slots shown for your total booking duration ({totalDuration} min).</p>
@@ -570,10 +600,11 @@ export function BookingClient({ business }: { business: Business }) {
               </div>
 
               {[
-                { label: Stf1, value: selectedStaff === "any" ? "No preference" : staff?.name },
+                { label: Stf1, value: tokenMode ? tokenPick?.staffName : selectedStaff === "any" ? "No preference" : staff?.name },
                 { label: "Date", value: dateStr },
-                { label: "Time", value: selectedTime },
-                { label: "Total duration", value: `${totalDuration} min` },
+                ...(tokenMode
+                  ? [{ label: "Session", value: tokenPick ? `${tokenPick.name} (${tokenPick.startTime} – ${tokenPick.endTime})` : "—" }, { label: "Token", value: "Number and estimated time are shown once confirmed" }]
+                  : [{ label: "Time", value: selectedTime }, { label: "Total duration", value: `${totalDuration} min` }]),
                 { label: "Name", value: form.name },
                 { label: "Email", value: form.email },
               ].map(row => (
@@ -624,7 +655,7 @@ export function BookingClient({ business }: { business: Business }) {
             <button onClick={next} disabled={
               (step === "service" && selectedServices.length === 0) ||
               (step === "staff" && (provider.kind === "none" || (provider.kind === "choose" && !selectedStaff))) ||
-              (step === "datetime" && (!selectedDate || !selectedTime)) ||
+              (step === "datetime" && (tokenMode ? !tokenPick : (!selectedDate || !selectedTime))) ||
               (step === "details" && (!form.name || !form.email || !isValidEmail(form.email)))
             }
               className="flex items-center gap-2 bg-[#0f0f1a] text-white font-semibold px-6 py-3 rounded-xl text-sm hover:bg-[#1a1a2e] transition-colors disabled:opacity-40 disabled:cursor-not-allowed">

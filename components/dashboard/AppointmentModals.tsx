@@ -28,6 +28,8 @@ export interface ApptDetail {
   status: string;
   paymentStatus: string;
   paymentMode: string;
+  /** Token bookings: the number issued in the session. */
+  tokenNumber?: number | null;
   color: string;
   notes?: string;
 }

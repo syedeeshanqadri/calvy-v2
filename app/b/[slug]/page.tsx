@@ -26,6 +26,7 @@ export default async function BusinessBookingPage(props: { params: Promise<{ slu
     googleReviewUrl: safeReviewLink(business.googleReviewUrl),
     businessType: business.businessType,
     packId: business.packId,
+    bookingMode: business.bookingMode,
     termsOverride: business.termsOverride,
     description: business.description ?? "",
     phone: business.phone ?? "",
