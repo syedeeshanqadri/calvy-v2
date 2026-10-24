@@ -8,24 +8,24 @@ import { HeroLeadForm } from "./HeroLeadForm";
 /* ─── Hero section ───────────────────────────────────────────── */
 export function Hero() {
   return (
-    <section className="relative min-h-screen bg-white overflow-hidden flex items-center pt-16">
+    <section className="relative bg-white overflow-hidden pt-16">
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-0 right-0 w-[700px] h-[700px] rounded-full opacity-[0.06]" style={{ background: "radial-gradient(circle, #0284c7 0%, transparent 70%)" }} />
         <div className="absolute -bottom-20 -left-20 w-[500px] h-[500px] rounded-full opacity-[0.04]" style={{ background: "radial-gradient(circle, #0284c7 0%, transparent 70%)" }} />
         <div className="absolute inset-0 opacity-[0.4]" style={{ backgroundImage: "radial-gradient(#d1d5db 1px, transparent 1px)", backgroundSize: "28px 28px" }} />
       </div>
 
-      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 lg:py-28">
-        <div className="grid lg:grid-cols-2 gap-16 items-center">
+      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-14 lg:py-16">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-start">
 
           {/* Left — copy */}
-          <div>
-            <div className="inline-flex items-center gap-2 bg-sky-50 border border-sky-100 text-sky-700 rounded-full px-4 py-2 mb-8 text-sm font-medium">
+          <div className="min-w-0">
+            <div className="inline-flex items-center gap-2 bg-sky-50 border border-sky-100 text-sky-700 rounded-full px-4 py-2 mb-6 text-sm font-medium">
               <span className="w-2 h-2 rounded-full bg-sky-500 animate-pulse" />
               Trusted by 12,000+ service businesses
             </div>
 
-            <h1 className="font-syne font-extrabold text-5xl lg:text-6xl xl:text-7xl leading-[1.05] tracking-tight text-gray-900 mb-6">
+            <h1 className="font-syne font-extrabold text-4xl sm:text-5xl lg:text-6xl leading-[1.05] tracking-tight text-gray-900 mb-6">
               Your clients book,{" "}
               <span className="relative">
                 <span className="relative z-10" style={{ background: "linear-gradient(135deg, #0284c7 0%, #0ea5e9 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>
@@ -36,15 +36,15 @@ export function Hero() {
               {" "}— on autopilot
             </h1>
 
-            <p className="text-xl text-gray-500 leading-relaxed mb-10 max-w-lg">
+            <p className="text-lg sm:text-xl text-gray-500 leading-relaxed mb-8 max-w-lg">
               Stop managing bookings over WhatsApp. Calvy gives you a booking page, business website, and payment collection — ready in 60 seconds.
             </p>
 
             <div className="mb-5">
               <HeroLeadForm />
             </div>
-            <div className="mb-10">
-              <Link href="#demo" className="inline-flex items-center gap-1.5 text-sky-700 font-semibold text-sm hover:gap-2.5 transition-all">
+            <div className="mb-6">
+              <Link href="/#demo" className="inline-flex items-center gap-1.5 min-h-11 text-sky-700 font-semibold text-sm hover:gap-2.5 transition-all">
                 Or book a personal demo <ArrowRight size={15} />
               </Link>
             </div>
@@ -85,7 +85,7 @@ export function Hero() {
           </div>
 
           {/* Right — live product carousel */}
-          <div className="relative mt-10 lg:mt-0">
+          <div className="relative min-w-0 mt-6 lg:mt-0">
             {/* Floating accent cards (desktop) */}
             <div className="hidden lg:flex absolute -top-6 -left-5 z-20 bg-white rounded-2xl p-4 shadow-xl border border-gray-100 items-center gap-3" style={{ animation: "float 5s ease-in-out infinite" }}>
               <div className="w-10 h-10 rounded-xl bg-green-50 flex items-center justify-center">

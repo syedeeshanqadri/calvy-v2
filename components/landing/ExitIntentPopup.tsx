@@ -43,7 +43,7 @@ export function ExitIntentPopup() {
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-[fadeIn_.2s_ease]" onClick={() => setOpen(false)} />
       <div className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden animate-[popIn_.3s_cubic-bezier(.16,1,.3,1)]">
-        <button onClick={() => setOpen(false)} className="absolute top-4 right-4 z-10 w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500">
+        <button onClick={() => setOpen(false)} aria-label="Close" className="absolute top-3 right-3 z-10 w-11 h-11 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500">
           <X size={16} />
         </button>
         <div className="bg-gradient-to-br from-sky-600 to-sky-700 px-8 pt-10 pb-8 text-center">
@@ -72,7 +72,7 @@ export function ExitIntentPopup() {
                 {state === "loading" ? <Loader2 size={18} className="animate-spin" /> : "Send me the playbook"}
               </button>
               {error && <p className="text-sm text-red-500 text-center">{error}</p>}
-              <button type="button" onClick={() => setOpen(false)} className="w-full text-xs text-gray-400 hover:text-gray-600 pt-1">No thanks, I&apos;ll pass</button>
+              <button type="button" onClick={() => setOpen(false)} className="w-full min-h-11 text-xs text-gray-500 hover:text-gray-700">No thanks, I&apos;ll pass</button>
             </form>
           )}
         </div>

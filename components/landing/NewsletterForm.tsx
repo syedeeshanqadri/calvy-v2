@@ -31,10 +31,10 @@ export function NewsletterForm() {
               type="email" value={email}
               onChange={e => { setEmail(e.target.value); setError(""); }}
               placeholder="you@business.com"
-              className="flex-1 bg-transparent text-white placeholder:text-gray-600 text-sm px-4 py-2.5 focus:outline-none min-w-0"
+              className="flex-1 bg-transparent text-white placeholder:text-gray-600 text-sm px-4 min-h-11 focus:outline-none min-w-0"
             />
-            <button type="submit" disabled={state === "loading"}
-              className="flex-shrink-0 w-10 h-10 flex items-center justify-center text-sky-400 hover:text-white hover:bg-sky-600 transition-colors disabled:opacity-60">
+            <button type="submit" disabled={state === "loading"} aria-label="Subscribe"
+              className="flex-shrink-0 w-11 h-11 flex items-center justify-center text-sky-400 hover:text-white hover:bg-sky-600 transition-colors disabled:opacity-60">
               {state === "loading" ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
             </button>
           </div>

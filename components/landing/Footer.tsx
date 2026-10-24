@@ -1,19 +1,16 @@
 import { SUPPORT_EMAIL, PLANT_TREE_URL } from "@/lib/site";
 import Link from "next/link";
 import { NewsletterForm } from "./NewsletterForm";
+import { CurrentYear } from "./CurrentYear";
 import { Logo } from "@/components/ui/Logo";
 
 const LINKS: Record<string, { label: string; href: string }[]> = {
   Product: [
     { label: "Features", href: "/#features" },
     { label: "Pricing", href: "/#pricing" },
-    { label: "Integrations", href: "#" },
-    { label: "Changelog", href: "#" },
   ],
   Company: [
-    { label: "About", href: "#" },
     { label: "Blog", href: "/blog" },
-    { label: "Careers", href: "#" },
     { label: "Contact", href: `mailto:${SUPPORT_EMAIL}` },
   ],
   Legal: [
@@ -38,17 +35,6 @@ export function Footer() {
               <Logo width={90} className="brightness-0 invert" />
             </div>
             <p className="text-sm text-gray-500 leading-relaxed mb-5">The smartest appointment booking platform for modern service businesses.</p>
-            <div className="flex gap-3">
-              {[
-                { label: "𝕏", href: "#" },
-                { label: "in", href: "#" },
-                { label: "f", href: "#" },
-              ].map((s) => (
-                <a key={s.label} href={s.href} className="w-9 h-9 rounded-xl border border-white/10 flex items-center justify-center text-gray-500 hover:text-white hover:border-white/30 cursor-pointer transition-colors text-sm">
-                  {s.label}
-                </a>
-              ))}
-            </div>
             <div className="mt-7 max-w-xs">
               <NewsletterForm />
             </div>
@@ -56,10 +42,10 @@ export function Footer() {
           {Object.entries(LINKS).map(([category, links]) => (
             <div key={category}>
               <h4 className="text-sm font-semibold text-white mb-4">{category}</h4>
-              <ul className="space-y-3">
+              <ul>
                 {links.map((link) => (
                   <li key={link.label}>
-                    <Link href={link.href} className="text-sm text-gray-500 hover:text-gray-300 transition-colors">{link.label}</Link>
+                    <Link href={link.href} className="text-sm text-gray-500 hover:text-gray-300 transition-colors inline-flex items-center min-h-11">{link.label}</Link>
                   </li>
                 ))}
               </ul>
@@ -67,7 +53,7 @@ export function Footer() {
           ))}
         </div>
         <div className="border-t border-white/8 pt-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p className="text-sm text-gray-600">© 2025 Calvy. All rights reserved.</p>
+          <p className="text-sm text-gray-600">© <CurrentYear /> Calvy. All rights reserved.</p>
           <a
             href={PLANT_TREE_URL}
             target="_blank"

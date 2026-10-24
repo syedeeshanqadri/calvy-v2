@@ -47,11 +47,11 @@ const FEATURES = [
 
 export function Features() {
   return (
-    <section id="features" className="py-28 bg-gray-50">
+    <section id="features" className="py-16 sm:py-20 lg:py-24 bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-16">
-          <span className="inline-block bg-sky-100 text-sky-700 text-xs font-bold tracking-widest uppercase px-4 py-2 rounded-full mb-5">Features</span>
-          <h2 className="font-syne font-extrabold text-4xl lg:text-5xl tracking-tight text-gray-900 mb-5">
+        <div className="text-center mb-12 lg:mb-16">
+          <span className="inline-block bg-sky-100 text-sky-700 text-xs font-bold tracking-widest uppercase px-4 py-2 rounded-full mb-4">Features</span>
+          <h2 className="font-syne font-extrabold text-3xl sm:text-4xl lg:text-5xl tracking-tight text-gray-900 mb-4">
             Everything you need,<br />nothing you don&apos;t
           </h2>
           <p className="text-gray-500 text-lg max-w-xl mx-auto leading-relaxed">

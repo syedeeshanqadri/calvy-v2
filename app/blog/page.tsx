@@ -34,7 +34,7 @@ export default async function BlogIndexPage() {
     <main className="bg-[#f8f7f4] min-h-screen">
       <Navbar />
 
-      <section className="pt-32 pb-12 bg-white border-b border-[#e8e6e0]">
+      <section className="pt-28 sm:pt-32 pb-12 bg-white border-b border-[#e8e6e0]">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
           <span className="inline-block bg-sky-100 text-sky-700 text-xs font-bold tracking-widest uppercase px-4 py-2 rounded-full mb-5">Blog</span>
           <h1 className="font-syne font-extrabold text-4xl sm:text-5xl tracking-tight text-[#0f0f1a] mb-3">

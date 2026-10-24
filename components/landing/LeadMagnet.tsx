@@ -18,7 +18,7 @@ export function LeadMagnet() {
   }
 
   return (
-    <section className="py-20 bg-[#0f0f1a] relative overflow-hidden">
+    <section className="py-16 sm:py-20 lg:py-24 bg-[#0f0f1a] relative overflow-hidden">
       <div className="absolute inset-0 opacity-[0.07]" style={{ backgroundImage: "radial-gradient(#fff 1px, transparent 1px)", backgroundSize: "30px 30px" }} />
       <div className="relative max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid lg:grid-cols-2 gap-10 items-center">
@@ -39,7 +39,7 @@ export function LeadMagnet() {
 
           {/* Form */}
           <div>
-            <span className="inline-block bg-sky-500/15 text-sky-300 text-xs font-bold tracking-widest uppercase px-4 py-2 rounded-full mb-5">Free download</span>
+            <span className="inline-block bg-sky-500/15 text-sky-300 text-xs font-bold tracking-widest uppercase px-4 py-2 rounded-full mb-4">Free download</span>
             <h2 className="font-syne font-extrabold text-3xl sm:text-4xl text-white leading-tight mb-3">
               Get the No-Show Playbook
             </h2>

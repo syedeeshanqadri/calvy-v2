@@ -6,10 +6,10 @@ import { cn } from "@/lib/utils";
 import { Logo } from "@/components/ui/Logo";
 
 const NAV_LINKS = [
-  { label: "Features", href: "#features" },
-  { label: "How it works", href: "#how-it-works" },
-  { label: "Pricing", href: "#pricing" },
-  { label: "Testimonials", href: "#testimonials" },
+  { label: "Features", href: "/#features" },
+  { label: "How it works", href: "/#how-it-works" },
+  { label: "Pricing", href: "/#pricing" },
+  { label: "Testimonials", href: "/#testimonials" },
 ];
 
 export function Navbar() {
@@ -29,7 +29,7 @@ export function Navbar() {
     )}>
       <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-          <Link href="/">
+          <Link href="/" aria-label="Calvy home" className="inline-flex items-center min-h-11">
             <Logo width={110} />
           </Link>
 
@@ -52,22 +52,22 @@ export function Navbar() {
             </Link>
           </div>
 
-          <button onClick={() => setMobileOpen(!mobileOpen)} className="md:hidden text-gray-500 hover:text-gray-900 p-2">
+          <button onClick={() => setMobileOpen(!mobileOpen)} aria-label={mobileOpen ? "Close menu" : "Open menu"} aria-expanded={mobileOpen} className="md:hidden text-gray-500 hover:text-gray-900 w-11 h-11 -mr-2 inline-flex items-center justify-center">
             {mobileOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
         </div>
       </nav>
 
       {mobileOpen && (
-        <div className="md:hidden bg-white border-t border-gray-100 px-4 py-6 flex flex-col gap-4">
+        <div className="md:hidden bg-white border-t border-gray-100 px-4 py-4 flex flex-col gap-1 max-h-[calc(100dvh-4rem)] overflow-y-auto">
           {NAV_LINKS.map((link) => (
-            <a key={link.label} href={link.href} onClick={() => setMobileOpen(false)} className="text-gray-600 hover:text-gray-900 text-base py-2 transition-colors font-medium">
+            <a key={link.label} href={link.href} onClick={() => setMobileOpen(false)} className="text-gray-600 hover:text-gray-900 text-base min-h-11 flex items-center transition-colors font-medium">
               {link.label}
             </a>
           ))}
-          <div className="flex flex-col gap-3 pt-4 border-t border-gray-100">
-            <Link href="/login" className="text-center text-gray-600 hover:text-gray-900 py-2 transition-colors">Sign in</Link>
-            <Link href="/signup" className="w-full text-center bg-sky-600 hover:bg-sky-700 text-white font-semibold px-5 py-3 rounded-xl transition-colors">
+          <div className="flex flex-col gap-3 pt-4 mt-2 border-t border-gray-100">
+            <Link href="/login" onClick={() => setMobileOpen(false)} className="text-center text-gray-600 hover:text-gray-900 min-h-11 flex items-center justify-center transition-colors">Sign in</Link>
+            <Link href="/signup" onClick={() => setMobileOpen(false)} className="w-full min-h-11 flex items-center justify-center text-center bg-sky-600 hover:bg-sky-700 text-white font-semibold px-5 py-3 rounded-xl transition-colors">
               Get started free
             </Link>
           </div>

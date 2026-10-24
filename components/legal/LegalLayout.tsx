@@ -16,7 +16,7 @@ export function LegalLayout({
     <main className="bg-[#f8f7f4] min-h-screen">
       <Navbar />
 
-      <section className="pt-32 pb-12 border-b border-[#e8e6e0] bg-white">
+      <section className="pt-28 sm:pt-32 pb-12 border-b border-[#e8e6e0] bg-white">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
           <h1 className="font-syne font-bold text-3xl sm:text-4xl text-[#0f0f1a] mb-3">{title}</h1>
           <p className="text-sm text-[#8a8a99]">Last updated: {lastUpdated}</p>

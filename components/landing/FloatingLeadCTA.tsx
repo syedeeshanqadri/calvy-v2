@@ -31,13 +31,13 @@ export function FloatingLeadCTA() {
   return (
     <div className="fixed bottom-5 right-5 z-50 print:hidden">
       {openForm ? (
-        <div className="w-[320px] bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden animate-[popIn_.25s_cubic-bezier(.16,1,.3,1)]">
+        <div className="w-[min(320px,calc(100vw-2.5rem))] bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden animate-[popIn_.25s_cubic-bezier(.16,1,.3,1)]">
           <div className="bg-gradient-to-r from-sky-600 to-sky-500 px-5 py-4 flex items-center justify-between">
             <div>
               <p className="text-white font-syne font-bold text-sm">Get a free demo</p>
               <p className="text-sky-100 text-xs">See Calvy on your business in 15 min</p>
             </div>
-            <button onClick={() => setOpenForm(false)} className="text-white/80 hover:text-white"><X size={18} /></button>
+            <button onClick={() => setOpenForm(false)} aria-label="Close" className="w-11 h-11 -mr-3 inline-flex items-center justify-center text-white/80 hover:text-white"><X size={18} /></button>
           </div>
           <div className="p-5">
             {state === "done" ? (
@@ -72,7 +72,7 @@ export function FloatingLeadCTA() {
             <span className="text-sm">Get a free demo</span>
           </button>
           <button onClick={() => setClosed(true)} aria-label="Dismiss"
-            className="w-8 h-8 rounded-full bg-white shadow-md border border-gray-100 flex items-center justify-center text-gray-400 hover:text-gray-700">
+            className="w-11 h-11 rounded-full bg-white shadow-md border border-gray-100 flex items-center justify-center text-gray-400 hover:text-gray-700">
             <X size={14} />
           </button>
         </div>

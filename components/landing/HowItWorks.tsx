@@ -8,11 +8,11 @@ const STEPS = [
 
 export function HowItWorks() {
   return (
-    <section id="how-it-works" className="py-28 bg-white">
+    <section id="how-it-works" className="py-16 sm:py-20 lg:py-24 bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-16">
-          <span className="inline-block bg-sky-100 text-sky-700 text-xs font-bold tracking-widest uppercase px-4 py-2 rounded-full mb-5">How it works</span>
-          <h2 className="font-syne font-extrabold text-4xl lg:text-5xl tracking-tight text-gray-900 mb-5">Up and running in 3 steps</h2>
+        <div className="text-center mb-12 lg:mb-16">
+          <span className="inline-block bg-sky-100 text-sky-700 text-xs font-bold tracking-widest uppercase px-4 py-2 rounded-full mb-4">How it works</span>
+          <h2 className="font-syne font-extrabold text-3xl sm:text-4xl lg:text-5xl tracking-tight text-gray-900 mb-4">Up and running in 3 steps</h2>
           <p className="text-gray-500 text-lg max-w-md mx-auto">No setup fees. No training required. No IT department needed.</p>
         </div>
         <div className="grid lg:grid-cols-3 gap-8 relative">

@@ -9,15 +9,15 @@ const STATS = [
 
 export function StatsBar() {
   return (
-    <div className="bg-gray-950 py-14">
+    <div className="bg-gray-950 pt-10 sm:pt-12 pb-4">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-0 lg:divide-x lg:divide-white/10">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-4 gap-y-8 lg:gap-0 lg:divide-x lg:divide-white/10">
           {STATS.map((s) => (
-            <div key={s.label} className="text-center px-8">
+            <div key={s.label} className="text-center px-2 sm:px-8">
               <div className="flex justify-center mb-3">
                 <s.Icon size={22} className="text-sky-400" />
               </div>
-              <div className="font-syne font-extrabold text-4xl lg:text-5xl text-white mb-1.5">{s.num}</div>
+              <div className="font-syne font-extrabold text-3xl sm:text-4xl lg:text-5xl text-white mb-1.5">{s.num}</div>
               <div className="text-sm text-gray-400 font-medium">{s.label}</div>
             </div>
           ))}
