@@ -69,7 +69,7 @@ export async function GET(req: NextRequest) {
       let delivered = !hasEmail && !hasPhone;
       if (hasEmail) {
         const res = await sendBookingReminder({
-          to: appt.client.email,
+          to: appt.client.email!,
           clientName: appt.client.name,
           businessName: appt.business.name,
           serviceName: appt.service.name,

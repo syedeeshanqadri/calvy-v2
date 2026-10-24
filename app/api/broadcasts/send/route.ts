@@ -101,7 +101,7 @@ export async function POST(req: NextRequest) {
 
   // ── Email ──────────────────────────────────────────────────────────────────
   if (medium === "email" || medium === "both") {
-    const emailClients = clients.filter(c => c.email);
+    const emailClients = clients.filter((c): c is typeof c & { email: string } => !!c.email);
     const html = buildEmailHtml(business.name, subject!, message);
 
     // Resend batch API: max 100 per call

@@ -2,7 +2,7 @@ import { put, list } from "@vercel/blob";
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { getBusinessFeatures } from "@/lib/getFeatures";
+import { checkLimit, denialResponse } from "@/lib/limits";
 import {
   checkImageUpload,
   MAX_UPLOAD_BYTES,
@@ -24,10 +24,8 @@ export async function POST(req: NextRequest) {
     }
 
     // Plan check in the API, not just the UI.
-    const features = await getBusinessFeatures(businessId);
-    if (!features.imageUpload) {
-      return NextResponse.json({ error: "Image upload is not available on your plan." }, { status: 403 });
-    }
+    const denied = await checkLimit(businessId, "upload");
+    if (denied) return denialResponse(denied);
 
     const rl = await rateLimit(`upload:${businessId}`, 10, 60_000);
     if (!rl.ok) {

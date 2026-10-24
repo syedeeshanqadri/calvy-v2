@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
+import { checkLimit, denialResponse } from "@/lib/limits";
 import { parseBody } from "@/lib/validation/common";
 import { servicePatchSchema } from "@/lib/validation/dashboard";
 
@@ -33,6 +34,12 @@ export async function PATCH(request: NextRequest, props: { params: Promise<{ id:
     if (duplicate) {
       return NextResponse.json({ error: "A service with this name already exists" }, { status: 409 });
     }
+  }
+
+  // Turning a single-spot service into a group service needs the group-booking plan feature.
+  if ((body.capacity ?? 1) > 1 && (service.capacity ?? 1) <= 1) {
+    const denied = await checkLimit(session.user.businessId, "group", { capacity: body.capacity });
+    if (denied) return denialResponse(denied);
   }
 
   const updated = await prisma.service.update({ where: { id: params.id }, data: body });

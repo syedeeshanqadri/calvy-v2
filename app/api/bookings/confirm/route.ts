@@ -1,3 +1,4 @@
+import { findOrCreateClient } from "@/lib/clients";
 import { zonedTimeToUtc, safeTimeZone } from "@/lib/time";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
@@ -56,19 +57,12 @@ export async function POST(req: NextRequest) {
     return meta.notes || null;
   })();
 
-  let client = await prisma.client.findUnique({
-    where: { businessId_email: { businessId: business.id, email: meta.clientEmail } },
-  });
-  if (!client) {
-    client = await prisma.client.create({
-      data: {
-        businessId: business.id,
-        name: meta.clientName,
-        email: meta.clientEmail,
-        phone: meta.clientPhone || null,
-      },
-    });
-  }
+  const client = await findOrCreateClient(
+    prisma,
+    business.id,
+    { name: meta.clientName, email: meta.clientEmail, phone: meta.clientPhone },
+    business.timezone,
+  );
 
   const appointmentDate = zonedTimeToUtc(meta.date, meta.time, safeTimeZone(business.timezone));
 
