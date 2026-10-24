@@ -1,14 +1,17 @@
+import { safeRoute } from "@/lib/api";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendLeadAcknowledgment, sendFormNotification } from "@/lib/email";
 import { after } from "next/server";
 import { rateLimit, clientIp } from "@/lib/ratelimit";
 
-import { parseBody } from "@/lib/validation/common";
-import { leadSchema } from "@/lib/validation/public";
+import { parseBody } from "@/lib/validation/common";
+
+import { leadSchema } from "@/lib/validation/public";
+
 export const dynamic = "force-dynamic";
 
-export async function POST(req: NextRequest) {
+async function POST_handler(req: NextRequest) {
   const rl = await rateLimit(`lead:${clientIp(req)}`, 5, 60_000);
   if (!rl.ok) {
     return NextResponse.json(
@@ -63,3 +66,5 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({ ok: true, id: lead.id }, { status: 201 });
 }
+
+export const POST = safeRoute(POST_handler);

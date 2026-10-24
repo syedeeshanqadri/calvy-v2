@@ -1,3 +1,4 @@
+import { safeRoute } from "@/lib/api";
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
@@ -11,7 +12,7 @@ export const dynamic = "force-dynamic";
 const INVALID = "This reset link is invalid or has expired.";
 const invalid = () => NextResponse.json({ error: INVALID }, { status: 400 });
 
-export async function POST(req: NextRequest) {
+async function POST_handler(req: NextRequest) {
   const rl = await rateLimit(`reset:ip:${clientIp(req)}`, 10, 15 * 60_000);
   if (!rl.ok) return tooManyRequests(rl.retryAfter);
 
@@ -46,3 +47,5 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({ ok: true });
 }
+
+export const POST = safeRoute(POST_handler);

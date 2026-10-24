@@ -1,3 +1,4 @@
+import { safeRoute } from "@/lib/api";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { loadMonthAvailability } from "@/lib/availability";
@@ -8,7 +9,7 @@ import { monthAvailabilityQuery } from "@/lib/validation/bookings";
 export const dynamic = "force-dynamic";
 
 /** Which days of a month have a free slot for the chosen services and staff, plus the next bookable day when the month is full. */
-export async function GET(request: NextRequest) {
+async function GET_handler(request: NextRequest) {
   const q = parseQuery(request.url, monthAvailabilityQuery);
   if (!q.ok) return q.res;
   const { slug, month, duration, serviceIds = [], staffId = null } = q.data;
@@ -36,3 +37,5 @@ export async function GET(request: NextRequest) {
   }
   return NextResponse.json({ timezone: result.tz, days: result.days, nextAvailable: result.nextAvailable });
 }
+
+export const GET = safeRoute(GET_handler);

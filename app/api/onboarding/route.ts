@@ -1,3 +1,4 @@
+import { safeRoute } from "@/lib/api";
 import { after } from "next/server";
 import { sendFormNotification } from "@/lib/email";
 import { NextRequest, NextResponse } from "next/server";
@@ -6,13 +7,15 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { createBusinessForUser } from "@/lib/createBusiness";
 
-import { parseBody } from "@/lib/validation/common";
-import { onboardingSchema } from "@/lib/validation/public";
+import { parseBody } from "@/lib/validation/common";
+
+import { onboardingSchema } from "@/lib/validation/public";
+
 export const dynamic = "force-dynamic";
 
 // Completes registration for a logged-in user who has no business yet
 // (typically after Google/Facebook sign-in).
-export async function POST(req: NextRequest) {
+async function POST_handler(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -50,3 +53,5 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({ success: true });
 }
+
+export const POST = safeRoute(POST_handler);

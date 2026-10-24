@@ -8,12 +8,17 @@ const clientPhone = z
   .trim()
   .regex(/^\+?[0-9\s\-.()]{10,20}$/, "Please enter a valid phone number");
 
-export const clientCreateSchema = z.object({
-  name: text(120).min(1, "Name is required"),
-  email: emailField,
-  phone: z.preprocess(blankToUndef, clientPhone.optional()),
-  notes: z.preprocess(blankToUndef, text(2000).optional()),
-});
+export const clientCreateSchema = z
+  .object({
+    name: text(120).min(1, "Name is required"),
+    email: z.preprocess(blankToUndef, emailField.optional()),
+    phone: z.preprocess(blankToUndef, clientPhone.optional()),
+    notes: z.preprocess(blankToUndef, text(2000).optional()),
+  })
+  .refine((b) => !!b.email || !!b.phone, {
+    message: "Enter a phone number or an email address.",
+    path: ["phone"],
+  });
 
 export const staffCreateSchema = z.object({
   name: text(120).min(1),

@@ -16,35 +16,52 @@ export default async function CalendarPage() {
   const rangeStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 14);
   const rangeEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 30);
 
-  const [appointments, staff] = await Promise.all([
+  const [appointments, staff, services] = await Promise.all([
     prisma.appointment.findMany({
       where: { businessId: session.user.businessId, date: { gte: rangeStart, lte: rangeEnd } },
-      include: { client: true, service: true },
+      include: { client: true, service: true, staff: true },
     }),
     prisma.staff.findMany({
       where: { businessId: session.user.businessId, isActive: true },
     }),
+    prisma.service.findMany({ where: { businessId: session.user.businessId, isActive: true } }),
   ]);
 
   const apptRows = appointments.map(a => {
+    // Multi-service bookings store extra names as "__services__:Name2|Name3\n..." prefix
     let serviceName = a.service.name;
+    let notes: string | undefined = a.notes ?? undefined;
     if (a.notes?.startsWith("__services__:")) {
-      const extra = a.notes.split("\n")[0].replace("__services__:", "").split("|").filter(Boolean);
+      const [prefixLine, ...rest] = a.notes.split("\n");
+      const extra = prefixLine.replace("__services__:", "").split("|").filter(Boolean);
       serviceName = [a.service.name, ...extra].join(" & ");
+      notes = rest.join("\n") || undefined;
     }
+    const z = utcToZoned(a.date, tz);
     return {
       id: a.id,
       clientName: a.client.name,
+      clientEmail: a.client.email ?? a.client.phone ?? "",
       serviceName,
-      date: utcToZoned(a.date, tz).date,
-      time: utcToZoned(a.date, tz).time,
+      staffId: a.staffId,
+      staffName: a.staff?.name ?? "—",
+      date: z.date,
+      time: z.time,
       duration: a.duration,
-      color: a.service.color,
+      price: a.price,
       status: a.status,
+      paymentStatus: a.paymentStatus,
+      paymentMode: (a as { paymentMode?: string }).paymentMode ?? "postpaid",
+      color: a.service.color,
+      notes,
     };
   });
 
-  const staffRows = staff.map(s => ({ id: s.id, name: s.name, color: s.color }));
-
-  return <CalendarClient appointments={apptRows} staff={staffRows} />;
+  return (
+    <CalendarClient
+      appointments={apptRows}
+      staff={staff.map(s => ({ id: s.id, name: s.name, color: s.color }))}
+      services={services.map(s => ({ id: s.id, name: s.name, duration: s.duration, price: s.price }))}
+    />
+  );
 }

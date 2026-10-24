@@ -335,11 +335,11 @@ If any of these is open, v2 should not take real customers. Where each one lives
 
 | Lane | Agent | Items |
 |---|---|---|
-| A: CI and environments | BE | S9-01 → S9-02 → S9-03 |
+| A: CI and environments | BE | S9-01 → S9-02 → S9-03; S9-17 with S9-02 |
 | B: observability and ops docs | BE | S9-04, S9-05, S9-14 |
 | C: scheduling and jobs | BE | S9-06 |
 | D: storage | BE | S9-07 |
-| E: performance | FE + BE (separate files) | S9-08 |
+| E: performance | FE + BE (separate files) | S9-08, S9-18 |
 | F: OpenWA hosting | BE | S9-09 |
 | G: tests and review | QA, SEC | S9-13, S9-15 |
 
@@ -361,6 +361,8 @@ If any of these is open, v2 should not take real customers. Where each one lives
 | S9-14 | Runbooks | M | BE | B | `docs/runbooks/*` | Incident response, rollback, database restore, WhatsApp number ban, email deliverability drop, leaked secret |
 | S9-15 | Security review: infrastructure and headers | S | SEC | G, last | n/a | CSP moved from report-only to enforced with no regressions; transport, cookies, secrets handling, CI permissions; no Critical or High open |
 | S9-16 | Domains, wildcard TLS and email DNS | S | owner + BE | A | DNS, Vercel domains | Wildcard subdomain certificate works; SPF, DKIM, DMARC verified; slug routing tested on the real domain |
+| S9-17 | Production database and app in the same region, no autosuspend [new] | S | owner + BE | A, with S9-02 | Neon project settings, Vercel function region, `docs/environments.md` | The production Neon database is created in the region closest to our users (Asia Pacific, for example Singapore) and the Vercel functions run in the same region (`regions` in `vercel.json` or project settings); autosuspend (scale to zero) is disabled on the production compute so the first request after idle is not slow or failing; staging may keep autosuspend; measured database round trip from the app is recorded in `docs/environments.md` (target: under 10 ms per query in production). Why: from a laptop to a distant region each query took long enough that a reschedule transaction exceeded Prisma's 5 s limit |
+| S9-18 | Narrow slot re-check inside the booking lock [new] | M | BE | E, after S2-03 | `lib/booking.ts` (`bookExclusive`), `lib/availability.ts`, `app/api/bookings/route.ts`, `app/api/appointments/route.ts`, `app/api/appointments/[id]/route.ts` | Inside the locked transaction, re-check only the single requested slot (that staff member, that interval: overlapping appointments with buffers, time off, working hours for that day) with one or two narrow queries, instead of rebuilding the full availability for the day; the full calculation still runs once before the lock to choose candidates; locked transaction measured under about 1 s against a remote database and the 20 s timeout added in the booking-lock fix can be lowered; the concurrency test (20 parallel requests, one slot, exactly one booking) and the reschedule tests still pass; a test proves the narrow check agrees with the full engine on conflicts, time off, buffers and capacity |
 
 ---
 

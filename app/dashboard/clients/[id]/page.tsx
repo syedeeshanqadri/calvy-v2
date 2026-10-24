@@ -26,7 +26,7 @@ export default async function ClientDetailPage(props: { params: Promise<{ id: st
   const data = {
     id: client.id,
     name: client.name,
-    email: client.email,
+    email: client.email ?? "",
     phone: client.phone ?? "",
     notes: client.notes ?? "",
     totalAppointments: client.totalAppointments,

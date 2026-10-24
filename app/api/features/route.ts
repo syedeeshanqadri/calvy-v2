@@ -1,3 +1,4 @@
+import { safeRoute } from "@/lib/api";
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
@@ -6,7 +7,7 @@ import { getLimitsFromDB } from "@/lib/plans";
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+async function GET_handler() {
   const session = await getServerSession(authOptions);
   const businessId = (session?.user as { businessId?: string } | undefined)?.businessId;
   if (!session?.user || !businessId) {
@@ -26,3 +27,5 @@ export async function GET() {
 
   return NextResponse.json({ limits, plan: business.plan });
 }
+
+export const GET = safeRoute(GET_handler);

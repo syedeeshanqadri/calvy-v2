@@ -1,3 +1,4 @@
+import { safeRoute } from "@/lib/api";
 import { timingSafeEqual } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
@@ -28,7 +29,7 @@ function isAuthorized(req: NextRequest): boolean {
   return given.length === expected.length && timingSafeEqual(given, expected);
 }
 
-export async function GET(req: NextRequest) {
+async function GET_handler(req: NextRequest) {
   if (!isAuthorized(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -69,7 +70,7 @@ export async function GET(req: NextRequest) {
       let delivered = !hasEmail && !hasPhone;
       if (hasEmail) {
         const res = await sendBookingReminder({
-          to: appt.client.email,
+          to: appt.client.email!,
           clientName: appt.client.name,
           businessName: appt.business.name,
           serviceName: appt.service.name,
@@ -119,3 +120,5 @@ export async function GET(req: NextRequest) {
   const failed = results.filter((r) => r.status === "rejected").length;
   return NextResponse.json({ ok: true, found: appointments.length, sent, failed });
 }
+
+export const GET = safeRoute(GET_handler);

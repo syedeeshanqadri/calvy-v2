@@ -19,6 +19,12 @@ export interface AvailabilityQuery {
   /** Limit to one staff member. */
   staffId?: string | null;
   now?: number;
+  /** Owner screens: skip the customer notice and advance-window rules, and allow the slot already in progress. */
+  ownerMode?: boolean;
+  /** Appointment being rescheduled: it does not block its own slot. */
+  excludeAppointmentId?: string;
+  /** Total duration to use instead of the services' sum (an existing multi-service booking). */
+  durationMin?: number;
 }
 
 export interface AvailabilityResult {
@@ -54,6 +60,7 @@ interface Context {
   capacity: number;
   firstServiceId: string | null;
   candidates: (string | null)[];
+  ownerMode: boolean;
   hours: HoursRow[];
   timeOff: { staffId: string | null; startAt: Date; endAt: Date }[];
   appts: ApptRow[];
@@ -61,7 +68,15 @@ interface Context {
 
 async function buildContext(
   db: Db,
-  q: { businessId: string; serviceIds: string[]; fallbackDurationMin?: number; staffId?: string | null },
+  q: {
+    businessId: string;
+    serviceIds: string[];
+    fallbackDurationMin?: number;
+    staffId?: string | null;
+    ownerMode?: boolean;
+    excludeAppointmentId?: string;
+    durationMin?: number;
+  },
   range: { firstDate: string; lastDate: string },
 ): Promise<Context | { error: "business" | "service" }> {
   const business = await db.business.findUnique({
@@ -91,6 +106,8 @@ async function buildContext(
     firstServiceId = ordered[0].id;
   }
 
+  if (q.durationMin && q.durationMin > 0) durationMin = q.durationMin;
+
   // Candidate staff: active, linked to ALL requested services. No active staff at all = one shared calendar.
   const activeStaff = await db.staff.findMany({
     where: { businessId: q.businessId, isActive: true },
@@ -114,6 +131,7 @@ async function buildContext(
       where: {
         businessId: q.businessId,
         status: { notIn: ["cancelled", "no-show"] },
+        ...(q.excludeAppointmentId ? { id: { not: q.excludeAppointmentId } } : {}),
         // a day either side so buffers and overnight neighbours are seen
         date: { gte: new Date(rangeStart.getTime() - 86_400_000), lt: new Date(rangeEnd.getTime() + 86_400_000) },
       },
@@ -124,14 +142,15 @@ async function buildContext(
   return {
     tz,
     slotInterval,
-    minNoticeMinutes: business.minNoticeMinutes,
-    maxAdvanceDays: business.maxAdvanceDays,
+    minNoticeMinutes: q.ownerMode ? 0 : business.minNoticeMinutes,
+    maxAdvanceDays: q.ownerMode ? 3650 : business.maxAdvanceDays,
     durationMin,
     bufferBeforeMin,
     bufferAfterMin,
     capacity,
     firstServiceId,
     candidates,
+    ownerMode: !!q.ownerMode,
     hours: hoursRows.map((h) => ({ staffId: h.staffId, weekday: h.weekday, startMin: h.startMin, endMin: h.endMin })),
     timeOff: timeOffRows,
     appts,
@@ -170,7 +189,8 @@ function computeDay(ctx: Context, date: string, now: number) {
   return computeSlots({
     tz: ctx.tz,
     date,
-    now,
+    // The owner can still start the slot that is already in progress.
+    now: ctx.ownerMode ? now - ctx.slotInterval * 60_000 : now,
     slotInterval: ctx.slotInterval,
     minNoticeMinutes: ctx.minNoticeMinutes,
     maxAdvanceDays: ctx.maxAdvanceDays,

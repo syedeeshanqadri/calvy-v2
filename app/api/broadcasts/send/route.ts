@@ -1,3 +1,4 @@
+import { safeRoute } from "@/lib/api";
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
@@ -41,7 +42,7 @@ function buildEmailHtml(rawBusinessName: string, rawSubject: string, message: st
 }
 
 
-export async function POST(req: NextRequest) {
+async function POST_handler(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -101,7 +102,7 @@ export async function POST(req: NextRequest) {
 
   // ── Email ──────────────────────────────────────────────────────────────────
   if (medium === "email" || medium === "both") {
-    const emailClients = clients.filter(c => c.email);
+    const emailClients = clients.filter((c): c is typeof c & { email: string } => !!c.email);
     const html = buildEmailHtml(business.name, subject!, message);
 
     // Resend batch API: max 100 per call
@@ -146,3 +147,5 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({ ok: true, sentTo, ...(capped ? { capped: true, limit: MAX_RECIPIENTS } : {}) });
 }
+
+export const POST = safeRoute(POST_handler);

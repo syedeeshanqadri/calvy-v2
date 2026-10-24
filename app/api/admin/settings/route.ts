@@ -1,3 +1,4 @@
+import { safeRoute } from "@/lib/api";
 import { NextRequest, NextResponse } from "next/server";
 import { isAdminUser } from "@/lib/adminAuth";
 import { getServerSession } from "next-auth";
@@ -15,7 +16,7 @@ function isAdmin(session: Session) {
   return isAdminUser(session?.user);
 }
 
-export async function GET() {
+async function GET_handler() {
   const session = await getServerSession(authOptions);
   if (!isAdmin(session)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -27,7 +28,7 @@ export async function GET() {
   return NextResponse.json({ settings: map });
 }
 
-export async function PATCH(req: NextRequest) {
+async function PATCH_handler(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!isAdmin(session)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -47,3 +48,6 @@ export async function PATCH(req: NextRequest) {
 
   return NextResponse.json({ ok: true });
 }
+
+export const GET = safeRoute(GET_handler);
+export const PATCH = safeRoute(PATCH_handler);

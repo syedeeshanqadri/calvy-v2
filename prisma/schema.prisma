@@ -173,7 +173,7 @@ model Client {
   id                String        @id @default(cuid())
   businessId        String
   name              String
-  email             String
+  email             String?
   phone             String?
   notes             String?
   totalAppointments Int           @default(0)
@@ -184,6 +184,8 @@ model Client {
   business          Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
   @@unique([businessId, email])
+  @@unique([businessId, phone])
+
   @@index([businessId])
 }
 

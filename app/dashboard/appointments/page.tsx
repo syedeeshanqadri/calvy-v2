@@ -38,8 +38,9 @@ export default async function AppointmentsPage() {
     return {
       id: a.id,
       clientName: a.client.name,
-      clientEmail: a.client.email,
+      clientEmail: a.client.email ?? a.client.phone ?? "",
       serviceName,
+      staffId: a.staffId,
       staffName: a.staff?.name ?? "—",
       date: utcToZoned(a.date, tz).date,
       time: utcToZoned(a.date, tz).time,
