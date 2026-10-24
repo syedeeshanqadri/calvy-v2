@@ -11,7 +11,7 @@ const STEPS: Step[] = ["service", "staff", "datetime", "details", "confirm"];
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 const DAYS_SHORT = ["Su","Mo","Tu","We","Th","Fr","Sa"];
 
-import { t, type TermOpts } from "@/lib/terms";
+import { t, providerWord, type TermOpts } from "@/lib/terms";
 import type { TermKey } from "@/lib/packs/types";
 
 const BUSINESS_TYPE_LABELS: Record<string, string> = {
@@ -36,8 +36,9 @@ export function BookingClient({ business }: { business: Business }) {
   const svc1 = word("service"), svcN = word("service", { plural: true });
   const Svc1 = word("service", { cap: true });
   const appt1 = word("appointment");
-  const stf1 = word("staff");
-  const Stf1 = word("staff", { cap: true });
+  // "doctor" / "advocate" when the whole team shares that role, else the pack word.
+  const stf1 = providerWord(business.staff.filter(m => m.serviceIds.length > 0).map(m => m.role), word("staff"));
+  const Stf1 = stf1.charAt(0).toUpperCase() + stf1.slice(1);
   const STEP_LABELS = [Svc1, Stf1, "Date & Time", "Your Details", "Confirm"];
   const searchParams = useSearchParams();
   // Hide services nobody on the team is linked to (they could never be booked).

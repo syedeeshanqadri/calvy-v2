@@ -5,7 +5,7 @@ import {
   BookingCancellationEmail, BookingConfirmationEmail, BookingReminderEmail, BookingRescheduleEmail, type BookingProps,
 } from "@/emails/templates";
 import { PACK_IDS, getPack } from "@/lib/packs";
-import { staffRoleChoice, t } from "@/lib/terms";
+import { providerWord, staffRoleChoice, t } from "@/lib/terms";
 import { defaultWebsiteConfig } from "@/lib/website";
 
 const base: BookingProps = {
@@ -75,5 +75,18 @@ describe("pack extras", () => {
     expect(t({ packId: "CLINIC" }, "client", { plural: true, cap: true })).toBe("Patients");
     expect(t({ packId: "CLINIC" }, "staff", { plural: true, cap: true })).toBe("Doctors");
     expect(t({ packId: "LAWYER" }, "appointment", { plural: true, cap: true })).toBe("Meetings");
+  });
+});
+
+describe("providerWord (public booking page)", () => {
+  it("uses the shared specific role", () => {
+    expect(providerWord(["Doctor", "doctor"], "doctor")).toBe("doctor");
+    expect(providerWord(["Senior Advocate"], "advocate")).toBe("senior advocate");
+  });
+  it("falls back to the pack word for mixed or generic roles", () => {
+    expect(providerWord(["Doctor", "Dentist"], "doctor")).toBe("doctor");
+    expect(providerWord(["Owner"], "stylist")).toBe("stylist");
+    expect(providerWord(["Receptionist", "Receptionist"], "advocate")).toBe("advocate");
+    expect(providerWord([], "trainer")).toBe("trainer");
   });
 });
