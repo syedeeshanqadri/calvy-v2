@@ -152,7 +152,7 @@ export async function POST(request: NextRequest) {
     candidates = option.resourceIds;
   }
 
-  const client = await findOrCreateClient(prisma, businessId, { name: clientName, email: clientEmail, phone: clientPhone }, tz);
+  const client = await findOrCreateClient(prisma, businessId, { name: clientName, email: clientEmail, phone: clientPhone }, tz, { trusted: true });
 
   const limits = await getEffectiveLimits(business);
   const monthStart = startOfBusinessMonth(business.timezone);
