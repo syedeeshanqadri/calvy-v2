@@ -2,6 +2,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
+import { logger } from "@/lib/logger";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { DashboardKPIStats } from "@/components/dashboard/DashboardKPIStats";
 import { RevenueChart } from "@/components/dashboard/RevenueChart";
@@ -76,7 +77,10 @@ export default async function DashboardPage() {
       where: { businessId, date: { gte: new Date(now.getFullYear(), now.getMonth(), 1), lte: new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59) } },
       _sum: { amount: true },
     }),
-  ]).catch(() => [[], [], [], [], 0, 0, [], [], { _sum: { amount: null } }] as const);
+  ]).catch((err) => {
+    logger.error("[Dashboard] queries failed:", { err, businessId });
+    return [[], [], [], [], 0, 0, [], [], { _sum: { amount: null } }] as const;
+  });
 
   // KPI stats
   const monthExpenses = monthExpensesAgg._sum.amount ?? 0;

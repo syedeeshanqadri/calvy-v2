@@ -5,6 +5,7 @@ import FacebookProvider from "next-auth/providers/facebook";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { rateLimit } from "@/lib/ratelimit";
+import { revalidateBusinessClaims } from "@/lib/sessionBusiness";
 import { normalizeEmail, tryNormalizeEmail } from "@/lib/email-normalize";
 
 // Case-insensitive user lookup; an exact lowercase match wins over legacy
@@ -119,17 +120,14 @@ export const authOptions: NextAuthOptions = {
           token.businessSlug = dbUser.business?.slug;
           token.businessName = dbUser.business?.name;
         }
-      } else if (token.uid && !token.businessId) {
-        // Refresh once the user completes onboarding (business now exists).
-        const dbUser = await prisma.user.findUnique({
-          where: { id: token.uid as string },
-          include: { business: true },
-        });
-        if (dbUser?.business) {
-          token.businessId = dbUser.business.id;
-          token.businessSlug = dbUser.business.slug;
-          token.businessName = dbUser.business.name;
-        }
+      }
+      // Every request: re-validate the business claims against the DB (throttled), so a
+      // deleted/re-created business or a just-finished onboarding is picked up.
+      if (user) token.bizCheckedAt = Date.now();
+      else {
+        await revalidateBusinessClaims(token, (ownerId) =>
+          prisma.business.findUnique({ where: { ownerId }, select: { id: true, slug: true, name: true } }),
+        );
       }
       return token;
     },
