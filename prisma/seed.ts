@@ -280,20 +280,70 @@ async function seedPackBusinesses() {
     const business = existing
       ? await prisma.business.update({ where: { id: existing.id }, data: fields })
       : await prisma.business.create({ data: { name: spec.name, slug: spec.slug, ownerId: user.id, ...fields } });
-    if ((await prisma.service.count({ where: { businessId: business.id } })) > 0) continue;
-    const services: { id: string }[] = [];
-    for (const sv of spec.services) services.push(await prisma.service.create({ data: { businessId: business.id, isActive: true, ...sv } }));
-    const staff: { id: string }[] = [];
-    for (const [i, st] of spec.staff.entries()) {
-      staff.push(await prisma.staff.create({
-        data: { businessId: business.id, isActive: true, workingHours: WH, email: `staff${i + 1}.${spec.slug}@calvy.test`, ...st },
-      }));
+    if ((await prisma.service.count({ where: { businessId: business.id } })) === 0) {
+      const services: { id: string }[] = [];
+      for (const sv of spec.services) services.push(await prisma.service.create({ data: { businessId: business.id, isActive: true, ...sv } }));
+      const staff: { id: string }[] = [];
+      for (const [i, st] of spec.staff.entries()) {
+        staff.push(await prisma.staff.create({
+          data: { businessId: business.id, isActive: true, workingHours: WH, email: `staff${i + 1}.${spec.slug}@calvy.test`, ...st },
+        }));
+      }
+      await prisma.staffService.createMany({
+        data: spec.links.flatMap((idxs, i) => idxs.map(j => ({ staffId: staff[i].id, serviceId: services[j].id }))),
+        skipDuplicates: true,
+      });
     }
-    await prisma.staffService.createMany({
-      data: spec.links.flatMap((idxs, i) => idxs.map(j => ({ staffId: staff[i].id, serviceId: services[j].id }))),
-      skipDuplicates: true,
-    });
+    await seedPackAppointments(spec, business.id);
   }
+}
+
+// Clients and 5 appointments around today (today + tomorrow), only when the business has none yet.
+async function seedPackAppointments(spec: Spec, businessId: string) {
+  if ((await prisma.appointment.count({ where: { businessId } })) > 0) return;
+  const services = await prisma.service.findMany({ where: { businessId, name: { in: spec.services.map(s => s.name) } } });
+  const staff = await prisma.staff.findMany({ where: { businessId, email: { in: spec.staff.map((_, i) => `staff${i + 1}.${spec.slug}@calvy.test`) } } });
+  const svc = (j: number) => services.find(s => s.name === spec.services[j].name)!;
+  const stf = (i: number) => staff.find(s => s.email === `staff${i + 1}.${spec.slug}@calvy.test`)!;
+
+  const clients: { id: string }[] = [];
+  for (const [i, name] of ["Riya Kapoor", "Aman Verma", "Sofia Rossi"].entries()) {
+    clients.push(await prisma.client.upsert({
+      where: { businessId_email: { businessId, email: `client${i + 1}.${spec.slug}@example.com` } },
+      update: {},
+      create: { businessId, name, email: `client${i + 1}.${spec.slug}@example.com`, phone: `+91 98000 0${i + 1}${String(spec.slug.length).padStart(3, "0")}` },
+    }));
+  }
+
+  const base = new Date();
+  base.setHours(0, 0, 0, 0);
+  const at = (day: number, hour: number, minute = 0) => {
+    const d = new Date(base);
+    d.setDate(d.getDate() + day);
+    d.setHours(hour, minute, 0, 0);
+    return d;
+  };
+  // [client, staff, service (index into spec.services), day offset, hour, minute, status, paymentStatus]
+  // Each staff member only gets services they are linked to (spec.links), at non-overlapping times.
+  const [a0, a1] = [spec.links[0], spec.links[1]];
+  const plan: [number, number, number, number, number, number, string, string][] = [
+    [0, 0, a0[0], 0, 10, 0, "confirmed", "paid"],
+    [1, 0, a0[1] ?? a0[0], 0, 14, 0, "pending", "unpaid"],
+    [2, 1, a1[0], 0, 11, 30, "confirmed", "paid"],
+    [0, 0, a0[0], 1, 11, 0, "confirmed", "unpaid"],
+    [1, 1, a1[a1.length - 1], 1, 15, 0, "pending", "unpaid"],
+  ];
+  await prisma.appointment.createMany({
+    data: plan.map(([c, st, sv, day, h, m, status, paymentStatus]) => {
+      const service = svc(sv);
+      const date = at(day, h, m);
+      return {
+        businessId, clientId: clients[c].id, staffId: stf(st).id, serviceId: service.id,
+        date, duration: service.duration, price: service.price, status, paymentStatus,
+        endAt: new Date(date.getTime() + service.duration * 60_000),
+      };
+    }),
+  });
 }
 
 function printSummary() {
