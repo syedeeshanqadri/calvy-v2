@@ -13,7 +13,7 @@ export const RESERVED_SLUGS: ReadonlySet<string> = new Set([
   "sitemap", "sitemap.xml", "calvy", "offline", "blog-covers", "manifest", "sw", "service-worker",
   // marketing / generic
   "about", "contact", "pricing", "features", "docs", "support", "status", "billing", "settings", "account",
-  "careers", "security", "legal", "demo", "home", "index", "null", "undefined",
+  "in", "careers", "security", "legal", "demo", "home", "index", "null", "undefined",
   // infrastructure subdomains
   "www", "mail", "email", "smtp", "ftp", "cdn", "staging", "dev", "test", "webmail", "ns1", "ns2",
 ]);

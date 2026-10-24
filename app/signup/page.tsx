@@ -5,7 +5,8 @@ import SocialAuthButtons from "@/components/auth/SocialAuthButtons";
 import AuthShell, { inputClass, primaryBtn, secondaryBtn, linkClass } from "@/components/auth/AuthShell";
 import PasswordInput from "@/components/auth/PasswordInput";
 import { postAuth } from "@/components/auth/authApi";
-import { DISPLAY_PLANS, PRICING_NOTE, YEARLY_SAVE_BADGE, isFeatureHeading } from "@/lib/pricingDisplay";
+import { PRICING_NOTE, formatMoney, getRegionPricing, isFeatureHeading, yearlySaveBadge } from "@/lib/pricing";
+import { useRegion } from "@/components/landing/useRegion";
 
 const REGIONS = [
   { currency: "USD", label: "United States — US Dollar (USD $)" },
@@ -36,6 +37,14 @@ export default function SignupPage() {
   const [resending, setResending] = useState(false);
   const [resendMsg, setResendMsg] = useState("");
   const [resendError, setResendError] = useState("");
+  const [detectedRegion] = useRegion();
+
+  // Pre-selected from the visitor's detected country until they pick one themselves.
+  const currency = form.currency || (detectedRegion === "IN" ? "INR" : "");
+
+  // Step 2 shows the price list that matches the region chosen in step 1.
+  const pricing = getRegionPricing(currency === "INR" ? "IN" : "INTL");
+  const money = (n: number) => formatMoney(n, pricing);
 
   useEffect(() => {
     if (cooldown <= 0) return;
@@ -64,7 +73,7 @@ export default function SignupPage() {
   // Step 1 only validates and moves on; the account is created on the final click in step 2.
   function handleContinue(e: React.FormEvent) {
     e.preventDefault();
-    if (!form.currency) { setError("Please select your region."); return; }
+    if (!currency) { setError("Please select your region."); return; }
     setError("");
     setStep(2);
   }
@@ -79,7 +88,7 @@ export default function SignupPage() {
       res = await fetch("/api/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, plan, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone }),
+        body: JSON.stringify({ ...form, currency, plan, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone }),
       });
       data = await res.json().catch(() => ({}));
     } catch {
@@ -134,6 +143,7 @@ export default function SignupPage() {
       <AuthShell>
         <h1 className="font-syne font-bold text-2xl text-[#0f0f1a] mb-1">Choose your plan</h1>
         <p className="text-[#6b6b80] text-sm mb-5">Every account starts free. {PRICING_NOTE}</p>
+        {pricing.headline && <p className="font-syne font-bold text-sm text-sky-700 mb-4">{pricing.headline}</p>}
 
         <div className="flex items-center gap-1 bg-[#f8f7f4] rounded-xl p-1 mb-4" role="group" aria-label="Billing period">
           <button type="button" onClick={() => setYearly(false)} aria-pressed={!yearly}
@@ -143,12 +153,12 @@ export default function SignupPage() {
           <button type="button" onClick={() => setYearly(true)} aria-pressed={yearly}
             className={`flex-1 min-h-11 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-1.5 ${yearly ? "bg-white shadow-sm text-[#0f0f1a]" : "text-[#6b6b80]"}`}>
             Yearly
-            <span className="text-[10px] font-bold bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full">{YEARLY_SAVE_BADGE}</span>
+            <span className="text-[10px] font-bold bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full">{yearlySaveBadge(pricing.plans)}</span>
           </button>
         </div>
 
         <div className="space-y-3" role="radiogroup" aria-label="Plan">
-          {DISPLAY_PLANS.map(p => {
+          {pricing.plans.map(p => {
             const selected = plan === p.id;
             const perMonth = yearly ? p.yearlyPerMonth : p.monthly;
             return (
@@ -166,10 +176,10 @@ export default function SignupPage() {
                     {p.badge && <span className="ml-2 align-middle text-[10px] font-bold bg-sky-100 text-sky-700 px-2 py-0.5 rounded-full">{p.badge}</span>}
                   </span>
                   <span className="font-syne font-bold text-[#0f0f1a]">
-                    ${perMonth}<span className="text-xs font-medium text-[#6b6b80]">{p.monthly === 0 ? " forever" : "/mo"}</span>
+                    {money(perMonth)}<span className="text-xs font-medium text-[#6b6b80]">{p.monthly === 0 ? " forever" : "/mo"}</span>
                   </span>
                 </div>
-                {p.monthly > 0 && yearly && <p className="text-xs text-green-700 font-medium mt-0.5">billed ${p.yearlyTotal} yearly</p>}
+                {p.monthly > 0 && yearly && <p className="text-xs text-green-700 font-medium mt-0.5">billed {money(p.yearlyTotal)} yearly</p>}
                 <ul className="mt-2 space-y-1">
                   {p.features.map(f => isFeatureHeading(f) ? (
                     <li key={f} className="pt-1 text-[11px] font-bold uppercase tracking-wider text-[#0f0f1a]">{f}</li>
@@ -266,7 +276,7 @@ export default function SignupPage() {
           <select
             id="signup-region"
             required
-            value={form.currency}
+            value={currency}
             onChange={e => set("currency", e.target.value)}
             aria-describedby="signup-region-hint"
             className={`${inputClass} bg-white`}

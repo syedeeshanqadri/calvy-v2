@@ -11,7 +11,7 @@ describe("pricing display", () => {
       ["Business", 14, 12, 144],
     ]);
     expect(PRICING_NOTE).toMatch(/no per-staff fees/);
-    expect(YEARLY_SAVE_BADGE).toBe("Save ~17%");
+    expect(YEARLY_SAVE_BADGE).toBe("Save up to 17%");
   });
   it("yearly totals are 12 x the yearly per-month price", () => {
     for (const p of DISPLAY_PLANS) expect(p.yearlyTotal).toBe(p.yearlyPerMonth * 12);

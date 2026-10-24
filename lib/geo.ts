@@ -84,6 +84,22 @@ export async function getCurrencyFromIp(ip: string): Promise<string> {
   }
 }
 
+/** Two-letter country code for an IP, or null. Short timeout: this runs on a page request. */
+export async function getCountryFromIp(ip: string, timeoutMs = 1500): Promise<string | null> {
+  if (!ip || ip === "unknown" || ip === "127.0.0.1" || ip === "::1" || ip === "localhost") return null;
+  try {
+    const res = await fetch(`https://ipapi.co/${ip}/country/`, {
+      signal: AbortSignal.timeout(timeoutMs),
+      cache: "no-store",
+    });
+    if (!res.ok) return null;
+    const country = (await res.text()).trim().toUpperCase();
+    return /^[A-Z]{2}$/.test(country) ? country : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function getExchangeRate(currency: string): Promise<number> {
   if (currency === "USD") return 1;
   try {
