@@ -1,12 +1,13 @@
 # Steps 3 to 5 design: business packs, token mode, India monetization (plan only)
 
-Base: `main` @ 54a8239. Money in integer paise/cents (`*Minor`). Times UTC + `Business.timezone`. All new rows carry `businessId`.
+**Status:** approved by the owner (decisions at the end). Supersedes the old PLAN.md Steps 3 to 5.
+Base: `main` @ 54a8239 (latest `origin/main` on 2026-10-24; rebase chunks once chunk 2, port and pricing merge). Money in integer paise/cents (`*Minor`). Times UTC + `Business.timezone`. All new rows carry `businessId`.
 
 ## Schema (one migration per chunk, `prisma migrate dev`)
-- **Enums:** `PackId {CLINIC, SALON_SPA, LAWYER, FITNESS, OTHER}`, `BookingMode {SLOT, TOKEN}`, `OnlinePayMode {BOOKING_FEE_ONLY, FULL_ONLINE}`, `FeePayer {CUSTOMER, BUSINESS}`, `QueueState {WAITING, SERVING, DONE, NO_SHOW, MOVED}`, `BookingSource {ONLINE, DASHBOARD, WALK_IN}`, `PayProvider {MOCK, CASHFREE, INTL}`, `PayStatus {CREATED, PAID, FAILED, EXPIRED, REFUNDED}`, `FeeEntryKind {CHARGED, CARRIED_OVER, WAIVED, REFUNDED}`.
-- **Business:** `packId PackId @default(OTHER)` (backfill from `businessType`), `country String @default("IN")` (ISO-2), `bookingMode @default(SLOT)`, `onlinePayMode @default(BOOKING_FEE_ONLY)`, `feePayer @default(CUSTOMER)`, `termsOverride Json?`. Keep `primaryColor` as the theme colour.
-- **TokenSession** (new): `id, businessId, name, weekdays Int[], startMin, endMin, minutesPerToken, isActive`. Capacity = floor((end-start)/minutes).
-- **Appointment:** `source @default(ONLINE)`, `holdExpiresAt DateTime?` (status `pending_payment`), `tokenSessionId?`, `sessionDate Date?`, `tokenNumber Int?`, `queuePosition Int?`, `queueState?`, `estimatedAt Timestamptz?`, `notPresentCount Int @default(0)`, `carriedFromId String?`. `@@unique([tokenSessionId, sessionDate, tokenNumber])`, `@@index([businessId, sessionDate, queuePosition])`.
+- **Enums:** `PackId {CLINIC, SALON_SPA, LAWYER, FITNESS, OTHER}`, `BookingMode {SLOT, TOKEN}`, `OnlinePayMode {BOOKING_FEE_ONLY, FULL_ONLINE}`, `FeePayer {CUSTOMER, BUSINESS}`, `QueueState {WAITING, SERVING, DONE, NO_SHOW, MOVED}`, `BookingSource {ONLINE, DASHBOARD, WALK_IN}`, `PayProvider {MOCK, CASHFREE}` (STRIPE added in Step 7), `PayStatus {CREATED, PAID, FAILED, EXPIRED, REFUNDED}`, `FeeEntryKind {CHARGED, CARRIED_OVER, WAIVED, REFUNDED}`.
+- **Business:** `packId PackId @default(OTHER)` (backfill from `businessType`), `country String` (ISO-2, **no default**, required at signup, pre-filled from the detected region; backfill `currency = INR` → `IN`, else `US`), `bookingMode @default(SLOT)`, `onlinePayMode @default(BOOKING_FEE_ONLY)`, `feePayer @default(CUSTOMER)`, `termsOverride Json?`. Keep `primaryColor` as the theme colour.
+- **TokenSession** (new): `id, businessId, staffId String?` (null = business-wide queue), `name, weekdays Int[], startMin, endMin, minutesPerToken, isActive`. Capacity = floor((end-start)/minutes). Numbering, capacity and ETA are per session row, so per session + staff.
+- **Appointment:** `source @default(ONLINE)`, `holdExpiresAt DateTime?` (status `pending_payment`), `tokenSessionId?`, `sessionDate Date?`, `tokenNumber Int?`, `queuePosition Int?`, `queueState?`, `estimatedAt Timestamptz?`, `notPresentCount Int @default(0)`, `carriedFromId String? @unique` (at most one carry-over). `@@unique([tokenSessionId, sessionDate, tokenNumber])`, `@@index([businessId, sessionDate, queuePosition])`.
 - **Payment** (new): `businessId, appointmentId, provider, providerOrderId @unique, amountMinor, platformFeeMinor, businessShareMinor, currency, status, method?, rawRef`. **PlatformFeeEntry** (ledger, append-only): `businessId, appointmentId, paymentId?, kind, amountMinor, createdAt`. **PayoutAccount**: `businessId @unique, provider, accountId, kycStatus`. **WebhookEvent**: `provider, eventId` unique (idempotency).
 - **PlanConfig:** `platformFeeMinorIN Int @default(0)` (Free = 1000; paid = 0). International never charged.
 
@@ -18,9 +19,12 @@ Base: `main` @ 54a8239. Money in integer paise/cents (`*Minor`). Times UTC + `Bu
 
 ## Booking flow per mode
 - **Slot (today):** unchanged unless payment needed. **Token:** customer picks date + session, sees "~N left"; on confirm, in one transaction with advisory lock on (session, date): count tokens incl. live holds, `n = max+1`, `estimatedAt = start + (n-1)*min`, reject if `n > capacity`.
+- **Who pays online:** India Free: every PUBLIC online booking (website, booking page, widget) pays Rs 10, no opt-out (upgrade removes it); dashboard bookings and walk-ins are free. International at launch: pay at venue only, no online payment.
 - **Payment needed?** `fee = country=IN ? plan.platformFeeMinorIN : 0`. BOOKING_FEE_ONLY charges `fee` (Calvy keeps it; no business KYC). FULL_ONLINE: payer CUSTOMER charges `P+fee`, business gets `P`; payer BUSINESS charges `P`, business gets `P-fee`. Charge 0 → confirm immediately. Gateway fees absorbed by Calvy.
-- **Pending + hold:** create Appointment `pending_payment` + slot/token hold (`holdExpiresAt = now+10m`) + Payment `CREATED`; checkout lists UPI first ("Recommended"). Webhook `PAID` (idempotent) → confirm, write fee ledger, send email. `FAILED`/timeout → release (lazy on read + cron sweep); token numbers of released holds are not reused. Paid after expiry → auto-refund.
-- **Queue actions:** Next (SERVING → DONE, next WAITING → SERVING). Not present #1: position += 2 (or end), recompute ETAs, email new position/time. #2: NO_SHOW, closed, email, no refund. Not coming: MOVED; new appointment same session next working day at end of queue, `carriedFromId`, ledger `CARRIED_OVER`, no new charge, email. Walk-in: source WALK_IN, fee 0, token at end.
+- **Pending + hold:** create Appointment `pending_payment` + slot/token hold (`holdExpiresAt = now+10m`) + Payment `CREATED`; checkout lists UPI first ("Recommended"). Webhook `PAID` (idempotent) → confirm, write fee ledger, send email. `FAILED`/timeout → release (lazy on read + cron sweep); token numbers of released holds are not reused. Paid after expiry → auto-refund. Group-service holds count against capacity until expiry.
+- **Refunds:** business cancels a paid booking → full refund incl. Rs 10 (ledger `REFUNDED`). Customer cancels → Rs 10 kept; in FULL_ONLINE the service fee is refunded only before the cancellation cutoff (Step 2 rule).
+- **Receipt:** Rs 10 is GST-inclusive; a simple receipt (Calvy / Raybit legal name, address, GSTIN from config, never hard-coded) is attached to the confirmation email and viewable on the manage page.
+- **Queue actions:** Next (SERVING → DONE, next WAITING → SERVING). Not present #1: position += 2 (or end), recompute ETAs, email new position/time. #2: NO_SHOW, closed, email, no refund. Not coming: MOVED; new appointment same session next working day at end of queue, `carriedFromId`, ledger `CARRIED_OVER`, no new charge, email. Max one carry-over: a second Not coming closes the appointment (email, no refund). Walk-in: source WALK_IN, fee 0, token at end.
 - **Live tracking:** `/{slug}/q/{signedCode}` polls 15s: "Now serving #8 · you are #12 · ~25 min"; no PII.
 
 ## Email templates (all via `t()`)
@@ -33,20 +37,13 @@ Slot confirmed (+ fee receipt), Token confirmed (number, ETA, tracking link), Pa
 4. `step-3/theme-colour`: presets + picker on all plans, CSS var on website + booking page. Tests: hex/contrast helper.
 5. `step-4/token-sessions`: TokenSession, bookingMode, settings + capacity preview. Tests: capacity, overlapping sessions rejected.
 6. `step-4/token-booking`: atomic assignment, token booking UI, confirmation email. Tests: numbering, ETA, capacity full (pure part).
-7. `step-4/queue-screen`: walk-ins, Next / Not present / Not coming, ETA recompute, emails. Tests: move-back-2, second skip = no-show, next-working-day, ETA after skips.
+7. `step-4/queue-screen`: walk-ins, Next / Not present / Not coming, ETA recompute, emails. Tests: move-back-2, fewer than 2 behind → moves to end, second skip = no-show, next-working-day, second Not coming closes, ETA after skips, per-staff numbering.
 8. `step-4/live-tracking`: public page + signed code. Tests: code sign/verify, payload has no PII.
 9. `step-5/payments-core`: enums, Payment, ledger, WebhookEvent, provider interface + mock, `lib/fees`. Tests: fee matrix (IN free/paid, intl, both payers, both modes), mock contract, idempotency.
-10. `step-5/pending-holds-checkout`: pending booking, hold expiry + sweep, UPI-first mock checkout, refund-after-expiry. Tests: expiry/release logic, token not reused.
-11. `step-5/online-payment-settings`: country, mode, payer, plan waiver, PayoutAccount screen. Tests: settings Zod, waiver resolution.
+10. `step-5/pending-holds-checkout`: pending booking, hold expiry + sweep, UPI-first mock checkout, refund-after-expiry. Tests: expiry/release logic, token not reused, group hold counts against capacity, refund rules (business vs customer cancel, cutoff).
+11. `step-5/online-payment-settings`: country (signup + backfill), mode, payer, plan waiver, PayoutAccount screen, GST receipt. Tests: settings Zod, waiver resolution, backfill mapping, receipt totals.
 12. `step-5/cashfree-split`: Cashfree adapter (test creds), vendor onboarding, split at order. Tests: signature verify, split amounts.
+13. `step-5/subscriptions-cashfree`: Cashfree subscriptions for India Pro/Business (monthly/yearly), plan activation via webhook, downgrade to Free on expiry; then remove Razorpay code and retire wallet/withdrawals. Tests: subscription state machine, webhook idempotency, expiry downgrade.
 
-## Open questions
-1. PLAN.md conflicts: Step 3 lists six packs (Spa separate, Dental variant, Hindi); Step 4 has REQUEST/CLASS/QUEUE items; Step 5 is messaging and monetization is Step 8. Does this design supersede them, and under which new item IDs?
-2. Payment code is off-limits by CLAUDE.md: please authorise chunks 9 to 12. Does Cashfree replace Razorpay for India (and retire wallet/withdrawals), or do both coexist?
-3. Which international gateway (Stripe Connect?) and does international allow FULL_ONLINE at launch?
-4. Can an India Free business turn online payment off (pay at venue, no Rs 10)? Assumed no: every public booking pays Rs 10; dashboard bookings and walk-ins are free.
-5. Refund when the business cancels a paid booking: is the Rs 10 refunded?
-6. One queue per business per session, or per staff member? Assumed per business.
-7. Not coming: same session next working day, end of queue? Limit on carry-overs?
-8. GST on the Rs 10 (inclusive or extra) and invoice requirement.
-9. Hold length (assumed 10 min) and slot-mode hold release rules for group (capacity > 1) services.
+## Decisions (owner, 2026-10-24)
+Five packs (Salon & Spa merged; Dental = wording variant inside Clinic); Hindi later. Messaging = Step 6; international payments + subscription billing = Step 7. Chunks 9 to 13 authorised to touch payment code; Cashfree replaces Razorpay for India; wallet/withdrawals retired; Razorpay removed once Cashfree works. International: Stripe Connect later, pay at venue at launch. Hold 10 min.
