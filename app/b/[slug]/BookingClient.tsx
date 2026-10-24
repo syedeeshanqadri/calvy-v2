@@ -5,6 +5,9 @@ import { ChevronLeft, ChevronRight, Check, Clock, Loader2, MapPin, Globe, Phone,
 import { cn } from "@/lib/utils";
 import { formatCurrencyAmount } from "@/lib/currency";
 import { bookableServices, providerOptions } from "@/lib/staffMatch";
+import { safeThemeColor, readableForeground, themeVars } from "@/lib/theme";
+import { BrandMark, SocialIcons, ReviewButton, initialsOf } from "@/components/site/Brand";
+import { parseSocialLinks, safeReviewLink, type SocialLinks } from "@/lib/brandLinks";
 
 type Step = "service" | "staff" | "datetime" | "details" | "confirm";
 const STEPS: Step[] = ["service", "staff", "datetime", "details", "confirm"];
@@ -25,6 +28,7 @@ interface Business {
   slug: string; name: string; primaryColor: string; businessType: string;
   description: string; phone: string; address: string; website: string;
   currency: string; paymentMode: string;
+  logoUrl?: string | null; socialLinks?: SocialLinks; googleReviewUrl?: string | null;
   services: Service[]; staff: StaffMember[];
 }
 
@@ -165,9 +169,11 @@ export function BookingClient({ business }: { business: Business }) {
   const staff = business.staff.find(s => s.id === selectedStaff);
   const provider = providerOptions(business.staff, selectedServices);
   const stepIndex = STEPS.indexOf(step);
-  const color = business.primaryColor || "#0284c7";
+  const color = safeThemeColor(business.primaryColor);
+  const fg = readableForeground(color);
+  const social = parseSocialLinks(business.socialLinks);
+  const reviewUrl = safeReviewLink(business.googleReviewUrl);
 
-  const initials = business.name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
   const typeLabel = BUSINESS_TYPE_LABELS[business.businessType] ?? "Service Business";
 
   function next() { if (stepIndex < STEPS.length - 1) setStep(STEPS[stepIndex + 1]); }
@@ -228,31 +234,42 @@ export function BookingClient({ business }: { business: Business }) {
               <span className="font-medium">{business.paymentMode === "postpaid" ? "Pay at appointment" : "Paid online"}</span>
             </div>
           </div>
+          {reviewUrl && (
+            <div className="mb-2">
+              <p className="text-xs text-[#6b6b80] mb-3">Enjoyed booking with us? We&apos;d love a quick review.</p>
+              <ReviewButton href={reviewUrl} color={color} fg={fg} />
+            </div>
+          )}
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#f8f7f4]">
+    <div className="min-h-screen bg-[#f8f7f4]" style={themeVars(color) as React.CSSProperties}>
       {/* Tenant branding header */}
-      <div style={{ background: color }}>
+      <div style={{ background: color, color: fg }}>
         <div className="max-w-2xl mx-auto px-4 pt-4 pb-8">
-          <a href="/" className="inline-flex items-center gap-1.5 text-white/60 hover:text-white text-xs font-medium transition-colors mb-6">
+          <a href="/" className="inline-flex items-center gap-1.5 opacity-70 hover:opacity-100 text-xs font-medium transition-colors mb-6">
             <ArrowLeft size={13} /> Back to website
           </a>
           <div className="text-center">
-          <div className="w-16 h-16 rounded-2xl bg-white/20 flex items-center justify-center text-white font-syne font-bold text-2xl mx-auto mb-4">
-            {initials}
+          <div className="flex justify-center mb-4">
+            {business.logoUrl ? (
+              <span className="w-16 h-16 rounded-2xl bg-white/90 p-1.5 inline-flex"><BrandMark name={business.name} logoUrl={business.logoUrl} color={color} fg={fg} size={52} /></span>
+            ) : (
+              <span style={{ background: fg + "26" }} className="w-16 h-16 rounded-2xl flex items-center justify-center font-syne font-bold text-2xl">{initialsOf(business.name)}</span>
+            )}
           </div>
-          <h1 className="font-syne font-bold text-2xl text-white mb-1">{business.name}</h1>
-          <p className="text-white/70 text-sm mb-2">{typeLabel}</p>
-          {business.description && <p className="text-white/60 text-sm max-w-md mx-auto">{business.description}</p>}
+          <h1 className="font-syne font-bold text-2xl mb-1">{business.name}</h1>
+          <p className="opacity-80 text-sm mb-2">{typeLabel}</p>
+          {business.description && <p className="opacity-70 text-sm max-w-md mx-auto">{business.description}</p>}
           <div className="flex items-center justify-center gap-4 mt-3 flex-wrap">
-            {business.address && <span className="flex items-center gap-1 text-white/60 text-xs"><MapPin size={11} />{business.address}</span>}
-            {business.phone && <span className="flex items-center gap-1 text-white/60 text-xs"><Phone size={11} />{business.phone}</span>}
-            {business.website && <a href={business.website} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-white/60 text-xs hover:text-white/90 transition-colors"><Globe size={11} />{business.website.replace(/^https?:\/\//, "")}</a>}
+            {business.address && <span className="flex items-center gap-1 opacity-70 text-xs"><MapPin size={11} />{business.address}</span>}
+            {business.phone && <span className="flex items-center gap-1 opacity-70 text-xs"><Phone size={11} />{business.phone}</span>}
+            {business.website && <a href={business.website} target="_blank" rel="noreferrer" className="flex items-center gap-1 opacity-70 text-xs hover:opacity-100 transition-colors"><Globe size={11} />{business.website.replace(/^https?:\/\//, "")}</a>}
           </div>
+          {Object.keys(social).length > 0 && <SocialIcons links={social} tone="light" className="justify-center mt-3" />}
           </div>
         </div>
       </div>
@@ -265,11 +282,11 @@ export function BookingClient({ business }: { business: Business }) {
               <div key={s} className="flex items-center gap-2 flex-1 last:flex-none">
                 <div className={cn("w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 transition-all",
                   i < stepIndex ? "text-white" : i === stepIndex ? "bg-[#0f0f1a] text-white" : "bg-[#f0ede8] text-[#6b6b80]")}
-                  style={i < stepIndex ? { background: color } : {}}>
+                  style={i < stepIndex ? { background: color, color: fg } : {}}>
                   {i < stepIndex ? <Check size={12} /> : i + 1}
                 </div>
                 <span className={cn("text-xs font-medium hidden sm:block", i === stepIndex ? "text-[#0f0f1a]" : "text-[#6b6b80]")}>{STEP_LABELS[i]}</span>
-                {i < STEPS.length - 1 && <div className={cn("flex-1 h-px hidden sm:block", i < stepIndex ? "" : "bg-[#e8e6e0]")} style={i < stepIndex ? { background: color } : {}} />}
+                {i < STEPS.length - 1 && <div className={cn("flex-1 h-px hidden sm:block", i < stepIndex ? "" : "bg-[#e8e6e0]")} style={i < stepIndex ? { background: color, color: fg } : {}} />}
               </div>
             ))}
           </div>
@@ -324,7 +341,7 @@ export function BookingClient({ business }: { business: Business }) {
                       <div className="font-syne font-bold text-lg" style={{ color }}>{formatCurrencyAmount(svc.price, business.currency)}</div>
                       <div className={cn("w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 border-2 transition-all",
                         isSelected ? "border-transparent" : "border-[#d1d1d8]")}
-                        style={isSelected ? { background: color } : {}}>
+                        style={isSelected ? { background: color, color: fg } : {}}>
                         {isSelected ? <Check size={12} className="text-white" /> : <Plus size={12} className="text-[#d1d1d8]" />}
                       </div>
                     </button>
@@ -389,7 +406,7 @@ export function BookingClient({ business }: { business: Business }) {
                   <div className="font-semibold">{member.name}</div>
                   <div className="text-sm text-[#6b6b80]">{member.role}</div>
                 </div>
-                {selectedStaff === member.id && <div className="w-5 h-5 rounded-full flex items-center justify-center" style={{ background: color }}><Check size={11} className="text-white" /></div>}
+                {selectedStaff === member.id && <div className="w-5 h-5 rounded-full flex items-center justify-center" style={{ background: color, color: fg }}><Check size={11} className="text-white" /></div>}
               </button>
             ))}
           </div>
@@ -423,7 +440,7 @@ export function BookingClient({ business }: { business: Business }) {
                         full && "text-[#d0cec8] cursor-not-allowed line-through",
                         !past && !full && day && !isSelected && "hover:bg-[#f8f7f4] cursor-pointer",
                         isSelected && "text-white")}
-                      style={isSelected ? { background: color } : {}}>
+                      style={isSelected ? { background: color, color: fg } : {}}>
                       {day}
                     </button>
                   );
@@ -438,7 +455,7 @@ export function BookingClient({ business }: { business: Business }) {
                     : <>No availability in {MONTHS[viewMonth]} or the following months.</>}
                 </span>
                 {nextAvailable && (
-                  <button onClick={() => jumpTo(nextAvailable)} className="font-semibold text-xs px-3 py-2 rounded-lg text-white flex-shrink-0" style={{ background: color }}>
+                  <button onClick={() => jumpTo(nextAvailable)} className="font-semibold text-xs px-3 py-2 rounded-lg text-white flex-shrink-0" style={{ background: color, color: fg }}>
                     Go to date
                   </button>
                 )}
@@ -463,7 +480,7 @@ export function BookingClient({ business }: { business: Business }) {
                             !isAvailable && "opacity-40 cursor-not-allowed bg-[#f8f7f4] border-[#f0ede8] text-[#6b6b80] line-through",
                             isAvailable && !isSelected && "border-[#e8e6e0] hover:bg-[#f8f7f4] hover:text-[#0f0f1a] transition-all",
                             isSelected && "text-white border-transparent")}
-                          style={isSelected ? { background: color } : isAvailable ? { borderColor: "#e8e6e0" } : {}}>
+                          style={isSelected ? { background: color, color: fg } : isAvailable ? { borderColor: "#e8e6e0" } : {}}>
                           {slot}
                           {isGroupService && isAvailable && spotsLeft !== null && (
                             <span className={cn("text-[9px] font-semibold", isSelected ? "text-white/80" : "text-purple-600")}>
@@ -588,7 +605,7 @@ export function BookingClient({ business }: { business: Business }) {
           {step === "confirm" ? (
             <button onClick={handleConfirm} disabled={loading || !form.name || !form.email || !isValidEmail(form.email)}
               className="flex items-center gap-2 text-white font-semibold px-6 py-3 rounded-xl text-sm transition-colors disabled:opacity-60 disabled:cursor-not-allowed hover:opacity-90"
-              style={{ background: color }}>
+              style={{ background: color, color: fg }}>
               {loading ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
               {loading ? "Processing…" : "Confirm booking"}
             </button>

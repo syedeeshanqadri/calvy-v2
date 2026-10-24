@@ -7,6 +7,7 @@ const csp = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https:",
   "font-src 'self' data:",
+  "frame-src https://www.google.com",
   "connect-src 'self' https://*.public.blob.vercel-storage.com",
   "object-src 'none'",
   "base-uri 'self'",

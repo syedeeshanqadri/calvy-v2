@@ -3,6 +3,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { WebsiteEditorClient } from "./WebsiteEditorClient";
+import { parseSocialLinks } from "@/lib/brandLinks";
 import { getBusinessFeatures } from "@/lib/getFeatures";
 
 export const dynamic = "force-dynamic";
@@ -14,7 +15,7 @@ export default async function WebsitePage() {
   const [business, features] = await Promise.all([
     prisma.business.findUnique({
       where: { id: session.user.businessId },
-      select: { slug: true, name: true, businessType: true, websiteJson: true },
+      select: { slug: true, name: true, businessType: true, websiteJson: true, primaryColor: true, logoUrl: true, socialLinks: true, googleReviewUrl: true },
     }),
     getBusinessFeatures(session.user.businessId),
   ]);
@@ -29,6 +30,10 @@ export default async function WebsitePage() {
       websiteJson={business.websiteJson ?? "{}"}
       imageUpload={features.imageUpload}
       seoControls={features.seoControls}
+      themeColor={business.primaryColor}
+      logoUrl={business.logoUrl}
+      socialLinks={parseSocialLinks(business.socialLinks)}
+      googleReviewUrl={business.googleReviewUrl}
     />
   );
 }

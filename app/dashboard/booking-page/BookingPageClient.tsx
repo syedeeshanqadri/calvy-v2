@@ -7,8 +7,9 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Link2, Copy, ExternalLink, Check, Smartphone, Globe, MessageSquare } from "lucide-react";
 import { formatCurrencyAmount } from "@/lib/currency";
+import { ThemeColorPicker } from "@/components/theme/ThemeColorPicker";
+import { readableForeground } from "@/lib/theme";
 
-const PRESET_COLORS = ["#0284c7","#3b82f6","#8b5cf6","#22c55e","#f59e0b","#ec4899","#14b8a6","#f97316","#0f0f1a"];
 
 interface ServicePreview { name: string; duration: number; price: number; }
 
@@ -16,12 +17,13 @@ interface Props {
   bookingUrl: string;
   initialBusinessName: string;
   initialColor: string;
+  packId?: string;
   initialDescription: string;
   currency: string;
   services: ServicePreview[];
 }
 
-export function BookingPageClient({ bookingUrl, initialBusinessName, initialColor, initialDescription, currency, services }: Props) {
+export function BookingPageClient({ bookingUrl, initialBusinessName, initialColor, packId, initialDescription, currency, services }: Props) {
   const router = useRouter();
   const [copied, setCopied] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -118,28 +120,7 @@ export function BookingPageClient({ bookingUrl, initialBusinessName, initialColo
                   onChange={(e) => setDescription(e.target.value)}
                 />
               </div>
-              <div>
-                <label className="text-sm font-medium text-brand-800 block mb-2">Brand color</label>
-                <div className="flex items-center gap-2 flex-wrap mb-2">
-                  {PRESET_COLORS.map(c => (
-                    <button
-                      key={c}
-                      onClick={() => setAccentColor(c)}
-                      className={`w-8 h-8 rounded-full border-2 transition-all ${accentColor === c ? "border-brand-900 scale-110" : "border-transparent"}`}
-                      style={{ background: c }}
-                    />
-                  ))}
-                </div>
-                <div className="flex items-center gap-3">
-                  <input
-                    type="color"
-                    value={accentColor}
-                    onChange={(e) => setAccentColor(e.target.value)}
-                    className="w-10 h-10 rounded-xl border border-[#e8e6e0] cursor-pointer p-1 bg-white"
-                  />
-                  <span className="text-sm font-mono text-[#6b6b80]">{accentColor}</span>
-                </div>
-              </div>
+              <ThemeColorPicker id="booking-theme-color" value={accentColor} packId={packId} onChange={setAccentColor} />
               {error && <p className="text-sm text-red-500">{error}</p>}
               <Button onClick={saveChanges} disabled={saving} className="w-full justify-center gap-2">
                 {saved ? <><Check size={14} /> Saved!</> : saving ? "Saving…" : "Save & publish"}
@@ -159,12 +140,12 @@ export function BookingPageClient({ bookingUrl, initialBusinessName, initialColo
               <div className="bg-[#f8f7f4] p-4 min-h-[500px]">
                 <div className="bg-white rounded-2xl overflow-hidden shadow-sm border border-[#e8e6e0] max-w-sm mx-auto">
                   {/* Header */}
-                  <div className="p-6 text-center" style={{ background: accentColor }}>
-                    <div className="w-14 h-14 rounded-2xl bg-white/20 flex items-center justify-center text-white font-syne font-bold text-xl mx-auto mb-3">
+                  <div className="p-6 text-center" style={{ background: accentColor, color: readableForeground(accentColor) }}>
+                    <div className="w-14 h-14 rounded-2xl bg-current/10 flex items-center justify-center font-syne font-bold text-xl mx-auto mb-3" style={{ background: readableForeground(accentColor) + "26" }}>
                       {initials}
                     </div>
-                    <h2 className="text-white font-syne font-bold text-lg leading-tight">{businessName}</h2>
-                    {description && <p className="text-white/70 text-sm mt-1 line-clamp-2">{description}</p>}
+                    <h2 className="font-syne font-bold text-lg leading-tight">{businessName}</h2>
+                    {description && <p className="opacity-75 text-sm mt-1 line-clamp-2">{description}</p>}
                   </div>
                   {/* Services preview */}
                   <div className="p-4">

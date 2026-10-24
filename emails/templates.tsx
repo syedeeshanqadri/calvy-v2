@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Section, Text } from "@react-email/components";
-import { EmailLayout, H, P, Card, DetailRow, CTA, Hairline, brand } from "./EmailLayout";
+import { EmailLayout, H, P, Card, DetailRow, CTA, Hairline, brand, type TenantBrand } from "./EmailLayout";
 import { formatCurrencyAmount } from "@/lib/currency";
 
 export interface BookingProps {
@@ -13,6 +13,7 @@ export interface BookingProps {
   duration?: number;
   price?: number;
   currency?: string;
+  tenant?: TenantBrand;
 }
 
 function Badge({ text, color, bg }: { text: string; color: string; bg: string }) {
@@ -36,7 +37,7 @@ function BookingDetails({ p }: { p: BookingProps }) {
 
 export function BookingConfirmationEmail(p: BookingProps) {
   return (
-    <EmailLayout preview={`You're booked with ${p.businessName} on ${p.date}`}>
+    <EmailLayout tenant={p.tenant} preview={`You're booked with ${p.businessName} on ${p.date}`}>
       <Badge text="Confirmed" color={brand.green} bg="#e7f7ec" />
       <H>You&apos;re booked! 🎉</H>
       <P>Hi {p.clientName.split(" ")[0]}, your appointment at <strong style={{ color: brand.ink }}>{p.businessName}</strong> is confirmed. Here are the details:</P>
@@ -48,7 +49,7 @@ export function BookingConfirmationEmail(p: BookingProps) {
 
 export function BookingReminderEmail(p: BookingProps) {
   return (
-    <EmailLayout preview={`Reminder: ${p.serviceName} tomorrow at ${p.time}`}>
+    <EmailLayout tenant={p.tenant} preview={`Reminder: ${p.serviceName} tomorrow at ${p.time}`}>
       <Badge text="Reminder" color={brand.accent} bg="#e6f2fb" />
       <H>Your appointment is tomorrow 🗓</H>
       <P>Hi {p.clientName.split(" ")[0]}, a friendly reminder about your upcoming appointment at <strong style={{ color: brand.ink }}>{p.businessName}</strong>.</P>

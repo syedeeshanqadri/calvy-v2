@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/Button";
 import { Check, Globe, Phone, Mail, MapPin, DollarSign, Wallet, CreditCard, Lock } from "lucide-react";
 import { CURRENCIES } from "@/lib/currency";
 import { useFlags } from "@/components/providers/FlagsProvider";
+import { ThemeColorPicker } from "@/components/theme/ThemeColorPicker";
 import { PackSettings } from "@/components/packs/PackSettings";
 import type { PackId } from "@/lib/packs/types";
 
@@ -46,7 +47,6 @@ const DEFAULT_AVAILABILITY: Record<string, { enabled: boolean; start: string; en
   "6": { enabled: false, start: "09:00", end: "17:00" },
 };
 
-const ACCENT_COLORS = ["#0284c7","#3b82f6","#8b5cf6","#22c55e","#f59e0b","#ec4899","#14b8a6","#f97316","#0f0f1a"];
 
 interface BusinessData {
   id: string; name: string; slug: string; businessType: string; packId: PackId;
@@ -63,7 +63,7 @@ interface BusinessData {
 
 type Tab = "profile" | "availability" | "payout";
 
-export function SettingsClient({ business, customSlotInterval = false, stripePayments = false, customBranding = false }: { business: BusinessData; customSlotInterval?: boolean; stripePayments?: boolean; customBranding?: boolean }) {
+export function SettingsClient({ business, customSlotInterval = false, stripePayments = false }: { business: BusinessData; customSlotInterval?: boolean; stripePayments?: boolean }) {
   const router = useRouter();
   const { payments: paymentsEnabled } = useFlags();
   const [tab, setTab] = useState<Tab>("profile");
@@ -272,30 +272,7 @@ export function SettingsClient({ business, customSlotInterval = false, stripePay
                 <p className="text-xs text-[#6b6b80] mt-1.5">All prices in your dashboard will be displayed in this currency using estimated exchange rates.</p>
               </div>
 
-              {customBranding ? (
-                <div>
-                  <label htmlFor="settings-brand-color" className="text-sm font-medium text-brand-800 block mb-2">Brand color</label>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    {ACCENT_COLORS.map(c => (
-                      <button key={c} onClick={() => setProfile({ ...profile, primaryColor: c })}
-                        className={`w-8 h-8 rounded-full border-2 transition-all ${profile.primaryColor === c ? "border-brand-900 scale-110" : "border-transparent"}`}
-                        style={{ background: c }} />
-                    ))}
-                    <input id="settings-brand-color" type="color" value={profile.primaryColor} onChange={e => setProfile({ ...profile, primaryColor: e.target.value })}
-                      className="w-8 h-8 rounded-full border border-[#e8e6e0] cursor-pointer p-0.5 bg-white" title="Custom color" />
-                    <span className="text-xs font-mono text-[#6b6b80] ml-1">{profile.primaryColor}</span>
-                  </div>
-                </div>
-              ) : (
-                <div>
-                  <p className="text-sm font-medium text-brand-800 block mb-2">Brand color</p>
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-full border border-[#e8e6e0]" style={{ background: profile.primaryColor }} />
-                    <span className="text-xs font-mono text-[#6b6b80]">{profile.primaryColor}</span>
-                    <span className="text-xs text-[#6b6b80] flex items-center gap-1"><Lock size={11} /> Custom branding available on higher plans</span>
-                  </div>
-                </div>
-              )}
+              <ThemeColorPicker id="settings-brand-color" value={profile.primaryColor} packId={business.packId} onChange={(hex) => setProfile({ ...profile, primaryColor: hex })} />
             </CardContent>
           </Card>
         )}

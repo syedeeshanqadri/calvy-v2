@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { parseSocialLinks, safeReviewLink } from "@/lib/brandLinks";
 import { BookingClient } from "./BookingClient";
 
 export const dynamic = 'force-dynamic';
@@ -20,6 +21,9 @@ export default async function BusinessBookingPage(props: { params: Promise<{ slu
     slug: business.slug,
     name: business.name,
     primaryColor: business.primaryColor,
+    logoUrl: business.logoUrl,
+    socialLinks: parseSocialLinks(business.socialLinks),
+    googleReviewUrl: safeReviewLink(business.googleReviewUrl),
     businessType: business.businessType,
     description: business.description ?? "",
     phone: business.phone ?? "",

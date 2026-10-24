@@ -13,7 +13,7 @@ export default async function BookingPagePage() {
   const [business, services] = await Promise.all([
     prisma.business.findUnique({
       where: { id: session.user.businessId },
-      select: { name: true, slug: true, primaryColor: true, description: true, currency: true },
+      select: { name: true, slug: true, primaryColor: true, packId: true, description: true, currency: true },
     }),
     prisma.service.findMany({
       where: { businessId: session.user.businessId, isActive: true },
@@ -31,6 +31,7 @@ export default async function BookingPagePage() {
       bookingUrl={bookingUrl}
       initialBusinessName={business?.name ?? "My Business"}
       initialColor={business?.primaryColor ?? "#0284c7"}
+      packId={business?.packId}
       initialDescription={business?.description ?? ""}
       currency={business?.currency ?? "INR"}
       services={services}
