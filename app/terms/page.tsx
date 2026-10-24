@@ -1,3 +1,4 @@
+import { SUPPORT_EMAIL } from "@/lib/site";
 import type { Metadata } from "next";
 import { LegalLayout } from "@/components/legal/LegalLayout";
 
@@ -59,7 +60,7 @@ export default function TermsPage() {
       <p>These Terms are governed by the laws of India, without regard to conflict-of-law principles. Disputes shall be subject to the exclusive jurisdiction of the courts located in India.</p>
 
       <h2>12. Contact Us</h2>
-      <p>Questions about these Terms? Contact us at <a href="mailto:support@calvy.io">support@calvy.io</a>.</p>
+      <p>Questions about these Terms? Contact us at <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>.</p>
     </LegalLayout>
   );
 }

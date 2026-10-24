@@ -1,3 +1,5 @@
+import { SUPPORT_EMAIL } from "@/lib/site";
+
 export interface HelpArticle {
   slug: string;
   title: string;
@@ -288,7 +290,7 @@ Common causes are an expired card, insufficient funds, or a bank decline. Using 
     excerpt: "When subscription refunds apply, and how booking refunds work.",
     keywords: ["refund", "money back", "cancel refund", "policy"],
     body: `## Subscription refunds
-Subscription fees are billed in advance and are generally non-refundable, but we may issue a refund for a duplicate charge, a verified technical issue on our side, or a charge made after a valid cancellation. Annual plans can be fully refunded within the first 7 days if largely unused. To request one, email **support@calvy.io** from your account email.
+Subscription fees are billed in advance and are generally non-refundable, but we may issue a refund for a duplicate charge, a verified technical issue on our side, or a charge made after a valid cancellation. Annual plans can be fully refunded within the first 7 days if largely unused. To request one, email **${SUPPORT_EMAIL}** from your account email.
 
 ## Booking refunds (your clients)
 When a client pays you for a booking, **you** handle any refund to that client — Calvy provides the payment technology but isn't a party to that transaction. Refund a client's booking payment from your Razorpay dashboard.
@@ -434,7 +436,7 @@ Works in Chrome and most browsers once you've allowed notifications. On Android,
 3. **Verification link** — new accounts must click the verification email before logging in. Don't see it? Try signing up again or **Continue with Google** (auto-verified).
 
 ## Still nothing?
-Email delivery can occasionally be delayed. If it persists across multiple recipients, contact **support@calvy.io** and we'll investigate.`,
+Email delivery can occasionally be delayed. If it persists across multiple recipients, contact **${SUPPORT_EMAIL}** and we'll investigate.`,
   },
 ];
 

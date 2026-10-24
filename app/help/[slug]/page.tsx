@@ -1,3 +1,4 @@
+import { SUPPORT_EMAIL } from "@/lib/site";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -99,7 +100,7 @@ export default async function HelpArticlePage(props: { params: Promise<{ slug: s
             <p className="font-semibold text-sm text-[#0f0f1a]">Didn&apos;t find your answer?</p>
             <p className="text-xs text-[#6b6b80]">We usually reply within a few hours.</p>
           </div>
-          <a href="mailto:support@calvy.io" className="text-sm font-semibold text-sky-600 hover:text-sky-700 whitespace-nowrap">Contact support →</a>
+          <a href={`mailto:${SUPPORT_EMAIL}`} className="text-sm font-semibold text-sky-600 hover:text-sky-700 whitespace-nowrap">Contact support →</a>
         </div>
       </div>
 

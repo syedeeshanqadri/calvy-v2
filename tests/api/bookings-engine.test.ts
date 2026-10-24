@@ -134,14 +134,14 @@ describe("POST /api/bookings: staff choice and locking", () => {
 });
 
 describe("POST /api/bookings: plan limits (S2-05)", () => {
-  const freeCfg = { maxMonthlyAppointments: 30 };
+  const freeCfg = { maxMonthlyAppointments: 60 };
   const planCfg = (cfg: Record<string, unknown>) =>
     db.planConfig.findUnique.mockImplementation(async ({ where }: { where: { planId: string } }) =>
       where.planId === "free" ? { ...freeCfg, ...cfg } : { maxMonthlyAppointments: -1 });
 
   it("limit reached -> 402 with the customer message, phone and owner notice", async () => {
     db.business.findUnique.mockResolvedValue(business({ plan: "free", planStatus: "free" }));
-    db.appointment.count.mockResolvedValue(30);
+    db.appointment.count.mockResolvedValue(60);
     const res = await POST(req(valid));
     expect(res.status).toBe(402);
     const body = await res.json();
@@ -153,7 +153,7 @@ describe("POST /api/bookings: plan limits (S2-05)", () => {
 
   it("limit is re-checked inside the lock: parallel bookings cannot overshoot it", async () => {
     db.business.findUnique.mockResolvedValue(business({ plan: "free", planStatus: "free" }));
-    db.appointment.count.mockResolvedValueOnce(29).mockResolvedValue(30); // passes the early check, full inside the lock
+    db.appointment.count.mockResolvedValueOnce(29).mockResolvedValue(60); // passes the early check, full inside the lock
     const res = await POST(req(valid));
     expect(res.status).toBe(402);
     expect(db.appointment.create).not.toHaveBeenCalled();
@@ -162,14 +162,14 @@ describe("POST /api/bookings: plan limits (S2-05)", () => {
 
   it("no phone on file -> message without a number", async () => {
     db.business.findUnique.mockResolvedValue(business({ phone: null, plan: "free", planStatus: "free" }));
-    db.appointment.count.mockResolvedValue(30);
+    db.appointment.count.mockResolvedValue(60);
     const res = await POST(req(valid));
     expect((await res.json()).error).toBe("Online booking is unavailable right now, please contact Salon X.");
   });
 
   it("owner is told at most once a day", async () => {
     db.business.findUnique.mockResolvedValue(business({ plan: "free", planStatus: "free" }));
-    db.appointment.count.mockResolvedValue(30);
+    db.appointment.count.mockResolvedValue(60);
     db.notification.findFirst.mockResolvedValue({ id: "n1" });
     const res = await POST(req(valid));
     expect(res.status).toBe(402);

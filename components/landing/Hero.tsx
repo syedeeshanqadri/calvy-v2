@@ -50,7 +50,7 @@ export function Hero() {
             </div>
 
             <div className="flex flex-col gap-2.5 mb-10">
-              {["Free 14-day trial", "No credit card required", "Cancel anytime"].map(t => (
+              {["Free forever plan", "No credit card required", "Cancel anytime"].map(t => (
                 <div key={t} className="flex items-center gap-2.5 text-sm text-gray-500">
                   <div className="w-5 h-5 rounded-full bg-green-50 border border-green-200 flex items-center justify-center flex-shrink-0">
                     <Check size={11} className="text-green-600" strokeWidth={3} />

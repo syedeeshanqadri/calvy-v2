@@ -1,4 +1,5 @@
 "use client";
+import { displayPlan, isFeatureHeading, YEARLY_SAVE_BADGE } from "@/lib/pricingDisplay";
 import { useState } from "react";
 import { Check, X, Zap, Crown, Building2, Gift, AlertTriangle, Clock, ExternalLink, RefreshCw } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -82,7 +83,7 @@ export default function BillingClient({
   const [loading, setLoading] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [syncMsg, setSyncMsg] = useState("");
-  const [interval, setInterval] = useState<"monthly" | "annual">("monthly");
+  const [interval, setInterval] = useState<"monthly" | "annual">("annual");
 
   async function handleSync() {
     setLoading("sync");
@@ -197,7 +198,7 @@ export default function BillingClient({
                 {(() => { const Icon = PLAN_ICONS[currentPlan] ?? Zap; return <Icon size={20} />; })()}
               </div>
               <div>
-                <p className="font-syne font-bold text-lg capitalize">{isFree ? "Free Plan" : currentPlan}</p>
+                <p className="font-syne font-bold text-lg">{isFree ? "Free Plan" : (displayPlan(currentPlan)?.name ?? currentPlan)}</p>
                 <p className="text-xs text-[#6b6b80] capitalize">{statusLabel}</p>
               </div>
             </div>
@@ -259,8 +260,8 @@ export default function BillingClient({
                 onClick={() => setInterval("annual")}
                 className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5 ${interval === "annual" ? "bg-white shadow-sm text-[#0f0f1a]" : "text-[#6b6b80]"}`}
               >
-                Annual
-                <span className="text-[10px] font-bold bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full">Save ~20%</span>
+                Yearly
+                <span className="text-[10px] font-bold bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full">{YEARLY_SAVE_BADGE}</span>
               </button>
             </div>
           </div>
@@ -299,22 +300,26 @@ export default function BillingClient({
                     <span className="font-syne font-bold text-3xl">${displayPrice}</span>
                     <span className="text-[#6b6b80] text-sm">/month</span>
                   </div>
-                  {interval === "annual" && (
+                  {interval === "annual" && plan.id !== "free" && (
                     <p className="text-xs text-green-600 font-medium mb-4">
                       Billed annually — ${(displayPrice * 12).toFixed(0)}/year
                     </p>
                   )}
-                  {interval === "monthly" && <div className="mb-4" />}
+                  {(interval === "monthly" || plan.id === "free") && <div className="mb-4" />}
 
                   {/* Feature highlights — use custom list if set, else auto-build */}
                   {plan.features.length > 0 ? (
                     <ul className="space-y-2 flex-1 mb-5">
-                      {plan.features.filter((f) => !hideBranding || !isBrandingText(f)).map((f) => (
-                        <li key={f} className="flex items-start gap-2 text-sm text-[#3d3d4d]">
-                          <Check size={14} className="mt-0.5 flex-shrink-0 text-accent" />
-                          {f}
-                        </li>
-                      ))}
+                      {plan.features.filter((f) => !hideBranding || !isBrandingText(f)).map((f) =>
+                        isFeatureHeading(f) ? (
+                          <li key={f} className="pt-1 text-xs font-bold uppercase tracking-wider text-[#0f0f1a]">{f}</li>
+                        ) : (
+                          <li key={f} className="flex items-start gap-2 text-sm text-[#3d3d4d]">
+                            <Check size={14} className="mt-0.5 flex-shrink-0 text-accent" />
+                            {f}
+                          </li>
+                        ),
+                      )}
                     </ul>
                   ) : (
                     <ul className="space-y-2 flex-1 mb-5">
@@ -344,6 +349,10 @@ export default function BillingClient({
                   {isCurrent ? (
                     <div className="w-full py-2.5 rounded-xl text-center text-sm font-medium bg-[#f8f7f4] text-[#6b6b80]">
                       Current Plan
+                    </div>
+                  ) : plan.id === "free" ? (
+                    <div className="w-full py-2.5 rounded-xl text-center text-sm font-medium bg-[#f8f7f4] text-[#6b6b80]">
+                      Included with every account
                     </div>
                   ) : (
                     <button

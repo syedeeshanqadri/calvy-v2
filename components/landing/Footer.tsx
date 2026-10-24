@@ -1,3 +1,4 @@
+import { SUPPORT_EMAIL, PLANT_TREE_URL } from "@/lib/site";
 import Link from "next/link";
 import { NewsletterForm } from "./NewsletterForm";
 import { Logo } from "@/components/ui/Logo";
@@ -13,7 +14,7 @@ const LINKS: Record<string, { label: string; href: string }[]> = {
     { label: "About", href: "#" },
     { label: "Blog", href: "/blog" },
     { label: "Careers", href: "#" },
-    { label: "Contact", href: "mailto:support@calvy.io" },
+    { label: "Contact", href: `mailto:${SUPPORT_EMAIL}` },
   ],
   Legal: [
     { label: "Privacy Policy", href: "/privacy" },
@@ -23,7 +24,7 @@ const LINKS: Record<string, { label: string; href: string }[]> = {
   Support: [
     { label: "Help Center", href: "/help" },
     { label: "Razorpay setup", href: "/help/connect-razorpay-to-accept-payments" },
-    { label: "Contact", href: "mailto:support@calvy.io" },
+    { label: "Contact", href: `mailto:${SUPPORT_EMAIL}` },
   ],
 };
 
@@ -67,6 +68,14 @@ export function Footer() {
         </div>
         <div className="border-t border-white/8 pt-8 flex flex-col sm:flex-row items-center justify-between gap-4">
           <p className="text-sm text-gray-600">© 2025 Calvy. All rights reserved.</p>
+          <a
+            href={PLANT_TREE_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 min-h-11 px-4 rounded-full border border-white/10 text-sm text-gray-400 hover:text-white hover:border-white/30 transition-colors"
+          >
+            <span aria-hidden="true">🌱</span> Donate to plant a tree
+          </a>
           <p className="text-sm text-gray-600">Made with ♥ for service businesses everywhere</p>
         </div>
       </div>

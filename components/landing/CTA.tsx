@@ -30,7 +30,7 @@ export function CTA() {
                 Watch a demo
               </Link>
             </div>
-            <p className="text-sky-300 text-sm mt-6">14-day free trial · No credit card · Cancel anytime</p>
+            <p className="text-sky-300 text-sm mt-6">Free forever plan · No credit card · Cancel anytime</p>
           </div>
         </div>
       </div>

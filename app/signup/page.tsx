@@ -119,7 +119,7 @@ export default function SignupPage() {
 
   return (
     <AuthShell>
-      <h1 className="font-syne font-bold text-2xl text-[#0f0f1a] mb-1">Start your free trial</h1>
+      <h1 className="font-syne font-bold text-2xl text-[#0f0f1a] mb-1">Create your account</h1>
       <p className="text-[#6b6b80] text-sm mb-7">Set up your booking page in under 10 minutes.</p>
 
       <form onSubmit={handleSubmit} className="space-y-4">

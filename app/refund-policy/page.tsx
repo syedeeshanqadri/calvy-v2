@@ -1,3 +1,4 @@
+import { SUPPORT_EMAIL } from "@/lib/site";
 import type { Metadata } from "next";
 import { LegalLayout } from "@/components/legal/LegalLayout";
 
@@ -38,13 +39,13 @@ export default function RefundPolicyPage() {
       <p>When a business uses Calvy to collect payment from its own clients (for example, prepaid bookings), the refund is the responsibility of that business, not Calvy. If you are a client seeking a refund for a booking, please contact the business you booked with directly. Calvy only provides the technology to facilitate these payments and is not a party to the transaction.</p>
 
       <h2>5. How to Request a Refund</h2>
-      <p>To request a refund for your Calvy subscription, email <a href="mailto:support@calvy.io">support@calvy.io</a> from the email address associated with your account, including your business name and the date of the charge. We aim to respond to all refund requests within 3 business days.</p>
+      <p>To request a refund for your Calvy subscription, email <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a> from the email address associated with your account, including your business name and the date of the charge. We aim to respond to all refund requests within 3 business days.</p>
 
       <h2>6. Changes to This Policy</h2>
       <p>We may update this Refund Policy from time to time. The “Last updated” date above reflects the most recent revision.</p>
 
       <h2>7. Contact Us</h2>
-      <p>For any questions about refunds or cancellations, reach us at <a href="mailto:support@calvy.io">support@calvy.io</a>.</p>
+      <p>For any questions about refunds or cancellations, reach us at <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>.</p>
     </LegalLayout>
   );
 }
