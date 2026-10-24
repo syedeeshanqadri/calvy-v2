@@ -123,6 +123,7 @@ export interface BookingDetails {
   currency?: string;
   appointmentDate?: Date; // attaches an .ics when provided
   terms?: TermsSource; // business pack wording
+  token?: { number: number; estimatedTime: string; sessionName: string }; // token booking
   ctx?: EmailContext;
 }
 
@@ -132,7 +133,7 @@ function bookingProps(d: BookingDetails): BookingProps {
   return {
     clientName: d.clientName, businessName: d.businessName, serviceName: d.serviceName,
     staffName: d.staffName, date: d.date, time: d.time, duration: d.duration,
-    price: d.price, currency: d.currency ?? DEFAULT_CURRENCY, terms: d.terms,
+    price: d.price, currency: d.currency ?? DEFAULT_CURRENCY, terms: d.terms, token: d.token,
   };
 }
 
@@ -155,7 +156,7 @@ export async function sendBookingConfirmation(d: BookingDetails) {
   const tenant = await tenantBrand(d.ctx?.businessId, d.businessName);
   return dispatch({
     to: d.to, type: "confirmation", ctx: d.ctx,
-    subject: `Booking confirmed — ${d.serviceName} at ${d.businessName}`,
+    subject: d.token ? `Token #${d.token.number} confirmed — ${d.businessName}` : `Booking confirmed — ${d.serviceName} at ${d.businessName}`,
     react: <BookingConfirmationEmail {...bookingProps(d)} tenant={tenant} />,
     attachments: d.appointmentDate
       ? [icsAttachment({ serviceName: d.serviceName, businessName: d.businessName, staffName: d.staffName, durationMinutes: d.duration, start: d.appointmentDate })]

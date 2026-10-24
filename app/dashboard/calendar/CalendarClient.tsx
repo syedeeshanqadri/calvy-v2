@@ -191,7 +191,7 @@ export function CalendarClient({
                           key={a.id}
                           type="button"
                           onClick={(e) => { e.stopPropagation(); setOpen(a); }}
-                          aria-label={`${a.clientName}, ${a.serviceName}, ${a.time}`}
+                          aria-label={`${a.tokenNumber ? `Token ${a.tokenNumber}, ` : ""}${a.clientName}, ${a.serviceName}, ${a.time}`}
                           className={cn("absolute rounded-lg px-1.5 py-1 text-left hover:brightness-95 transition-all z-20 overflow-hidden", dim && "opacity-50")}
                           style={{
                             top: (start - startHour * 60) * PX_PER_MIN,
@@ -202,7 +202,7 @@ export function CalendarClient({
                             borderLeft: `3px solid ${a.color}`,
                           }}
                         >
-                          <div className={cn("text-[11px] font-bold leading-tight truncate", dim && "line-through")} style={{ color: a.color }}>{a.clientName}</div>
+                          <div className={cn("text-[11px] font-bold leading-tight truncate", dim && "line-through")} style={{ color: a.color }}>{a.tokenNumber ? `#${a.tokenNumber} ` : ""}{a.clientName}</div>
                           {height > 36 && <div className="text-[10px] truncate" style={{ color: a.color + "bb" }}>{a.serviceName}</div>}
                           {height > 52 && !filterStaff && a.staffName && a.staffName !== "—" && <div className="text-[10px] truncate text-[#6b6b80]">{a.staffName}</div>}
                         </button>

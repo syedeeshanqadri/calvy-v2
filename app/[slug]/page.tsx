@@ -473,7 +473,7 @@ export default async function TenantWebsitePage(props: { params: Promise<{ slug:
       </footer>
 
       {/* Chat booking widget — plan-gated */}
-      {features.chatbotWidget && getFlags().chatWidget && (
+      {features.chatbotWidget && getFlags().chatWidget && business.bookingMode !== "TOKEN" && (
         <ChatWidget business={{
           slug: business.slug,
           name: business.name,

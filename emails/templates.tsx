@@ -17,6 +17,8 @@ export interface BookingProps {
   /** Business pack + termsOverride: the wording (appointment, service) follows the business type. */
   terms?: TermsSource;
   tenant?: TenantBrand;
+  /** Token bookings show the number and an estimated time instead of a fixed time. */
+  token?: { number: number; estimatedTime: string; sessionName: string };
 }
 
 const appt = (p: BookingProps) => t(p.terms ?? {}, "appointment");
@@ -33,7 +35,15 @@ function BookingDetails({ p }: { p: BookingProps }) {
       <DetailRow label={t(p.terms ?? {}, "service", { cap: true })} value={p.serviceName} strong />
       {p.staffName ? <DetailRow label="With" value={p.staffName} /> : null}
       <DetailRow label="Date" value={p.date} />
-      <DetailRow label="Time" value={p.time} />
+      {p.token ? (
+        <>
+          <DetailRow label="Token" value={`#${p.token.number}`} strong />
+          <DetailRow label="Estimated time" value={p.token.estimatedTime} />
+          <DetailRow label="Session" value={p.token.sessionName} />
+        </>
+      ) : (
+        <DetailRow label="Time" value={p.time} />
+      )}
       {p.duration ? <DetailRow label="Duration" value={`${p.duration} min`} /> : null}
       {typeof p.price === "number" ? <DetailRow label="Price" value={formatCurrencyAmount(p.price, p.currency ?? "INR")} strong /> : null}
     </Card>

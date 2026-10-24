@@ -53,6 +53,7 @@ export default async function CalendarPage() {
       paymentStatus: a.paymentStatus,
       paymentMode: (a as { paymentMode?: string }).paymentMode ?? "postpaid",
       color: a.service.color,
+      tokenNumber: a.tokenNumber,
       notes,
     };
   });
