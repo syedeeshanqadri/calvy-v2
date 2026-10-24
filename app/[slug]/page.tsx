@@ -9,6 +9,7 @@ import { formatCurrencyAmount } from "@/lib/currency";
 import { getFlags } from "@/lib/flags";
 import { ChatWidget } from "@/components/chatbot/ChatWidget";
 import { getBusinessFeatures } from "@/lib/getFeatures";
+import { safeThemeColor, readableForeground, themeVars } from "@/lib/theme";
 
 export const dynamic = "force-dynamic";
 
@@ -61,7 +62,8 @@ export default async function TenantWebsitePage(props: { params: Promise<{ slug:
     parseWebsiteConfig(business.websiteJson) ??
     defaultWebsiteConfig(business.name, business.businessType);
 
-  const primary = business.primaryColor || "#0284c7";
+  const primary = safeThemeColor(business.primaryColor);
+  const primaryFg = readableForeground(primary);
   const bookingUrl = `/book-now`;
   const features = await getBusinessFeatures(business.id);
 
@@ -100,7 +102,7 @@ export default async function TenantWebsitePage(props: { params: Promise<{ slug:
   };
 
   return (
-    <div className="min-h-screen bg-white text-gray-900 antialiased">
+    <div className="min-h-screen bg-white text-gray-900 antialiased" style={themeVars(primary) as React.CSSProperties}>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
 
       {/* ── NAVBAR ── */}
@@ -117,7 +119,7 @@ export default async function TenantWebsitePage(props: { params: Promise<{ slug:
             <Link
               href={bookingUrl}
               className="px-5 py-2.5 rounded-xl text-sm font-bold text-white transition-all hover:scale-105 hover:shadow-lg active:scale-100"
-              style={{ background: primary, boxShadow: `0 4px 14px ${primary}55` }}
+              style={{ background: primary, color: primaryFg, boxShadow: `0 4px 14px ${primary}55` }}
             >
               {cfg.hero.ctaText}
             </Link>
@@ -155,7 +157,7 @@ export default async function TenantWebsitePage(props: { params: Promise<{ slug:
               <Link
                 href={bookingUrl}
                 className="inline-flex items-center justify-center gap-2.5 px-8 py-4 rounded-2xl text-base font-bold text-white transition-all hover:scale-105 hover:shadow-2xl active:scale-100"
-                style={{ background: primary, boxShadow: `0 8px 30px ${primary}66` }}
+                style={{ background: primary, color: primaryFg, boxShadow: `0 8px 30px ${primary}66` }}
               >
                 {cfg.hero.ctaText} <ArrowRight size={18} />
               </Link>
@@ -267,7 +269,7 @@ export default async function TenantWebsitePage(props: { params: Promise<{ slug:
                 <Link
                   href={bookingUrl}
                   className="inline-flex items-center gap-2.5 px-8 py-4 rounded-2xl text-sm font-bold text-white transition-all hover:scale-105 hover:shadow-xl active:scale-100"
-                  style={{ background: primary, boxShadow: `0 4px 20px ${primary}44` }}
+                  style={{ background: primary, color: primaryFg, boxShadow: `0 4px 20px ${primary}44` }}
                 >
                   {cfg.services.ctaText} <ArrowRight size={16} />
                 </Link>
@@ -384,7 +386,7 @@ export default async function TenantWebsitePage(props: { params: Promise<{ slug:
                   <Link
                     href={bookingUrl}
                     className="w-full flex items-center justify-center gap-2.5 py-4 rounded-2xl text-base font-bold text-white transition-all hover:scale-[1.02] hover:shadow-xl active:scale-100"
-                    style={{ background: primary, boxShadow: `0 4px 20px ${primary}44` }}
+                    style={{ background: primary, color: primaryFg, boxShadow: `0 4px 20px ${primary}44` }}
                   >
                     {cfg.hero.ctaText} <ArrowRight size={18} />
                   </Link>
@@ -414,7 +416,7 @@ export default async function TenantWebsitePage(props: { params: Promise<{ slug:
           <Link
             href={bookingUrl}
             className="px-5 py-2.5 rounded-xl text-xs font-bold text-white transition-all hover:opacity-90"
-            style={{ background: primary }}
+            style={{ background: primary, color: primaryFg }}
           >
             {cfg.hero.ctaText}
           </Link>
@@ -426,7 +428,7 @@ export default async function TenantWebsitePage(props: { params: Promise<{ slug:
         <ChatWidget business={{
           slug: business.slug,
           name: business.name,
-          primaryColor: business.primaryColor || "#0284c7",
+          primaryColor: primary,
           currency: business.currency ?? "USD",
           services: business.services.map(s => ({
             id: s.id,
