@@ -98,7 +98,7 @@ const mocks = vi.hoisted(() => {
     sendVerify: vi.fn(),
     user: { findFirst: vi.fn(), update: vi.fn(), updateMany: vi.fn() },
     prt: { findUnique: vi.fn(), deleteMany: vi.fn(), create: vi.fn(), updateMany: vi.fn() },
-    vt: { deleteMany: vi.fn(), create: vi.fn() },
+    vt: { deleteMany: vi.fn(), create: vi.fn(), findFirst: vi.fn() },
     $transaction: vi.fn(),
   };
   return m;
@@ -313,6 +313,21 @@ describe("POST /api/auth/resend-verification", () => {
     const r = await resend(req({ email: "a@x.co" }));
     expect(r.status).toBe(429);
     expect(r.headers.get("Retry-After")).toBe("9");
+  });
+
+  it("short cooldown: no new email while the newest link is under a minute old", async () => {
+    mocks.user.findFirst.mockResolvedValueOnce({ id: "u1", email: "a@x.co", name: "A", emailVerified: null });
+    mocks.vt.findFirst.mockResolvedValueOnce({ createdAt: new Date(Date.now() - 10_000) });
+    const r = await resend(req({ email: "a@x.co" }));
+    expect(r.status).toBe(200);
+    expect(await r.json()).toEqual({ ok: true });
+    expect(mocks.sendVerify).not.toHaveBeenCalled();
+    expect(mocks.vt.deleteMany).not.toHaveBeenCalled();
+    // an older link does not block a resend
+    mocks.user.findFirst.mockResolvedValueOnce({ id: "u1", email: "a@x.co", name: "A", emailVerified: null });
+    mocks.vt.findFirst.mockResolvedValueOnce({ createdAt: new Date(Date.now() - 120_000) });
+    await resend(req({ email: "a@x.co" }));
+    expect(mocks.sendVerify).toHaveBeenCalledTimes(1);
   });
 
   it("still 200 when sending fails", async () => {

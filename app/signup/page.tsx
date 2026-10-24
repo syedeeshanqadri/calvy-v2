@@ -5,6 +5,7 @@ import SocialAuthButtons from "@/components/auth/SocialAuthButtons";
 import AuthShell, { inputClass, primaryBtn, secondaryBtn, linkClass } from "@/components/auth/AuthShell";
 import PasswordInput from "@/components/auth/PasswordInput";
 import { postAuth } from "@/components/auth/authApi";
+import { DISPLAY_PLANS, PRICING_NOTE, YEARLY_SAVE_BADGE, isFeatureHeading } from "@/lib/pricingDisplay";
 
 const REGIONS = [
   { currency: "USD", label: "United States — US Dollar (USD $)" },
@@ -25,6 +26,9 @@ const REGIONS = [
 
 export default function SignupPage() {
   const [form, setForm] = useState({ name: "", businessName: "", email: "", password: "", currency: "" });
+  const [step, setStep] = useState<1 | 2>(1);
+  const [plan, setPlan] = useState<"free" | "professional" | "business">("free");
+  const [yearly, setYearly] = useState(true);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
@@ -57,9 +61,15 @@ export default function SignupPage() {
     setForm(prev => ({ ...prev, [field]: value }));
   }
 
-  async function handleSubmit(e: React.FormEvent) {
+  // Step 1 only validates and moves on; the account is created on the final click in step 2.
+  function handleContinue(e: React.FormEvent) {
     e.preventDefault();
     if (!form.currency) { setError("Please select your region."); return; }
+    setError("");
+    setStep(2);
+  }
+
+  async function handleSubmit() {
     setError("");
     setLoading(true);
 
@@ -69,7 +79,7 @@ export default function SignupPage() {
       res = await fetch("/api/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone }),
+        body: JSON.stringify({ ...form, plan, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone }),
       });
       data = await res.json().catch(() => ({}));
     } catch {
@@ -81,6 +91,7 @@ export default function SignupPage() {
 
     if (!res.ok) {
       setError(data.error ?? "Something went wrong. Try again.");
+      setStep(1); // the problem is almost always in the account details (e.g. email already used)
       return;
     }
 
@@ -100,8 +111,9 @@ export default function SignupPage() {
         <p className="text-[#6b6b80] text-sm mb-1">We sent a verification link to</p>
         <p className="font-semibold text-[#0f0f1a] text-sm mb-6 break-all">{form.email}</p>
         <p className="text-sm text-[#6b6b80] mb-5">Click the link in the email to activate your account. The link expires in 24 hours.</p>
+        <p className="text-sm text-[#6b6b80] mb-3">Didn&apos;t get it?</p>
         <button type="button" onClick={handleResend} disabled={resending || cooldown > 0} className={secondaryBtn}>
-          {resending ? "Sending…" : cooldown > 0 ? `Resend email (${cooldown}s)` : "Resend email"}
+          {resending ? "Sending…" : cooldown > 0 ? `Resend the email (${cooldown}s)` : "Resend the email"}
         </button>
         <div role="status">
           {resendMsg && <p className="text-sm text-green-700 bg-green-50 rounded-xl px-4 py-3 mt-3">{resendMsg}</p>}
@@ -117,12 +129,85 @@ export default function SignupPage() {
     );
   }
 
+  if (step === 2) {
+    return (
+      <AuthShell>
+        <h1 className="font-syne font-bold text-2xl text-[#0f0f1a] mb-1">Choose your plan</h1>
+        <p className="text-[#6b6b80] text-sm mb-5">Every account starts free. {PRICING_NOTE}</p>
+
+        <div className="flex items-center gap-1 bg-[#f8f7f4] rounded-xl p-1 mb-4" role="group" aria-label="Billing period">
+          <button type="button" onClick={() => setYearly(false)} aria-pressed={!yearly}
+            className={`flex-1 min-h-11 rounded-lg text-sm font-medium transition-all ${!yearly ? "bg-white shadow-sm text-[#0f0f1a]" : "text-[#6b6b80]"}`}>
+            Monthly
+          </button>
+          <button type="button" onClick={() => setYearly(true)} aria-pressed={yearly}
+            className={`flex-1 min-h-11 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-1.5 ${yearly ? "bg-white shadow-sm text-[#0f0f1a]" : "text-[#6b6b80]"}`}>
+            Yearly
+            <span className="text-[10px] font-bold bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full">{YEARLY_SAVE_BADGE}</span>
+          </button>
+        </div>
+
+        <div className="space-y-3" role="radiogroup" aria-label="Plan">
+          {DISPLAY_PLANS.map(p => {
+            const selected = plan === p.id;
+            const perMonth = yearly ? p.yearlyPerMonth : p.monthly;
+            return (
+              <button
+                key={p.id}
+                type="button"
+                role="radio"
+                aria-checked={selected}
+                onClick={() => setPlan(p.id)}
+                className={`w-full text-left rounded-2xl border-2 p-4 transition-all ${selected ? "border-[#0284c7] bg-sky-50/50" : "border-[#e8e6e0] hover:border-[#c9c6bd]"}`}
+              >
+                <div className="flex items-baseline justify-between gap-3">
+                  <span className="font-syne font-bold text-[#0f0f1a]">
+                    {p.name}
+                    {p.badge && <span className="ml-2 align-middle text-[10px] font-bold bg-sky-100 text-sky-700 px-2 py-0.5 rounded-full">{p.badge}</span>}
+                  </span>
+                  <span className="font-syne font-bold text-[#0f0f1a]">
+                    ${perMonth}<span className="text-xs font-medium text-[#6b6b80]">{p.monthly === 0 ? " forever" : "/mo"}</span>
+                  </span>
+                </div>
+                {p.monthly > 0 && yearly && <p className="text-xs text-green-700 font-medium mt-0.5">billed ${p.yearlyTotal} yearly</p>}
+                <ul className="mt-2 space-y-1">
+                  {p.features.map(f => isFeatureHeading(f) ? (
+                    <li key={f} className="pt-1 text-[11px] font-bold uppercase tracking-wider text-[#0f0f1a]">{f}</li>
+                  ) : (
+                    <li key={f} className="text-xs text-[#6b6b80] flex gap-1.5"><span aria-hidden className="text-[#0284c7]">✓</span>{f}</li>
+                  ))}
+                </ul>
+              </button>
+            );
+          })}
+        </div>
+
+        {plan !== "free" && (
+          <p role="status" className="text-sm text-[#3d3d4d] bg-sky-50 rounded-xl px-4 py-3 mt-4">
+            You&apos;ll start on the Free plan. Upgrade from Billing after you verify your email.
+          </p>
+        )}
+
+        <div role="alert">
+          {error && <p className="text-sm text-red-600 bg-red-50 rounded-xl px-4 py-3 mt-4">{error}</p>}
+        </div>
+
+        <button type="button" onClick={handleSubmit} disabled={loading} className={`${primaryBtn} mt-4`}>
+          {loading ? "Creating your account…" : "Create my account"}
+        </button>
+        <button type="button" onClick={() => { setError(""); setStep(1); }} className="block mx-auto mt-4 min-h-11 text-sm text-[#6b6b80] hover:text-[#0f0f1a]">
+          ← Back to your details
+        </button>
+      </AuthShell>
+    );
+  }
+
   return (
     <AuthShell>
       <h1 className="font-syne font-bold text-2xl text-[#0f0f1a] mb-1">Create your account</h1>
       <p className="text-[#6b6b80] text-sm mb-7">Set up your booking page in under 10 minutes.</p>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleContinue} className="space-y-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label htmlFor="signup-name" className="text-sm font-medium text-[#0f0f1a] block mb-1.5">Your name</label>
@@ -198,8 +283,8 @@ export default function SignupPage() {
           {error && <p className="text-sm text-red-600 bg-red-50 rounded-xl px-4 py-3">{error}</p>}
         </div>
 
-        <button type="submit" disabled={loading} className={primaryBtn}>
-          {loading ? "Creating your account…" : "Create free account"}
+        <button type="submit" className={primaryBtn}>
+          Continue — choose your plan
         </button>
       </form>
 

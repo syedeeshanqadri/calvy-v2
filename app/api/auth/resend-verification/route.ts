@@ -9,6 +9,9 @@ import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
 
+/** A new link is not sent while the newest one is younger than this. */
+const RESEND_COOLDOWN_MS = 60_000;
+
 export async function POST(req: NextRequest) {
   const rlIp = await rateLimit(`resend:ip:${clientIp(req)}`, 5, 15 * 60_000);
   if (!rlIp.ok) return tooManyRequests(rlIp.retryAfter);
@@ -28,7 +31,16 @@ export async function POST(req: NextRequest) {
       where: { email: { equals: email, mode: "insensitive" } },
       orderBy: { createdAt: "asc" },
     });
-    if (user && !user.emailVerified) {
+    // Cooldown: if a link was issued moments ago, do nothing (same answer, no new email).
+    const latest = user
+      ? await prisma.verificationToken.findFirst({
+          where: { email: user.email },
+          orderBy: { createdAt: "desc" },
+          select: { createdAt: true },
+        })
+      : null;
+    const coolingDown = !!latest && Date.now() - latest.createdAt.getTime() < RESEND_COOLDOWN_MS;
+    if (user && !user.emailVerified && !coolingDown) {
       const token = generateToken();
       await prisma.$transaction([
         prisma.verificationToken.deleteMany({ where: { email: user.email } }),

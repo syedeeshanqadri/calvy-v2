@@ -33,3 +33,17 @@ describe("pricing display", () => {
     expect(SUPPORT_EMAIL).toBe("qadri.eeshan@gmail.com");
   });
 });
+
+import { signupSchema } from "@/lib/validation/public";
+
+describe("signup plan field", () => {
+  const base = { name: "Jo", businessName: "Salon", email: "jo@x.test", password: "longenough1", currency: "USD" };
+  it("accepts the plan choice (reported to the owner only)", () => {
+    const r = signupSchema.safeParse({ ...base, plan: "professional" });
+    expect(r.success && r.data.plan).toBe("professional");
+  });
+  it("ignores unknown plans instead of failing the signup", () => {
+    const r = signupSchema.safeParse({ ...base, plan: "enterprise" });
+    expect(r.success && r.data.plan).toBeUndefined();
+  });
+});
