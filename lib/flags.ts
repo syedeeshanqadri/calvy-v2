@@ -8,7 +8,8 @@ export type FeatureFlag =
   | "chatWidget"
   | "broadcasts"
   | "demoBooking"
-  | "removeBranding";
+  | "removeBranding"
+  | "onlinePayments";
 
 export const FEATURE_FLAGS: readonly FeatureFlag[] = [
   "wallet",
@@ -17,6 +18,7 @@ export const FEATURE_FLAGS: readonly FeatureFlag[] = [
   "broadcasts",
   "demoBooking",
   "removeBranding",
+  "onlinePayments",
 ];
 
 const ENV_VARS: Record<FeatureFlag, string> = {
@@ -26,6 +28,8 @@ const ENV_VARS: Record<FeatureFlag, string> = {
   broadcasts: "FEATURE_BROADCASTS",
   demoBooking: "FEATURE_DEMO_BOOKING",
   removeBranding: "FEATURE_REMOVE_BRANDING",
+  // Cashfree online booking payments (Rs 10 fee / full online). Off in production until the settings screen ships.
+  onlinePayments: "FEATURE_ONLINE_PAYMENTS",
 };
 
 type Env = Record<string, string | undefined>;

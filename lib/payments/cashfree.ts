@@ -34,6 +34,7 @@ export function buildOrderBody(input: CreateOrderInput) {
       return_url: input.returnUrl,
       ...(input.notifyUrl ? { notify_url: input.notifyUrl } : {}),
     },
+    ...(input.expiresAt ? { order_expiry_time: input.expiresAt.toISOString() } : {}),
     ...(input.note ? { order_note: input.note.slice(0, 200) } : {}),
     ...(input.tags ? { order_tags: input.tags } : {}),
   };

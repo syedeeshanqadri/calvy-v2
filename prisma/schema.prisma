@@ -251,6 +251,8 @@ model Appointment {
   paymentStatus      String             @default("unpaid")
   paymentMode        String             @default("prepaid")
   reminderSent       Boolean            @default(false)
+  /// Set while status = pending_payment: the slot/token is held until then.
+  holdExpiresAt      DateTime?          @db.Timestamptz(3)
   // Token booking (Business.bookingMode = TOKEN). Numbers are per (tokenSessionId, sessionDate) and never reused.
   tokenSessionId     String?
   sessionDate        DateTime?          @db.Date
@@ -270,6 +272,7 @@ model Appointment {
   @@index([businessId, date])
   @@index([staffId, date])
   @@index([date, reminderSent])
+  @@index([status, holdExpiresAt])
 }
 
 model WithdrawalRequest {
@@ -511,6 +514,7 @@ model Payment {
   businessShareMinor Int
   currency           String
   status             PayStatus          @default(CREATED)
+  refundedMinor      Int                @default(0)
   method             String?
   paymentRef         String?
   createdAt          DateTime           @default(now())

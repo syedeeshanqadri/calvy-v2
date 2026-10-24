@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
+import { getPayConfig } from "@/lib/onlinePayment";
 import { parseSocialLinks, safeReviewLink } from "@/lib/brandLinks";
 import { BookingClient } from "@/app/b/[slug]/BookingClient";
 
@@ -42,6 +43,7 @@ export default async function BookNowPage(props: { params: Promise<{ slug: strin
     businessType: business.businessType,
     packId: business.packId,
     bookingMode: business.bookingMode,
+    payConfig: await getPayConfig(business),
     termsOverride: business.termsOverride,
     description: business.description ?? "",
     phone: business.phone ?? "",

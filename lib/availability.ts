@@ -6,6 +6,7 @@ import type { Prisma, PrismaClient } from "@prisma/client";
 import { computeSlots, type BusyAppt, type Interval, type ResourceDay, type SlotOption } from "@/lib/booking";
 import { resolveDayHours, type HoursRow } from "@/lib/schedule";
 import { addDays, safeTimeZone, utcToZoned, weekdayOf, zonedDayRange } from "@/lib/time";
+import { occupyingWhere } from "@/lib/holds";
 
 type Db = PrismaClient | Prisma.TransactionClient;
 
@@ -130,7 +131,7 @@ async function buildContext(
     db.appointment.findMany({
       where: {
         businessId: q.businessId,
-        status: { notIn: ["cancelled", "no-show"] },
+        ...occupyingWhere(),
         ...(q.excludeAppointmentId ? { id: { not: q.excludeAppointmentId } } : {}),
         // a day either side so buffers and overnight neighbours are seen
         date: { gte: new Date(rangeStart.getTime() - 86_400_000), lt: new Date(rangeEnd.getTime() + 86_400_000) },

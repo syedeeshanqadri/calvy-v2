@@ -1,4 +1,4 @@
-export type AppointmentStatus = "confirmed" | "pending" | "cancelled" | "completed" | "no-show";
+export type AppointmentStatus = "confirmed" | "pending" | "cancelled" | "completed" | "no-show" | "pending_payment" | "expired";
 export type UserRole = "admin" | "staff" | "client";
 export type ServiceCategory = "haircare" | "skincare" | "wellness" | "fitness" | "medical" | "consulting" | "other";
 

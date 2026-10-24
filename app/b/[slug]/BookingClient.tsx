@@ -9,6 +9,10 @@ import { safeThemeColor, readableForeground, themeVars } from "@/lib/theme";
 import { BrandMark, SocialIcons, ReviewButton, initialsOf } from "@/components/site/Brand";
 import { parseSocialLinks, safeReviewLink, type SocialLinks } from "@/lib/brandLinks";
 import { TokenPicker, type TokenOption } from "@/components/tokens/TokenPicker";
+import { computeCharge, toMinor } from "@/lib/fees";
+import { launchCheckout } from "@/lib/payments/launchCheckout";
+import { HOLD_MINUTES } from "@/lib/holds";
+import type { PayConfig } from "@/lib/onlinePayment";
 
 type Step = "service" | "staff" | "datetime" | "details" | "confirm";
 const SLOT_STEPS: Step[] = ["service", "staff", "datetime", "details", "confirm"];
@@ -33,6 +37,8 @@ interface Business {
   slug: string; name: string; primaryColor: string; businessType: string;
   description: string; phone: string; address: string; website: string;
   currency: string; paymentMode: string;
+  /** Cashfree online payments (null = no online charge; legacy paymentMode applies). */
+  payConfig?: PayConfig | null;
   packId: string; termsOverride: unknown; bookingMode?: "SLOT" | "TOKEN";
   logoUrl?: string | null; socialLinks?: SocialLinks; googleReviewUrl?: string | null;
   services: Service[]; staff: StaffMember[];
@@ -203,6 +209,17 @@ export function BookingClient({ business }: { business: Business }) {
   const tokenDateLabel = tokenDate ? (() => { const [y, m, d] = tokenDate.split("-").map(Number); return `${MONTHS[m - 1]} ${d}, ${y}`; })() : "—";
   const dateStr = tokenMode ? tokenDateLabel : selectedDate ? `${MONTHS[viewMonth]} ${selectedDate}, ${viewYear}` : "—";
   const serviceNamesLabel = selectedServiceObjs.map(s => s.name).join(" & ") || "—";
+  // Online charge for this booking (same calculator as the server, which stays authoritative).
+  const payConfig = business.payConfig ?? null;
+  const onlineCharge = payConfig ? computeCharge({ ...payConfig, priceMinor: toMinor(totalPrice) }) : null;
+  const payNowMinor = onlineCharge?.chargeMinor ?? 0;
+  const payNowLabel = formatCurrencyAmount(payNowMinor / 100, business.currency);
+  const paymentLabel = payConfig
+    ? payNowMinor === 0
+      ? `Pay at ${appt1}`
+      : payConfig.mode === "BOOKING_FEE_ONLY" ? `${payNowLabel} booking fee now, rest at ${appt1}` : `${payNowLabel} now, online`
+    : business.paymentMode === "postpaid" ? `Pay at ${appt1}` : "Pay now via card";
+  const payAtVenue = payConfig ? payNowMinor === 0 || payConfig.mode === "BOOKING_FEE_ONLY" : business.paymentMode === "postpaid";
 
   async function handleConfirm() {
     setLoading(true); setError("");
@@ -225,8 +242,9 @@ export function BookingClient({ business }: { business: Business }) {
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error ?? "Something went wrong."); return; }
+      if (data.checkout) { await launchCheckout(data.checkout); return; }
       if (data.url) { window.location.href = data.url; } else { if (data.token) setTokenResult(data.token); setBooked(true); }
-    } catch { setError("Network error. Please try again."); }
+    } catch (e) { setError(e instanceof Error && e.message.startsWith("Could not load") ? e.message : "Network error. Please try again."); }
     finally { setLoading(false); }
   }
 
@@ -265,7 +283,7 @@ export function BookingClient({ business }: { business: Business }) {
             </div>
             <div className="flex justify-between text-sm pt-1">
               <span className="text-[#6b6b80]">Payment</span>
-              <span className="font-medium">{business.paymentMode === "postpaid" ? `Pay at ${appt1}` : "Paid online"}</span>
+              <span className="font-medium">{payAtVenue ? `Pay at ${appt1}` : "Paid online"}</span>
             </div>
           </div>
           {reviewUrl && (
@@ -546,7 +564,7 @@ export function BookingClient({ business }: { business: Business }) {
             <p className="text-[#6b6b80] mb-6">We&apos;ll send your confirmation and reminders here.</p>
             <div className="bg-white rounded-2xl border border-[#e8e6e0] p-6 space-y-4">
               <div className="grid sm:grid-cols-2 gap-4">
-                {[{ label: "Full name", key: "name", type: "text", placeholder: "Jane Smith" }, { label: "Phone number", key: "phone", type: "tel", placeholder: "+1 555-0000" }].map(f => (
+                {[{ label: "Full name", key: "name", type: "text", placeholder: "Jane Smith" }, { label: payNowMinor > 0 ? "Phone number (needed to pay online)" : "Phone number", key: "phone", type: "tel", placeholder: "+91 98765 43210" }].map(f => (
                   <div key={f.key}>
                     <label htmlFor={`booking-${f.key}`} className="text-sm font-medium text-[#0f0f1a] block mb-1.5">{f.label}</label>
                     <input id={`booking-${f.key}`} type={f.type} placeholder={f.placeholder} value={form[f.key as keyof typeof form]} onChange={e => setForm({ ...form, [f.key]: e.target.value })}
@@ -619,12 +637,15 @@ export function BookingClient({ business }: { business: Business }) {
               </div>
               <div className="flex justify-between text-sm pt-2">
                 <span className="text-[#6b6b80]">Payment</span>
-                <span className={`font-semibold ${business.paymentMode === "postpaid" ? "text-amber-600" : "text-green-600"}`}>
-                  {business.paymentMode === "postpaid" ? `Pay at ${appt1}` : "Pay now via card"}
-                </span>
+                <span className={`font-semibold text-right ${payAtVenue ? "text-amber-600" : "text-green-600"}`}>{paymentLabel}</span>
               </div>
             </div>
-            {business.paymentMode === "postpaid" && (
+            {payNowMinor > 0 && (
+              <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-3 text-sm text-green-800 mb-4">
+                You&apos;ll pay {payNowLabel} securely online (UPI recommended). Your {appt1} is held for {HOLD_MINUTES} minutes while you pay.
+              </div>
+            )}
+            {payAtVenue && payNowMinor === 0 && (
               <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-700 mb-4">
                 💵 Payment will be collected at the time of your appointment.
               </div>
@@ -645,18 +666,18 @@ export function BookingClient({ business }: { business: Business }) {
           ) : <div />}
 
           {step === "confirm" ? (
-            <button onClick={handleConfirm} disabled={loading || !form.name || !form.email || !isValidEmail(form.email)}
+            <button onClick={handleConfirm} disabled={loading || !form.name || !form.email || !isValidEmail(form.email) || (payNowMinor > 0 && !form.phone.trim())}
               className="flex items-center gap-2 text-white font-semibold px-6 py-3 rounded-xl text-sm transition-colors disabled:opacity-60 disabled:cursor-not-allowed hover:opacity-90"
               style={{ background: color, color: fg }}>
               {loading ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
-              {loading ? "Processing…" : "Confirm booking"}
+              {loading ? "Processing…" : payNowMinor > 0 ? `Pay ${payNowLabel} & book` : "Confirm booking"}
             </button>
           ) : (
             <button onClick={next} disabled={
               (step === "service" && selectedServices.length === 0) ||
               (step === "staff" && (provider.kind === "none" || (provider.kind === "choose" && !selectedStaff))) ||
               (step === "datetime" && (tokenMode ? !tokenPick : (!selectedDate || !selectedTime))) ||
-              (step === "details" && (!form.name || !form.email || !isValidEmail(form.email)))
+              (step === "details" && (!form.name || !form.email || !isValidEmail(form.email) || (payNowMinor > 0 && !form.phone.trim())))
             }
               className="flex items-center gap-2 bg-[#0f0f1a] text-white font-semibold px-6 py-3 rounded-xl text-sm hover:bg-[#1a1a2e] transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
               Continue <ChevronRight size={16} />

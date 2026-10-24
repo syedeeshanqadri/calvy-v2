@@ -3,6 +3,8 @@ import { useState, useEffect, useRef } from "react";
 import { MessageCircle, X, Check, ChevronLeft, ChevronRight } from "lucide-react";
 import { formatCurrencyAmount } from "@/lib/currency";
 import { cn } from "@/lib/utils";
+import { launchCheckout } from "@/lib/payments/launchCheckout";
+import { HOLD_MINUTES } from "@/lib/holds";
 
 interface Service {
   id: string; name: string; duration: number; price: number; color: string; capacity: number;
@@ -157,7 +159,10 @@ export function ChatWidget({ business }: { business: ChatBusiness }) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Booking failed");
-      if (data.url) {
+      if (data.checkout) {
+        push(msg("bot", `Taking you to the secure payment page. Your slot is held for ${HOLD_MINUTES} minutes...`));
+        await launchCheckout(data.checkout);
+      } else if (data.url) {
         push(msg("bot", "Redirecting you to payment..."));
         setTimeout(() => { window.location.href = data.url; }, 900);
       } else {

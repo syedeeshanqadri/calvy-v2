@@ -1,4 +1,5 @@
 import { zonedToUtc, utcToZoned } from "@/lib/time";
+import { occupyingWhere } from "@/lib/holds";
 
 // Pure, framework-free booking helpers so the rules can be unit tested without
 // a database. Times are epoch milliseconds; durations are minutes.
@@ -146,7 +147,7 @@ export async function bookExclusive<R, Tx extends BookingTx = BookingTx>(
         const rows = await tx.appointment.findMany({
           where: {
             businessId: p.businessId,
-            status: { notIn: ["cancelled", "no-show"] },
+            ...occupyingWhere(),
             date: { lt: end },
             endAt: { gt: p.start },
             ...(p.staffId ? { OR: [{ staffId: p.staffId }, { staffId: null }] } : {}),
