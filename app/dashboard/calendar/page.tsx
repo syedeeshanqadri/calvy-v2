@@ -18,7 +18,7 @@ export default async function CalendarPage() {
 
   const [appointments, staff, services] = await Promise.all([
     prisma.appointment.findMany({
-      where: { businessId: session.user.businessId, date: { gte: rangeStart, lte: rangeEnd } },
+      where: { businessId: session.user.businessId, date: { gte: rangeStart, lte: rangeEnd }, status: { not: "expired" } },
       include: { client: true, service: true, staff: true },
     }),
     prisma.staff.findMany({

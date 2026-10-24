@@ -3,15 +3,16 @@
 // via nonces) and switch to `Content-Security-Policy` once the console is clean.
 const csp = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+  // Cashfree checkout SDK (online booking payments).
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://sdk.cashfree.com",
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https:",
   "font-src 'self' data:",
-  "frame-src https://www.google.com",
-  "connect-src 'self' https://*.public.blob.vercel-storage.com",
+  "frame-src https://www.google.com https://*.cashfree.com",
+  "connect-src 'self' https://*.public.blob.vercel-storage.com https://*.cashfree.com",
   "object-src 'none'",
   "base-uri 'self'",
-  "form-action 'self'",
+  "form-action 'self' https://*.cashfree.com",
   "frame-ancestors 'none'",
 ].join("; ");
 

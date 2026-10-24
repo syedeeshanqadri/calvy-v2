@@ -10,6 +10,7 @@ Server-side flags in `lib/flags.ts`. **Every flag is OFF by default in every env
 | `chatWidget` | `FEATURE_CHAT_WIDGET` | UI only (chat widget); no API guard |
 | `demoBooking` | `FEATURE_DEMO_BOOKING` | UI only (static demo page `/booking`); no API guard |
 | `removeBranding` | `FEATURE_REMOVE_BRANDING` | UI only; no API guard |
+| `onlinePayments` | `FEATURE_ONLINE_PAYMENTS` | Cashfree online booking payments (Rs 10 fee on India Free, full online when chosen). Off: bookings behave as before (legacy Razorpay prepaid path). On: Cashfree decides for every business. Webhooks are never guarded. |
 
 ## Enforcement
 

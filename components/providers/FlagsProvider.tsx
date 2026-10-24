@@ -10,6 +10,7 @@ const ALL_OFF: FlagState = {
   chatWidget: false,
   broadcasts: false,
   demoBooking: false,
+  onlinePayments: false,
   removeBranding: false,
 };
 

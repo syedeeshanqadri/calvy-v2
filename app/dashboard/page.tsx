@@ -57,7 +57,7 @@ export default async function DashboardPage() {
 
   const [todayAppts, weekAppts, monthAppts, thisMonthAppts, totalClients, newClientsThisWeek, dbStaff, dbServices, monthExpensesAgg] = await Promise.all([
     prisma.appointment.findMany({
-      where: { businessId, date: { gte: todayStart, lte: todayEnd } },
+      where: { businessId, date: { gte: todayStart, lte: todayEnd }, status: { not: "expired" } },
       include: { client: true, service: true, staff: true },
       orderBy: { date: "asc" },
     }),

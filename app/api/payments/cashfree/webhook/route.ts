@@ -4,11 +4,13 @@ import { parseCashfreeWebhook } from "@/lib/payments/cashfree";
 import { applyPaymentEvent } from "@/lib/payments/events";
 import { prismaPaymentEventStore } from "@/lib/payments/db";
 import { logger } from "@/lib/logger";
+import { prisma } from "@/lib/prisma";
+import { settlePaidPayment } from "@/lib/onlinePayment";
 
 export const dynamic = "force-dynamic";
 
-// Cashfree payment webhooks. Verifies the signature over the raw body, then applies the event once.
-// Confirming the booking on PAID is added with checkout (step-5 chunk 10); this only tracks Payment.status.
+// Cashfree payment webhooks. Verifies the signature over the raw body, applies the event once, then
+// settles a paid payment (confirm the held booking, or refund a lapsed hold).
 async function POST_handler(req: NextRequest) {
   const secret = process.env.CASHFREE_SECRET_KEY;
   if (!secret) return NextResponse.json({ error: "Payments are not configured" }, { status: 503 });
@@ -20,6 +22,11 @@ async function POST_handler(req: NextRequest) {
   const outcome = await applyPaymentEvent(prismaPaymentEventStore, "CASHFREE", event);
   if (outcome.result === "amount_mismatch" || outcome.result === "unknown_order") {
     logger.warn("[Cashfree] webhook not applied", { result: outcome.result, orderId: event.providerOrderId, kind: event.kind });
+  }
+  if (event.kind === "PAID") {
+    // Also on a redelivery: settling is idempotent and finishes work a crashed attempt left undone.
+    const payment = await prisma.payment.findFirst({ where: { provider: "CASHFREE", providerOrderId: event.providerOrderId, status: "PAID" }, select: { id: true } });
+    if (payment) await settlePaidPayment(payment.id);
   }
   // 200 for every verified event (including duplicates) so Cashfree stops retrying.
   return NextResponse.json({ received: true, result: outcome.result });

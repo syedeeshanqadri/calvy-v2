@@ -18,6 +18,9 @@ import { checkLimit, startOfBusinessMonth, assertMonthlyHeadroom, LimitReachedEr
 import { zonedTimeToUtc, formatDateLabel, safeTimeZone } from "@/lib/time";
 import { logger } from "@/lib/logger";
 import { bookToken } from "@/lib/tokenBooking";
+import { isFeatureEnabled } from "@/lib/flags";
+import { PENDING_PAYMENT, holdExpiry } from "@/lib/holds";
+import { chargeFor, getPayConfig, startCheckout } from "@/lib/onlinePayment";
 
 export const dynamic = 'force-dynamic';
 
@@ -100,6 +103,18 @@ async function POST_handler(req: NextRequest) {
   const totalDuration = orderedServices.reduce((sum, s) => sum + s.duration, 0);
   const serviceNamesLabel = orderedServices.map(s => s.name).join(" & ");
 
+  // Cashfree online payments (flag): when on, they decide for every business and the legacy
+  // Razorpay prepaid path below is skipped. Charge 0 confirms at once.
+  const onlinePayments = isFeatureEnabled("onlinePayments");
+  const payConfig = onlinePayments ? await getPayConfig(business) : null;
+  if (onlinePayments && !payConfig && process.env.NODE_ENV === "production" && business.currency?.toUpperCase() === "INR") {
+    return NextResponse.json({ error: "Online payments are temporarily unavailable. Please try again later." }, { status: 503 });
+  }
+  const charge = chargeFor(payConfig, totalPrice);
+  if (charge.chargeMinor > 0 && !clientPhone) {
+    return NextResponse.json({ error: "A phone number is needed to pay online." }, { status: 400 });
+  }
+
   // Token businesses book a numbered place in a session; there is no clock time to choose.
   if (business.bookingMode === "TOKEN") {
     if (!tokenSessionId) return NextResponse.json({ error: "Please choose a session." }, { status: 400 });
@@ -107,7 +122,7 @@ async function POST_handler(req: NextRequest) {
       return await bookToken({
         business, services: orderedServices, tokenSessionId, date, tz: bizTz,
         client: { name: clientName, email: clientEmail, phone: clientPhone },
-        notes, maxMonthlyAppointments: limits.maxMonthlyAppointments, monthStart,
+        notes, maxMonthlyAppointments: limits.maxMonthlyAppointments, monthStart, payConfig,
       });
     } catch (err) {
       if (err instanceof LimitReachedError) return await limitResponse();
@@ -166,6 +181,7 @@ async function POST_handler(req: NextRequest) {
     clientId: string,
     paymentStatus: string,
     paymentModeVal: string,
+    holdExpiresAt: Date | null = null,
   ) {
     for (const cand of candidates) {
       try {
@@ -198,7 +214,8 @@ async function POST_handler(req: NextRequest) {
                 bufferAfterMin: availability.ok ? availability.bufferAfterMin : 0,
                 duration: totalDuration,
                 price: totalPrice,
-                status: "confirmed",
+                status: holdExpiresAt ? PENDING_PAYMENT : "confirmed",
+                holdExpiresAt,
                 notes: combinedNotes,
                 paymentStatus,
                 paymentMode: paymentModeVal,
@@ -277,6 +294,33 @@ async function POST_handler(req: NextRequest) {
     findOrCreateClient(prisma, business!.id, { name: clientName, email: clientEmail, phone: clientPhone }, bizTz);
 
   let client: Awaited<ReturnType<typeof getOrCreateClient>>;
+
+  // Online payments on: hold the slot while the customer pays, or confirm when nothing is due.
+  if (onlinePayments) {
+    client = await getOrCreateClient();
+    const hold = charge.chargeMinor > 0 ? holdExpiry() : null;
+    const venueMode = business.onlinePayMode === "FULL_ONLINE" && hold ? "prepaid" : "postpaid";
+    let appointment;
+    try {
+      appointment = await createAppointment(client.id, "unpaid", venueMode, hold);
+    } catch (err) {
+      if (err instanceof SlotConflictError) return conflictResponse();
+      if (err instanceof LimitReachedError) return await limitResponse();
+      throw err;
+    }
+    if (!hold) {
+      await notify(appointment.id, 0);
+      return NextResponse.json({ success: true, appointmentId: appointment.id, paymentMode: "postpaid" });
+    }
+    const started = await startCheckout({
+      appointmentId: appointment.id, businessId: business.id, businessName: business.name,
+      currency: business.currency ?? DEFAULT_CURRENCY, charge, holdExpiresAt: hold,
+      client: { id: client.id, name: clientName, email: clientEmail, phone: clientPhone! },
+      note: `${serviceNamesLabel} ${date} ${time}`,
+    });
+    if (!started.ok) return NextResponse.json({ error: started.error, code: "PAYMENT_START_FAILED" }, { status: 502 });
+    return NextResponse.json({ success: true, appointmentId: appointment.id, pendingPayment: true, checkout: started.checkout });
+  }
 
   // Postpaid path — create appointments directly, client pays at visit
   if (paymentMode === "postpaid") {

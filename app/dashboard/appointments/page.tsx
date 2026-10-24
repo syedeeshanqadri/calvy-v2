@@ -17,7 +17,8 @@ export default async function AppointmentsPage() {
 
   const [appointments, services, staff] = await Promise.all([
     prisma.appointment.findMany({
-      where: { businessId: session.user.businessId },
+      // Lapsed online-payment holds are noise for the owner.
+      where: { businessId: session.user.businessId, status: { not: "expired" } },
       include: { client: true, service: true, staff: true },
       orderBy: { date: "desc" },
     }),

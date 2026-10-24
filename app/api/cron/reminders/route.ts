@@ -6,6 +6,7 @@ import { sendBookingReminder } from "@/lib/email";
 import { sendReminderWhatsApp } from "@/lib/whatsapp";
 import { sendPushToBusiness } from "@/lib/push";
 import { logger } from "@/lib/logger";
+import { releaseExpiredHolds } from "@/lib/onlinePayment";
 import { safeTimeZone, utcToZoned, addDays, formatDateLabel, formatTimeLabel } from "@/lib/time";
 
 export const dynamic = "force-dynamic";
@@ -42,7 +43,8 @@ async function GET_handler(req: NextRequest) {
     where: {
       date: { gte: now, lt: new Date(now.getTime() + 49 * 3_600_000) },
       reminderSent: false,
-      status: { notIn: ["cancelled", "no-show"] },
+      // Unpaid holds never get reminders; they are confirmed (or expire) first.
+      status: { notIn: ["cancelled", "no-show", "pending_payment", "expired"] },
     },
     include: { client: true, service: true, business: true },
   });
@@ -119,7 +121,12 @@ async function GET_handler(req: NextRequest) {
   );
 
   const failed = results.filter((r) => r.status === "rejected").length;
-  return NextResponse.json({ ok: true, found: appointments.length, sent, failed });
+  // Unpaid online-payment holds past their expiry: mark them expired (reads already ignore them).
+  const expiredHolds = await releaseExpiredHolds().catch((e) => {
+    logger.error("[Cron] hold sweep failed:", { err: e });
+    return -1;
+  });
+  return NextResponse.json({ ok: true, found: appointments.length, sent, failed, expiredHolds });
 }
 
 export const GET = safeRoute(GET_handler);

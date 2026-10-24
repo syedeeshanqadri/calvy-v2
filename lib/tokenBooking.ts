@@ -2,12 +2,10 @@ import { NextResponse } from "next/server";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { findOrCreateClient } from "@/lib/clients";
-import { sendBookingConfirmation } from "@/lib/email";
-import { sendBookingConfirmationWhatsApp } from "@/lib/whatsapp";
-import { sendPushToBusiness } from "@/lib/push";
 import { DEFAULT_CURRENCY } from "@/lib/currency";
-import { logger } from "@/lib/logger";
-import { t } from "@/lib/terms";
+import { isFeatureEnabled } from "@/lib/flags";
+import { PENDING_PAYMENT, holdExpiry } from "@/lib/holds";
+import { chargeFor, sendConfirmationFor, startCheckout, type PayConfig } from "@/lib/onlinePayment";
 import { assertMonthlyHeadroom } from "@/lib/limits";
 import { addDays, formatDateLabel, parseYMD, utcToZoned, weekdayOf, zonedToUtc } from "@/lib/time";
 import {
@@ -132,18 +130,20 @@ export interface TokenBookingInput {
   maxMonthlyAppointments: number;
   monthStart: Date;
   tz: string;
+  /** Online payment settings (null = confirm without paying). */
+  payConfig: PayConfig | null;
 }
 
-/** Book the next token in a session. Confirms immediately (payments arrive in a later chunk). */
+/** Book the next token in a session: confirm at once, or hold it while the customer pays online. */
 export async function bookToken(input: TokenBookingInput): Promise<NextResponse> {
   const { business, services, tokenSessionId, date, tz } = input;
 
   const problem = dateProblem(business, date);
   if (problem) return err(400, problem);
 
-  // Token payments arrive in a later chunk. Where slot booking would send the customer to pay,
-  // refuse (fail closed) rather than confirming an unpaid booking.
-  if (business.paymentMode === "prepaid" && process.env.RAZORPAY_KEY_ID) {
+  // Without Cashfree online payments (flag off), never confirm an unpaid token where slot booking
+  // would send the customer to the legacy Razorpay checkout: refuse (fail closed).
+  if (!isFeatureEnabled("onlinePayments") && business.paymentMode === "prepaid" && process.env.RAZORPAY_KEY_ID) {
     return err(409, `Online token booking isn't available yet. Please contact ${business.name}${business.phone ? ` on ${business.phone}` : ""}.`, "PAYMENT_REQUIRED");
   }
 
@@ -165,10 +165,13 @@ export async function bookToken(input: TokenBookingInput): Promise<NextResponse>
     staffName = staff.name;
   }
 
-  const serviceNamesLabel = services.map((s) => s.name).join(" & ");
   const totalPrice = services.reduce((sum, s) => sum + s.price, 0);
   const notes = [services.length > 1 ? `__services__:${services.slice(1).map((s) => s.name).join("|")}` : "", input.notes ?? ""]
     .filter(Boolean).join("\n") || null;
+
+  const charge = chargeFor(input.payConfig, totalPrice);
+  if (charge.chargeMinor > 0 && !input.client.phone) return err(400, "A phone number is needed to pay online.");
+  const holdExpiresAt = charge.chargeMinor > 0 ? holdExpiry() : null;
 
   const client = await findOrCreateClient(prisma, business.id, input.client, tz);
 
@@ -179,7 +182,8 @@ export async function bookToken(input: TokenBookingInput): Promise<NextResponse>
       data: {
         businessId: business.id, clientId: client.id, staffId: session.staffId, serviceId: services[0].id,
         date: estimatedAt, endAt: new Date(estimatedAt.getTime() + session.minutesPerToken * 60_000),
-        duration: session.minutesPerToken, price: totalPrice, status: "confirmed", notes,
+        duration: session.minutesPerToken, price: totalPrice, notes,
+        status: holdExpiresAt ? PENDING_PAYMENT : "confirmed", holdExpiresAt,
         paymentStatus: "unpaid", paymentMode: business.paymentMode,
         tokenSessionId: session.id, sessionDate: dateOnly(date), tokenNumber: a.number, estimatedAt,
       },
@@ -201,44 +205,25 @@ export async function bookToken(input: TokenBookingInput): Promise<NextResponse>
   const appointment = result.value;
   const estimatedTime = minToHhmm(estimatedMin);
   const dateLabel = formatDateLabel(appointment.date, tz);
+  const token = { number, estimatedTime, sessionName: session.name, date, dateLabel, staffName };
+
+  if (charge.chargeMinor > 0) {
+    // Token number is taken now; if the payment never completes the hold lapses and the number is not reused.
+    const started = await startCheckout({
+      appointmentId: appointment.id, businessId: business.id, businessName: business.name,
+      currency: business.currency ?? DEFAULT_CURRENCY, charge, holdExpiresAt: holdExpiresAt!,
+      client: { id: client.id, name: input.client.name, email: input.client.email, phone: input.client.phone! },
+      note: `Token #${number} ${session.name} ${date}`,
+    });
+    if (!started.ok) return err(502, started.error, "PAYMENT_START_FAILED");
+    return NextResponse.json({ success: true, appointmentId: appointment.id, pendingPayment: true, checkout: started.checkout, token });
+  }
 
   await prisma.client.update({
     where: { id: client.id },
     data: { totalAppointments: { increment: 1 }, lastVisit: appointment.date },
   });
+  await sendConfirmationFor(appointment.id);
 
-  sendPushToBusiness(business.id, {
-    title: "New booking received",
-    body: `${input.client.name} — Token #${number} (${session.name}) on ${dateLabel}, ${serviceNamesLabel}`,
-    url: "/dashboard/appointments",
-    tag: "new-booking",
-  }).catch(() => {});
-
-  try {
-    await sendBookingConfirmation({
-      to: input.client.email, clientName: input.client.name, businessName: business.name,
-      serviceName: serviceNamesLabel, staffName: staffName ?? `Your ${t(business, "staff")}`,
-      terms: business, date: dateLabel, time: estimatedTime, duration: session.minutesPerToken,
-      price: totalPrice, currency: business.currency ?? DEFAULT_CURRENCY, appointmentDate: appointment.date,
-      token: { number, estimatedTime, sessionName: session.name },
-      ctx: { appointmentId: appointment.id, businessId: business.id },
-    });
-  } catch (e) {
-    logger.error("[Email] Failed:", { err: e });
-  }
-  if (input.client.phone) {
-    try {
-      await sendBookingConfirmationWhatsApp({
-        to: input.client.phone, clientName: input.client.name, serviceName: serviceNamesLabel,
-        businessName: business.name, date: dateLabel, time: `${estimatedTime} (Token #${number})`,
-      });
-    } catch (e) {
-      logger.error("[WhatsApp] Failed:", { err: e });
-    }
-  }
-
-  return NextResponse.json({
-    success: true, appointmentId: appointment.id, paymentMode: business.paymentMode,
-    token: { number, estimatedTime, sessionName: session.name, date, dateLabel, staffName },
-  });
+  return NextResponse.json({ success: true, appointmentId: appointment.id, paymentMode: business.paymentMode, token });
 }

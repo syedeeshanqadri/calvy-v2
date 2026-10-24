@@ -15,6 +15,8 @@ export interface CreateOrderInput {
   notifyUrl?: string;
   note?: string;
   tags?: Record<string, string>;
+  /** When the gateway stops accepting payment for this order (set to the hold expiry). */
+  expiresAt?: Date;
 }
 
 export interface CreatedOrder {
