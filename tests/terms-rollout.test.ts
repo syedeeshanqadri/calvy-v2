@@ -4,7 +4,7 @@ import { createElement } from "react";
 import {
   BookingCancellationEmail, BookingConfirmationEmail, BookingReminderEmail, BookingRescheduleEmail, type BookingProps,
 } from "@/emails/templates";
-import { PACK_IDS, getPack } from "@/lib/packs";
+import { PACK_IDS, getPack, packForBusinessType } from "@/lib/packs";
 import { providerWord, staffRoleChoice, t } from "@/lib/terms";
 import { defaultWebsiteConfig } from "@/lib/website";
 
@@ -20,6 +20,7 @@ describe("emails use the pack wording", () => {
     SALON_SPA: { appt: "appointment", svc: "Service" },
     LAWYER: { appt: "meeting", svc: "Consultation" },
     FITNESS: { appt: "booking", svc: "Session" },
+    CONSULTANT: { appt: "session", svc: "Consultation" },
     OTHER: { appt: "appointment", svc: "Service" },
   };
   for (const id of PACK_IDS) {
@@ -90,5 +91,17 @@ describe("providerWord (public booking page)", () => {
     expect(providerWord(["Owner"], "stylist")).toBe("stylist");
     expect(providerWord(["Receptionist", "Receptionist"], "advocate")).toBe("advocate");
     expect(providerWord([], "trainer")).toBe("trainer");
+  });
+});
+
+describe("Individual Consultant pack", () => {
+  it("is selectable, maps from the legacy type, and has solo-expert wording and roles", () => {
+    expect(PACK_IDS).toContain("CONSULTANT");
+    expect(getPack("CONSULTANT").label).toBe("Individual Consultant");
+    expect(packForBusinessType("consultant")).toBe("CONSULTANT");
+    expect(packForBusinessType("coach")).toBe("OTHER"); // unchanged: mirrors the original backfill
+    expect(getPack("CONSULTANT").staffRoles).toEqual(["Consultant", "Coach", "Advisor", "Counsellor"]);
+    expect(t({ packId: "CONSULTANT" }, "appointment", { plural: true })).toBe("sessions");
+    expect(t({ packId: "CONSULTANT" }, "staff", { cap: true })).toBe("Consultant");
   });
 });

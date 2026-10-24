@@ -422,5 +422,6 @@ enum PackId {
   SALON_SPA
   LAWYER
   FITNESS
+  CONSULTANT
   OTHER
 }

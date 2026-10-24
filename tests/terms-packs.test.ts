@@ -4,7 +4,7 @@ import { termsOverrideSchema } from "@/lib/packs/types";
 import { t, terms } from "@/lib/terms";
 
 describe("packs", () => {
-  it("every pack passes the Zod schema and all five exist", () => {
+  it("every pack passes the Zod schema and all six exist", () => {
     expect(ALL_PACKS.map((p) => p.id)).toEqual([...PACK_IDS]);
     for (const p of ALL_PACKS) expect(packSchema.safeParse(p).success).toBe(true);
   });

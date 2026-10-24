@@ -71,6 +71,23 @@ const PACKS: Record<PackId, Pack> = {
     icons: { pack: "Dumbbell", client: "User", staff: "Medal", service: "Timer", appointment: "CalendarClock" },
     defaultBookingMode: "SLOT",
   },
+  CONSULTANT: {
+    id: "CONSULTANT", label: "Individual Consultant",
+    blurb: "Clients and one-to-one sessions for solo experts", businessType: "consultant",
+    placeholders: { serviceName: "e.g. One-to-One Consultation", serviceDescription: "e.g. 45-minute private session, online or in person" },
+    staffRoles: ["Consultant", "Coach", "Advisor", "Counsellor"],
+    defaultServices: [
+      { name: "Intro Call", description: "Short call to understand your needs", duration: 20, price: 0, category: "consulting", color: "#0284c7" },
+      { name: "One-to-One Consultation", description: "Private one-hour consultation", duration: 60, price: 100, category: "consulting", color: "#8b5cf6" },
+      { name: "Follow-up Session", description: "Review progress and next steps", duration: 30, price: 50, category: "consulting", color: "#22c55e" },
+    ],
+    terms: {
+      client: t("client"), staff: t("consultant"), service: t("consultation"),
+      appointment: t("session"), business: t("practice", "practices"),
+    },
+    icons: { pack: "Briefcase", client: "User", staff: "UserRound", service: "MessageSquare", appointment: "CalendarClock" },
+    defaultBookingMode: "SLOT",
+  },
   OTHER: {
     id: "OTHER", label: "Other",
     blurb: "Clients, staff and services", businessType: "general",
@@ -105,6 +122,7 @@ export function packForBusinessType(businessType: string | null | undefined): Pa
     case "salon": case "barbershop": case "spa": case "beauty": case "tattoo": return "SALON_SPA";
     case "fitness": return "FITNESS";
     case "lawyer": return "LAWYER";
+    case "consultant": return "CONSULTANT";
     default: return "OTHER";
   }
 }

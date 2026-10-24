@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const PACK_IDS = ["CLINIC", "SALON_SPA", "LAWYER", "FITNESS", "OTHER"] as const;
+export const PACK_IDS = ["CLINIC", "SALON_SPA", "LAWYER", "FITNESS", "CONSULTANT", "OTHER"] as const;
 export type PackId = (typeof PACK_IDS)[number];
 
 export const TERM_KEYS = ["client", "staff", "service", "appointment", "business"] as const;
