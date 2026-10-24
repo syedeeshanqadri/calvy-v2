@@ -1,6 +1,5 @@
 // Pending online payments hold a slot or token for a short time (pure helpers + query fragments).
 // Rules: docs/steps-3-5-design.md "Pending + hold" and "Refunds".
-import type { OnlinePayMode } from "@/lib/fees";
 
 /**
  * How long a pending payment holds its slot/token. The design asked for 10 minutes, but Cashfree
@@ -52,20 +51,13 @@ export function onPaid(a: { status: string; holdExpiresAt: Date | null }, now: D
 }
 
 /**
- * Refund owed when a paid booking is cancelled (minor units).
- * Business cancels: everything back, platform fee included. Customer cancels: the platform fee is
- * kept; with FULL_ONLINE the service share is refunded only before the cancellation cutoff.
+ * What happens to the money when a paid booking is cancelled (minor units). Owner decision
+ * 2026-10-25: the business cancelling refunds everything, platform fee included; the customer
+ * cancelling refunds nothing and the whole amount paid (fee, and the service price in
+ * FULL_ONLINE) becomes credit on the customer's account for their next booking.
  */
-export function refundOnCancel(p: {
-  by: "business" | "customer";
-  mode: OnlinePayMode;
-  paidMinor: number;
-  platformFeeMinor: number;
-  beforeCutoff: boolean;
-}): number {
-  if (p.by === "business") return p.paidMinor;
-  if (p.mode === "BOOKING_FEE_ONLY" || !p.beforeCutoff) return 0;
-  return Math.max(0, p.paidMinor - p.platformFeeMinor);
+export function settleCancellation(p: { by: "business" | "customer"; paidMinor: number }): { refundMinor: number; creditMinor: number } {
+  return p.by === "business" ? { refundMinor: p.paidMinor, creditMinor: 0 } : { refundMinor: 0, creditMinor: p.paidMinor };
 }
 
 /** True when `now` is at least `cutoffHours` before the appointment (0 = always before). */

@@ -11,7 +11,7 @@ import { logger } from "@/lib/logger";
 import { bookExclusive, SlotConflictError, conflictMessage, isPastBooking } from "@/lib/booking";
 import { loadAvailability, type AvailabilityQuery } from "@/lib/availability";
 import { safeTimeZone, formatDateLabel, formatTimeLabel, zonedTimeToUtc, utcToZoned } from "@/lib/time";
-import { refundOnCancel } from "@/lib/holds";
+import { settleCancellation } from "@/lib/holds";
 import { refundPayment } from "@/lib/onlinePayment";
 
 export const dynamic = 'force-dynamic';
@@ -147,8 +147,8 @@ async function PATCH_handler(req: NextRequest, props: { params: Promise<{ id: st
   if (willCancel) {
     const paid = await prisma.payment.findFirst({ where: { appointmentId: appointment.id, businessId, status: "PAID" } });
     if (paid) {
-      const amount = refundOnCancel({ by: "business", mode: "FULL_ONLINE", paidMinor: paid.amountMinor, platformFeeMinor: paid.platformFeeMinor, beforeCutoff: true });
-      if (await refundPayment(paid.id, amount, "Cancelled by the business")) {
+      const { refundMinor } = settleCancellation({ by: "business", paidMinor: paid.amountMinor });
+      if (await refundPayment(paid.id, refundMinor, "Cancelled by the business")) {
         updated = await prisma.appointment.update({ where: { id: appointment.id }, data: { paymentStatus: "refunded" } });
       } else {
         logger.error("[Appointments] refund on cancel failed", { appointmentId: appointment.id, paymentId: paid.id });

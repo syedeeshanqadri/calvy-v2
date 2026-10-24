@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  HOLD_MINUTES, beforeCancellationCutoff, holdExpiry, occupiesSlot, occupyingWhere, onPaid, refundOnCancel,
+  HOLD_MINUTES, beforeCancellationCutoff, holdExpiry, occupiesSlot, occupyingWhere, onPaid, settleCancellation,
 } from "@/lib/holds";
 import { hasBookingConflict } from "@/lib/booking";
 import { assignToken } from "@/lib/tokens";
@@ -65,18 +65,14 @@ describe("payment success", () => {
   });
 });
 
-describe("refund rules on cancel", () => {
-  const fullOnline = { mode: "FULL_ONLINE" as const, paidMinor: 51000, platformFeeMinor: 1000 };
-  it("business cancels: everything back, fee included, in both modes", () => {
-    expect(refundOnCancel({ ...fullOnline, by: "business", beforeCutoff: false })).toBe(51000);
-    expect(refundOnCancel({ by: "business", mode: "BOOKING_FEE_ONLY", paidMinor: 1000, platformFeeMinor: 1000, beforeCutoff: false })).toBe(1000);
+describe("money on cancel (owner rule 2026-10-25)", () => {
+  it("business cancels: everything refunded, fee included", () => {
+    expect(settleCancellation({ by: "business", paidMinor: 51000 })).toEqual({ refundMinor: 51000, creditMinor: 0 });
+    expect(settleCancellation({ by: "business", paidMinor: 1000 })).toEqual({ refundMinor: 1000, creditMinor: 0 });
   });
-  it("customer cancels, booking fee only: the Rs 10 is kept", () => {
-    expect(refundOnCancel({ by: "customer", mode: "BOOKING_FEE_ONLY", paidMinor: 1000, platformFeeMinor: 1000, beforeCutoff: true })).toBe(0);
-  });
-  it("customer cancels, full online: service refunded before the cutoff, fee kept; nothing after", () => {
-    expect(refundOnCancel({ ...fullOnline, by: "customer", beforeCutoff: true })).toBe(50000);
-    expect(refundOnCancel({ ...fullOnline, by: "customer", beforeCutoff: false })).toBe(0);
+  it("customer cancels: nothing refunded, the whole amount becomes credit for the next booking", () => {
+    expect(settleCancellation({ by: "customer", paidMinor: 1000 })).toEqual({ refundMinor: 0, creditMinor: 1000 });
+    expect(settleCancellation({ by: "customer", paidMinor: 51000 })).toEqual({ refundMinor: 0, creditMinor: 51000 });
   });
   it("cutoff maths", () => {
     expect(beforeCancellationCutoff(mins(120), 2, now)).toBe(true);

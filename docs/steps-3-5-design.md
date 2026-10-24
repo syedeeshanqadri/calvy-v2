@@ -53,3 +53,5 @@ Slot confirmed (+ fee receipt), Token confirmed (number, ETA, tracking link), Pa
 
 ## Decisions (owner, 2026-10-24)
 Five packs (Salon & Spa merged; Dental = wording variant inside Clinic); Hindi later. Messaging = Step 6; international payments + subscription billing = Step 7. Chunks 9 to 13 authorised to touch payment code; Cashfree replaces Razorpay for India; wallet/withdrawals retired; Razorpay removed once Cashfree works. International: Stripe Connect later, pay at venue at launch. Hold 10 min.
+
+**Owner decision 2026-10-25 (replaces the customer-cancel part of "Refunds"):** the business cancelling a paid booking refunds everything, Rs 10 included. The customer cancelling refunds nothing: the whole amount paid (Rs 10, and the service price in FULL_ONLINE) becomes credit on the customer's Calvy account for their next booking. Every customer who books gets an account to see bookings, cancellations and credit (new chunk). Hold is 16 minutes, not 10: Cashfree rejects an order expiry of 15 minutes or less.
