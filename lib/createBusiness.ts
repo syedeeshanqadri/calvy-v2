@@ -3,6 +3,7 @@ import { defaultWebsiteConfig } from "@/lib/website";
 import { isReservedSlug } from "@/lib/slugs";
 import { safeTimeZone } from "@/lib/time";
 import { syncBusinessHours } from "@/lib/schedule";
+import { getPack, type PackId } from "@/lib/packs";
 
 function toBaseSlug(name: string): string {
   return name
@@ -36,7 +37,7 @@ const DEFAULT_WORKING_HOURS = JSON.stringify({
 });
 
 /**
- * Create a Business (with a default service + owner staff) for an existing user.
+ * Create a Business (with the pack's default services + owner staff) for an existing user.
  * Shared by email/password signup and OAuth onboarding so both produce an
  * identical starter workspace.
  */
@@ -48,8 +49,11 @@ export async function createBusinessForUser(params: {
   currency: string;
   timezone?: string;
   businessType?: string;
+  /** Business pack; sets the wording, default services and legacy businessType. Defaults to OTHER. */
+  packId?: PackId;
 }) {
-  const businessType = params.businessType ?? "general";
+  const pack = getPack(params.packId);
+  const businessType = params.businessType ?? pack.businessType;
   const slug = await generateSlug(params.businessName);
   const websiteJson = JSON.stringify(defaultWebsiteConfig(params.businessName, businessType));
 
@@ -58,6 +62,7 @@ export async function createBusinessForUser(params: {
       name: params.businessName,
       slug,
       businessType,
+      packId: pack.id,
       websiteJson,
       plan: "free",
       planStatus: "free",
@@ -65,17 +70,7 @@ export async function createBusinessForUser(params: {
       timezone: safeTimeZone(params.timezone),
       owner: { connect: { id: params.ownerId } },
       services: {
-        create: [
-          {
-            name: "Consultation",
-            description: "Initial consultation session",
-            duration: 30,
-            price: 50,
-            category: "consulting",
-            color: "#0284c7",
-            isActive: true,
-          },
-        ],
+        create: pack.defaultServices.map((svc) => ({ ...svc, isActive: true })),
       },
       staff: {
         create: [

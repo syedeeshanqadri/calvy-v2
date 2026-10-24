@@ -5,6 +5,12 @@ const t = (singular: string, plural = `${singular}s`) => ({ singular, plural });
 const PACKS: Record<PackId, Pack> = {
   CLINIC: {
     id: "CLINIC", label: "Clinic",
+    blurb: "Patients, doctors and consultations", businessType: "clinic",
+    defaultServices: [
+      { name: "General Consultation", description: "Doctor consultation and advice", duration: 20, price: 50, category: "consultation", color: "#0ea5e9" },
+      { name: "Follow-up Visit", description: "Short review of an earlier visit", duration: 15, price: 30, category: "consultation", color: "#22c55e" },
+      { name: "Health Check-up", description: "Routine check-up and basic tests", duration: 30, price: 70, category: "consultation", color: "#f59e0b" },
+    ],
     terms: {
       client: t("patient"), staff: t("doctor"), service: t("consultation"),
       appointment: t("appointment"), business: t("clinic"),
@@ -14,6 +20,12 @@ const PACKS: Record<PackId, Pack> = {
   },
   SALON_SPA: {
     id: "SALON_SPA", label: "Salon & Spa",
+    blurb: "Clients, stylists and services", businessType: "salon",
+    defaultServices: [
+      { name: "Haircut & Style", description: "Cut, wash and blow dry", duration: 45, price: 40, category: "haircare", color: "#e84545" },
+      { name: "Facial", description: "Cleansing and relaxing facial", duration: 60, price: 60, category: "wellness", color: "#ec4899" },
+      { name: "Massage", description: "Relaxing full-body massage", duration: 60, price: 70, category: "wellness", color: "#8b5cf6" },
+    ],
     terms: {
       client: t("client"), staff: t("stylist"), service: t("service"),
       appointment: t("appointment"), business: t("salon"),
@@ -23,6 +35,12 @@ const PACKS: Record<PackId, Pack> = {
   },
   LAWYER: {
     id: "LAWYER", label: "Lawyer",
+    blurb: "Clients, advocates and meetings", businessType: "lawyer",
+    defaultServices: [
+      { name: "Initial Consultation", description: "First meeting to review your matter", duration: 45, price: 100, category: "legal", color: "#6366f1" },
+      { name: "Document Review", description: "Contract or agreement review", duration: 60, price: 150, category: "legal", color: "#ec4899" },
+      { name: "Case Strategy Meeting", description: "Plan next steps for an ongoing case", duration: 60, price: 200, category: "legal", color: "#f59e0b" },
+    ],
     terms: {
       client: t("client"), staff: t("advocate"), service: t("consultation"),
       appointment: t("meeting"), business: t("practice", "practices"),
@@ -32,6 +50,12 @@ const PACKS: Record<PackId, Pack> = {
   },
   FITNESS: {
     id: "FITNESS", label: "Fitness",
+    blurb: "Members, trainers and sessions", businessType: "fitness",
+    defaultServices: [
+      { name: "Personal Training", description: "One-on-one session with a trainer", duration: 60, price: 40, category: "training", color: "#ef4444" },
+      { name: "Fitness Assessment", description: "Body metrics and goal setting", duration: 45, price: 25, category: "training", color: "#f59e0b" },
+      { name: "Group Class", description: "Instructor-led group workout", duration: 60, price: 15, category: "class", color: "#14b8a6" },
+    ],
     terms: {
       client: t("member"), staff: t("trainer"), service: t("session"),
       appointment: t("booking"), business: t("studio"),
@@ -41,6 +65,12 @@ const PACKS: Record<PackId, Pack> = {
   },
   OTHER: {
     id: "OTHER", label: "Other",
+    blurb: "Clients, staff and services", businessType: "general",
+    defaultServices: [
+      { name: "Consultation", description: "Initial consultation session", duration: 30, price: 50, category: "consulting", color: "#0284c7" },
+      { name: "Standard Session", description: "Standard one-hour service", duration: 60, price: 80, category: "general", color: "#f97316" },
+      { name: "Extended Session", description: "Longer in-depth session", duration: 120, price: 150, category: "general", color: "#22c55e" },
+    ],
     terms: {
       client: t("client"), staff: t("staff", "staff"), service: t("service"),
       appointment: t("appointment"), business: t("business", "businesses"),

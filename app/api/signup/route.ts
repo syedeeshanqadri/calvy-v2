@@ -24,7 +24,7 @@ async function POST_handler(req: NextRequest) {
 
   const parsed = await parseBody(req, signupSchema);
   if (!parsed.ok) return parsed.res;
-  const { name, businessName, email, password, currency, timezone, plan } = parsed.data;
+  const { name, businessName, email, password, currency, timezone, plan, packId } = parsed.data;
 
   const existing = await prisma.user.findFirst({ where: { email: { equals: email, mode: "insensitive" } } });
   if (existing) {
@@ -43,6 +43,7 @@ async function POST_handler(req: NextRequest) {
     businessName,
     currency,
     timezone,
+    packId,
   });
 
   // Create a 24-hour verification token

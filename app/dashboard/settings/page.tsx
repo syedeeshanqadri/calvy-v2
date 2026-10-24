@@ -15,7 +15,7 @@ export default async function SettingsPage() {
     prisma.business.findUnique({
       where: { id: session.user.businessId },
       select: {
-        id: true, name: true, slug: true, businessType: true,
+        id: true, name: true, slug: true, businessType: true, packId: true,
         phone: true, email: true, address: true, website: true,
         description: true, primaryColor: true, availabilityJson: true, currency: true,
         slotInterval: true,

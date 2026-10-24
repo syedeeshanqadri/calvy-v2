@@ -7,6 +7,8 @@ import PasswordInput from "@/components/auth/PasswordInput";
 import { postAuth } from "@/components/auth/authApi";
 import { PRICING_NOTE, formatMoney, getRegionPricing, isFeatureHeading, yearlySaveBadge } from "@/lib/pricing";
 import { useRegion } from "@/components/landing/useRegion";
+import { PackPicker } from "@/components/packs/PackPicker";
+import type { PackId } from "@/lib/packs/types";
 
 const REGIONS = [
   { currency: "USD", label: "United States — US Dollar (USD $)" },
@@ -26,6 +28,7 @@ const REGIONS = [
 ];
 
 export default function SignupPage() {
+  const [packId, setPackId] = useState<PackId>("OTHER");
   const [form, setForm] = useState({ name: "", businessName: "", email: "", password: "", currency: "" });
   const [step, setStep] = useState<1 | 2>(1);
   const [plan, setPlan] = useState<"free" | "professional" | "business">("free");
@@ -88,7 +91,7 @@ export default function SignupPage() {
       res = await fetch("/api/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, currency, plan, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone }),
+        body: JSON.stringify({ ...form, currency, plan, packId, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone }),
       });
       data = await res.json().catch(() => ({}));
     } catch {
@@ -288,6 +291,8 @@ export default function SignupPage() {
           </select>
           <p id="signup-region-hint" className="text-xs text-[#6b6b80] mt-1.5">All prices and payments will use this currency.</p>
         </div>
+
+        <PackPicker value={packId} onChange={setPackId} name="signup-pack" />
 
         <div role="alert">
           {error && <p className="text-sm text-red-600 bg-red-50 rounded-xl px-4 py-3">{error}</p>}

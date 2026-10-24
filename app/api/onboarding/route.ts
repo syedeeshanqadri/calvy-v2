@@ -26,7 +26,7 @@ async function POST_handler(req: NextRequest) {
 
   const parsed = await parseBody(req, onboardingSchema);
   if (!parsed.ok) return parsed.res;
-  const { businessName, currency, timezone } = parsed.data;
+  const { businessName, currency, timezone, packId } = parsed.data;
 
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
@@ -44,6 +44,7 @@ async function POST_handler(req: NextRequest) {
     businessName,
     currency,
     timezone,
+    packId,
   });
 
   after(() => sendFormNotification({

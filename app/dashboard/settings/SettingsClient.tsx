@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/Button";
 import { Check, Globe, Phone, Mail, MapPin, DollarSign, Wallet, CreditCard, Lock } from "lucide-react";
 import { CURRENCIES } from "@/lib/currency";
 import { useFlags } from "@/components/providers/FlagsProvider";
+import { PackSettings } from "@/components/packs/PackSettings";
+import type { PackId } from "@/lib/packs/types";
 
 const BUSINESS_TYPES = [
   { value: "salon", label: "Hair Salon" },
@@ -47,7 +49,7 @@ const DEFAULT_AVAILABILITY: Record<string, { enabled: boolean; start: string; en
 const ACCENT_COLORS = ["#0284c7","#3b82f6","#8b5cf6","#22c55e","#f59e0b","#ec4899","#14b8a6","#f97316","#0f0f1a"];
 
 interface BusinessData {
-  id: string; name: string; slug: string; businessType: string;
+  id: string; name: string; slug: string; businessType: string; packId: PackId;
   phone: string; email: string; address: string; website: string;
   description: string; primaryColor: string; availabilityJson: string; currency: string;
   slotInterval?: number;
@@ -224,14 +226,9 @@ export function SettingsClient({ business, customSlotInterval = false, stripePay
 
               <div className="grid sm:grid-cols-2 gap-4">
                 <Input label="Business name" value={profile.name} onChange={e => setProfile({ ...profile, name: e.target.value })} />
-                <div>
-                  <label htmlFor="settings-business-type" className="text-sm font-medium text-brand-800 block mb-1.5">Business type</label>
-                  <select id="settings-business-type" className="w-full h-11 rounded-xl border border-[#e8e6e0] bg-white px-4 text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent"
-                    value={profile.businessType} onChange={e => setProfile({ ...profile, businessType: e.target.value })}>
-                    {BUSINESS_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-                  </select>
-                </div>
               </div>
+
+              <PackSettings initialPackId={business.packId} />
 
               <div>
                 <label htmlFor="settings-description" className="text-sm font-medium text-brand-800 block mb-1.5">Description</label>
