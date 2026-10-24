@@ -221,6 +221,11 @@ NEXTAUTH_URL="https://calvy.io"
 NEXT_PUBLIC_APP_URL="https://calvy.io"
 NEXT_PUBLIC_ROOT_DOMAIN="calvy.io"
 
+# Cashfree (online booking payments, India). Webhook: /api/payments/cashfree/webhook
+CASHFREE_APP_ID="..."
+CASHFREE_SECRET_KEY="..."
+CASHFREE_ENV="sandbox" # or "production"
+
 # Razorpay (payments are feature-flagged off; Cashfree replaces this in Step 5)
 RAZORPAY_KEY_ID="..."
 RAZORPAY_KEY_SECRET="..."

@@ -13,6 +13,7 @@ interface PlanConfig {
   maxServices: number;
   maxMonthlyAppointments: number;
   maxBroadcastsPerMonth: number;
+  platformFeeMinorIN: number;
   analytics: boolean;
   customBranding: boolean;
   imageUpload: boolean;
@@ -161,6 +162,7 @@ export function PlansClient({ plans: initialPlans, tenantCounts, envConfigured }
           maxServices: Number(form.maxServices),
           maxMonthlyAppointments: Number(form.maxMonthlyAppointments),
           maxBroadcastsPerMonth: Number(form.maxBroadcastsPerMonth),
+          platformFeeMinorIN: Number(form.platformFeeMinorIN),
           analytics: form.analytics,
           customBranding: form.customBranding,
           imageUpload: form.imageUpload,
@@ -378,6 +380,17 @@ export function PlansClient({ plans: initialPlans, tenantCounts, envConfigured }
                     </div>
                   ))}
                 </div>
+              </div>
+
+              {/* Online booking fee (India) */}
+              <div className="space-y-2">
+                <h3 className="text-xs font-bold text-[#6b6b80] uppercase tracking-wider">Online booking fee (India)</h3>
+                <label htmlFor="plan-platform-fee" className="text-xs font-medium block">Rs per public online booking (0 = no fee)</label>
+                <input id="plan-platform-fee" type="number" min="0" step="0.01"
+                  className="w-40 rounded-xl border border-[#e8e6e0] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0284c7]/20 focus:border-[#0284c7] transition-all"
+                  value={Number(form.platformFeeMinorIN ?? 0) / 100}
+                  onChange={e => updateForm("platformFeeMinorIN", Math.max(0, Math.round(Number(e.target.value) * 100)))} />
+                <p className="text-[10px] text-[#6b6b80]">GST-inclusive. Charged on website, booking page and widget bookings only, never on dashboard bookings or walk-ins.</p>
               </div>
 
               {/* Feature Flags grouped */}

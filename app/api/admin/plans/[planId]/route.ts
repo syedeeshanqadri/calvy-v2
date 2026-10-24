@@ -23,7 +23,7 @@ async function PATCH_handler(req: NextRequest, props: { params: Promise<{ planId
   if (!parsed.ok) return parsed.res;
   const {
     name, price, annualPrice, description,
-    maxStaff, maxServices, maxMonthlyAppointments, maxBroadcastsPerMonth,
+    maxStaff, maxServices, maxMonthlyAppointments, maxBroadcastsPerMonth, platformFeeMinorIN,
     analytics, customBranding, imageUpload, seoControls, chatbotWidget,
     groupBooking, multiService, stripePayments, emailReminders, smsReminders,
     broadcasts, csvExport, expenseTracking, wallet, customSlotInterval,
@@ -42,6 +42,7 @@ async function PATCH_handler(req: NextRequest, props: { params: Promise<{ planId
       ...(maxServices !== undefined && { maxServices: Number(maxServices) }),
       ...(maxMonthlyAppointments !== undefined && { maxMonthlyAppointments: Number(maxMonthlyAppointments) }),
       ...(maxBroadcastsPerMonth !== undefined && { maxBroadcastsPerMonth: Number(maxBroadcastsPerMonth) }),
+      ...(platformFeeMinorIN !== undefined && { platformFeeMinorIN: Number(platformFeeMinorIN) }),
       ...(analytics !== undefined && { analytics: Boolean(analytics) }),
       ...(customBranding !== undefined && { customBranding: Boolean(customBranding) }),
       ...(imageUpload !== undefined && { imageUpload: Boolean(imageUpload) }),
