@@ -53,14 +53,14 @@ Despite README/docs saying Stripe, the live payment integration is **Razorpay** 
 Lean mode: one session, sequential work, small outputs.
 
 - **One session, sequentially. Do NOT spawn subagents** (the files in `.claude/agents/` stay as reference) **unless the owner explicitly asks.**
-- **One branch per chunk**, named `step-N/chunk-name` (for example `step-2/booking-transactions`). A chunk groups 3 to 6 related items from `docs/PLAN.md`. Branch from the latest agreed base; never work on `main`.
+- **One branch per chunk**, named `step-N/chunk-name` (for example `step-2/booking-transactions`). A chunk groups 3 to 6 related items from `docs/PLAN.md`. Never work on `main`. **Before starting any new chunk: `git switch main`, `git pull`, then branch from the latest origin/main.**
 - **Non-trivial chunks: show a short plan first and wait for the owner's OK** before editing code. Trivial fixes (typos, one-line changes) can go straight in.
 - **After each change run only:** `npm run lint`, `npx tsc --noEmit` and `npm test` (unit tests). Pipe each through `tail` and show only the last ~20 lines. **No Playwright and no screenshots per chunk.** Report results honestly; if a check cannot run, say so.
 - **Once at the end of each step, when the owner asks:** run the Playwright smoke test, the full `npm run build`, and the `security-auditor` review (the one time a subagent is used, and only on request).
 - **Do not start the dev server unless the owner asks. Never poll, sleep or wait on long commands;** run them once, in the background if they are long, and report back.
 - **Never run a build or any command that pushes the schema (`prisma db push`)** against a database that is not confirmed to be the dev database. Database changes use migrations only (`prisma migrate dev`).
 - **Reports: 15 lines maximum:** items done, files changed, test result, click-test steps.
-- **Commit locally with clear messages. Never push, merge or force anything**; the owner does that.
+- **Commit locally with clear messages.** Shipping: the owner click-tests, then says **"ship it"** (or runs `/ship`, see `.claude/commands/ship.md`). **Never ship (push, open or merge a PR) without the owner's "ship it".** Never push to `main` directly and never force-push; merges go through a PR as a merge commit, never squash. Push permissions for this flow live in the gitignored `.claude/settings.local.json`.
 - **Never read or print `.env*` files or `.claude/settings.json`**, and never put secrets in code, logs, tests or commits.
 - **Do not touch payment gateway code** (`lib/razorpay.ts`, `app/api/razorpay/**`, `app/api/billing/**`, wallet and withdrawal code, `app/booking/success`) unless the task says so.
 - **Landing-page marketing claims are out of scope until Step 9** (customer counts, ratings, testimonials, prices shown on the marketing site). Do not add, remove or reword them in earlier steps, and never invent any.
