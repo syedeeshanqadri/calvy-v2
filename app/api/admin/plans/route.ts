@@ -31,6 +31,7 @@ async function ensureSeeded() {
         maxStaff: PLAN_LIMITS[planId].maxStaff,
         maxServices: PLAN_LIMITS[planId].maxServices,
         maxMonthlyAppointments: PLAN_LIMITS[planId].maxMonthlyAppointments,
+        platformFeeMinorIN: PLAN_LIMITS[planId].platformFeeMinorIN,
         analytics: PLAN_LIMITS[planId].analytics,
         customBranding: PLAN_LIMITS[planId].customBranding,
         smsReminders: PLAN_LIMITS[planId].whatsappReminders,

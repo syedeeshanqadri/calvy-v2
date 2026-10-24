@@ -72,6 +72,8 @@ model Business {
   businessType             String              @default("general")
   packId                   PackId              @default(OTHER)
   bookingMode              BookingMode         @default(SLOT)
+  onlinePayMode            OnlinePayMode       @default(BOOKING_FEE_ONLY)
+  feePayer                 FeePayer            @default(CUSTOMER)
   termsOverride            Json?
   phone                    String?
   email                    String?
@@ -113,6 +115,8 @@ model Business {
   workingHours             WorkingHours[]
   timeOff                  TimeOff[]
   tokenSessions            TokenSession[]
+  payments                 Payment[]
+  platformFees             PlatformFeeEntry[]
   createdAt                DateTime            @default(now())
   updatedAt                DateTime            @updatedAt
   appointments             Appointment[]
@@ -129,21 +133,21 @@ model Business {
 }
 
 model Staff {
-  id           String         @id @default(cuid())
-  businessId   String
-  name         String
-  role         String
-  email        String
-  phone        String?
-  color        String         @default("#e84545")
-  isActive     Boolean        @default(true)
-  workingHours String         @default("{}")
-  createdAt    DateTime       @default(now())
-  appointments Appointment[]
-  business     Business       @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  services     StaffService[]
-  hours        WorkingHours[]
-  timeOff      TimeOff[]
+  id            String         @id @default(cuid())
+  businessId    String
+  name          String
+  role          String
+  email         String
+  phone         String?
+  color         String         @default("#e84545")
+  isActive      Boolean        @default(true)
+  workingHours  String         @default("{}")
+  createdAt     DateTime       @default(now())
+  appointments  Appointment[]
+  business      Business       @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  services      StaffService[]
+  hours         WorkingHours[]
+  timeOff       TimeOff[]
   tokenSessions TokenSession[]
 }
 
@@ -191,7 +195,6 @@ model Client {
 
   @@unique([businessId, email])
   @@unique([businessId, phone])
-
   @@index([businessId])
 }
 
@@ -205,6 +208,8 @@ model PlanConfig {
   maxServices            Int
   maxMonthlyAppointments Int
   maxBroadcastsPerMonth  Int      @default(0)
+  /// Calvy platform fee per public online booking in India, in paise (Free = 1000, paid plans = 0).
+  platformFeeMinorIN     Int      @default(0)
   // Feature flags
   analytics              Boolean  @default(false)
   customBranding         Boolean  @default(false)
@@ -228,41 +233,43 @@ model PlanConfig {
 }
 
 model Appointment {
-  id                 String   @id @default(cuid())
+  id                 String             @id @default(cuid())
   businessId         String
   clientId           String
   staffId            String?
   serviceId          String
-  date               DateTime @db.Timestamptz(3)
-  endAt              DateTime @db.Timestamptz(3)
-  bufferBeforeMin    Int      @default(0)
-  bufferAfterMin     Int      @default(0)
+  date               DateTime           @db.Timestamptz(3)
+  endAt              DateTime           @db.Timestamptz(3)
+  bufferBeforeMin    Int                @default(0)
+  bufferAfterMin     Int                @default(0)
   duration           Int
   price              Float
-  status             String   @default("pending")
+  status             String             @default("pending")
   notes              String?
   razorpayPaymentId  String?
   razorpayTransferId String? // set when paid out directly via Razorpay Route; excluded from wallet balance
-  paymentStatus      String   @default("unpaid")
-  paymentMode        String   @default("prepaid")
-  reminderSent       Boolean  @default(false)
+  paymentStatus      String             @default("unpaid")
+  paymentMode        String             @default("prepaid")
+  reminderSent       Boolean            @default(false)
   // Token booking (Business.bookingMode = TOKEN). Numbers are per (tokenSessionId, sessionDate) and never reused.
   tokenSessionId     String?
-  sessionDate        DateTime? @db.Date
+  sessionDate        DateTime?          @db.Date
   tokenNumber        Int?
-  estimatedAt        DateTime? @db.Timestamptz(3)
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
-  tokenSession       TokenSession? @relation(fields: [tokenSessionId], references: [id], onDelete: SetNull)
-  service            Service  @relation(fields: [serviceId], references: [id])
-  staff              Staff?   @relation(fields: [staffId], references: [id])
-  client             Client   @relation(fields: [clientId], references: [id])
-  business           Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  estimatedAt        DateTime?          @db.Timestamptz(3)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  tokenSession       TokenSession?      @relation(fields: [tokenSessionId], references: [id], onDelete: SetNull)
+  payments           Payment[]
+  platformFees       PlatformFeeEntry[]
+  service            Service            @relation(fields: [serviceId], references: [id])
+  staff              Staff?             @relation(fields: [staffId], references: [id])
+  client             Client             @relation(fields: [clientId], references: [id])
+  business           Business           @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
+  @@unique([tokenSessionId, sessionDate, tokenNumber])
   @@index([businessId, date])
   @@index([staffId, date])
   @@index([date, reminderSent])
-  @@unique([tokenSessionId, sessionDate, tokenNumber])
 }
 
 model WithdrawalRequest {
@@ -445,7 +452,7 @@ enum BookingMode {
 }
 
 model TokenSession {
-  id              String   @id @default(cuid())
+  id              String        @id @default(cuid())
   businessId      String
   staffId         String? // null = business-wide queue; set = that staff member's own queue
   name            String
@@ -453,11 +460,92 @@ model TokenSession {
   startMin        Int // minutes since local midnight (Business.timezone)
   endMin          Int
   minutesPerToken Int
-  isActive        Boolean  @default(true)
-  createdAt       DateTime @default(now())
-  business        Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  staff           Staff?   @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  isActive        Boolean       @default(true)
+  createdAt       DateTime      @default(now())
+  business        Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  staff           Staff?        @relation(fields: [staffId], references: [id], onDelete: Cascade)
   appointments    Appointment[]
 
   @@index([businessId, staffId])
+}
+
+enum OnlinePayMode {
+  BOOKING_FEE_ONLY
+  FULL_ONLINE
+}
+
+enum FeePayer {
+  CUSTOMER
+  BUSINESS
+}
+
+enum PayProvider {
+  MOCK
+  CASHFREE
+}
+
+enum PayStatus {
+  CREATED
+  PAID
+  FAILED
+  EXPIRED
+  REFUNDED
+}
+
+enum FeeEntryKind {
+  CHARGED
+  CARRIED_OVER
+  WAIVED
+  REFUNDED
+}
+
+/// One online payment attempt (a gateway order). Money in minor units (paise / cents).
+model Payment {
+  id                 String             @id @default(cuid())
+  businessId         String
+  appointmentId      String?
+  provider           PayProvider
+  providerOrderId    String             @unique
+  amountMinor        Int
+  platformFeeMinor   Int
+  businessShareMinor Int
+  currency           String
+  status             PayStatus          @default(CREATED)
+  method             String?
+  paymentRef         String?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  business           Business           @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  appointment        Appointment?       @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
+  feeEntries         PlatformFeeEntry[]
+
+  @@index([businessId, createdAt])
+  @@index([appointmentId])
+}
+
+/// Append-only ledger of Calvy platform fees (never updated or deleted).
+model PlatformFeeEntry {
+  id            String       @id @default(cuid())
+  businessId    String
+  appointmentId String?
+  paymentId     String?
+  kind          FeeEntryKind
+  amountMinor   Int
+  createdAt     DateTime     @default(now())
+  business      Business     @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  appointment   Appointment? @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
+  payment       Payment?     @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+
+  @@index([businessId, createdAt])
+}
+
+/// Gateway webhooks already processed (idempotency).
+model WebhookEvent {
+  id         String      @id @default(cuid())
+  provider   PayProvider
+  eventId    String
+  kind       String
+  receivedAt DateTime    @default(now())
+
+  @@unique([provider, eventId])
 }

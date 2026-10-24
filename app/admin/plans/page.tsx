@@ -28,6 +28,7 @@ async function getOrSeedPlans() {
           maxServices: PLAN_LIMITS[planId].maxServices,
           maxMonthlyAppointments: PLAN_LIMITS[planId].maxMonthlyAppointments,
           maxBroadcastsPerMonth: PLAN_LIMITS[planId].maxBroadcastsPerMonth,
+          platformFeeMinorIN: PLAN_LIMITS[planId].platformFeeMinorIN,
           analytics: PLAN_LIMITS[planId].analytics,
           customBranding: PLAN_LIMITS[planId].customBranding,
           imageUpload: PLAN_LIMITS[planId].imageUpload,

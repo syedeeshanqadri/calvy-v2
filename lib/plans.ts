@@ -5,6 +5,7 @@ export interface PlanLimits {
   maxServices: number;
   maxMonthlyAppointments: number;
   maxBroadcastsPerMonth: number; // -1 = unlimited, 0 = disabled
+  platformFeeMinorIN: number;    // Calvy fee per public online booking in India, paise (0 = none)
   // Feature flags
   analytics: boolean;
   customBranding: boolean;
@@ -31,6 +32,7 @@ export const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
     maxServices: 3,
     maxMonthlyAppointments: 60,
     maxBroadcastsPerMonth: 0,
+    platformFeeMinorIN: 1000,
     analytics: false,
     customBranding: false,
     imageUpload: false,
@@ -54,6 +56,7 @@ export const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
     maxServices: 5,
     maxMonthlyAppointments: 100,
     maxBroadcastsPerMonth: 0,
+    platformFeeMinorIN: 0,
     analytics: false,
     customBranding: true,
     imageUpload: true,
@@ -77,6 +80,7 @@ export const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
     maxServices: -1,
     maxMonthlyAppointments: 1000,
     maxBroadcastsPerMonth: 0,
+    platformFeeMinorIN: 0,
     analytics: true,
     customBranding: true,
     imageUpload: true,
@@ -100,6 +104,7 @@ export const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
     maxServices: -1,
     maxMonthlyAppointments: -1,
     maxBroadcastsPerMonth: -1,
+    platformFeeMinorIN: 0,
     analytics: true,
     customBranding: true,
     imageUpload: true,
@@ -192,6 +197,7 @@ export async function getLimitsFromDB(plan: string): Promise<PlanLimits> {
       maxServices: config.maxServices,
       maxMonthlyAppointments: config.maxMonthlyAppointments,
       maxBroadcastsPerMonth: config.maxBroadcastsPerMonth,
+      platformFeeMinorIN: config.platformFeeMinorIN,
       analytics: config.analytics,
       customBranding: config.customBranding,
       imageUpload: config.imageUpload,
