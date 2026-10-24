@@ -9,7 +9,7 @@ import { DEFAULT_CURRENCY } from "@/lib/currency";
 import { logger } from "@/lib/logger";
 import { t } from "@/lib/terms";
 import { assertMonthlyHeadroom } from "@/lib/limits";
-import { addDays, formatDateLabel, utcToZoned, weekdayOf, zonedToUtc } from "@/lib/time";
+import { addDays, formatDateLabel, parseYMD, utcToZoned, weekdayOf, zonedToUtc } from "@/lib/time";
 import {
   findNextOpen, issueToken, minToHhmm, sessionCapacity, tokensLeft, type SessionLike, type TokenStore,
 } from "@/lib/tokens";
@@ -48,6 +48,8 @@ interface BusinessCtx { id: string; timezone: string; maxAdvanceDays: number }
 
 /** Why a date cannot be booked at all (past, too far ahead), or null. */
 function dateProblem(biz: BusinessCtx, dateStr: string, now = new Date()): string | null {
+  // Only real calendar days: "2026-02-30" would store as another day than the one the lock key names.
+  if (!parseYMD(dateStr)) return "Invalid date.";
   const today = utcToZoned(now, biz.timezone).date;
   if (dateStr < today) return "That date has already passed. Please pick a future date.";
   if (biz.maxAdvanceDays > 0 && dateStr > addDays(today, biz.maxAdvanceDays)) return "That date is too far ahead to book.";
@@ -119,7 +121,7 @@ const err = (status: number, error: string, code?: string) => NextResponse.json(
 
 export interface TokenBookingInput {
   business: {
-    id: string; name: string; phone: string | null; timezone: string; maxAdvanceDays: number; currency: string | null;
+    id: string; name: string; phone: string | null; paymentMode: string; timezone: string; maxAdvanceDays: number; currency: string | null;
     packId: string; termsOverride: unknown;
   };
   services: { id: string; name: string; price: number }[];
@@ -138,6 +140,12 @@ export async function bookToken(input: TokenBookingInput): Promise<NextResponse>
 
   const problem = dateProblem(business, date);
   if (problem) return err(400, problem);
+
+  // Token payments arrive in a later chunk. Where slot booking would send the customer to pay,
+  // refuse (fail closed) rather than confirming an unpaid booking.
+  if (business.paymentMode === "prepaid" && process.env.RAZORPAY_KEY_ID) {
+    return err(409, `Online token booking isn't available yet. Please contact ${business.name}${business.phone ? ` on ${business.phone}` : ""}.`, "PAYMENT_REQUIRED");
+  }
 
   const session = await prisma.tokenSession.findFirst({ where: { id: tokenSessionId, businessId: business.id, isActive: true } });
   if (!session || !session.weekdays.includes(weekdayOf(date))) return err(400, "That session is not available on this date.");
@@ -172,7 +180,7 @@ export async function bookToken(input: TokenBookingInput): Promise<NextResponse>
         businessId: business.id, clientId: client.id, staffId: session.staffId, serviceId: services[0].id,
         date: estimatedAt, endAt: new Date(estimatedAt.getTime() + session.minutesPerToken * 60_000),
         duration: session.minutesPerToken, price: totalPrice, status: "confirmed", notes,
-        paymentStatus: "unpaid", paymentMode: "postpaid",
+        paymentStatus: "unpaid", paymentMode: business.paymentMode,
         tokenSessionId: session.id, sessionDate: dateOnly(date), tokenNumber: a.number, estimatedAt,
       },
     });
@@ -230,7 +238,7 @@ export async function bookToken(input: TokenBookingInput): Promise<NextResponse>
   }
 
   return NextResponse.json({
-    success: true, appointmentId: appointment.id, paymentMode: "postpaid",
+    success: true, appointmentId: appointment.id, paymentMode: business.paymentMode,
     token: { number, estimatedTime, sessionName: session.name, date, dateLabel, staffName },
   });
 }
