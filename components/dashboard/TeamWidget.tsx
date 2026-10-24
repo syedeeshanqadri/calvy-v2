@@ -1,3 +1,4 @@
+"use client";
 import { Avatar } from "@/components/ui/Avatar";
 import { useTerms } from "@/components/providers/TermsProvider";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
