@@ -8,6 +8,7 @@ import { Avatar } from "@/components/ui/Avatar";
 import { useCurrency } from "@/components/providers/CurrencyProvider";
 import { cn, formatTime } from "@/lib/utils";
 import { readJson } from "@/lib/fetchJson";
+import { useTerms } from "@/components/providers/TermsProvider";
 import { Check, Clock, DollarSign, Trash2 } from "lucide-react";
 
 export interface ServiceOption { id: string; name: string; duration: number; price: number; }
@@ -117,6 +118,16 @@ export function NewAppointmentModal({
   initial?: NewAppointmentInitial;
   onCreated: () => void;
 }) {
+  const { t } = useTerms();
+  const appt1 = t("appointment");
+  const Appt1 = t("appointment", { cap: true });
+  const apptN = t("appointment", { plural: true });
+  const cli1 = t("client");
+  const Cli1 = t("client", { cap: true });
+  const svc1 = t("service");
+  const Svc1 = t("service", { cap: true });
+  const SvcN = t("service", { plural: true, cap: true });
+  const Stf1 = t("staff", { cap: true });
   const { formatPrice } = useCurrency();
   const today = new Date().toISOString().split("T")[0];
   const blank = () => ({
@@ -155,7 +166,7 @@ export function NewAppointmentModal({
         body: JSON.stringify({ ...form, ...(allowOverlap && { allowOverlap: true }) }),
       });
       const data = await readJson(res);
-      if (!res.ok) throw new Error(data.error || "Failed to create appointment");
+      if (!res.ok) throw new Error(data.error || `Failed to create ${appt1}`);
       onClose();
       onCreated();
     } catch (e) {
@@ -166,9 +177,9 @@ export function NewAppointmentModal({
   }
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="New Appointment" size="md">
+    <Modal isOpen={isOpen} onClose={onClose} title={`New ${Appt1}`} size="md">
       <div className="space-y-4">
-        <Input label="Client name" placeholder="Jane Smith" value={form.clientName} onChange={(e) => setForm({ ...form, clientName: e.target.value })} />
+        <Input label={`${Cli1} name`} placeholder="Jane Smith" value={form.clientName} onChange={(e) => setForm({ ...form, clientName: e.target.value })} />
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Input label="Phone" type="tel" placeholder="+91 98765 43210" value={form.clientPhone} onChange={(e) => setForm({ ...form, clientPhone: e.target.value })} />
           <Input label="Email" type="email" placeholder="jane@email.com" value={form.clientEmail} onChange={(e) => setForm({ ...form, clientEmail: e.target.value })} />
@@ -176,7 +187,7 @@ export function NewAppointmentModal({
         <p className="text-xs text-[#6b6b80] -mt-2">Phone or email is required. A confirmation is emailed when an email is given.</p>
 
         <div>
-          <p className="text-sm font-medium text-brand-800 block mb-1.5">Services <span className="text-[#6b6b80] font-normal">(select one or more)</span></p>
+          <p className="text-sm font-medium text-brand-800 block mb-1.5">{SvcN} <span className="text-[#6b6b80] font-normal">(select one or more)</span></p>
           <div className="space-y-1.5 max-h-44 overflow-y-auto rounded-xl border border-[#e8e6e0] p-1">
             {services.map((s) => {
               const on = form.serviceIds.includes(s.id);
@@ -207,7 +218,7 @@ export function NewAppointmentModal({
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <Select label="Staff member" value={form.staffId} onChange={(e) => setForm({ ...form, staffId: e.target.value })}
+          <Select label={Stf1} value={form.staffId} onChange={(e) => setForm({ ...form, staffId: e.target.value })}
             options={[{ value: "", label: "Any available" }, ...staff.map((s) => ({ value: s.id, label: s.name }))]} />
           <Input label="Date" type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
         </div>
@@ -220,7 +231,7 @@ export function NewAppointmentModal({
             <TimeChips
               times={slots.times} loading={slots.loading} error={slots.error} value={form.time}
               onChange={(t) => setForm({ ...form, time: t })}
-              emptyText={form.serviceIds.length ? "No free times on this day." : "Choose a service to see free times."}
+              emptyText={form.serviceIds.length ? "No free times on this day." : `Choose a ${svc1} to see free times.`}
             />
           )}
           <label className="mt-2 flex items-start gap-2 text-xs text-[#6b6b80] cursor-pointer">
@@ -234,7 +245,7 @@ export function NewAppointmentModal({
         <div className="flex gap-3 pt-2">
           <Button variant="outline" onClick={onClose} className="flex-1 justify-center">Cancel</Button>
           <Button onClick={submit} disabled={saving || !form.clientName.trim() || !contactOk || form.serviceIds.length === 0 || !form.time} className="flex-1 justify-center">
-            {saving ? "Saving..." : "Book Appointment"}
+            {saving ? "Saving..." : `Book ${Appt1}`}
           </Button>
         </div>
       </div>
@@ -252,6 +263,16 @@ export function AppointmentDetailModal({
   staff: StaffOption[];
   onChanged: () => void;
 }) {
+  const { t } = useTerms();
+  const appt1 = t("appointment");
+  const Appt1 = t("appointment", { cap: true });
+  const apptN = t("appointment", { plural: true });
+  const cli1 = t("client");
+  const Cli1 = t("client", { cap: true });
+  const svc1 = t("service");
+  const Svc1 = t("service", { cap: true });
+  const SvcN = t("service", { plural: true, cap: true });
+  const Stf1 = t("staff", { cap: true });
   const { formatPrice } = useCurrency();
   const [status, setStatus] = useState("");
   const [paymentStatus, setPaymentStatus] = useState("");
@@ -348,7 +369,7 @@ export function AppointmentDetailModal({
   }
 
   return (
-    <Modal isOpen onClose={onClose} title="Appointment Details" size="md">
+    <Modal isOpen onClose={onClose} title={`${Appt1} Details`} size="md">
       <div className="space-y-4">
         <div className="flex items-center gap-3 pb-4 border-b border-[#f0ede8]">
           <Avatar name={appt.clientName} color={appt.color} size="lg" />
@@ -360,8 +381,8 @@ export function AppointmentDetailModal({
 
         <div className="grid grid-cols-2 gap-3 text-sm">
           {[
-            { label: "Service", value: appt.serviceName },
-            { label: "Staff", value: appt.staffName || "—" },
+            { label: Svc1, value: appt.serviceName },
+            { label: Stf1, value: appt.staffName || "—" },
             { label: "Date", value: appt.date },
             { label: "Time", value: formatTime(appt.time) },
             { label: "Duration", value: `${appt.duration} min` },
@@ -386,16 +407,16 @@ export function AppointmentDetailModal({
           <div className="flex items-center justify-between">
             <p className="text-xs font-bold text-[#6b6b80] uppercase tracking-wider">Reschedule</p>
             {movable && !moving && (
-              <button type="button" onClick={() => setMoving(true)} className="text-xs font-semibold text-accent hover:underline">Change date, time or staff</button>
+              <button type="button" onClick={() => setMoving(true)} className="text-xs font-semibold text-accent hover:underline">Change date, time or {t("staff")}</button>
             )}
           </div>
-          {!movable && <p className="text-sm text-[#6b6b80]">Cancelled, completed and no-show appointments can&apos;t be moved.</p>}
+          {!movable && <p className="text-sm text-[#6b6b80]">Cancelled, completed and no-show {apptN} can&apos;t be moved.</p>}
           {moving && (
             <div className="space-y-3">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <Input label="New date" type="date" value={resDate} onChange={(e) => setResDate(e.target.value)} />
                 <div>
-                  <label htmlFor="resched-staff" className="text-sm font-medium text-brand-800 block mb-1.5">Staff member</label>
+                  <label htmlFor="resched-staff" className="text-sm font-medium text-brand-800 block mb-1.5">{Stf1}</label>
                   <select id="resched-staff" className={selectCls} value={resStaff} onChange={(e) => setResStaff(e.target.value)}>
                     {!appt.staffId && <option value="">Any available</option>}
                     {staff.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
@@ -405,7 +426,7 @@ export function AppointmentDetailModal({
               <TimeChips times={slots.times} loading={slots.loading} error={slots.error} value={resTime} onChange={setResTime} emptyText="No free times on this day." />
               <div className="flex gap-3">
                 <Button variant="outline" onClick={() => setMoving(false)} className="flex-1 justify-center">Keep as is</Button>
-                <Button onClick={reschedule} disabled={saving || !resTime || !resDate} className="flex-1 justify-center">{saving ? "Moving…" : "Move appointment"}</Button>
+                <Button onClick={reschedule} disabled={saving || !resTime || !resDate} className="flex-1 justify-center">{saving ? "Moving…" : `Move ${appt1}`}</Button>
               </div>
             </div>
           )}
@@ -416,7 +437,7 @@ export function AppointmentDetailModal({
           <p className="text-xs font-bold text-[#6b6b80] uppercase tracking-wider">Update</p>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
-              <label htmlFor="appt-appointment-status" className="text-xs font-medium text-[#6b6b80] block mb-1.5">Appointment status</label>
+              <label htmlFor="appt-appointment-status" className="text-xs font-medium text-[#6b6b80] block mb-1.5">{Appt1} status</label>
               <select id="appt-appointment-status" value={status} onChange={(e) => setStatus(e.target.value)} className={selectCls}>
                 <option value="confirmed">Confirmed</option>
                 <option value="pending">Pending</option>

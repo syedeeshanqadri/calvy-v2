@@ -1,4 +1,5 @@
 "use client";
+import { useTerms } from "@/components/providers/TermsProvider";
 import { useState } from "react";
 import { Clock, MoreVertical, Check, X } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
@@ -71,15 +72,17 @@ function AppointmentRow({ appt }: { appt: ApptRow }) {
 }
 
 export function AppointmentList({ appointments }: { appointments: ApptRow[] }) {
+  const { t } = useTerms();
+  const apptN = t("appointment", { plural: true });
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Today&apos;s Appointments</CardTitle>
+        <CardTitle>Today&apos;s {t("appointment", { plural: true, cap: true })}</CardTitle>
         <span className="text-xs text-[#6b6b80]">{appointments.length} total</span>
       </CardHeader>
       <CardContent>
         {appointments.length === 0 ? (
-          <p className="text-sm text-[#6b6b80] py-6 text-center">No appointments today</p>
+          <p className="text-sm text-[#6b6b80] py-6 text-center">No {apptN} today</p>
         ) : (
           appointments.map((appt) => <AppointmentRow key={appt.id} appt={appt} />)
         )}

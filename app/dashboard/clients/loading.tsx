@@ -1,9 +1,12 @@
+"use client";
+import { useTerms } from "@/components/providers/TermsProvider";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { ShimmerTable, ShimmerCard, Shimmer } from "@/components/ui/Shimmer";
 
 export default function ClientsLoading() {
+  const { t } = useTerms();
   return (
-    <DashboardLayout title="Clients" subtitle="Your client directory">
+    <DashboardLayout title={t("client", { plural: true, cap: true })} subtitle={`Your ${t("client")} directory`}>
       {/* Stats row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-5">
         {Array.from({ length: 4 }).map((_, i) => (

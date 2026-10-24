@@ -55,7 +55,7 @@ export async function createBusinessForUser(params: {
   const pack = getPack(params.packId);
   const businessType = params.businessType ?? pack.businessType;
   const slug = await generateSlug(params.businessName);
-  const websiteJson = JSON.stringify(defaultWebsiteConfig(params.businessName, businessType));
+  const websiteJson = JSON.stringify(defaultWebsiteConfig(params.businessName, businessType, { packId: pack.id }));
 
   const business = await prisma.business.create({
     data: {

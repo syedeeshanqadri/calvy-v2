@@ -10,18 +10,20 @@ import { cn } from "@/lib/utils";
 import { useFlags } from "@/components/providers/FlagsProvider";
 import type { FeatureFlag } from "@/lib/flags";
 import { Logo } from "@/components/ui/Logo";
+import { useTerms } from "@/components/providers/TermsProvider";
+import type { TermKey } from "@/lib/packs/types";
 
-const NAV_ITEMS: { label: string; href: string; icon: typeof LayoutDashboard; flag?: FeatureFlag }[] = [
+const NAV_ITEMS: { label: string; href: string; icon: typeof LayoutDashboard; flag?: FeatureFlag; term?: TermKey }[] = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { label: "Appointments", href: "/dashboard/appointments", icon: Calendar },
-  { label: "Clients", href: "/dashboard/clients", icon: Users },
-  { label: "Staff", href: "/dashboard/staff", icon: UserCog },
+  { term: "appointment", label: "Appointments", href: "/dashboard/appointments", icon: Calendar },
+  { term: "client", label: "Clients", href: "/dashboard/clients", icon: Users },
+  { term: "staff", label: "Staff", href: "/dashboard/staff", icon: UserCog },
   { label: "Calendar", href: "/dashboard/calendar", icon: CalendarDays },
   { label: "Payments", href: "/dashboard/payments", icon: CreditCard, flag: "payments" },
   { label: "Wallet", href: "/dashboard/wallet", icon: Wallet, flag: "wallet" },
   { label: "Analytics", href: "/dashboard/analytics", icon: BarChart2 },
   { label: "Expenses", href: "/dashboard/expenses", icon: Receipt },
-  { label: "Services", href: "/dashboard/services", icon: Wrench },
+  { term: "service", label: "Services", href: "/dashboard/services", icon: Wrench },
   { label: "Broadcasts", href: "/dashboard/broadcasts", icon: Megaphone, flag: "broadcasts" },
   { label: "Booking Page", href: "/dashboard/booking-page", icon: Link2 },
   { label: "Website", href: "/dashboard/website", icon: Globe },
@@ -35,6 +37,8 @@ interface SidebarProps { collapsed?: boolean; onToggle?: () => void; }
 export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const pathname = usePathname();
   const flags = useFlags();
+  const { t } = useTerms();
+  const labelOf = (i: { label: string; term?: TermKey }) => (i.term ? t(i.term, { plural: true, cap: true }) : i.label);
   const items = NAV_ITEMS.filter((i) => !i.flag || flags[i.flag]);
 
   return (
@@ -71,7 +75,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
               )}
             >
               <item.icon size={18} className={cn("flex-shrink-0 transition-transform group-hover:scale-110", isActive && "text-sky-600")} />
-              {!collapsed && <span className="text-sm font-medium">{item.label}</span>}
+              {!collapsed && <span className="text-sm font-medium">{labelOf(item)}</span>}
             </Link>
           );
         })}
@@ -90,7 +94,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
               )}
             >
               <item.icon size={18} className={cn("flex-shrink-0", isActive && "text-sky-600")} />
-              {!collapsed && <span className="text-sm font-medium">{item.label}</span>}
+              {!collapsed && <span className="text-sm font-medium">{labelOf(item)}</span>}
             </Link>
           );
         })}

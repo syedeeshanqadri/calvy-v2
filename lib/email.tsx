@@ -1,3 +1,4 @@
+import { t, type TermsSource } from "@/lib/terms";
 import * as React from "react";
 import { Resend } from "resend";
 import { render } from "@react-email/render";
@@ -118,14 +119,17 @@ export interface BookingDetails {
   price: number;
   currency?: string;
   appointmentDate?: Date; // attaches an .ics when provided
+  terms?: TermsSource; // business pack wording
   ctx?: EmailContext;
 }
+
+const apptWord = (terms?: TermsSource) => t(terms ?? {}, "appointment");
 
 function bookingProps(d: BookingDetails): BookingProps {
   return {
     clientName: d.clientName, businessName: d.businessName, serviceName: d.serviceName,
     staffName: d.staffName, date: d.date, time: d.time, duration: d.duration,
-    price: d.price, currency: d.currency ?? DEFAULT_CURRENCY,
+    price: d.price, currency: d.currency ?? DEFAULT_CURRENCY, terms: d.terms,
   };
 }
 
@@ -142,19 +146,19 @@ export function sendBookingConfirmation(d: BookingDetails) {
 
 export function sendBookingReminder(d: {
   to: string; clientName: string; businessName: string; serviceName: string;
-  date: string; time: string; staffName?: string; duration?: number; price?: number; currency?: string; ctx?: EmailContext;
+  date: string; time: string; staffName?: string; duration?: number; price?: number; currency?: string; terms?: TermsSource; ctx?: EmailContext;
 }) {
   return dispatch({
     to: d.to, type: "reminder", ctx: d.ctx,
     subject: `Reminder: ${d.serviceName} tomorrow at ${d.time}`,
-    react: <BookingReminderEmail clientName={d.clientName} businessName={d.businessName} serviceName={d.serviceName} date={d.date} time={d.time} staffName={d.staffName} duration={d.duration} price={d.price} currency={d.currency} />,
+    react: <BookingReminderEmail clientName={d.clientName} businessName={d.businessName} serviceName={d.serviceName} date={d.date} time={d.time} staffName={d.staffName} duration={d.duration} price={d.price} currency={d.currency} terms={d.terms} />,
   });
 }
 
 export function sendBookingCancellation(d: BookingDetails & { rebookUrl?: string }) {
   return dispatch({
     to: d.to, type: "cancellation", ctx: d.ctx,
-    subject: `Your appointment at ${d.businessName} was cancelled`,
+    subject: `Your ${apptWord(d.terms)} at ${d.businessName} was cancelled`,
     react: <BookingCancellationEmail {...bookingProps(d)} rebookUrl={d.rebookUrl} />,
   });
 }
@@ -162,7 +166,7 @@ export function sendBookingCancellation(d: BookingDetails & { rebookUrl?: string
 export function sendBookingReschedule(d: BookingDetails & { oldDate: string; oldTime: string }) {
   return dispatch({
     to: d.to, type: "reschedule", ctx: d.ctx,
-    subject: `Your appointment was moved to ${d.date} at ${d.time}`,
+    subject: `Your ${apptWord(d.terms)} was moved to ${d.date} at ${d.time}`,
     react: <BookingRescheduleEmail {...bookingProps(d)} oldDate={d.oldDate} oldTime={d.oldTime} />,
   });
 }

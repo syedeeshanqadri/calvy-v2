@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/Button";
 import { Avatar } from "@/components/ui/Avatar";
 import { useCurrency } from "@/components/providers/CurrencyProvider";
 import Link from "next/link";
+import { useTerms } from "@/components/providers/TermsProvider";
 import { Search, Plus, Mail, Phone, Star } from "lucide-react";
 
 interface ClientRow {
@@ -20,6 +21,11 @@ const COLORS = ["#0284c7","#3b82f6","#22c55e","#8b5cf6","#f59e0b","#ec4899","#14
 
 export function ClientsClient({ clients }: { clients: ClientRow[] }) {
   const router = useRouter();
+  const { t } = useTerms();
+  const cli1 = t("client");
+  const cliN = t("client", { plural: true });
+  const Cli1 = t("client", { cap: true });
+  const CliN = t("client", { plural: true, cap: true });
   const { formatPrice } = useCurrency();
   const [search, setSearch] = useState("");
   const [view, setView] = useState<"grid" | "list">("grid");
@@ -43,7 +49,7 @@ export function ClientsClient({ clients }: { clients: ClientRow[] }) {
         body: JSON.stringify({ name: `${form.firstName} ${form.lastName}`.trim(), email: form.email, phone: form.phone, notes: form.notes }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to add client");
+      if (!res.ok) throw new Error(data.error || `Failed to add ${cli1}`);
       setForm({ firstName: "", lastName: "", email: "", phone: "", notes: "" });
       setShowModal(false);
       router.refresh();
@@ -55,19 +61,19 @@ export function ClientsClient({ clients }: { clients: ClientRow[] }) {
   };
 
   return (
-    <DashboardLayout title="Clients" subtitle={`${clients.length} total clients`}>
+    <DashboardLayout title={CliN} subtitle={`${clients.length} total ${cliN}`}>
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between mb-6">
         <div className="flex gap-2 w-full sm:w-auto">
           <div className="relative flex-1 sm:flex-none">
             <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#6b6b80]" />
-            <input className="w-full sm:w-60 h-10 pl-9 pr-4 rounded-xl bg-white border border-[#e8e6e0] text-sm outline-none focus:border-accent/40 transition-all" placeholder="Search clients..." value={search} onChange={(e) => setSearch(e.target.value)} />
+            <input className="w-full sm:w-60 h-10 pl-9 pr-4 rounded-xl bg-white border border-[#e8e6e0] text-sm outline-none focus:border-accent/40 transition-all" placeholder={`Search ${cliN}...`} value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
           <div className="flex gap-1 bg-white border border-[#e8e6e0] rounded-xl p-1">
             <button onClick={() => setView("grid")} className={`px-3 py-1.5 rounded-lg text-xs transition-all ${view === "grid" ? "bg-[#f8f7f4] text-brand-900" : "text-[#6b6b80]"}`}>Grid</button>
             <button onClick={() => setView("list")} className={`px-3 py-1.5 rounded-lg text-xs transition-all ${view === "list" ? "bg-[#f8f7f4] text-brand-900" : "text-[#6b6b80]"}`}>List</button>
           </div>
         </div>
-        <Button size="sm" className="gap-1.5" onClick={() => { setError(""); setShowModal(true); }}><Plus size={14} /> Add client</Button>
+        <Button size="sm" className="gap-1.5" onClick={() => { setError(""); setShowModal(true); }}><Plus size={14} /> Add {cli1}</Button>
       </div>
 
       {view === "grid" ? (
@@ -112,7 +118,7 @@ export function ClientsClient({ clients }: { clients: ClientRow[] }) {
             </div>
           ))}
           {filtered.length === 0 && (
-            <div className="col-span-full text-center py-16 text-[#6b6b80] text-sm">No clients found</div>
+            <div className="col-span-full text-center py-16 text-[#6b6b80] text-sm">No {cliN} found</div>
           )}
         </div>
       ) : (
@@ -151,7 +157,7 @@ export function ClientsClient({ clients }: { clients: ClientRow[] }) {
         </Card>
       )}
 
-      <Modal isOpen={showModal} onClose={() => setShowModal(false)} title="Add New Client" size="md">
+      <Modal isOpen={showModal} onClose={() => setShowModal(false)} title={`Add New ${Cli1}`} size="md">
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <Input label="First name" placeholder="John" value={form.firstName} onChange={e => setForm({ ...form, firstName: e.target.value })} />
@@ -174,7 +180,7 @@ export function ClientsClient({ clients }: { clients: ClientRow[] }) {
           <div className="flex gap-3 pt-2">
             <Button variant="outline" onClick={() => setShowModal(false)} className="flex-1 justify-center">Cancel</Button>
             <Button onClick={submit} disabled={loading || !form.firstName || (!form.email && !form.phone)} className="flex-1 justify-center">
-              {loading ? "Saving..." : "Add Client"}
+              {loading ? "Saving..." : `Add ${Cli1}`}
             </Button>
           </div>
         </div>

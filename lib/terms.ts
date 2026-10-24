@@ -33,3 +33,10 @@ export function t(source: TermsSource, key: TermKey, opts: TermOpts = {}): strin
 export function terms(source: TermsSource) {
   return (key: TermKey, opts?: TermOpts) => t(source, key, opts);
 }
+
+/** Staff role dropdown for a pack. A stored role outside the list is kept and shown as "Other". */
+export function staffRoleChoice(source: TermsSource, role: string): { select: string; other: string } {
+  const roles = getPack(source.packId).staffRoles;
+  if (!role) return { select: roles[0], other: "" };
+  return roles.includes(role) ? { select: role, other: "" } : { select: "Other", other: role };
+}

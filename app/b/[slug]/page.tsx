@@ -21,6 +21,8 @@ export default async function BusinessBookingPage(props: { params: Promise<{ slu
     name: business.name,
     primaryColor: business.primaryColor,
     businessType: business.businessType,
+    packId: business.packId,
+    termsOverride: business.termsOverride,
     description: business.description ?? "",
     phone: business.phone ?? "",
     address: business.address ?? "",

@@ -3,6 +3,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { logger } from "@/lib/logger";
+import { t } from "@/lib/terms";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { DashboardKPIStats } from "@/components/dashboard/DashboardKPIStats";
 import { RevenueChart } from "@/components/dashboard/RevenueChart";
@@ -28,7 +29,8 @@ export default async function DashboardPage() {
   const businessId = session.user.businessId;
   const firstName = session.user.name?.split(" ")[0] ?? "there";
 
-  const tz = safeTimeZone((await prisma.business.findUnique({ where: { id: businessId }, select: { timezone: true } }))?.timezone);
+  const biz = await prisma.business.findUnique({ where: { id: businessId }, select: { timezone: true, packId: true, termsOverride: true } });
+  const tz = safeTimeZone(biz?.timezone);
   const now = new Date();
   const hour = utcToZoned(now, tz).minutes / 60;
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
@@ -159,7 +161,7 @@ export default async function DashboardPage() {
   const staffOptions = dbStaff.map(s => ({ id: s.id, name: s.name }));
 
   return (
-    <DashboardLayout title={`${greeting}, ${firstName} 👋`} subtitle={`${dateStr} · You have ${todayAppts.length} appointments today`}>
+    <DashboardLayout title={`${greeting}, ${firstName} 👋`} subtitle={`${dateStr} · You have ${todayAppts.length} ${t(biz ?? {}, "appointment", { plural: todayAppts.length !== 1 })} today`}>
       <DashboardKPIStats
         todayApptsCount={todayAppts.length}
         todayRevenue={todayRevenue}

@@ -14,7 +14,7 @@ export default async function WebsitePage() {
   const [business, features] = await Promise.all([
     prisma.business.findUnique({
       where: { id: session.user.businessId },
-      select: { slug: true, name: true, businessType: true, websiteJson: true },
+      select: { slug: true, name: true, businessType: true, websiteJson: true, packId: true, termsOverride: true },
     }),
     getBusinessFeatures(session.user.businessId),
   ]);
@@ -26,6 +26,7 @@ export default async function WebsitePage() {
       slug={business.slug}
       businessName={business.name}
       businessType={business.businessType}
+      terms={{ packId: business.packId, termsOverride: business.termsOverride }}
       websiteJson={business.websiteJson ?? "{}"}
       imageUpload={features.imageUpload}
       seoControls={features.seoControls}

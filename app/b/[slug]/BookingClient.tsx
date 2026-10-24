@@ -8,9 +8,11 @@ import { bookableServices, providerOptions } from "@/lib/staffMatch";
 
 type Step = "service" | "staff" | "datetime" | "details" | "confirm";
 const STEPS: Step[] = ["service", "staff", "datetime", "details", "confirm"];
-const STEP_LABELS = ["Service", "Staff", "Date & Time", "Your Details", "Confirm"];
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 const DAYS_SHORT = ["Su","Mo","Tu","We","Th","Fr","Sa"];
+
+import { t, type TermOpts } from "@/lib/terms";
+import type { TermKey } from "@/lib/packs/types";
 
 const BUSINESS_TYPE_LABELS: Record<string, string> = {
   salon: "Hair Salon", barbershop: "Barbershop", clinic: "Medical Clinic",
@@ -25,10 +27,18 @@ interface Business {
   slug: string; name: string; primaryColor: string; businessType: string;
   description: string; phone: string; address: string; website: string;
   currency: string; paymentMode: string;
+  packId: string; termsOverride: unknown;
   services: Service[]; staff: StaffMember[];
 }
 
 export function BookingClient({ business }: { business: Business }) {
+  const word = (key: TermKey, opts?: TermOpts) => t(business, key, opts);
+  const svc1 = word("service"), svcN = word("service", { plural: true });
+  const Svc1 = word("service", { cap: true });
+  const appt1 = word("appointment");
+  const stf1 = word("staff");
+  const Stf1 = word("staff", { cap: true });
+  const STEP_LABELS = [Svc1, Stf1, "Date & Time", "Your Details", "Confirm"];
   const searchParams = useSearchParams();
   // Hide services nobody on the team is linked to (they could never be booked).
   const services = bookableServices(business.services, business.staff);
@@ -213,7 +223,7 @@ export function BookingClient({ business }: { business: Business }) {
           <div className="bg-[#f8f7f4] rounded-2xl p-5 text-left mb-6 space-y-2.5">
             <div className="flex justify-between text-sm"><span className="text-[#6b6b80]">Business</span><span className="font-medium">{business.name}</span></div>
             <div className="flex justify-between text-sm">
-              <span className="text-[#6b6b80]">Service{selectedServiceObjs.length > 1 ? "s" : ""}</span>
+              <span className="text-[#6b6b80]">{word("service", { cap: true, plural: selectedServiceObjs.length > 1 })}</span>
               <span className="font-medium text-right max-w-[60%]">{serviceNamesLabel}</span>
             </div>
             <div className="flex justify-between text-sm"><span className="text-[#6b6b80]">Date</span><span className="font-medium">{dateStr}</span></div>
@@ -225,7 +235,7 @@ export function BookingClient({ business }: { business: Business }) {
             </div>
             <div className="flex justify-between text-sm pt-1">
               <span className="text-[#6b6b80]">Payment</span>
-              <span className="font-medium">{business.paymentMode === "postpaid" ? "Pay at appointment" : "Paid online"}</span>
+              <span className="font-medium">{business.paymentMode === "postpaid" ? `Pay at ${appt1}` : "Paid online"}</span>
             </div>
           </div>
         </div>
@@ -281,14 +291,14 @@ export function BookingClient({ business }: { business: Business }) {
         {/* Step: Service */}
         {step === "service" && (
           <div>
-            <h2 className="font-syne font-bold text-2xl mb-1">Choose services</h2>
-            <p className="text-[#6b6b80] mb-4 text-sm">Select one or more services you&apos;d like to book.</p>
+            <h2 className="font-syne font-bold text-2xl mb-1">Choose {svcN}</h2>
+            <p className="text-[#6b6b80] mb-4 text-sm">Select one or more {svcN} you&apos;d like to book.</p>
             {services.length > 4 && (
               <div className="relative mb-4">
                 <input
                   type="text"
-                  aria-label="Search services"
-                  placeholder="Search services..."
+                  aria-label={`Search ${svcN}`}
+                  placeholder={`Search ${svcN}...`}
                   value={serviceSearch}
                   onChange={e => setServiceSearch(e.target.value)}
                   className="w-full rounded-xl border border-[#e8e6e0] px-4 py-3 pl-10 text-sm focus:outline-none focus:ring-2 focus:border-accent transition-all bg-white"
@@ -331,7 +341,7 @@ export function BookingClient({ business }: { business: Business }) {
                   );
                 })}
               {services.filter(svc => !serviceSearch || svc.name.toLowerCase().includes(serviceSearch.toLowerCase()) || svc.description.toLowerCase().includes(serviceSearch.toLowerCase())).length === 0 && (
-                <p className="text-sm text-[#6b6b80] text-center py-6">No services match your search.</p>
+                <p className="text-sm text-[#6b6b80] text-center py-6">No {svcN} match your search.</p>
               )}
             </div>
 
@@ -339,7 +349,7 @@ export function BookingClient({ business }: { business: Business }) {
             {selectedServices.length > 0 && (
               <div className="mt-5 bg-white border border-[#e8e6e0] rounded-2xl p-4 flex items-center justify-between gap-4">
                 <div className="text-sm">
-                  <span className="font-semibold">{selectedServices.length} service{selectedServices.length > 1 ? "s" : ""} selected</span>
+                  <span className="font-semibold">{selectedServices.length} {word("service", { plural: selectedServices.length > 1 })} selected</span>
                   <span className="text-[#6b6b80] ml-2">· {totalDuration} min · {formatCurrencyAmount(totalPrice, business.currency)}</span>
                 </div>
                 {selectedServices.length > 1 && (
@@ -356,23 +366,23 @@ export function BookingClient({ business }: { business: Business }) {
         {/* Step: Staff */}
         {step === "staff" && (
           <div>
-            <h2 className="font-syne font-bold text-2xl mb-2">Choose your provider</h2>
-            <p className="text-[#6b6b80] mb-6">Select who you&apos;d like your appointment with.</p>
+            <h2 className="font-syne font-bold text-2xl mb-2">Choose your {stf1}</h2>
+            <p className="text-[#6b6b80] mb-6">Select who you&apos;d like your {appt1} with.</p>
             {provider.kind === "none" && (
               <div className="bg-white rounded-2xl border border-[#e8e6e0] p-6 text-center" role="alert">
-                <p className="font-semibold mb-1">No single stylist offers all of these together.</p>
+                <p className="font-semibold mb-1">No single {stf1} offers all of these together.</p>
                 <p className="text-sm text-[#6b6b80] mb-4">Please book them separately.</p>
                 <button onClick={() => setStep("service")}
                   className="inline-flex items-center gap-2 text-sm font-semibold px-5 py-2.5 rounded-xl border border-[#e8e6e0] hover:bg-[#f8f7f4] transition-colors">
-                  <ChevronLeft size={16} /> Back to services
+                  <ChevronLeft size={16} /> Back to {svcN}
                 </button>
               </div>
             )}
             {provider.kind === "shared" && (
-              <p className="text-sm text-[#6b6b80]">No provider choice is needed. Continue to pick a time.</p>
+              <p className="text-sm text-[#6b6b80]">No {stf1} choice is needed. Continue to pick a time.</p>
             )}
             {provider.kind === "choose" && [
-              { id: "any", name: "No preference", role: "We'll assign the best available provider", color: "#6b6b80" },
+              { id: "any", name: "No preference", role: `We'll assign the best available ${stf1}`, color: "#6b6b80" },
               ...provider.staff,
             ].map(member => (
               <button key={member.id} onClick={() => setSelectedStaff(member.id)}
@@ -514,7 +524,7 @@ export function BookingClient({ business }: { business: Business }) {
         {step === "confirm" && (
           <div>
             <h2 className="font-syne font-bold text-2xl mb-2">Confirm booking</h2>
-            <p className="text-[#6b6b80] mb-6">Review your appointment details before confirming.</p>
+            <p className="text-[#6b6b80] mb-6">Review your {appt1} details before confirming.</p>
             <div className="bg-white rounded-2xl border border-[#e8e6e0] p-6 mb-4">
               <div className="flex justify-between text-sm py-2.5 border-b border-[#f5f3ef]">
                 <span className="text-[#6b6b80]">Business</span>
@@ -524,7 +534,7 @@ export function BookingClient({ business }: { business: Business }) {
               {/* Services list */}
               <div className="py-2.5 border-b border-[#f5f3ef]">
                 <div className="flex justify-between text-sm mb-2">
-                  <span className="text-[#6b6b80]">Service{selectedServiceObjs.length > 1 ? "s" : ""}</span>
+                  <span className="text-[#6b6b80]">{word("service", { cap: true, plural: selectedServiceObjs.length > 1 })}</span>
                   <span className="font-medium">{selectedServiceObjs.length} selected</span>
                 </div>
                 <div className="space-y-1.5 mt-1">
@@ -542,7 +552,7 @@ export function BookingClient({ business }: { business: Business }) {
               </div>
 
               {[
-                { label: "Provider", value: selectedStaff === "any" ? "No preference" : staff?.name },
+                { label: Stf1, value: selectedStaff === "any" ? "No preference" : staff?.name },
                 { label: "Date", value: dateStr },
                 { label: "Time", value: selectedTime },
                 { label: "Total duration", value: `${totalDuration} min` },
@@ -561,7 +571,7 @@ export function BookingClient({ business }: { business: Business }) {
               <div className="flex justify-between text-sm pt-2">
                 <span className="text-[#6b6b80]">Payment</span>
                 <span className={`font-semibold ${business.paymentMode === "postpaid" ? "text-amber-600" : "text-green-600"}`}>
-                  {business.paymentMode === "postpaid" ? "Pay at appointment" : "Pay now via card"}
+                  {business.paymentMode === "postpaid" ? `Pay at ${appt1}` : "Pay now via card"}
                 </span>
               </div>
             </div>

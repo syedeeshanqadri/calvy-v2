@@ -6,11 +6,12 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
+import type { TermsSource } from "@/lib/terms";
 import { parseWebsiteConfig, defaultWebsiteConfig, WebsiteConfig, PHOTO_LIBRARY, photoUrl } from "@/lib/website";
 import { Globe, Eye, ToggleLeft, ToggleRight, Check, Copy, ImageIcon, Link2, ChevronDown, Upload } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-interface Props { slug: string; businessName: string; businessType: string; websiteJson: string; imageUpload?: boolean; seoControls?: boolean; }
+interface Props { terms?: TermsSource; slug: string; businessName: string; businessType: string; websiteJson: string; imageUpload?: boolean; seoControls?: boolean; }
 
 // ── Textarea ─────────────────────────────────────────────────────────────────
 function Textarea({ label, value, onChange, rows = 3, placeholder }: { label: string; value: string; onChange: (v: string) => void; rows?: number; placeholder?: string }) {
@@ -201,8 +202,8 @@ function SectionCard({ title, enabled, onToggle, children, defaultOpen = true }:
 }
 
 // ── Main ─────────────────────────────────────────────────────────────────────
-export function WebsiteEditorClient({ slug, businessName, businessType, websiteJson, imageUpload = false, seoControls = false }: Props) {
-  const initial = parseWebsiteConfig(websiteJson) ?? defaultWebsiteConfig(businessName, businessType);
+export function WebsiteEditorClient({ terms, slug, businessName, businessType, websiteJson, imageUpload = false, seoControls = false }: Props) {
+  const initial = parseWebsiteConfig(websiteJson) ?? defaultWebsiteConfig(businessName, businessType, terms);
   const [config, setConfig] = useState<WebsiteConfig>(initial);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);

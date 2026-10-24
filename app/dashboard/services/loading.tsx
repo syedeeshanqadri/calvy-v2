@@ -1,9 +1,12 @@
+"use client";
+import { useTerms } from "@/components/providers/TermsProvider";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { ShimmerCard, Shimmer } from "@/components/ui/Shimmer";
 
 export default function ServicesLoading() {
+  const { t } = useTerms();
   return (
-    <DashboardLayout title="Services" subtitle="Manage your offerings">
+    <DashboardLayout title={t("service", { plural: true, cap: true })} subtitle="Manage your offerings">
       <div className="flex justify-end mb-5">
         <Shimmer className="h-9 w-32 rounded-xl" />
       </div>

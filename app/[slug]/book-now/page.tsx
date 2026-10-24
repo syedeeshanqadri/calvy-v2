@@ -35,6 +35,8 @@ export default async function BookNowPage(props: { params: Promise<{ slug: strin
     name: business.name,
     primaryColor: business.primaryColor,
     businessType: business.businessType,
+    packId: business.packId,
+    termsOverride: business.termsOverride,
     description: business.description ?? "",
     phone: business.phone ?? "",
     address: business.address ?? "",

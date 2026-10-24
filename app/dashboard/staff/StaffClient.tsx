@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/Button";
 import { Avatar } from "@/components/ui/Avatar";
 import { Plus, Mail, Phone, Pencil, Trash2, Crown, AlertTriangle } from "lucide-react";
 import Link from "next/link";
+import { useTerms } from "@/components/providers/TermsProvider";
+import { staffRoleChoice } from "@/lib/terms";
 
 interface StaffRow {
   id: string;
@@ -21,7 +23,6 @@ interface StaffRow {
 }
 
 const COLORS = ["#0284c7", "#3b82f6", "#22c55e", "#8b5cf6", "#f59e0b", "#ec4899", "#14b8a6", "#f97316"];
-const ROLES = ["Owner", "Manager", "Staff", "Receptionist", "Therapist", "Stylist", "Trainer", "Consultant"];
 
 interface Props {
   staff: StaffRow[];
@@ -31,17 +32,23 @@ interface Props {
 
 export function StaffClient({ staff, currentPlan, maxStaff }: Props) {
   const router = useRouter();
+  const { t, pack, source } = useTerms();
+  const stf1 = t("staff");
+  const Stf1 = t("staff", { cap: true });
+  const StfN = t("staff", { plural: true, cap: true });
+  const [roleOther, setRoleOther] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [editStaff, setEditStaff] = useState<StaffRow | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [form, setForm] = useState({ name: "", role: "Staff", email: "", phone: "", color: "#0284c7" });
+  const [form, setForm] = useState({ name: "", role: pack.staffRoles[0], email: "", phone: "", color: "#0284c7" });
 
   const atLimit = maxStaff !== -1 && staff.length >= maxStaff;
 
   function openAdd() {
     setEditStaff(null);
-    setForm({ name: "", role: "Staff", email: "", phone: "", color: "#0284c7" });
+    setForm({ name: "", role: pack.staffRoles[0], email: "", phone: "", color: "#0284c7" });
+    setRoleOther(false);
     setError("");
     setShowModal(true);
   }
@@ -49,12 +56,14 @@ export function StaffClient({ staff, currentPlan, maxStaff }: Props) {
   function openEdit(s: StaffRow) {
     setEditStaff(s);
     setForm({ name: s.name, role: s.role, email: s.email, phone: s.phone, color: s.color });
+    setRoleOther(false);
     setError("");
     setShowModal(true);
   }
 
   async function submit() {
     if (!form.name || !form.email) { setError("Name and email are required"); return; }
+    if (!form.role.trim()) { setError("Role is required"); return; }
     setLoading(true);
     setError("");
     try {
@@ -92,12 +101,12 @@ export function StaffClient({ staff, currentPlan, maxStaff }: Props) {
   }
 
   return (
-    <DashboardLayout title="Staff" subtitle={`${staff.length} team member${staff.length !== 1 ? "s" : ""}`}>
+    <DashboardLayout title={StfN} subtitle={`${staff.length} ${t("staff", { plural: staff.length !== 1 })}`}>
       {/* Plan usage bar */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2 bg-white border border-[#e8e6e0] rounded-xl px-4 py-2 text-sm">
-            <span className="text-[#6b6b80]">Staff used:</span>
+            <span className="text-[#6b6b80]">{StfN} used:</span>
             <span className="font-semibold">{staff.length}</span>
             <span className="text-[#6b6b80]">/</span>
             <span className="font-semibold">{maxStaff === -1 ? "∞" : maxStaff}</span>
@@ -110,14 +119,14 @@ export function StaffClient({ staff, currentPlan, maxStaff }: Props) {
           )}
         </div>
         <Button size="sm" className="gap-1.5" onClick={openAdd} disabled={atLimit}>
-          <Plus size={14} /> Add staff
+          <Plus size={14} /> Add {stf1}
         </Button>
       </div>
 
       {atLimit && (
         <div className="flex items-center gap-3 p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 mb-4 text-sm">
           <AlertTriangle size={15} className="flex-shrink-0" />
-          <span>You&apos;ve reached the staff limit for your <strong className="capitalize">{currentPlan}</strong> plan.</span>
+          <span>You&apos;ve reached the {stf1} limit for your <strong className="capitalize">{currentPlan}</strong> plan.</span>
           <Link href="/dashboard/billing" className="ml-auto font-semibold underline underline-offset-2">Upgrade</Link>
         </div>
       )}
@@ -125,9 +134,9 @@ export function StaffClient({ staff, currentPlan, maxStaff }: Props) {
       {/* Staff grid */}
       {staff.length === 0 ? (
         <Card className="p-16 text-center">
-          <p className="text-[#6b6b80] text-sm mb-4">No team members yet. Add your first staff member.</p>
+          <p className="text-[#6b6b80] text-sm mb-4">No {t("staff", { plural: true })} yet. Add your first {stf1}.</p>
           <Button size="sm" className="gap-1.5 mx-auto" onClick={openAdd}>
-            <Plus size={14} /> Add staff
+            <Plus size={14} /> Add {stf1}
           </Button>
         </Card>
       ) : (
@@ -178,7 +187,7 @@ export function StaffClient({ staff, currentPlan, maxStaff }: Props) {
       )}
 
       {/* Add/Edit Modal */}
-      <Modal isOpen={showModal} onClose={() => setShowModal(false)} title={editStaff ? "Edit Staff Member" : "Add Staff Member"}>
+      <Modal isOpen={showModal} onClose={() => setShowModal(false)} title={editStaff ? `Edit ${Stf1}` : `Add ${Stf1}`}>
         <div className="space-y-4">
           {error && (
             <div className="flex items-center gap-2 p-3 rounded-lg bg-red-50 text-red-600 text-sm">
@@ -189,12 +198,19 @@ export function StaffClient({ staff, currentPlan, maxStaff }: Props) {
           <div>
             <label className="block text-sm font-medium text-brand-700 mb-1.5">Role</label>
             <select
-              value={form.role}
-              onChange={(e) => setForm({ ...form, role: e.target.value })}
+              value={roleOther ? "Other" : staffRoleChoice(source, form.role).select}
+              onChange={(e) => {
+                if (e.target.value === "Other") { setRoleOther(true); setForm({ ...form, role: "" }); }
+                else { setRoleOther(false); setForm({ ...form, role: e.target.value }); }
+              }}
               className="w-full h-10 px-3 rounded-xl border border-[#e8e6e0] bg-white text-sm outline-none focus:border-accent/40 transition-all"
             >
-              {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
+              {pack.staffRoles.map((r) => <option key={r} value={r}>{r}</option>)}
+              <option value="Other">Other</option>
             </select>
+            {(roleOther || staffRoleChoice(source, form.role).select === "Other") && (
+              <Input className="mt-2" aria-label="Other role" placeholder="Type the role" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })} />
+            )}
           </div>
           <Input label="Email" type="email" placeholder="jane@example.com" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
           <Input label="Phone (optional)" placeholder="+1 555 000 0000" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
@@ -214,7 +230,7 @@ export function StaffClient({ staff, currentPlan, maxStaff }: Props) {
           <div className="flex gap-3 pt-2">
             <Button variant="ghost" className="flex-1" onClick={() => setShowModal(false)}>Cancel</Button>
             <Button className="flex-1" onClick={submit} disabled={loading}>
-              {loading ? "Saving…" : editStaff ? "Save changes" : "Add staff member"}
+              {loading ? "Saving…" : editStaff ? "Save changes" : `Add ${stf1}`}
             </Button>
           </div>
         </div>

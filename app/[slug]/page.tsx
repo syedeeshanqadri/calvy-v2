@@ -3,6 +3,7 @@ import { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
 import { prisma } from "@/lib/prisma";
+import { t } from "@/lib/terms";
 import { parseWebsiteConfig, defaultWebsiteConfig, WebsiteConfig } from "@/lib/website";
 import { MapPin, Phone, Mail, Clock, ChevronDown, ArrowRight, Star, CheckCircle2 } from "lucide-react";
 import { formatCurrencyAmount } from "@/lib/currency";
@@ -31,9 +32,9 @@ export async function generateMetadata(props: { params: Promise<{ slug: string }
   if (!business) return { title: "Not Found" };
   const cfg: WebsiteConfig =
     parseWebsiteConfig(business.websiteJson) ??
-    defaultWebsiteConfig(business.name, business.businessType);
+    defaultWebsiteConfig(business.name, business.businessType, business);
   const title = cfg.metaTitle || `${business.name} — Book online`;
-  const description = cfg.metaDescription || business.description || `Book appointments with ${business.name} online. Pick a service, choose a time, and confirm in seconds.`;
+  const description = cfg.metaDescription || business.description || `Book ${t(business, "appointment", { plural: true })} with ${business.name} online. Pick a ${t(business, "service")}, choose a time, and confirm in seconds.`;
   const url = publicUrlFor(params.slug);
   return {
     title,
@@ -59,7 +60,7 @@ export default async function TenantWebsitePage(props: { params: Promise<{ slug:
 
   const cfg: WebsiteConfig =
     parseWebsiteConfig(business.websiteJson) ??
-    defaultWebsiteConfig(business.name, business.businessType);
+    defaultWebsiteConfig(business.name, business.businessType, business);
 
   const primary = business.primaryColor || "#0284c7";
   const bookingUrl = `/book-now`;
@@ -74,7 +75,7 @@ export default async function TenantWebsitePage(props: { params: Promise<{ slug:
     "@type": "LocalBusiness",
     "@id": `${publicUrl}#business`,
     name: business.name,
-    description: cfg.metaDescription || business.description || `Book appointments with ${business.name}.`,
+    description: cfg.metaDescription || business.description || `Book ${t(business, "appointment", { plural: true })} with ${business.name}.`,
     url: publicUrl,
     ...(business.phone ? { telephone: business.phone } : {}),
     ...(business.email ? { email: business.email } : {}),
@@ -84,7 +85,7 @@ export default async function TenantWebsitePage(props: { params: Promise<{ slug:
     potentialAction: {
       "@type": "ReserveAction",
       target: `${publicUrl}/book-now`,
-      name: "Book an appointment",
+      name: `Book an ${t(business, "appointment")}`,
     },
     makesOffer: business.services.map(s => ({
       "@type": "Offer",
@@ -195,7 +196,7 @@ export default async function TenantWebsitePage(props: { params: Promise<{ slug:
                   </div>
                   <div>
                     <div className="text-xs text-gray-400 font-medium">{cfg.about.trustLabel}</div>
-                    <div className="text-sm font-bold text-gray-900">{business.services.length}+ Services</div>
+                    <div className="text-sm font-bold text-gray-900">{business.services.length}+ {t(business, "service", { plural: true, cap: true })}</div>
                   </div>
                 </div>
               )}
