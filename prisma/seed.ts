@@ -1,5 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import type { PackId } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
@@ -91,10 +92,20 @@ async function main() {
     create: { name: "Alex Johnson", email: "demo@calvy.io", password, emailVerified: new Date() },
   });
 
+  // "Hair Salon" is not an id packForBusinessType() knows, so the pack is set explicitly.
+  const demoFields = {
+    businessType: "Hair Salon",
+    packId: "SALON_SPA" as PackId,
+    plan: "professional",
+    planStatus: "active",
+  };
+
   const existingBusiness = await prisma.business.findUnique({ where: { ownerId: user.id } });
   if (existingBusiness) {
-    console.log("✅ Demo data already exists — skipping.");
-    printTestAccounts();
+    await prisma.business.update({ where: { id: existingBusiness.id }, data: demoFields });
+    console.log("✅ Demo data already exists — refreshed type/pack/plan, skipping the rest.");
+    await seedPackBusinesses();
+    printSummary();
     return;
   }
 
@@ -102,7 +113,7 @@ async function main() {
     data: {
       name: "Alex Johnson Studio",
       slug: "alex-johnson-studio",
-      plan: "professional",
+      ...demoFields,
       ownerId: user.id,
       description: "Premium hair and wellness studio",
     },
@@ -178,18 +189,124 @@ async function main() {
     ].map(withEnd),
   });
 
+  await seedPackBusinesses();
   console.log("✅ Seed complete!");
-  console.log("   Login:  demo@calvy.io");
-  console.log("   Pass:   password123");
-  printTestAccounts();
-  console.log(`   Book:   http://localhost:3001/b/alex-johnson-studio`);
+  printSummary();
 }
 
-function printTestAccounts() {
+// One demo business per pack (dev only, idempotent).
+type Spec = {
+  email: string; owner: string; name: string; slug: string; description: string;
+  businessType: string; packId: PackId; currency: string;
+  staff: { name: string; role: string; color: string }[];
+  services: { name: string; description: string; duration: number; price: number; category: string; color: string }[];
+  links: number[][]; // links[i] = indexes into services that staff[i] provides
+};
+
+const PACK_BUSINESSES: Spec[] = [
+  {
+    email: "clinic@calvy.test", owner: "Dr. Neha Rao", name: "City Care Clinic", slug: "city-care-clinic",
+    description: "General practice and family medicine", businessType: "clinic", packId: "CLINIC", currency: "INR",
+    staff: [
+      { name: "Dr. Neha Rao", role: "General Physician", color: "#0ea5e9" },
+      { name: "Dr. Arjun Mehta", role: "Pediatrician", color: "#22c55e" },
+    ],
+    services: [
+      { name: "General Consultation", description: "Doctor consultation and prescription", duration: 20, price: 500, category: "consultation", color: "#0ea5e9" },
+      { name: "Follow-up Consultation", description: "Review of an earlier visit", duration: 15, price: 300, category: "consultation", color: "#22c55e" },
+      { name: "Child Health Check-up", description: "Growth, vaccination and wellness check", duration: 30, price: 700, category: "consultation", color: "#f59e0b" },
+    ],
+    links: [[0, 1], [0, 1, 2]],
+  },
+  {
+    email: "lawyer@calvy.test", owner: "Rohan Sharma", name: "Sharma Legal Associates", slug: "sharma-legal-associates",
+    description: "Family, property and corporate law", businessType: "lawyer", packId: "LAWYER", currency: "INR",
+    staff: [
+      { name: "Rohan Sharma", role: "Senior Advocate", color: "#6366f1" },
+      { name: "Kavya Iyer", role: "Associate Advocate", color: "#ec4899" },
+    ],
+    services: [
+      { name: "Initial Legal Consultation", description: "First meeting to review your matter", duration: 45, price: 2000, category: "legal", color: "#6366f1" },
+      { name: "Document Review", description: "Contract or agreement review", duration: 60, price: 3500, category: "legal", color: "#ec4899" },
+      { name: "Case Strategy Session", description: "Plan next steps for an ongoing case", duration: 60, price: 4000, category: "legal", color: "#f59e0b" },
+    ],
+    links: [[0, 1, 2], [0, 1]],
+  },
+  {
+    email: "fitness@calvy.test", owner: "Vikram Singh", name: "FitZone Training", slug: "fitzone-training",
+    description: "Personal training and group fitness", businessType: "fitness", packId: "FITNESS", currency: "INR",
+    staff: [
+      { name: "Vikram Singh", role: "Head Trainer", color: "#ef4444" },
+      { name: "Anita Desai", role: "Yoga Instructor", color: "#14b8a6" },
+    ],
+    services: [
+      { name: "Personal Training Session", description: "One-on-one workout with a trainer", duration: 60, price: 800, category: "training", color: "#ef4444" },
+      { name: "Fitness Assessment", description: "Body metrics and goal setting", duration: 45, price: 500, category: "training", color: "#f59e0b" },
+      { name: "Yoga Class", description: "Beginner-friendly yoga session", duration: 60, price: 400, category: "class", color: "#14b8a6" },
+    ],
+    links: [[0, 1], [1, 2]],
+  },
+  {
+    email: "other@calvy.test", owner: "Sam Carter", name: "Bright Studio Services", slug: "bright-studio-services",
+    description: "Creative studio and professional services", businessType: "general", packId: "OTHER", currency: "USD",
+    staff: [
+      { name: "Sam Carter", role: "Studio Lead", color: "#8b5cf6" },
+      { name: "Lena Ortiz", role: "Specialist", color: "#f97316" },
+    ],
+    services: [
+      { name: "Discovery Call", description: "Short intro call about your needs", duration: 30, price: 0, category: "general", color: "#8b5cf6" },
+      { name: "Standard Session", description: "Standard one-hour service", duration: 60, price: 90, category: "general", color: "#f97316" },
+      { name: "Extended Session", description: "Longer in-depth session", duration: 120, price: 160, category: "general", color: "#22c55e" },
+    ],
+    links: [[0, 1, 2], [1, 2]],
+  },
+];
+
+// Idempotent: users/businesses are upserted by email/slug; staff and services are created only once.
+async function seedPackBusinesses() {
+  if (!TEST_ACCOUNTS_ENABLED) return;
+  const password = await bcrypt.hash(TEST_PASSWORD, 12);
+  for (const spec of PACK_BUSINESSES) {
+    const user = await prisma.user.upsert({
+      where: { email: spec.email },
+      update: { emailVerified: new Date() },
+      create: { name: spec.owner, email: spec.email, password, emailVerified: new Date() },
+    });
+    const fields = {
+      businessType: spec.businessType, packId: spec.packId, currency: spec.currency,
+      plan: "professional", planStatus: "active", description: spec.description,
+    };
+    const existing = await prisma.business.findUnique({ where: { ownerId: user.id } });
+    const business = existing
+      ? await prisma.business.update({ where: { id: existing.id }, data: fields })
+      : await prisma.business.create({ data: { name: spec.name, slug: spec.slug, ownerId: user.id, ...fields } });
+    if ((await prisma.service.count({ where: { businessId: business.id } })) > 0) continue;
+    const services: { id: string }[] = [];
+    for (const sv of spec.services) services.push(await prisma.service.create({ data: { businessId: business.id, isActive: true, ...sv } }));
+    const staff: { id: string }[] = [];
+    for (const [i, st] of spec.staff.entries()) {
+      staff.push(await prisma.staff.create({
+        data: { businessId: business.id, isActive: true, workingHours: WH, email: `staff${i + 1}.${spec.slug}@calvy.test`, ...st },
+      }));
+    }
+    await prisma.staffService.createMany({
+      data: spec.links.flatMap((idxs, i) => idxs.map(j => ({ staffId: staff[i].id, serviceId: services[j].id }))),
+      skipDuplicates: true,
+    });
+  }
+}
+
+function printSummary() {
+  const appUrl = (process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").replace(/\/$/, "");
+  console.log("   Demo owner:  demo@calvy.io / password123  (Alex Johnson Studio, SALON_SPA)");
+  console.log(`   Book:        ${appUrl}/b/alex-johnson-studio`);
   if (!TEST_ACCOUNTS_ENABLED) return;
   console.log("   Test accounts (dev only), shared password: " + TEST_PASSWORD);
   console.log("     admin@calvy.test     (super admin)");
   console.log("     newowner@calvy.test  (verified, not onboarded)");
+  for (const b of PACK_BUSINESSES) {
+    console.log(`     ${b.email.padEnd(20)} ${b.name} [${b.packId}]  ${appUrl}/b/${b.slug}`);
+  }
 }
 
 main()

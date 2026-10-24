@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { getLimits, isActivePlan, getRazorpayPlanId } from "@/lib/plans";
+import { getLimits, isActivePlan, getRazorpayPlanId, normalizePlanId, defaultPlanStatus } from "@/lib/plans";
 
 describe("getLimits", () => {
   it("returns free limits for unknown/free plans", () => {
@@ -65,5 +65,35 @@ describe("getRazorpayPlanId", () => {
   it("returns null when the env var is unset", () => {
     delete process.env.RAZORPAY_PLAN_BUSINESS;
     expect(getRazorpayPlanId("business", "monthly")).toBeNull();
+  });
+});
+
+describe("legacy plan mapping", () => {
+  it("trial -> free, starter -> professional, current ids unchanged", () => {
+    expect(normalizePlanId("trial")).toBe("free");
+    expect(normalizePlanId("starter")).toBe("professional");
+    expect(normalizePlanId("professional")).toBe("professional");
+    expect(normalizePlanId("free")).toBe("free");
+    expect(normalizePlanId("business")).toBe("business");
+  });
+  it("unknown, empty and missing values fall back to free", () => {
+    expect(normalizePlanId("enterprise")).toBe("free");
+    expect(normalizePlanId("")).toBe("free");
+    expect(normalizePlanId(null)).toBe("free");
+    expect(normalizePlanId(undefined)).toBe("free");
+  });
+  it("legacy starter gets Pro limits", () => {
+    expect(getLimits("starter")).toEqual(getLimits("professional"));
+  });
+  it("isActivePlan treats a legacy starter like Pro (needs active status)", () => {
+    expect(isActivePlan("active", "starter", null)).toBe(true);
+    expect(isActivePlan("past_due", "starter", null)).toBe(false);
+  });
+  it("defaultPlanStatus: free for free/trial, active for paid", () => {
+    expect(defaultPlanStatus("free")).toBe("free");
+    expect(defaultPlanStatus("trial")).toBe("free");
+    expect(defaultPlanStatus("starter")).toBe("active");
+    expect(defaultPlanStatus("professional")).toBe("active");
+    expect(defaultPlanStatus("business")).toBe("active");
   });
 });

@@ -3,6 +3,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import { Logo } from "@/components/ui/Logo";
+import { PackPicker } from "@/components/packs/PackPicker";
+import type { PackId } from "@/lib/packs/types";
 
 const REGIONS = [
   { currency: "USD", label: "United States — US Dollar (USD $)" },
@@ -26,6 +28,7 @@ export default function OnboardingClient({ name }: { name: string }) {
   const { update } = useSession();
   const [businessName, setBusinessName] = useState("");
   const [currency, setCurrency] = useState("");
+  const [packId, setPackId] = useState<PackId>("OTHER");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -39,7 +42,7 @@ export default function OnboardingClient({ name }: { name: string }) {
     const res = await fetch("/api/onboarding", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ businessName, currency, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone }),
+      body: JSON.stringify({ businessName, currency, packId, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone }),
     });
     const data = await res.json().catch(() => ({}));
 
@@ -93,6 +96,8 @@ export default function OnboardingClient({ name }: { name: string }) {
                 ))}
               </select>
             </div>
+
+            <PackPicker value={packId} onChange={setPackId} name="onboarding-pack" />
 
             {error && <p className="text-sm text-red-500">{error}</p>}
 

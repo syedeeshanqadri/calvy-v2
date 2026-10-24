@@ -155,15 +155,36 @@ export const PLAN_META: Record<PlanId, { name: string; price: number; annualPric
   },
 };
 
+/**
+ * Maps any stored plan value to a current plan id (free / professional / business).
+ * Legacy values: trial -> free, starter -> professional. Unknown values -> free.
+ * The data migration 20261024100000_normalize_plans applies the same mapping to existing rows.
+ */
+export function normalizePlanId(plan: string | null | undefined): PlanId {
+  switch (plan) {
+    case "professional":
+    case "starter":
+      return "professional";
+    case "business":
+      return "business";
+    default:
+      return "free"; // free, trial, unknown
+  }
+}
+
+/** planStatus that matches a plan: "free" for the free plan, "active" for paid plans. */
+export function defaultPlanStatus(plan: string | null | undefined): "free" | "active" {
+  return normalizePlanId(plan) === "free" ? "free" : "active";
+}
+
 export function getLimits(plan: string): PlanLimits {
-  if (plan === "trial") return PLAN_LIMITS.free; // legacy compat
-  return PLAN_LIMITS[plan as PlanId] ?? PLAN_LIMITS.free;
+  return PLAN_LIMITS[normalizePlanId(plan)];
 }
 
 export async function getLimitsFromDB(plan: string): Promise<PlanLimits> {
   try {
     const { prisma } = await import("@/lib/prisma");
-    const planKey = plan === "trial" ? "free" : plan;
+    const planKey = normalizePlanId(plan);
     const config = await prisma.planConfig.findUnique({ where: { planId: planKey } });
     if (!config) return getLimits(plan);
     return {
@@ -196,7 +217,7 @@ export async function getLimitsFromDB(plan: string): Promise<PlanLimits> {
 
 export function isActivePlan(planStatus: string, plan: string, trialEndsAt: Date | null | undefined): boolean {
   // Free plan always active — lifetime, no expiry
-  if (plan === "free" || plan === "trial") return true;
+  if (normalizePlanId(plan) === "free") return true;
   return planStatus === "active";
 }
 
