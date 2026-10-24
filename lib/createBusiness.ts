@@ -63,6 +63,7 @@ export async function createBusinessForUser(params: {
       slug,
       businessType,
       packId: pack.id,
+      bookingMode: pack.defaultBookingMode,
       websiteJson,
       plan: "free",
       planStatus: "free",

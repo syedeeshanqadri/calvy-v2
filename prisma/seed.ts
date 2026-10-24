@@ -306,6 +306,23 @@ async function seedPackBusinesses() {
       });
     }
     await seedPackAppointments(spec, business.id);
+    if (spec.packId === "CLINIC") await seedClinicTokenSessions(business.id);
+  }
+}
+
+// Demo clinic runs on tokens: Morning and Evening sessions per doctor (own queue each). Only when it has none yet.
+async function seedClinicTokenSessions(businessId: string) {
+  await prisma.business.update({ where: { id: businessId }, data: { bookingMode: "TOKEN" } });
+  if ((await prisma.tokenSession.count({ where: { businessId } })) > 0) return;
+  const doctors = await prisma.staff.findMany({ where: { businessId, isActive: true }, select: { id: true }, orderBy: { createdAt: "asc" } });
+  const weekdays = [1, 2, 3, 4, 5, 6];
+  for (const d of doctors) {
+    await prisma.tokenSession.createMany({
+      data: [
+        { businessId, staffId: d.id, name: "Morning", weekdays, startMin: 10 * 60, endMin: 14 * 60, minutesPerToken: 15 },
+        { businessId, staffId: d.id, name: "Evening", weekdays, startMin: 17 * 60, endMin: 20 * 60, minutesPerToken: 15 },
+      ],
+    });
   }
 }
 

@@ -71,6 +71,7 @@ model Business {
   ownerId                  String              @unique
   businessType             String              @default("general")
   packId                   PackId              @default(OTHER)
+  bookingMode              BookingMode         @default(SLOT)
   termsOverride            Json?
   phone                    String?
   email                    String?
@@ -111,6 +112,7 @@ model Business {
   cancellationCutoffHours  Int                 @default(0)
   workingHours             WorkingHours[]
   timeOff                  TimeOff[]
+  tokenSessions            TokenSession[]
   createdAt                DateTime            @default(now())
   updatedAt                DateTime            @updatedAt
   appointments             Appointment[]
@@ -142,6 +144,7 @@ model Staff {
   services     StaffService[]
   hours        WorkingHours[]
   timeOff      TimeOff[]
+  tokenSessions TokenSession[]
 }
 
 model Service {
@@ -427,4 +430,26 @@ enum PackId {
   FITNESS
   CONSULTANT
   OTHER
+}
+
+enum BookingMode {
+  SLOT
+  TOKEN
+}
+
+model TokenSession {
+  id              String   @id @default(cuid())
+  businessId      String
+  staffId         String? // null = business-wide queue; set = that staff member's own queue
+  name            String
+  weekdays        Int[] // 0 = Sunday .. 6 = Saturday
+  startMin        Int // minutes since local midnight (Business.timezone)
+  endMin          Int
+  minutesPerToken Int
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  business        Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  staff           Staff?   @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@index([businessId, staffId])
 }
