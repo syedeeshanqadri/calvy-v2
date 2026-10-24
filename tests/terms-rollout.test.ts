@@ -60,14 +60,16 @@ describe("pack extras", () => {
   it("every pack has role options and service placeholders", () => {
     for (const id of PACK_IDS) {
       const p = getPack(id);
-      expect(p.staffRoles.length).toBeGreaterThanOrEqual(4);
+      expect(p.staffRoles.length).toBeGreaterThanOrEqual(3);
       expect(p.placeholders.serviceName.startsWith("e.g. ")).toBe(true);
     }
-    expect(getPack("CLINIC").staffRoles).toEqual(["Doctor", "Dentist", "Physiotherapist", "Nurse", "Receptionist"]);
+    expect(getPack("CLINIC").staffRoles).toEqual(["Doctor", "Dentist", "Physiotherapist", "Psychologist"]);
     expect(getPack("OTHER").placeholders.serviceName).toBe("e.g. Standard Appointment");
   });
   it("staff role dropdown: listed role, unknown role shown as Other, blank defaults to first", () => {
-    expect(staffRoleChoice({ packId: "CLINIC" }, "Nurse")).toEqual({ select: "Nurse", other: "" });
+    expect(staffRoleChoice({ packId: "CLINIC" }, "Dentist")).toEqual({ select: "Dentist", other: "" });
+    expect(staffRoleChoice({ packId: "CLINIC" }, "Receptionist")).toEqual({ select: "Other", other: "Receptionist" });
+    for (const id of PACK_IDS) expect(getPack(id).staffRoles).not.toContain("Receptionist");
     expect(staffRoleChoice({ packId: "CLINIC" }, "Senior Stylist")).toEqual({ select: "Other", other: "Senior Stylist" });
     expect(staffRoleChoice({ packId: "SALON_SPA" }, "")).toEqual({ select: "Stylist", other: "" });
   });

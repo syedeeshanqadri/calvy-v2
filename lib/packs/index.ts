@@ -7,7 +7,7 @@ const PACKS: Record<PackId, Pack> = {
     id: "CLINIC", label: "Clinic",
     blurb: "Patients, doctors and consultations", businessType: "clinic",
     placeholders: { serviceName: "e.g. General Consultation", serviceDescription: "e.g. First visit with the doctor, includes checkup" },
-    staffRoles: ["Doctor", "Dentist", "Physiotherapist", "Nurse", "Receptionist"],
+    staffRoles: ["Doctor", "Dentist", "Physiotherapist", "Psychologist"],
     defaultServices: [
       { name: "General Consultation", description: "Doctor consultation and advice", duration: 20, price: 50, category: "consultation", color: "#0ea5e9" },
       { name: "Follow-up Visit", description: "Short review of an earlier visit", duration: 15, price: 30, category: "consultation", color: "#22c55e" },
@@ -24,7 +24,7 @@ const PACKS: Record<PackId, Pack> = {
     id: "SALON_SPA", label: "Salon & Spa",
     blurb: "Clients, stylists and services", businessType: "salon",
     placeholders: { serviceName: "e.g. Haircut & Style", serviceDescription: "e.g. Wash, cut and blow-dry" },
-    staffRoles: ["Stylist", "Barber", "Beautician", "Therapist", "Nail Technician", "Receptionist"],
+    staffRoles: ["Stylist", "Barber", "Beautician", "Therapist", "Nail Technician"],
     defaultServices: [
       { name: "Haircut & Style", description: "Cut, wash and blow dry", duration: 45, price: 40, category: "haircare", color: "#e84545" },
       { name: "Facial", description: "Cleansing and relaxing facial", duration: 60, price: 60, category: "wellness", color: "#ec4899" },
@@ -41,7 +41,7 @@ const PACKS: Record<PackId, Pack> = {
     id: "LAWYER", label: "Lawyer",
     blurb: "Clients, advocates and meetings", businessType: "lawyer",
     placeholders: { serviceName: "e.g. Initial Legal Consultation", serviceDescription: "e.g. 30-minute discussion of your case" },
-    staffRoles: ["Advocate", "Senior Advocate", "Associate", "Legal Assistant", "Paralegal"],
+    staffRoles: ["Advocate", "Senior Advocate", "Associate"],
     defaultServices: [
       { name: "Initial Consultation", description: "First meeting to review your matter", duration: 45, price: 100, category: "legal", color: "#6366f1" },
       { name: "Document Review", description: "Contract or agreement review", duration: 60, price: 150, category: "legal", color: "#ec4899" },
@@ -58,7 +58,7 @@ const PACKS: Record<PackId, Pack> = {
     id: "FITNESS", label: "Fitness",
     blurb: "Members, trainers and sessions", businessType: "fitness",
     placeholders: { serviceName: "e.g. Personal Training Session", serviceDescription: "e.g. One-on-one workout with a trainer" },
-    staffRoles: ["Trainer", "Yoga Instructor", "Coach", "Nutritionist", "Receptionist"],
+    staffRoles: ["Trainer", "Yoga Instructor", "Coach", "Nutritionist"],
     defaultServices: [
       { name: "Personal Training", description: "One-on-one session with a trainer", duration: 60, price: 40, category: "training", color: "#ef4444" },
       { name: "Fitness Assessment", description: "Body metrics and goal setting", duration: 45, price: 25, category: "training", color: "#f59e0b" },
@@ -75,7 +75,7 @@ const PACKS: Record<PackId, Pack> = {
     id: "OTHER", label: "Other",
     blurb: "Clients, staff and services", businessType: "general",
     placeholders: { serviceName: "e.g. Standard Appointment", serviceDescription: "e.g. What the customer gets" },
-    staffRoles: ["Staff", "Consultant", "Manager", "Receptionist"],
+    staffRoles: ["Consultant", "Specialist", "Instructor"],
     defaultServices: [
       { name: "Consultation", description: "Initial consultation session", duration: 30, price: 50, category: "consulting", color: "#0284c7" },
       { name: "Standard Session", description: "Standard one-hour service", duration: 60, price: 80, category: "general", color: "#f97316" },
