@@ -4,24 +4,24 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  provider          = "postgresql"
+  url               = env("DATABASE_URL")
+  directUrl         = env("DIRECT_URL")
   shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
 }
 
 model User {
-  id            String    @id @default(cuid())
-  name          String
-  email         String    @unique
-  password      String?   // null for OAuth-only accounts (Google/Facebook)
-  image         String?
-  role          String    @default("user")
-  emailVerified DateTime?
-  passwordChangedAt DateTime?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  business      Business?
+  id                  String               @id @default(cuid())
+  name                String
+  email               String               @unique
+  password            String? // null for OAuth-only accounts (Google/Facebook)
+  image               String?
+  role                String               @default("user")
+  emailVerified       DateTime?
+  passwordChangedAt   DateTime?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  business            Business?
   passwordResetTokens PasswordResetToken[]
 }
 
@@ -60,65 +60,67 @@ model VerificationToken {
 }
 
 model Business {
-  id                     String              @id @default(cuid())
-  name                   String
-  slug                   String              @unique
-  plan                   String              @default("free")
-  planStatus             String              @default("free")
-  trialEndsAt            DateTime?
-  razorpayCustomerId     String?             @unique
-  razorpaySubscriptionId String?
-  ownerId                String              @unique
-  businessType           String              @default("general")
-  phone                  String?
-  email                  String?
-  address                String?
-  website                String?
-  description            String?
-  primaryColor           String              @default("#e84545")
-  availabilityJson       String              @default("{}")
-  currency               String              @default("USD")
-  paymentMode            String              @default("postpaid")
-  bankAccountName        String?
-  bankAccountNumber      String?
-  bankRoutingNumber      String?
-  bankIban               String?
+  id                       String              @id @default(cuid())
+  name                     String
+  slug                     String              @unique
+  plan                     String              @default("free")
+  planStatus               String              @default("free")
+  trialEndsAt              DateTime?
+  razorpayCustomerId       String?             @unique
+  razorpaySubscriptionId   String?
+  ownerId                  String              @unique
+  businessType             String              @default("general")
+  packId                   PackId              @default(OTHER)
+  termsOverride            Json?
+  phone                    String?
+  email                    String?
+  address                  String?
+  website                  String?
+  description              String?
+  primaryColor             String              @default("#e84545")
+  availabilityJson         String              @default("{}")
+  currency                 String              @default("USD")
+  paymentMode              String              @default("postpaid")
+  bankAccountName          String?
+  bankAccountNumber        String?
+  bankRoutingNumber        String?
+  bankIban                 String?
   razorpayConnectAccountId String?
   // Razorpay Route (linked account) onboarding
-  razorpayStakeholderId  String?
-  razorpayRouteProductId String?
-  routeStatus            String              @default("not_started") // not_started | created | needs_clarification | activated
-  legalBusinessName      String?
-  rzpBusinessType        String?             // proprietorship | partnership | private_limited | public_limited | llp | individual ...
-  rzpCategory            String?             // Razorpay profile category, e.g. "healthcare"
-  rzpSubcategory         String?             // Razorpay profile subcategory
-  panNumber              String?
-  gstNumber              String?
-  addressStreet          String?
-  addressCity            String?
-  addressState           String?
-  addressPostalCode      String?
-  websiteJson            String              @default("{}")
-  slotInterval           Int                 @default(30)
-  timezone               String              @default("Asia/Kolkata")
-  minNoticeMinutes       Int                 @default(0)
-  maxAdvanceDays         Int                 @default(90)
-  cancellationCutoffHours Int                @default(0)
-  workingHours           WorkingHours[]
-  timeOff                TimeOff[]
-  createdAt              DateTime            @default(now())
-  updatedAt              DateTime            @updatedAt
-  appointments           Appointment[]
-  owner                  User                @relation(fields: [ownerId], references: [id])
-  clients                Client[]
-  services               Service[]
-  staff                  Staff[]
-  withdrawalRequests     WithdrawalRequest[]
-  pushSubscriptions      PushSubscription[]
-  broadcasts             Broadcast[]
-  expenses               Expense[]
-  notifications          Notification[]
-  supportTickets         SupportTicket[]
+  razorpayStakeholderId    String?
+  razorpayRouteProductId   String?
+  routeStatus              String              @default("not_started") // not_started | created | needs_clarification | activated
+  legalBusinessName        String?
+  rzpBusinessType          String? // proprietorship | partnership | private_limited | public_limited | llp | individual ...
+  rzpCategory              String? // Razorpay profile category, e.g. "healthcare"
+  rzpSubcategory           String? // Razorpay profile subcategory
+  panNumber                String?
+  gstNumber                String?
+  addressStreet            String?
+  addressCity              String?
+  addressState             String?
+  addressPostalCode        String?
+  websiteJson              String              @default("{}")
+  slotInterval             Int                 @default(30)
+  timezone                 String              @default("Asia/Kolkata")
+  minNoticeMinutes         Int                 @default(0)
+  maxAdvanceDays           Int                 @default(90)
+  cancellationCutoffHours  Int                 @default(0)
+  workingHours             WorkingHours[]
+  timeOff                  TimeOff[]
+  createdAt                DateTime            @default(now())
+  updatedAt                DateTime            @updatedAt
+  appointments             Appointment[]
+  owner                    User                @relation(fields: [ownerId], references: [id])
+  clients                  Client[]
+  services                 Service[]
+  staff                    Staff[]
+  withdrawalRequests       WithdrawalRequest[]
+  pushSubscriptions        PushSubscription[]
+  broadcasts               Broadcast[]
+  expenses                 Expense[]
+  notifications            Notification[]
+  supportTickets           SupportTicket[]
 }
 
 model Staff {
@@ -140,22 +142,22 @@ model Staff {
 }
 
 model Service {
-  id           String         @id @default(cuid())
-  businessId   String
-  name         String
-  description  String         @default("")
-  duration     Int
-  price        Float
-  category     String         @default("other")
-  color        String         @default("#e84545")
-  capacity     Int            @default(1)
-  bufferBeforeMin Int         @default(0)
-  bufferAfterMin  Int         @default(0)
-  isActive     Boolean        @default(true)
-  createdAt    DateTime       @default(now())
-  appointments Appointment[]
-  business     Business       @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  staff        StaffService[]
+  id              String         @id @default(cuid())
+  businessId      String
+  name            String
+  description     String         @default("")
+  duration        Int
+  price           Float
+  category        String         @default("other")
+  color           String         @default("#e84545")
+  capacity        Int            @default(1)
+  bufferBeforeMin Int            @default(0)
+  bufferAfterMin  Int            @default(0)
+  isActive        Boolean        @default(true)
+  createdAt       DateTime       @default(now())
+  appointments    Appointment[]
+  business        Business       @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  staff           StaffService[]
 }
 
 model StaffService {
@@ -182,7 +184,6 @@ model Client {
   business          Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
   @@unique([businessId, email])
-
   @@index([businessId])
 }
 
@@ -219,30 +220,30 @@ model PlanConfig {
 }
 
 model Appointment {
-  id              String   @id @default(cuid())
-  businessId      String
-  clientId        String
-  staffId         String?
-  serviceId       String
-  date            DateTime @db.Timestamptz(3)
-  endAt           DateTime @db.Timestamptz(3)
-  bufferBeforeMin Int      @default(0)
-  bufferAfterMin  Int      @default(0)
-  duration        Int
-  price           Float
-  status          String   @default("pending")
-  notes           String?
-  razorpayPaymentId String?
-  razorpayTransferId String?  // set when paid out directly via Razorpay Route; excluded from wallet balance
-  paymentStatus   String   @default("unpaid")
-  paymentMode     String   @default("prepaid")
-  reminderSent    Boolean  @default(false)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  service         Service  @relation(fields: [serviceId], references: [id])
-  staff           Staff?   @relation(fields: [staffId], references: [id])
-  client          Client   @relation(fields: [clientId], references: [id])
-  business        Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  id                 String   @id @default(cuid())
+  businessId         String
+  clientId           String
+  staffId            String?
+  serviceId          String
+  date               DateTime @db.Timestamptz(3)
+  endAt              DateTime @db.Timestamptz(3)
+  bufferBeforeMin    Int      @default(0)
+  bufferAfterMin     Int      @default(0)
+  duration           Int
+  price              Float
+  status             String   @default("pending")
+  notes              String?
+  razorpayPaymentId  String?
+  razorpayTransferId String? // set when paid out directly via Razorpay Route; excluded from wallet balance
+  paymentStatus      String   @default("unpaid")
+  paymentMode        String   @default("prepaid")
+  reminderSent       Boolean  @default(false)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  service            Service  @relation(fields: [serviceId], references: [id])
+  staff              Staff?   @relation(fields: [staffId], references: [id])
+  client             Client   @relation(fields: [clientId], references: [id])
+  business           Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
   @@index([businessId, date])
   @@index([staffId, date])
@@ -339,7 +340,7 @@ model Post {
   title          String
   slug           String    @unique
   excerpt        String?
-  content        String    // Markdown
+  content        String // Markdown
   coverImage     String?
   authorName     String    @default("Calvy Team")
   tags           String    @default("") // comma-separated
@@ -373,11 +374,11 @@ model Lead {
 
 model EmailLog {
   id            String   @id @default(cuid())
-  type          String   // confirmation | reminder | cancellation | reschedule | invoice | verification | lead
+  type          String // confirmation | reminder | cancellation | reschedule | invoice | verification | lead
   to            String
   subject       String
-  status        String   // sent | failed | skipped
-  providerId    String?  // Resend message id
+  status        String // sent | failed | skipped
+  providerId    String? // Resend message id
   error         String?
   appointmentId String?
   businessId    String?
@@ -390,9 +391,9 @@ model EmailLog {
 model WorkingHours {
   id         String   @id @default(cuid())
   businessId String
-  staffId    String?  // null = business hours
-  weekday    Int      // 0 = Sunday .. 6 = Saturday
-  startMin   Int      // minutes since local midnight (Business.timezone)
+  staffId    String? // null = business hours
+  weekday    Int // 0 = Sunday .. 6 = Saturday
+  startMin   Int // minutes since local midnight (Business.timezone)
   endMin     Int
   business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
   staff      Staff?   @relation(fields: [staffId], references: [id], onDelete: Cascade)
@@ -403,7 +404,7 @@ model WorkingHours {
 model TimeOff {
   id         String   @id @default(cuid())
   businessId String
-  staffId    String?  // null = holiday / closure for the whole business
+  staffId    String? // null = holiday / closure for the whole business
   startAt    DateTime @db.Timestamptz(3)
   endAt      DateTime @db.Timestamptz(3)
   reason     String   @default("")
@@ -412,4 +413,12 @@ model TimeOff {
   staff      Staff?   @relation(fields: [staffId], references: [id], onDelete: Cascade)
 
   @@index([businessId, startAt])
+}
+
+enum PackId {
+  CLINIC
+  SALON_SPA
+  LAWYER
+  FITNESS
+  OTHER
 }
