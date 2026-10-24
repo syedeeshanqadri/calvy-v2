@@ -5,6 +5,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { parseBody } from "@/lib/validation/common";
 import { appointmentPatchSchema } from "@/lib/validation/appointments";
+import { t } from "@/lib/terms";
 import { sendBookingCancellation, sendBookingReschedule, sendInvoice, type BookingDetails } from "@/lib/email";
 import { logger } from "@/lib/logger";
 import { bookExclusive, SlotConflictError, conflictMessage, isPastBooking } from "@/lib/booking";
@@ -153,7 +154,8 @@ async function PATCH_handler(req: NextRequest, props: { params: Promise<{ id: st
           clientName: full.client.name,
           businessName: full.business.name,
           serviceName: full.service.name,
-          staffName: full.staff?.name ?? "Your provider",
+          staffName: full.staff?.name ?? `Your ${t(full.business, "staff")}`,
+          terms: full.business,
           date: fmtDate(full.date),
           time: fmtTime(full.date),
           duration: full.duration,

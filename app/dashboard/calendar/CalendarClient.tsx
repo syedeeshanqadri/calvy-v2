@@ -1,4 +1,5 @@
 "use client";
+import { useTerms } from "@/components/providers/TermsProvider";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
@@ -56,6 +57,7 @@ export function CalendarClient({
   appointments, staff, services,
 }: { appointments: ApptDetail[]; staff: StaffRow[]; services: ServiceOption[] }) {
   const router = useRouter();
+  const { t } = useTerms();
   const [view, setView] = useState<"week" | "day">("day");
   const [currentDate, setCurrentDate] = useState(new Date());
   const [filterStaff, setFilterStaff] = useState("");
@@ -127,7 +129,7 @@ export function CalendarClient({
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             {staff.length > 0 && (
-              <select aria-label="Filter by staff" value={filterStaff} onChange={(e) => setFilterStaff(e.target.value)} className="h-9 rounded-xl border border-[#e8e6e0] px-3 text-sm bg-white focus:outline-none focus:border-accent/40">
+              <select aria-label={`Filter by staff`} value={filterStaff} onChange={(e) => setFilterStaff(e.target.value)} className="h-9 rounded-xl border border-[#e8e6e0] px-3 text-sm bg-white focus:outline-none focus:border-accent/40">
                 <option value="">All staff</option>
                 {staff.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>

@@ -74,6 +74,7 @@ async function GET_handler(req: NextRequest) {
           clientName: appt.client.name,
           businessName: appt.business.name,
           serviceName: appt.service.name,
+          terms: appt.business,
           date: dateLabel,
           time: timeLabel,
           ctx: { appointmentId: appt.id, businessId: appt.businessId },

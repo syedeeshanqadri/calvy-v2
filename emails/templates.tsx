@@ -2,6 +2,7 @@ import * as React from "react";
 import { Section, Text } from "@react-email/components";
 import { EmailLayout, H, P, Card, DetailRow, CTA, Hairline, brand, type TenantBrand } from "./EmailLayout";
 import { formatCurrencyAmount } from "@/lib/currency";
+import { t, type TermsSource } from "@/lib/terms";
 
 export interface BookingProps {
   clientName: string;
@@ -13,8 +14,12 @@ export interface BookingProps {
   duration?: number;
   price?: number;
   currency?: string;
+  /** Business pack + termsOverride: the wording (appointment, service) follows the business type. */
+  terms?: TermsSource;
   tenant?: TenantBrand;
 }
+
+const appt = (p: BookingProps) => t(p.terms ?? {}, "appointment");
 
 function Badge({ text, color, bg }: { text: string; color: string; bg: string }) {
   return (
@@ -25,7 +30,7 @@ function Badge({ text, color, bg }: { text: string; color: string; bg: string })
 function BookingDetails({ p }: { p: BookingProps }) {
   return (
     <Card>
-      <DetailRow label="Service" value={p.serviceName} strong />
+      <DetailRow label={t(p.terms ?? {}, "service", { cap: true })} value={p.serviceName} strong />
       {p.staffName ? <DetailRow label="With" value={p.staffName} /> : null}
       <DetailRow label="Date" value={p.date} />
       <DetailRow label="Time" value={p.time} />
@@ -40,7 +45,7 @@ export function BookingConfirmationEmail(p: BookingProps) {
     <EmailLayout tenant={p.tenant} preview={`You're booked with ${p.businessName} on ${p.date}`}>
       <Badge text="Confirmed" color={brand.green} bg="#e7f7ec" />
       <H>You&apos;re booked! 🎉</H>
-      <P>Hi {p.clientName.split(" ")[0]}, your appointment at <strong style={{ color: brand.ink }}>{p.businessName}</strong> is confirmed. Here are the details:</P>
+      <P>Hi {p.clientName.split(" ")[0]}, your {appt(p)} at <strong style={{ color: brand.ink }}>{p.businessName}</strong> is confirmed. Here are the details:</P>
       <BookingDetails p={p} />
       <P>We&apos;ve added this to your calendar (see the attachment). See you soon! 👋</P>
     </EmailLayout>
@@ -51,8 +56,8 @@ export function BookingReminderEmail(p: BookingProps) {
   return (
     <EmailLayout tenant={p.tenant} preview={`Reminder: ${p.serviceName} tomorrow at ${p.time}`}>
       <Badge text="Reminder" color={brand.accent} bg="#e6f2fb" />
-      <H>Your appointment is tomorrow 🗓</H>
-      <P>Hi {p.clientName.split(" ")[0]}, a friendly reminder about your upcoming appointment at <strong style={{ color: brand.ink }}>{p.businessName}</strong>.</P>
+      <H>Your {appt(p)} is tomorrow 🗓</H>
+      <P>Hi {p.clientName.split(" ")[0]}, a friendly reminder about your upcoming {appt(p)} at <strong style={{ color: brand.ink }}>{p.businessName}</strong>.</P>
       <BookingDetails p={p} />
       <P>See you there! If you need to make a change, just reply to this email.</P>
     </EmailLayout>
@@ -61,10 +66,10 @@ export function BookingReminderEmail(p: BookingProps) {
 
 export function BookingCancellationEmail(p: BookingProps & { rebookUrl?: string }) {
   return (
-    <EmailLayout preview={`Your appointment at ${p.businessName} was cancelled`}>
+    <EmailLayout preview={`Your ${appt(p)} at ${p.businessName} was cancelled`}>
       <Badge text="Cancelled" color="#b91c1c" bg="#fdeaea" />
-      <H>Your appointment was cancelled</H>
-      <P>Hi {p.clientName.split(" ")[0]}, the following appointment at <strong style={{ color: brand.ink }}>{p.businessName}</strong> has been cancelled:</P>
+      <H>Your {appt(p)} was cancelled</H>
+      <P>Hi {p.clientName.split(" ")[0]}, the following {appt(p)} at <strong style={{ color: brand.ink }}>{p.businessName}</strong> has been cancelled:</P>
       <BookingDetails p={p} />
       <P>If this wasn&apos;t expected, or you&apos;d like to rebook, you can do so any time.</P>
       {p.rebookUrl ? <CTA href={p.rebookUrl} label="Book again" /> : null}
@@ -74,10 +79,10 @@ export function BookingCancellationEmail(p: BookingProps & { rebookUrl?: string 
 
 export function BookingRescheduleEmail(p: BookingProps & { oldDate: string; oldTime: string }) {
   return (
-    <EmailLayout preview={`Your appointment was moved to ${p.date} at ${p.time}`}>
+    <EmailLayout preview={`Your ${appt(p)} was moved to ${p.date} at ${p.time}`}>
       <Badge text="Rescheduled" color="#b45309" bg="#fdf2e3" />
-      <H>Your appointment has moved</H>
-      <P>Hi {p.clientName.split(" ")[0]}, your appointment at <strong style={{ color: brand.ink }}>{p.businessName}</strong> has been rescheduled.</P>
+      <H>Your {appt(p)} has moved</H>
+      <P>Hi {p.clientName.split(" ")[0]}, your {appt(p)} at <strong style={{ color: brand.ink }}>{p.businessName}</strong> has been rescheduled.</P>
       <Card>
         <DetailRow label="Was" value={`${p.oldDate}, ${p.oldTime}`} />
         <DetailRow label="Now" value={`${p.date}, ${p.time}`} strong />

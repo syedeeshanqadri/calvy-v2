@@ -1,0 +1,2 @@
+-- AlterEnum
+ALTER TYPE "PackId" ADD VALUE 'CONSULTANT';

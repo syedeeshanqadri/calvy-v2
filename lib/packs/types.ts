@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const PACK_IDS = ["CLINIC", "SALON_SPA", "LAWYER", "FITNESS", "OTHER"] as const;
+export const PACK_IDS = ["CLINIC", "SALON_SPA", "LAWYER", "FITNESS", "CONSULTANT", "OTHER"] as const;
 export type PackId = (typeof PACK_IDS)[number];
 
 export const TERM_KEYS = ["client", "staff", "service", "appointment", "business"] as const;
@@ -29,6 +29,10 @@ export const packSchema = z.object({
   blurb: z.string().min(1).max(120),
   /** Canonical legacy Business.businessType for this pack; packForBusinessType() maps it back. */
   businessType: z.string().min(1).max(40),
+  /** Service form placeholders. */
+  placeholders: z.object({ serviceName: z.string().min(1).max(80), serviceDescription: z.string().min(1).max(160) }),
+  /** Staff role dropdown options (the form also offers "Other" with free text). */
+  staffRoles: z.array(z.string().trim().min(1).max(40)).min(2).max(10),
   /** At most 3 so a new Free workspace (3 services) can take all of them. Prices are in the business currency, owners edit them. */
   defaultServices: z.array(defaultServiceSchema).min(1).max(3),
   terms: z.object({

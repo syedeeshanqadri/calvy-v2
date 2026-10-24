@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { razorpay } from "@/lib/razorpay";
 import { sendBookingConfirmation } from "@/lib/email";
+import { t } from "@/lib/terms";
 import { sendBookingConfirmationWhatsApp } from "@/lib/whatsapp";
 import { sendPushToBusiness } from "@/lib/push";
 import { DEFAULT_CURRENCY } from "@/lib/currency";
@@ -224,7 +225,8 @@ async function POST_handler(req: NextRequest) {
         clientName,
         businessName: business!.name,
         serviceName: serviceNamesLabel,
-        staffName: staffMember?.name ?? "Your provider",
+        staffName: staffMember?.name ?? `Your ${t(business!, "staff")}`,
+        terms: business!,
         date: dateLabel,
         time,
         duration: totalDuration,

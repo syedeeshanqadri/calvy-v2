@@ -1,4 +1,5 @@
 "use client";
+import { useTerms } from "@/components/providers/TermsProvider";
 import Link from "next/link";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
@@ -53,6 +54,8 @@ function fmt(dateStr: string) {
 }
 
 export function ClientDetailClient({ client }: { client: ClientData }) {
+  const { t } = useTerms();
+  const Cli1 = t("client", { cap: true });
   const { formatPrice } = useCurrency();
   const isVip = client.totalSpent > 500;
 
@@ -63,11 +66,11 @@ export function ClientDetailClient({ client }: { client: ClientData }) {
   return (
     <DashboardLayout
       title={client.name}
-      subtitle={`Client since ${fmt(client.createdAt)}`}
+      subtitle={`${Cli1} since ${fmt(client.createdAt)}`}
     >
       {/* Back link */}
       <Link href="/dashboard/clients" className="inline-flex items-center gap-1.5 text-sm text-[#6b6b80] hover:text-brand-800 mb-6 transition-colors">
-        <ArrowLeft size={14} /> Back to Clients
+        <ArrowLeft size={14} /> Back to {t("client", { plural: true, cap: true })}
       </Link>
 
       <div className="grid lg:grid-cols-3 gap-6">
@@ -80,7 +83,7 @@ export function ClientDetailClient({ client }: { client: ClientData }) {
               <h2 className="font-syne font-bold text-lg mt-4 mb-0.5">{client.name}</h2>
               {isVip && (
                 <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-1 rounded-full mb-2">
-                  <Star size={10} fill="currentColor" /> VIP Client
+                  <Star size={10} fill="currentColor" /> VIP {Cli1}
                 </span>
               )}
               <div className="space-y-2 w-full mt-4 text-left">
@@ -130,17 +133,17 @@ export function ClientDetailClient({ client }: { client: ClientData }) {
         <div className="lg:col-span-2">
           <Card>
             <CardHeader>
-              <CardTitle>Appointment Ledger</CardTitle>
+              <CardTitle>{t("appointment", { cap: true })} Ledger</CardTitle>
             </CardHeader>
             <CardContent className="p-0">
               {client.appointments.length === 0 ? (
-                <p className="text-sm text-[#6b6b80] text-center py-12">No appointments yet</p>
+                <p className="text-sm text-[#6b6b80] text-center py-12">No {t("appointment", { plural: true })} yet</p>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead>
                       <tr className="bg-[#fafaf8] border-b border-[#f0ede8]">
-                        {["Date & Time", "Service", "Staff", "Duration", "Amount", "Status", "Payment"].map(h => (
+                        {["Date & Time", t("service", { cap: true }), "Staff", "Duration", "Amount", "Status", "Payment"].map(h => (
                           <th key={h} className="text-left text-xs font-semibold text-[#6b6b80] px-4 py-3 first:pl-5 last:pr-5 whitespace-nowrap">{h}</th>
                         ))}
                       </tr>

@@ -1,9 +1,12 @@
+"use client";
+import { useTerms } from "@/components/providers/TermsProvider";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { ShimmerTable, Shimmer } from "@/components/ui/Shimmer";
 
 export default function AppointmentsLoading() {
+  const { t } = useTerms();
   return (
-    <DashboardLayout title="Appointments" subtitle="Manage your bookings">
+    <DashboardLayout title={t("appointment", { plural: true, cap: true })} subtitle="Manage your bookings">
       {/* Filter/search bar */}
       <div className="flex items-center gap-3 mb-5">
         <Shimmer className="h-9 flex-1 max-w-xs rounded-xl" />

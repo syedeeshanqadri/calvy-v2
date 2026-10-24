@@ -1,4 +1,6 @@
+"use client";
 import { Avatar } from "@/components/ui/Avatar";
+import { useTerms } from "@/components/providers/TermsProvider";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import { cn } from "@/lib/utils";
 
@@ -11,6 +13,7 @@ export interface TeamMember {
 }
 
 export function TeamWidget({ staff }: { staff: TeamMember[] }) {
+  const { t } = useTerms();
   return (
     <Card>
       <CardHeader>
@@ -18,7 +21,7 @@ export function TeamWidget({ staff }: { staff: TeamMember[] }) {
         <button className="text-xs text-accent font-medium hover:underline">Manage →</button>
       </CardHeader>
       <CardContent className="space-y-4">
-        {staff.length === 0 && <p className="text-sm text-[#6b6b80] text-center py-4">No staff members yet</p>}
+        {staff.length === 0 && <p className="text-sm text-[#6b6b80] text-center py-4">No staff yet</p>}
         {staff.map((member) => {
           const load = Math.round((member.appointmentsToday / 8) * 100);
           const statusColor = load >= 80 ? "text-amber-600 bg-amber-50" : load >= 40 ? "text-green-600 bg-green-50" : "text-gray-500 bg-gray-100";

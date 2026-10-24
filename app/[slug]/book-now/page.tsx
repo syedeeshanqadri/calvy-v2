@@ -40,6 +40,8 @@ export default async function BookNowPage(props: { params: Promise<{ slug: strin
     socialLinks: parseSocialLinks(business.socialLinks),
     googleReviewUrl: safeReviewLink(business.googleReviewUrl),
     businessType: business.businessType,
+    packId: business.packId,
+    termsOverride: business.termsOverride,
     description: business.description ?? "",
     phone: business.phone ?? "",
     address: business.address ?? "",
