@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   dayCapacity, describeSession, findOverlap, hhmmToMin, minToHhmm, sessionCapacity,
-  sessionsOverlap, tokenSessionInputSchema, toSessionFields, type SessionLike,
+  queueKindConflict, sessionsOverlap, tokenSessionInputSchema, toSessionFields, type SessionLike,
 } from "@/lib/tokens";
 import { getPack } from "@/lib/packs";
 
@@ -71,6 +71,23 @@ describe("per-staff vs business-wide", () => {
   });
   it("business-wide and per-staff queues are separate", () => {
     expect(sessionsOverlap(s({ staffId: null }), s({ staffId: "dr-a" }))).toBe(false);
+  });
+});
+
+describe("one queue kind per business", () => {
+  const doc = s({ id: "d", staffId: "dr-a" });
+  it("rejects a business-wide session when staff sessions exist", () => {
+    expect(queueKindConflict(s({}), [doc])).toMatch(/per staff/);
+  });
+  it("rejects a staff session when business-wide sessions exist", () => {
+    expect(queueKindConflict(s({ staffId: "dr-b" }), [morning])).toMatch(/business-wide/);
+  });
+  it("allows more sessions of the same kind", () => {
+    expect(queueKindConflict(s({ staffId: "dr-b" }), [doc])).toBeNull();
+    expect(queueKindConflict(evening, [morning])).toBeNull();
+  });
+  it("ignores the session being edited", () => {
+    expect(queueKindConflict({ ...doc, staffId: null }, [doc])).toBeNull();
   });
 });
 

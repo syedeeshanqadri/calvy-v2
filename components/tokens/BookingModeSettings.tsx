@@ -95,6 +95,9 @@ export function BookingModeSettings({ initialMode, initialSessions, staff, appoi
       {mode === "TOKEN" && (
         <div className="space-y-3">
           <div className="text-sm font-medium text-brand-800">Token sessions</div>
+          <p className="text-xs text-[#6b6b80]">
+            Use either one business-wide queue or a queue per staff member, not both. Each staff member's sessions cannot overlap; different staff can share the same hours.
+          </p>
           {sessions.length === 0 && !draft && <p className="text-sm text-[#6b6b80]">No sessions yet. Add one to start taking tokens.</p>}
           <ul className="space-y-2">
             {sessions.map((s) => (

@@ -62,6 +62,22 @@ export function findOverlap<T extends SessionLike>(candidate: SessionLike, exist
   return existing.find((e) => (!candidate.id || e.id !== candidate.id) && sessionsOverlap(candidate, e)) ?? null;
 }
 
+/**
+ * A business runs ONE kind of queue: either business-wide sessions (no staff) or per-staff
+ * sessions, never both. Returns the error message when `candidate` would mix them, else null.
+ * Inactive sessions count, so switching kinds means deleting the old sessions first.
+ */
+export function queueKindConflict(candidate: SessionLike, existing: SessionLike[]): string | null {
+  const others = existing.filter((e) => !candidate.id || e.id !== candidate.id);
+  if (candidate.staffId === null && others.some((e) => e.staffId !== null)) {
+    return "Sessions are set up per staff member. Delete those first to use one business-wide queue.";
+  }
+  if (candidate.staffId !== null && others.some((e) => e.staffId === null)) {
+    return "Sessions are business-wide. Delete those first to give each staff member their own sessions.";
+  }
+  return null;
+}
+
 export const tokenSessionInputSchema = z
   .object({
     name: z.string().trim().min(1, "Give the session a name").max(60),

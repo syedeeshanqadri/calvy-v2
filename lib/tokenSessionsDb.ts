@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { findOverlap, minToHhmm, type SessionLike, type TokenSessionInput, toSessionFields } from "@/lib/tokens";
+import { findOverlap, queueKindConflict, minToHhmm, type SessionLike, type TokenSessionInput, toSessionFields } from "@/lib/tokens";
 
 /** Shape sent to the dashboard (HH:MM times). */
 export function serializeSession(s: SessionLike & { id: string }) {
@@ -24,8 +24,10 @@ export async function saveTokenSession(businessId: string, input: TokenSessionIn
     if (fields.staffId && !(await tx.staff.findFirst({ where: { id: fields.staffId, businessId }, select: { id: true } }))) {
       return { badStaff: true as const };
     }
-    const existing = await tx.tokenSession.findMany({ where: { businessId, staffId: fields.staffId } });
-    const clash = findOverlap({ ...fields, id }, existing);
+    const all = await tx.tokenSession.findMany({ where: { businessId } });
+    const mixed = queueKindConflict({ ...fields, id }, all);
+    if (mixed) return { mixed };
+    const clash = findOverlap({ ...fields, id }, all.filter((e) => e.staffId === fields.staffId));
     if (clash) return { clash };
     const saved = id
       ? await tx.tokenSession.update({ where: { id }, data: fields })
@@ -35,6 +37,7 @@ export async function saveTokenSession(businessId: string, input: TokenSessionIn
 
   if ("notFound" in result) return NextResponse.json({ error: "Session not found." }, { status: 404 });
   if ("badStaff" in result) return NextResponse.json({ error: "Staff member not found." }, { status: 400 });
+  if ("mixed" in result && result.mixed) return NextResponse.json({ error: result.mixed }, { status: 409 });
   if ("clash" in result && result.clash) {
     const c = result.clash;
     return NextResponse.json(
@@ -42,5 +45,5 @@ export async function saveTokenSession(businessId: string, input: TokenSessionIn
       { status: 409 },
     );
   }
-  return NextResponse.json({ session: serializeSession(result.saved) }, { status: id ? 200 : 201 });
+  return NextResponse.json({ session: serializeSession(result.saved!) }, { status: id ? 200 : 201 });
 }
