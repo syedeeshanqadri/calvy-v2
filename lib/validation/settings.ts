@@ -1,3 +1,4 @@
+import { normalizeHex } from "@/lib/theme";
 import { z } from "zod";
 import { parseHHMM } from "@/lib/booking";
 
@@ -60,6 +61,7 @@ export const settingsPatchSchema = z.object({
     .string()
     .trim()
     .regex(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/, "primaryColor must be a hex colour like #0284c7")
+    .transform((v) => normalizeHex(v) as string) // stored as lowercase #rrggbb
     .optional(),
   availabilityJson: availabilityJsonField.optional(),
   currency: z

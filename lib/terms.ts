@@ -33,3 +33,22 @@ export function t(source: TermsSource, key: TermKey, opts: TermOpts = {}): strin
 export function terms(source: TermsSource) {
   return (key: TermKey, opts?: TermOpts) => t(source, key, opts);
 }
+
+/** Staff role dropdown for a pack. A stored role outside the list is kept and shown as "Other". */
+export function staffRoleChoice(source: TermsSource, role: string): { select: string; other: string } {
+  const roles = getPack(source.packId).staffRoles;
+  if (!role) return { select: roles[0], other: "" };
+  return roles.includes(role) ? { select: role, other: "" } : { select: "Other", other: role };
+}
+
+const GENERIC_ROLES = new Set(["owner", "staff", "manager", "receptionist", "other", "assistant"]);
+
+/**
+ * Public-page word for "the person you book with": the shared role when every bookable
+ * team member has the same specific role (all "Doctor" -> "doctor"), otherwise the pack word.
+ * Generic roles (Owner, Staff, Manager, Receptionist) never become the label.
+ */
+export function providerWord(roles: string[], fallback: string): string {
+  const unique = Array.from(new Set(roles.map((r) => r.trim().toLowerCase()).filter(Boolean)));
+  return unique.length === 1 && !GENERIC_ROLES.has(unique[0]) ? unique[0] : fallback;
+}

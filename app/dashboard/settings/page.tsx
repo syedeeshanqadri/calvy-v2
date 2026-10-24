@@ -64,7 +64,6 @@ export default async function SettingsPage() {
       }}
       customSlotInterval={features.customSlotInterval}
       stripePayments={features.stripePayments}
-      customBranding={features.customBranding}
     />
   );
 }

@@ -1,4 +1,5 @@
 "use client";
+import { useTerms } from "@/components/providers/TermsProvider";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, UserPlus, Link2, Send, CalendarPlus, Download } from "lucide-react";
@@ -18,7 +19,10 @@ const ACTIONS = [
 ];
 
 export function QuickActions({ services, staff, businessSlug }: { services: ServiceOption[]; staff: StaffOption[]; businessSlug?: string }) {
+  const { t } = useTerms();
   const router = useRouter();
+  const cli1 = t("client");
+  const Cli1 = t("client", { cap: true });
   const [modal, setModal] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -51,7 +55,7 @@ export function QuickActions({ services, staff, businessSlug }: { services: Serv
         body: JSON.stringify({ name: `${client.firstName} ${client.lastName}`.trim(), email: client.email, phone: client.phone, notes: client.notes }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to add client");
+      if (!res.ok) throw new Error(data.error || `Failed to add ${cli1}`);
       setClient({ firstName: "", lastName: "", email: "", phone: "", notes: "" });
       closeModal();
       router.refresh();
@@ -73,7 +77,7 @@ export function QuickActions({ services, staff, businessSlug }: { services: Serv
                 <div className="w-9 h-9 rounded-xl flex items-center justify-center transition-transform group-hover:scale-110" style={{ background: action.color }}>
                   <action.icon size={16} className="text-brand-800 opacity-70" />
                 </div>
-                <span className="text-[11px] font-medium text-center leading-tight">{action.label === "Copy Link" && copied ? "Copied!" : action.label}</span>
+                <span className="text-[11px] font-medium text-center leading-tight">{action.label === "Copy Link" && copied ? "Copied!" : action.action === "client" ? `Add ${Cli1}` : action.label}</span>
               </button>
             ))}
           </div>
@@ -83,7 +87,7 @@ export function QuickActions({ services, staff, businessSlug }: { services: Serv
       <NewAppointmentModal isOpen={modal === "booking"} onClose={closeModal} services={services} staff={staff} onCreated={() => router.refresh()} />
 
       {/* Add Client Modal */}
-      <Modal isOpen={modal === "client"} onClose={closeModal} title="Add New Client" size="md">
+      <Modal isOpen={modal === "client"} onClose={closeModal} title={`Add New ${Cli1}`} size="md">
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <Input label="First name" placeholder="John" value={client.firstName} onChange={e => setClient({ ...client, firstName: e.target.value })} />
@@ -106,7 +110,7 @@ export function QuickActions({ services, staff, businessSlug }: { services: Serv
           <div className="flex gap-3 pt-2">
             <Button variant="outline" onClick={closeModal} className="flex-1 justify-center">Cancel</Button>
             <Button onClick={submitClient} disabled={loading || !client.firstName || (!client.email && !client.phone)} className="flex-1 justify-center">
-              {loading ? "Saving..." : "Add Client"}
+              {loading ? "Saving..." : `Add ${Cli1}`}
             </Button>
           </div>
         </div>

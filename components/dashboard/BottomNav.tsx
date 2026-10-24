@@ -11,21 +11,23 @@ import {
 import { cn } from "@/lib/utils";
 import { useFlags } from "@/components/providers/FlagsProvider";
 import type { FeatureFlag } from "@/lib/flags";
+import { useTerms } from "@/components/providers/TermsProvider";
+import type { TermKey } from "@/lib/packs/types";
 
-const PRIMARY = [
+const PRIMARY: { label: string; href: string; icon: typeof LayoutDashboard; exact?: boolean; term?: TermKey }[] = [
   { label: "Home", href: "/dashboard", icon: LayoutDashboard, exact: true },
   { label: "Calendar", href: "/dashboard/calendar", icon: CalendarDays },
-  { label: "Bookings", href: "/dashboard/appointments", icon: Calendar },
-  { label: "Clients", href: "/dashboard/clients", icon: Users },
+  { term: "appointment", label: "Bookings", href: "/dashboard/appointments", icon: Calendar },
+  { term: "client", label: "Clients", href: "/dashboard/clients", icon: Users },
 ];
 
-const ALL_MORE_ITEMS: { label: string; href: string; icon: typeof UserCog; flag?: FeatureFlag }[] = [
+const ALL_MORE_ITEMS: { label: string; href: string; icon: typeof UserCog; flag?: FeatureFlag; term?: TermKey }[] = [
   { label: "Staff", href: "/dashboard/staff", icon: UserCog },
   { label: "Payments", href: "/dashboard/payments", icon: CreditCard, flag: "payments" },
   { label: "Wallet", href: "/dashboard/wallet", icon: Wallet, flag: "wallet" },
   { label: "Analytics", href: "/dashboard/analytics", icon: BarChart2 },
   { label: "Expenses", href: "/dashboard/expenses", icon: Receipt },
-  { label: "Services", href: "/dashboard/services", icon: Wrench },
+  { term: "service", label: "Services", href: "/dashboard/services", icon: Wrench },
   { label: "Broadcasts", href: "/dashboard/broadcasts", icon: Megaphone, flag: "broadcasts" },
   { label: "Booking Page", href: "/dashboard/booking-page", icon: Link2 },
   { label: "Website", href: "/dashboard/website", icon: Globe },
@@ -36,6 +38,8 @@ const ALL_MORE_ITEMS: { label: string; href: string; icon: typeof UserCog; flag?
 export function BottomNav() {
   const pathname = usePathname();
   const flags = useFlags();
+  const { t } = useTerms();
+  const labelOf = (i: { label: string; term?: TermKey }) => (i.term ? t(i.term, { plural: true, cap: true }) : i.label);
   const MORE_ITEMS = ALL_MORE_ITEMS.filter((i) => !i.flag || flags[i.flag]);
   const [showMore, setShowMore] = useState(false);
 
@@ -94,7 +98,7 @@ export function BottomNav() {
                 )}
               >
                 <item.icon size={20} strokeWidth={isActive ? 2.5 : 1.5} />
-                <span className="text-[11px] font-medium text-center leading-tight">{item.label}</span>
+                <span className="text-[11px] font-medium text-center leading-tight">{labelOf(item)}</span>
               </Link>
             );
           })}
@@ -129,7 +133,7 @@ export function BottomNav() {
               >
                 <item.icon size={22} strokeWidth={isActive ? 2.5 : 1.5} />
                 <span className={cn("text-[10px] font-medium", isActive ? "text-sky-600" : "text-[#b0b0c0]")}>
-                  {item.label}
+                  {labelOf(item)}
                 </span>
               </Link>
             );

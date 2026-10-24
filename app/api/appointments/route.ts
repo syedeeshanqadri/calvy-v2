@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { sendBookingConfirmation } from "@/lib/email";
+import { t } from "@/lib/terms";
 import { findOrCreateClient } from "@/lib/clients";
 import { sendPushToBusiness } from "@/lib/push";
 import { parseBody, parseQuery } from "@/lib/validation/common";
@@ -80,7 +81,7 @@ async function POST_handler(request: NextRequest) {
 
   const business = await prisma.business.findUnique({
     where: { id: businessId },
-    select: { name: true, plan: true, planStatus: true, trialEndsAt: true, currency: true, timezone: true },
+    select: { name: true, plan: true, planStatus: true, trialEndsAt: true, currency: true, timezone: true, packId: true, termsOverride: true },
   });
   if (!business) return NextResponse.json({ error: "Business not found" }, { status: 404 });
 
@@ -235,9 +236,10 @@ async function POST_handler(request: NextRequest) {
       await sendBookingConfirmation({
         to: client.email,
         clientName,
-        businessName: business.name ?? "Your provider",
+        businessName: business.name ?? `Your ${t(business, "staff")}`,
         serviceName: serviceNamesLabel,
-        staffName: assignedName ?? "Your provider",
+        staffName: assignedName ?? `Your ${t(business, "staff")}`,
+        terms: business,
         date: dateLabel,
         time,
         duration: totalDuration,

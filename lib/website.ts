@@ -1,3 +1,4 @@
+import { t, type TermsSource } from "@/lib/terms";
 export interface HeroSection {
   enabled: boolean;
   image: string;
@@ -44,6 +45,10 @@ export interface ContactSection {
   showPhone: boolean;
   showEmail: boolean;
   showAddress: boolean;
+  /** Google map from the address; on unless set to false. */
+  showMap?: boolean;
+  /** Opening-hours block from the business hours; on unless set to false. */
+  showHours?: boolean;
 }
 
 export interface WebsiteConfig {
@@ -91,7 +96,12 @@ function pickImage(map: Record<string, string>, businessType: string): string {
   return `https://images.unsplash.com/${map[key]}?auto=format&fit=crop&w=1920&q=80`;
 }
 
-export function defaultWebsiteConfig(businessName: string, businessType: string): WebsiteConfig {
+export function defaultWebsiteConfig(businessName: string, businessType: string, terms: TermsSource = {}): WebsiteConfig {
+  const appt = t(terms, "appointment");
+  const Appt = t(terms, "appointment", { cap: true });
+  const svcN = t(terms, "service", { plural: true });
+  const SvcN = t(terms, "service", { plural: true, cap: true });
+  const cliN = t(terms, "client", { plural: true });
   const typeLabel = businessType === "general" ? "services" : businessType;
   return {
     metaTitle: businessName,
@@ -101,9 +111,9 @@ export function defaultWebsiteConfig(businessName: string, businessType: string)
       image: pickImage(HERO_IMAGES, businessType),
       badge: `Professional ${typeLabel} services`,
       headline: `Welcome to ${businessName}`,
-      subheadline: `Book your appointment online — fast, simple, and hassle-free.`,
+      subheadline: `Book your ${appt} online — fast, simple, and hassle-free.`,
       ctaText: "Book Now",
-      secondaryCtaText: "View Services",
+      secondaryCtaText: `View ${SvcN}`,
     },
     about: {
       enabled: true,
@@ -111,15 +121,15 @@ export function defaultWebsiteConfig(businessName: string, businessType: string)
       badge: "About Us",
       title: "About Us",
       body: `We're passionate about delivering great ${typeLabel}. Book online or give us a call.`,
-      trustLabel: "Trusted by clients",
-      ctaText: "Book an appointment",
+      trustLabel: `Trusted by ${cliN}`,
+      ctaText: `Book an ${appt}`,
     },
     services: {
       enabled: true,
       badge: "What We Offer",
-      title: "Our Services",
-      subtitle: "Choose from our range of professional services.",
-      ctaText: "Book an Appointment",
+      title: `Our ${SvcN}`,
+      subtitle: `Choose from our range of professional ${svcN}.`,
+      ctaText: `Book an ${Appt}`,
     },
     team: {
       enabled: true,
@@ -131,9 +141,9 @@ export function defaultWebsiteConfig(businessName: string, businessType: string)
       enabled: true,
       badge: "Get In Touch",
       title: "Contact Us",
-      subtext: "Reach out to us or book your appointment directly online.",
+      subtext: `Reach out to us or book your ${appt} directly online.`,
       ctaHeading: "Ready to book?",
-      ctaSubtext: "Skip the wait. Book your appointment online in under 2 minutes.",
+      ctaSubtext: `Skip the wait. Book your ${appt} online in under 2 minutes.`,
       ctaNote: "Free to book · No account needed",
       showPhone: true,
       showEmail: true,

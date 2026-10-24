@@ -8,6 +8,7 @@ import { NewAppointmentModal, AppointmentDetailModal, type ApptDetail, type Serv
 import { StatusBadge } from "@/components/ui/Badge";
 import { Avatar } from "@/components/ui/Avatar";
 import { formatTime } from "@/lib/utils";
+import { useTerms } from "@/components/providers/TermsProvider";
 import { useCurrency } from "@/components/providers/CurrencyProvider";
 import { Search, Filter, Download, Plus, CalendarX } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -30,6 +31,10 @@ type Row = ApptDetail;
 export function AppointmentsClient({ appointments, services, staff, csvExport = false }: { appointments: Row[]; services: ServiceOption[]; staff: StaffOption[]; csvExport?: boolean }) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { t } = useTerms();
+  const apptN = t("appointment", { plural: true });
+  const ApptN = t("appointment", { plural: true, cap: true });
+  const Stf1 = "Staff";
   const { formatPrice } = useCurrency();
   const [activeTab, setActiveTab] = useState("All");
   const [search, setSearch] = useState("");
@@ -73,7 +78,7 @@ export function AppointmentsClient({ appointments, services, staff, csvExport = 
   })();
 
   return (
-    <DashboardLayout title="Appointments" subtitle={`${appointments.length} total appointments`}>
+    <DashboardLayout title={ApptN} subtitle={`${appointments.length} total ${apptN}`}>
       <Card>
         <div className="px-6 py-4 border-b border-[#f0ede8] flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
           <div className="flex gap-1 bg-[#f8f7f4] rounded-xl p-1 flex-wrap">
@@ -86,7 +91,7 @@ export function AppointmentsClient({ appointments, services, staff, csvExport = 
           <div className="flex gap-2 w-full sm:w-auto">
             <div className="relative flex-1 sm:flex-none">
               <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#6b6b80]" />
-              <input aria-label="Search appointments" className="w-full sm:w-52 h-9 pl-9 pr-4 rounded-xl bg-[#f8f7f4] text-sm outline-none border border-transparent focus:border-accent/30 focus:bg-white transition-all" placeholder="Search appointments..." value={search} onChange={(e) => setSearch(e.target.value)} />
+              <input aria-label={`Search ${apptN}`} className="w-full sm:w-52 h-9 pl-9 pr-4 rounded-xl bg-[#f8f7f4] text-sm outline-none border border-transparent focus:border-accent/30 focus:bg-white transition-all" placeholder={`Search ${apptN}...`} value={search} onChange={(e) => setSearch(e.target.value)} />
             </div>
             <div className="relative">
               <button
@@ -102,7 +107,7 @@ export function AppointmentsClient({ appointments, services, staff, csvExport = 
                     <button onClick={() => { setFilterStaff(""); setFilterDateFrom(""); setFilterDateTo(""); }} className="text-xs text-accent hover:underline">Clear all</button>
                   </div>
                   <div>
-                    <label htmlFor="appt-staff-member" className="text-xs font-medium text-[#6b6b80] block mb-1">Staff member</label>
+                    <label htmlFor="appt-staff-member" className="text-xs font-medium text-[#6b6b80] block mb-1">{Stf1}</label>
                     <select id="appt-staff-member" className="w-full h-9 rounded-xl border border-[#e8e6e0] px-3 text-sm bg-white focus:outline-none focus:border-accent/40"
                       value={filterStaff} onChange={e => setFilterStaff(e.target.value)}>
                       <option value="">All staff</option>
@@ -145,7 +150,7 @@ export function AppointmentsClient({ appointments, services, staff, csvExport = 
           <table className="w-full">
             <thead>
               <tr className="bg-[#fafaf8] border-b border-[#f0ede8]">
-                {["Client", "Service", "Staff", "Date & Time", "Duration", "Price", "Status", "Payment", ""].map((h) => (
+                {[t("client", { cap: true }), t("service", { cap: true }), Stf1, "Date & Time", "Duration", "Price", "Status", "Payment", ""].map((h) => (
                   <th key={h} className="text-left text-xs font-semibold text-[#6b6b80] px-4 py-3 first:pl-6 last:pr-6">{h}</th>
                 ))}
               </tr>
@@ -183,7 +188,7 @@ export function AppointmentsClient({ appointments, services, staff, csvExport = 
           {filtered.length === 0 && (
             <div className="text-center py-16 text-[#6b6b80]">
               <CalendarX size={32} className="mx-auto mb-3 opacity-30" />
-              <p className="text-sm">No appointments found</p>
+              <p className="text-sm">No {apptN} found</p>
             </div>
           )}
         </div>

@@ -1,4 +1,5 @@
 "use client";
+import { useTerms } from "@/components/providers/TermsProvider";
 import { StatCard } from "@/components/ui/StatCard";
 import { useCurrency } from "@/components/providers/CurrencyProvider";
 import { Calendar, DollarSign, UserPlus, TrendingUp, TrendingDown, Clock, Users } from "lucide-react";
@@ -27,14 +28,15 @@ export function DashboardKPIStats({
   completedToday,
 }: Props) {
   const { formatPrice } = useCurrency();
+  const { t } = useTerms();
   const monthProfit = monthRevenue - monthExpenses;
 
   return (
     <>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <StatCard label="Today's appointments" value={todayApptsCount} icon={Calendar} iconColor="#fef3c7" />
+        <StatCard label={`Today's ${t("appointment", { plural: true })}`} value={todayApptsCount} icon={Calendar} iconColor="#fef3c7" />
         <StatCard label="Today's revenue" value={formatPrice(todayRevenue)} icon={DollarSign} iconColor="#dcfce7" />
-        <StatCard label="New clients this week" value={newClientsThisWeek} icon={UserPlus} iconColor="#dbeafe" />
+        <StatCard label={`New ${t("client", { plural: true })} this week`} value={newClientsThisWeek} icon={UserPlus} iconColor="#dbeafe" />
         <StatCard label="Show-up rate" value={`${showUpRate}%`} icon={TrendingUp} iconColor="#f3e8ff" />
       </div>
 
@@ -47,7 +49,7 @@ export function DashboardKPIStats({
           icon={DollarSign}
           iconColor={monthProfit >= 0 ? "#d1fae5" : "#fee2e2"}
         />
-        <StatCard label="Total clients" value={totalClients} icon={Users} iconColor="#dbeafe" />
+        <StatCard label={`Total ${t("client", { plural: true })}`} value={totalClients} icon={Users} iconColor="#dbeafe" />
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">

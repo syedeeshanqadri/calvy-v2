@@ -10,6 +10,7 @@ import { Clock, Plus, MoreVertical, ToggleLeft, ToggleRight, Trash2, Users } fro
 import { cn } from "@/lib/utils";
 import { useCurrency } from "@/components/providers/CurrencyProvider";
 import { CURRENCIES } from "@/lib/currency";
+import { useTerms } from "@/components/providers/TermsProvider";
 
 interface ServiceRow {
   id: string; name: string; description: string; duration: number;
@@ -19,6 +20,12 @@ interface ServiceRow {
 const PRESET_COLORS = ["#0284c7","#3b82f6","#22c55e","#8b5cf6","#f59e0b","#ec4899","#14b8a6","#f97316"];
 
 export function ServicesClient({ services: initial, groupBooking = false }: { services: ServiceRow[]; groupBooking?: boolean }) {
+  const { t, pack } = useTerms();
+  const svc1 = t("service");
+  const svcN = t("service", { plural: true });
+  const Svc1 = t("service", { cap: true });
+  const SvcN = t("service", { plural: true, cap: true });
+  const apptN = t("appointment", { plural: true });
   const { formatPrice, currency } = useCurrency();
   const currencySymbol = CURRENCIES.find(c => c.code === currency)?.symbol ?? currency;
   const router = useRouter();
@@ -72,7 +79,7 @@ export function ServicesClient({ services: initial, groupBooking = false }: { se
         res = await fetch("/api/services", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
       }
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to save service");
+      if (!res.ok) throw new Error(data.error || `Failed to save ${svc1}`);
       setShowAddModal(false);
       setEditService(null);
       router.refresh();
@@ -101,13 +108,13 @@ export function ServicesClient({ services: initial, groupBooking = false }: { se
   };
 
   const modalOpen = showAddModal || editService !== null;
-  const modalTitle = editService ? "Edit Service" : "Add New Service";
+  const modalTitle = editService ? `Edit ${Svc1}` : `Add New ${Svc1}`;
 
   return (
-    <DashboardLayout title="Services" subtitle={`${services.filter(s => s.isActive).length} active services`}>
+    <DashboardLayout title={SvcN} subtitle={`${services.filter(s => s.isActive).length} active ${svcN}`}>
       <div className="flex justify-between items-center mb-6">
-        <p className="text-sm text-[#6b6b80]">Manage the services your business offers and their pricing.</p>
-        <Button size="sm" className="gap-1.5" onClick={openAdd}><Plus size={14} /> Add service</Button>
+        <p className="text-sm text-[#6b6b80]">Manage the {svcN} your business offers and their pricing.</p>
+        <Button size="sm" className="gap-1.5" onClick={openAdd}><Plus size={14} /> Add {svc1}</Button>
       </div>
 
       <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-5">
@@ -144,7 +151,7 @@ export function ServicesClient({ services: initial, groupBooking = false }: { se
               <span className={cn("text-xs font-semibold px-2 py-1 rounded-full", service.isActive ? "bg-green-50 text-green-700" : "bg-gray-100 text-gray-500")}>
                 {service.isActive ? "Active" : "Inactive"}
               </span>
-              <button onClick={() => openEdit(service)} className="text-xs text-accent font-medium hover:underline">Edit service</button>
+              <button onClick={() => openEdit(service)} className="text-xs text-accent font-medium hover:underline">Edit {svc1}</button>
             </div>
           </Card>
         ))}
@@ -153,17 +160,17 @@ export function ServicesClient({ services: initial, groupBooking = false }: { se
           <div className="w-10 h-10 rounded-xl bg-[#f8f7f4] group-hover:bg-accent/10 flex items-center justify-center transition-colors">
             <Plus size={20} className="text-[#6b6b80] group-hover:text-accent transition-colors" />
           </div>
-          <div className="text-sm font-medium text-[#6b6b80] group-hover:text-accent transition-colors">Add new service</div>
+          <div className="text-sm font-medium text-[#6b6b80] group-hover:text-accent transition-colors">Add new {svc1}</div>
         </button>
       </div>
 
       {/* Add / Edit modal */}
       <Modal isOpen={modalOpen} onClose={() => { setShowAddModal(false); setEditService(null); }} title={modalTitle} size="md">
         <div className="space-y-4">
-          <Input label="Service name" placeholder="e.g. Haircut & Style" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
+          <Input label={`${Svc1} name`} placeholder={pack.placeholders.serviceName} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
           <div>
             <label className="text-sm font-medium text-brand-800 block mb-1.5">Description</label>
-            <textarea className="w-full rounded-xl border border-[#e8e6e0] px-4 py-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent transition-all" rows={2} placeholder="Brief description of this service..." value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} />
+            <textarea className="w-full rounded-xl border border-[#e8e6e0] px-4 py-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent transition-all" rows={2} placeholder={pack.placeholders.serviceDescription} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <Input label="Duration (minutes)" type="number" min="1" step="5" value={form.duration} onChange={e => setForm({ ...form, duration: e.target.value })} />
@@ -188,21 +195,21 @@ export function ServicesClient({ services: initial, groupBooking = false }: { se
           <div className="flex gap-3 pt-2">
             <Button variant="outline" onClick={() => { setShowAddModal(false); setEditService(null); }} className="flex-1 justify-center">Cancel</Button>
             <Button onClick={submitForm} disabled={loading || !form.name || !form.duration} className="flex-1 justify-center">
-              {loading ? "Saving..." : editService ? "Save changes" : "Add service"}
+              {loading ? "Saving..." : editService ? "Save changes" : `Add ${svc1}`}
             </Button>
           </div>
         </div>
       </Modal>
 
       {/* Delete confirmation modal */}
-      <Modal isOpen={!!deleteTarget} onClose={() => setDeleteTarget(null)} title="Delete Service" size="sm">
+      <Modal isOpen={!!deleteTarget} onClose={() => setDeleteTarget(null)} title={`Delete ${Svc1}`} size="sm">
         {deleteTarget && (
           <div className="space-y-4">
             <p className="text-sm text-[#3d3d4d]">
               Are you sure you want to delete <strong>{deleteTarget.name}</strong>?
             </p>
             <p className="text-xs text-[#6b6b80] bg-amber-50 border border-amber-100 rounded-xl p-3">
-              If this service has existing appointments, it will be <strong>deactivated</strong> instead of deleted to preserve booking history.
+              If this {svc1} has existing {apptN}, it will be <strong>deactivated</strong> instead of deleted to preserve booking history.
             </p>
             <div className="flex gap-3 pt-1">
               <Button variant="outline" onClick={() => setDeleteTarget(null)} className="flex-1 justify-center">Cancel</Button>

@@ -247,6 +247,17 @@ const PACK_BUSINESSES: Spec[] = [
     links: [[0, 1], [1, 2]],
   },
   {
+    email: "consultant@calvy.test", owner: "Priya Menon", name: "Priya Menon Consulting", slug: "priya-menon-consulting",
+    description: "One-to-one business and career consulting", businessType: "consultant", packId: "CONSULTANT", currency: "INR",
+    staff: [{ name: "Priya Menon", role: "Consultant", color: "#8b5cf6" }],
+    services: [
+      { name: "Intro Call", description: "Short call to understand your needs", duration: 20, price: 0, category: "consulting", color: "#0284c7" },
+      { name: "One-to-One Consultation", description: "Private one-hour consultation", duration: 60, price: 2500, category: "consulting", color: "#8b5cf6" },
+      { name: "Follow-up Session", description: "Review progress and next steps", duration: 30, price: 1200, category: "consulting", color: "#22c55e" },
+    ],
+    links: [[0, 1, 2]],
+  },
+  {
     email: "other@calvy.test", owner: "Sam Carter", name: "Bright Studio Services", slug: "bright-studio-services",
     description: "Creative studio and professional services", businessType: "general", packId: "OTHER", currency: "USD",
     staff: [

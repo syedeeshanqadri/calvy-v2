@@ -1,7 +1,10 @@
+"use client";
+import { useTerms } from "@/components/providers/TermsProvider";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { ShimmerCard, Shimmer } from "@/components/ui/Shimmer";
 
 export default function StaffLoading() {
+  const { t } = useTerms();
   return (
     <DashboardLayout title="Staff" subtitle="Manage your team">
       <div className="flex justify-end mb-5">

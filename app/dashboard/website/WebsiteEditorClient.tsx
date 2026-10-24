@@ -6,11 +6,18 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
+import type { TermsSource } from "@/lib/terms";
 import { parseWebsiteConfig, defaultWebsiteConfig, WebsiteConfig, PHOTO_LIBRARY, photoUrl } from "@/lib/website";
 import { Globe, Eye, ToggleLeft, ToggleRight, Check, Copy, ImageIcon, Link2, ChevronDown, Upload } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { BrandLinksCard } from "./BrandLinksCard";
+import type { SocialLinks } from "@/lib/brandLinks";
 
-interface Props { slug: string; businessName: string; businessType: string; websiteJson: string; imageUpload?: boolean; seoControls?: boolean; }
+interface Props {
+  terms?: TermsSource;
+  slug: string; businessName: string; businessType: string; websiteJson: string; imageUpload?: boolean; seoControls?: boolean;
+  themeColor: string; logoUrl: string | null; socialLinks: SocialLinks; googleReviewUrl: string | null;
+}
 
 // ── Textarea ─────────────────────────────────────────────────────────────────
 function Textarea({ label, value, onChange, rows = 3, placeholder }: { label: string; value: string; onChange: (v: string) => void; rows?: number; placeholder?: string }) {
@@ -201,8 +208,8 @@ function SectionCard({ title, enabled, onToggle, children, defaultOpen = true }:
 }
 
 // ── Main ─────────────────────────────────────────────────────────────────────
-export function WebsiteEditorClient({ slug, businessName, businessType, websiteJson, imageUpload = false, seoControls = false }: Props) {
-  const initial = parseWebsiteConfig(websiteJson) ?? defaultWebsiteConfig(businessName, businessType);
+export function WebsiteEditorClient({ terms, slug, businessName, businessType, websiteJson, imageUpload = false, seoControls = false, themeColor, logoUrl, socialLinks, googleReviewUrl }: Props) {
+  const initial = parseWebsiteConfig(websiteJson) ?? defaultWebsiteConfig(businessName, businessType, terms);
   const [config, setConfig] = useState<WebsiteConfig>(initial);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -271,6 +278,9 @@ export function WebsiteEditorClient({ slug, businessName, businessType, websiteJ
           </Card>
         )}
 
+        {/* ── BRAND & LINKS ── */}
+        <BrandLinksCard businessName={businessName} themeColor={themeColor} logoUrl={logoUrl} socialLinks={socialLinks} googleReviewUrl={googleReviewUrl} />
+
         {/* ── HERO ── */}
         <SectionCard title="Hero Section" enabled={config.hero.enabled} onToggle={() => toggle("hero")}>
           <ImagePreview label="Background Image" url={config.hero.image} onChangePic={() => setPickerTarget("hero")} />
@@ -336,6 +346,8 @@ export function WebsiteEditorClient({ slug, businessName, businessType, websiteJ
             <ToggleField label="Show phone number" value={config.contact.showPhone} onChange={v => set("contact", "showPhone", v)} />
             <ToggleField label="Show email address" value={config.contact.showEmail} onChange={v => set("contact", "showEmail", v)} />
             <ToggleField label="Show address" value={config.contact.showAddress} onChange={v => set("contact", "showAddress", v)} />
+            <ToggleField label="Show Google map (needs an address)" value={config.contact.showMap !== false} onChange={v => set("contact", "showMap", v)} />
+            <ToggleField label="Show opening hours (from your business hours)" value={config.contact.showHours !== false} onChange={v => set("contact", "showHours", v)} />
           </div>
         </SectionCard>
 

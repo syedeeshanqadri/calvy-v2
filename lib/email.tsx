@@ -1,3 +1,4 @@
+import { t, type TermsSource } from "@/lib/terms";
 import * as React from "react";
 import { Resend } from "resend";
 import { render } from "@react-email/render";
@@ -12,6 +13,9 @@ import {
   LeadAcknowledgmentEmail,
   type BookingProps,
 } from "@/emails/templates";
+import type { TenantBrand } from "@/emails/EmailLayout";
+import { absoluteAssetUrl } from "@/lib/storage";
+import { safeThemeColor, readableForeground } from "@/lib/theme";
 
 let resendClient: Resend | null = null;
 function getResend() {
@@ -118,43 +122,63 @@ export interface BookingDetails {
   price: number;
   currency?: string;
   appointmentDate?: Date; // attaches an .ics when provided
+  terms?: TermsSource; // business pack wording
   ctx?: EmailContext;
 }
+
+const apptWord = (terms?: TermsSource) => t(terms ?? {}, "appointment");
 
 function bookingProps(d: BookingDetails): BookingProps {
   return {
     clientName: d.clientName, businessName: d.businessName, serviceName: d.serviceName,
     staffName: d.staffName, date: d.date, time: d.time, duration: d.duration,
-    price: d.price, currency: d.currency ?? DEFAULT_CURRENCY,
+    price: d.price, currency: d.currency ?? DEFAULT_CURRENCY, terms: d.terms,
   };
 }
 
-export function sendBookingConfirmation(d: BookingDetails) {
+/** Logo and theme colour of the business an email is sent for (null when unknown). */
+async function tenantBrand(businessId: string | undefined, name: string): Promise<TenantBrand | undefined> {
+  if (!businessId) return undefined;
+  try {
+    const { prisma } = await import("@/lib/prisma");
+    const b = await prisma.business.findUnique({ where: { id: businessId }, select: { logoUrl: true, primaryColor: true } });
+    if (!b) return undefined;
+    const color = safeThemeColor(b.primaryColor);
+    return { name, logoUrl: absoluteAssetUrl(b.logoUrl), color, fg: readableForeground(color) };
+  } catch (e) {
+    logger.error("[Email] tenant brand lookup failed:", { err: e });
+    return undefined;
+  }
+}
+
+export async function sendBookingConfirmation(d: BookingDetails) {
+  const tenant = await tenantBrand(d.ctx?.businessId, d.businessName);
   return dispatch({
     to: d.to, type: "confirmation", ctx: d.ctx,
     subject: `Booking confirmed — ${d.serviceName} at ${d.businessName}`,
-    react: <BookingConfirmationEmail {...bookingProps(d)} />,
+    react: <BookingConfirmationEmail {...bookingProps(d)} tenant={tenant} />,
     attachments: d.appointmentDate
       ? [icsAttachment({ serviceName: d.serviceName, businessName: d.businessName, staffName: d.staffName, durationMinutes: d.duration, start: d.appointmentDate })]
       : undefined,
   });
 }
 
-export function sendBookingReminder(d: {
+export async function sendBookingReminder(d: {
   to: string; clientName: string; businessName: string; serviceName: string;
-  date: string; time: string; staffName?: string; duration?: number; price?: number; currency?: string; ctx?: EmailContext;
+  date: string; time: string; staffName?: string; duration?: number; price?: number; currency?: string; terms?: TermsSource; ctx?: EmailContext;
 }) {
+  const tenant = await tenantBrand(d.ctx?.businessId, d.businessName);
   return dispatch({
     to: d.to, type: "reminder", ctx: d.ctx,
     subject: `Reminder: ${d.serviceName} tomorrow at ${d.time}`,
-    react: <BookingReminderEmail clientName={d.clientName} businessName={d.businessName} serviceName={d.serviceName} date={d.date} time={d.time} staffName={d.staffName} duration={d.duration} price={d.price} currency={d.currency} />,
+    react: <BookingReminderEmail clientName={d.clientName} businessName={d.businessName} serviceName={d.serviceName} date={d.date} time={d.time} staffName={d.staffName} duration={d.duration} price={d.price} currency={d.currency} terms={d.terms} tenant={tenant} />,
   });
 }
 
 export function sendBookingCancellation(d: BookingDetails & { rebookUrl?: string }) {
   return dispatch({
     to: d.to, type: "cancellation", ctx: d.ctx,
-    subject: `Your appointment at ${d.businessName} was cancelled`,
+    subject: `Your ${apptWord(d.terms)} at ${d.businessName} was cancelled`,
     react: <BookingCancellationEmail {...bookingProps(d)} rebookUrl={d.rebookUrl} />,
   });
 }
@@ -162,7 +186,7 @@ export function sendBookingCancellation(d: BookingDetails & { rebookUrl?: string
 export function sendBookingReschedule(d: BookingDetails & { oldDate: string; oldTime: string }) {
   return dispatch({
     to: d.to, type: "reschedule", ctx: d.ctx,
-    subject: `Your appointment was moved to ${d.date} at ${d.time}`,
+    subject: `Your ${apptWord(d.terms)} was moved to ${d.date} at ${d.time}`,
     react: <BookingRescheduleEmail {...bookingProps(d)} oldDate={d.oldDate} oldTime={d.oldTime} />,
   });
 }
