@@ -11,6 +11,8 @@ import { useFlags } from "@/components/providers/FlagsProvider";
 import { ThemeColorPicker } from "@/components/theme/ThemeColorPicker";
 import { PackSettings } from "@/components/packs/PackSettings";
 import type { PackId } from "@/lib/packs/types";
+import { BookingModeSettings, type TokenSessionRow } from "@/components/tokens/BookingModeSettings";
+import { t as term } from "@/lib/terms";
 
 const BUSINESS_TYPES = [
   { value: "salon", label: "Hair Salon" },
@@ -59,11 +61,12 @@ interface BusinessData {
   panNumber?: string; gstNumber?: string;
   addressStreet?: string; addressCity?: string; addressState?: string; addressPostalCode?: string;
   routeStatus?: string; razorpayConnectAccountId?: string;
+  bookingMode?: "SLOT" | "TOKEN"; termsOverride?: unknown;
 }
 
-type Tab = "profile" | "availability" | "payout";
+type Tab = "profile" | "availability" | "booking" | "payout";
 
-export function SettingsClient({ business, customSlotInterval = false, stripePayments = false }: { business: BusinessData; customSlotInterval?: boolean; stripePayments?: boolean }) {
+export function SettingsClient({ business, customSlotInterval = false, stripePayments = false, tokenSessions = [], staff = [] }: { business: BusinessData; customSlotInterval?: boolean; stripePayments?: boolean; tokenSessions?: TokenSessionRow[]; staff?: { id: string; name: string }[] }) {
   const router = useRouter();
   const { payments: paymentsEnabled } = useFlags();
   const [tab, setTab] = useState<Tab>("profile");
@@ -188,6 +191,7 @@ export function SettingsClient({ business, customSlotInterval = false, stripePay
   const TABS: { key: Tab; label: string; icon: React.ElementType }[] = [
     { key: "profile", label: "Business Profile", icon: Globe },
     { key: "availability", label: "Availability", icon: Phone },
+    { key: "booking", label: "Booking", icon: Check },
     ...(paymentsEnabled ? [{ key: "payout" as Tab, label: "Payout Settings", icon: Wallet }] : []),
   ];
 
@@ -283,6 +287,20 @@ export function SettingsClient({ business, customSlotInterval = false, stripePay
             <CardHeader><CardTitle className="flex items-center gap-2"><CreditCard size={16} /> Booking Payment Mode</CardTitle></CardHeader>
             <CardContent>
               <p className="text-sm text-[#3d3d4d]">Online payment (currently unavailable)</p>
+            </CardContent>
+          </Card>
+        )}
+
+        {tab === "booking" && (
+          <Card>
+            <CardHeader><CardTitle>Booking mode</CardTitle></CardHeader>
+            <CardContent>
+              <BookingModeSettings
+                initialMode={business.bookingMode ?? "SLOT"}
+                initialSessions={tokenSessions}
+                staff={staff}
+                appointmentWord={term(business, "appointment")}
+              />
             </CardContent>
           </Card>
         )}

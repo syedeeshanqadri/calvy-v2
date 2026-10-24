@@ -1,0 +1,93 @@
+import { z } from "zod";
+import { timeField } from "@/lib/validation/common";
+
+/** Session fields the capacity and overlap maths need. Times are minutes since local midnight. */
+export interface SessionLike {
+  id?: string;
+  name: string;
+  /** null = business-wide queue; a staff id = that staff member's own queue. */
+  staffId: string | null;
+  /** 0 = Sunday .. 6 = Saturday. */
+  weekdays: number[];
+  startMin: number;
+  endMin: number;
+  minutesPerToken: number;
+  isActive: boolean;
+}
+
+/** Appointments a session can take in one day: floor((end - start) / minutesPerToken). */
+export function sessionCapacity(s: Pick<SessionLike, "startMin" | "endMin" | "minutesPerToken">): number {
+  if (s.minutesPerToken <= 0 || s.endMin <= s.startMin) return 0;
+  return Math.floor((s.endMin - s.startMin) / s.minutesPerToken);
+}
+
+/** Total appointments all active sessions can take on one weekday (each staff queue counts on its own). */
+export function dayCapacity(sessions: SessionLike[], weekday: number): number {
+  return sessions
+    .filter((s) => s.isActive && s.weekdays.includes(weekday))
+    .reduce((sum, s) => sum + sessionCapacity(s), 0);
+}
+
+/** "10:00" -> 600. */
+export function hhmmToMin(v: string): number {
+  const [h, m] = v.split(":").map(Number);
+  return h * 60 + m;
+}
+
+/** 600 -> "10:00". */
+export function minToHhmm(min: number): string {
+  return `${String(Math.floor(min / 60)).padStart(2, "0")}:${String(min % 60).padStart(2, "0")}`;
+}
+
+/** "Morning 10:00-14:00 @ 15 min = 16 appointments". `unit` is the plural term for the business. */
+export function describeSession(s: SessionLike, unit = "appointments"): string {
+  const n = sessionCapacity(s);
+  return `${s.name} ${minToHhmm(s.startMin)}-${minToHhmm(s.endMin)} @ ${s.minutesPerToken} min = ${n} ${n === 1 ? unit.replace(/s$/, "") : unit}`;
+}
+
+/**
+ * Two sessions clash when they share a queue (same staffId, or both business-wide), run on a
+ * common weekday and their time ranges intersect. Only active sessions clash; touching ranges
+ * (one ends when the next starts) are fine.
+ */
+export function sessionsOverlap(a: SessionLike, b: SessionLike): boolean {
+  if (!a.isActive || !b.isActive) return false;
+  if (a.staffId !== b.staffId) return false;
+  if (!a.weekdays.some((d) => b.weekdays.includes(d))) return false;
+  return a.startMin < b.endMin && b.startMin < a.endMin;
+}
+
+/** The first existing session (other than `candidate` itself) that `candidate` clashes with. */
+export function findOverlap<T extends SessionLike>(candidate: SessionLike, existing: T[]): T | null {
+  return existing.find((e) => (!candidate.id || e.id !== candidate.id) && sessionsOverlap(candidate, e)) ?? null;
+}
+
+export const tokenSessionInputSchema = z
+  .object({
+    name: z.string().trim().min(1, "Give the session a name").max(60),
+    staffId: z.string().trim().min(1).max(64).nullable(),
+    weekdays: z.array(z.number().int().min(0).max(6)).min(1, "Pick at least one day").max(7),
+    startTime: timeField,
+    endTime: timeField,
+    minutesPerToken: z.number().int().min(1, "Minutes per appointment must be at least 1").max(240),
+    isActive: z.boolean().default(true),
+  })
+  .refine((v) => hhmmToMin(v.endTime) > hhmmToMin(v.startTime), { message: "End time must be after start time", path: ["endTime"] })
+  .refine((v) => hhmmToMin(v.endTime) - hhmmToMin(v.startTime) >= v.minutesPerToken, {
+    message: "The session is shorter than one appointment",
+    path: ["minutesPerToken"],
+  });
+export type TokenSessionInput = z.infer<typeof tokenSessionInputSchema>;
+
+/** Validated input -> the stored shape (deduped, sorted weekdays; minutes since midnight). */
+export function toSessionFields(input: TokenSessionInput): Omit<SessionLike, "id"> {
+  return {
+    name: input.name,
+    staffId: input.staffId,
+    weekdays: [...new Set(input.weekdays)].sort((x, y) => x - y),
+    startMin: hhmmToMin(input.startTime),
+    endMin: hhmmToMin(input.endTime),
+    minutesPerToken: input.minutesPerToken,
+    isActive: input.isActive,
+  };
+}
