@@ -11,9 +11,16 @@ export const revalidate = 60;
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://calvy.io";
 
+// The build must not depend on the database: if it is unreachable while building, prerender
+// nothing and let posts render on demand (dynamicParams) and then be cached (ISR).
 export async function generateStaticParams() {
-  const posts = await prisma.post.findMany({ where: { published: true }, select: { slug: true } });
-  return posts.map(p => ({ slug: p.slug }));
+  try {
+    const posts = await prisma.post.findMany({ where: { published: true }, select: { slug: true } });
+    return posts.map(p => ({ slug: p.slug }));
+  } catch (e) {
+    if (process.env.NEXT_PHASE !== "phase-production-build") throw e;
+    return [];
+  }
 }
 
 async function getPost(slug: string) {

@@ -29,6 +29,11 @@ const optionalVars = {
   WHATSAPP_PHONE_NUMBER_ID: optional,
   WHATSAPP_ACCESS_TOKEN: optional,
   BLOB_READ_WRITE_TOKEN: optional,
+  S3_ENDPOINT: optional,
+  S3_BUCKET: optional,
+  S3_ACCESS_KEY_ID: optional,
+  S3_SECRET_ACCESS_KEY: optional,
+  S3_PUBLIC_URL: optional,
   NEXT_PUBLIC_VAPID_PUBLIC_KEY: optional,
   VAPID_PRIVATE_KEY: optional,
   VAPID_SUBJECT: optional,
@@ -50,6 +55,9 @@ export const envSchema = z.object({ ...requiredInProduction, ...optionalVars });
 
 export const REQUIRED_ENV = Object.keys(requiredInProduction);
 export const OPTIONAL_ENV = Object.keys(optionalVars);
+
+/** lib/storage.ts uses the s3 driver in production, so all of these are needed there. */
+export const S3_ENV = ["S3_ENDPOINT", "S3_BUCKET", "S3_ACCESS_KEY_ID", "S3_SECRET_ACCESS_KEY", "S3_PUBLIC_URL"];
 
 /** What each group of optional variables switches on (for startup logging). */
 export const OPTIONAL_SERVICES: Record<string, string[]> = {
@@ -81,6 +89,12 @@ export function checkEnv(env: NodeJS.ProcessEnv = process.env): EnvCheck {
     missingRequired: REQUIRED_ENV.filter((n) => !isSet(env, n)),
     missingOptional: OPTIONAL_ENV.filter((n) => !isSet(env, n)),
   };
+}
+
+/** Names of S3 variables still missing when uploads will use the s3 driver (production default). */
+export function missingStorageEnv(env: NodeJS.ProcessEnv = process.env): string[] {
+  const driver = env.STORAGE_DRIVER ?? (env.NODE_ENV === "production" ? "s3" : "local");
+  return driver === "s3" ? S3_ENV.filter((n) => !isSet(env, n)) : [];
 }
 
 /** Names of optional services that are disabled because a variable is missing. */

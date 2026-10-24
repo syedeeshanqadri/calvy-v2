@@ -2,7 +2,9 @@
 
 > **Version:** 1.3  
 > **Last updated:** May 2026  
-> **Stack:** Next.js 14 · TypeScript · PostgreSQL (Neon) · Prisma · Stripe · Resend · Meta WhatsApp Cloud API · Vercel Blob · Vercel Analytics
+> **Stack:** Next.js 16 · React 19 · TypeScript · PostgreSQL (Neon) · Prisma · Razorpay (Cashfree planned) · Resend · Meta WhatsApp Cloud API · S3-compatible storage (R2) · Vercel Analytics
+>
+> **Accuracy note (2026-10-24):** this document predates the v2 work. Payments: the live integration is **Razorpay** (behind feature flags, off by default). **Cashfree is planned** to replace it for India in Step 5 (`docs/PLAN.md`); there is **no Stripe integration**, so any Stripe mention below is legacy and not current behaviour. Where it says Stripe, read Razorpay today and Cashfree from Step 5. `docs/PRODUCT-SPEC.md` describes current behaviour.
 
 ---
 
@@ -271,7 +273,7 @@ calvy/
 │   ├── login/
 │   ├── signup/
 │   ├── verify-email/
-│   ├── [slug]/                         # Tenant website (rewritten from subdomain by middleware)
+│   ├── [slug]/                         # Tenant website (rewritten from subdomain by proxy.ts)
 │   │   └── book-now/                   # Full-page booking on subdomain
 │   ├── b/[slug]/                       # Legacy public booking page (still active)
 │   ├── booking/success/                # Post-payment confirmation
@@ -324,7 +326,7 @@ calvy/
 │   ├── utils.ts
 │   ├── website.ts
 │   └── whatsapp.ts
-├── middleware.ts                       # Subdomain → /[slug] rewrite + auth protection
+├── proxy.ts                       # Subdomain → /[slug] rewrite + auth protection
 ├── scripts/
 │   └── update-slugs.ts                 # One-time: strip random suffixes from existing slugs
 └── prisma/schema.prisma
@@ -332,7 +334,7 @@ calvy/
 
 ### Subdomain Routing
 
-`middleware.ts` intercepts every request:
+`proxy.ts` intercepts every request:
 - If `host` matches `*.calvy.io` (and is not `www.calvy.io`), it extracts the slug and rewrites the path internally: `abc.calvy.io/book-now` → `/abc/book-now`
 - API routes (`/api/*`) are excluded from rewriting so the chatbot widget's fetch calls work correctly
 - `/dashboard/*` and `/admin/*` on the main domain go through `withAuth` for JWT protection
@@ -348,7 +350,7 @@ calvy.io/dashboard    → withAuth (requires session)
 
 | Layer | Technology |
 |---|---|
-| Framework | Next.js 14.2 (App Router) |
+| Framework | Next.js 16 (App Router), React 19 |
 | Language | TypeScript |
 | Styling | Tailwind CSS + custom design tokens |
 | UI Components | Custom + Radix UI primitives |
@@ -357,7 +359,7 @@ calvy.io/dashboard    → withAuth (requires session)
 | ORM | Prisma v5.22 |
 | Database | PostgreSQL (Neon serverless) |
 | Auth | NextAuth.js v4 (JWT + Credentials) |
-| Payments | Stripe (Subscriptions + Checkout) |
+| Payments | Razorpay today (feature-flagged off); Cashfree planned (Step 5); no Stripe |
 | Email | Resend |
 | WhatsApp | Meta WhatsApp Business Cloud API |
 | File Storage | Vercel Blob |
@@ -857,7 +859,7 @@ services → date → time → details → confirm → success
 
 **Data flow:**
 - Business data (slug, name, color, currency, services) passed as props from the server page
-- All API calls use relative URLs (`/api/…`) which work correctly on both localhost and subdomains (API routes excluded from middleware rewrite)
+- All API calls use relative URLs (`/api/…`) which work correctly on both localhost and subdomains (API routes excluded from the proxy rewrite)
 
 ---
 

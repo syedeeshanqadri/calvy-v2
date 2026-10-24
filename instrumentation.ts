@@ -16,12 +16,17 @@ export async function register() {
     console.warn(`[time] server timezone is ${serverTz}, not UTC. Bookings are unaffected (stored as UTC), but running with TZ=UTC is recommended.`);
   }
 
-  const { checkEnv, disabledServices } = await import("@/lib/env");
+  const { checkEnv, disabledServices, missingStorageEnv } = await import("@/lib/env");
   const { missingRequired } = checkEnv();
 
   // Names only, never values.
   for (const service of disabledServices()) {
     console.warn(`[env] ${service} disabled (missing configuration)`);
+  }
+
+  const missingStorage = missingStorageEnv();
+  if (missingStorage.length > 0) {
+    console.warn(`[env] uploads will fail: storage driver is s3 but these are missing: ${missingStorage.join(", ")}`);
   }
 
   if (missingRequired.length > 0 && process.env.NODE_ENV === "production") {

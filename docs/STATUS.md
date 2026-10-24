@@ -1,6 +1,19 @@
 # Calvy v2 status audit, 2026-10-24
 
-Read-only audit of `origin/main` @ 9e0e678 (118 commits). No code, DB or remote changes were made. Checks ran in a temp worktree.
+Read-only audit of `origin/main` @ 9e0e678 (118 commits), **refreshed 2026-10-24 after the housekeeping branch** (`chore/housekeeping`). The sections below are the original audit; the update block lists what has changed since.
+
+## Update (2026-10-24, after housekeeping)
+
+| Item | Now |
+|---|---|
+| Chunk 3 (`t()` rollout) + CONSULTANT pack | **Merged** (PR #16); CONSULTANT migration applied to dev Neon |
+| Demo appointments seed | **Merged** (PR #17); seed now handles solo businesses |
+| Status audit doc | Merged (PR #15) |
+| Worktrees (`calvy-wt/*`, `calvy-status-wt`) and merged local branches | **Removed**; `docs/product-spec` deleted (already in main) |
+| Build needs a reachable DB (blog prerender) | **Resolved**: blog pages tolerate an unreachable DB at build time; build verified with the DB reachable and unreachable |
+| `S3_*` vars missing from `lib/env.ts` / `.env.example` | **Resolved**: added; startup warns in production when the s3 driver lacks them |
+| PLAN.md ticks, README/Documentation.md (Next 16, Razorpay, Cashfree planned, no Stripe), `docs/feature-flags.md` (proxy.ts) | **Updated**; pre-launch security checklist added under Step 9 |
+| Still open | S1-01 credential rotation, production storage (R2) and env setup, Resend domain, faster reminder cron, in-memory rate limiter, Step 3 design system (S3-05 onward), Steps 4 to 10 |
 
 ## 1. Git state
 

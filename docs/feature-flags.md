@@ -13,7 +13,7 @@ Server-side flags in `lib/flags.ts`. **Every flag is OFF by default in every env
 
 ## Enforcement
 
-`middleware.ts` checks `/api/*` paths first, before auth or subdomain logic. If `featureForApiPath(pathname)` returns a flag that is off, the response is `404 {"error":"Not found"}`. Matching is by whole path segment (`/api/walletx` is not guarded). No route handler is changed.
+`proxy.ts` (renamed from `middleware.ts` in the Next 16 migration) checks `/api/*` paths first, before auth or subdomain logic. If `featureForApiPath(pathname)` returns a flag that is off, the response is `404 {"error":"Not found"}`. Matching is by whole path segment (`/api/walletx` is not guarded). No route handler is changed.
 
 ## Enabling
 
@@ -31,8 +31,8 @@ Vercel: Project Settings > Environment Variables, add e.g. `FEATURE_PAYMENTS=1` 
 
 ## Known limitations
 
-- Businesses already set to prepaid keep it in `POST /api/bookings` (that route is owned by another package). Prepaid is fully handled in Step 8.
-- UI-only flags (`chatWidget`, `demoBooking`, `removeBranding`) are enforced by the frontend via `getFlags()` / `/api/flags`, not by middleware.
+- Businesses already set to prepaid keep it in `POST /api/bookings`. Prepaid is reworked in Step 5 (Cashfree: pending-payment holds, webhook-confirmed bookings), after which the payment flags are revisited and Razorpay, the wallet and withdrawals are removed.
+- UI-only flags (`chatWidget`, `demoBooking`, `removeBranding`) are enforced by the frontend via `getFlags()` / `/api/flags`, not by the proxy.
 
 ## Production warning
 
