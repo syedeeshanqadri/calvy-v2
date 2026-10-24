@@ -17,7 +17,7 @@ describe("staff filtering", () => {
     expect(qualifiedStaff(staff, ["cut", "colour"]).map((s) => s.id)).toEqual(["jordan"]);
     expect(qualifiedStaff(staff, ["cut", "consult"]).map((s) => s.id)).toEqual(["alex"]);
   });
-  it("no single staff member offers the combination", () => {
+  it("no single stylist offers the combination", () => {
     expect(qualifiedStaff(staff, ["colour", "consult"])).toEqual([]);
     expect(providerOptions(staff, ["colour", "consult"])).toEqual({ kind: "none" });
   });
