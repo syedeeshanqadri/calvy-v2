@@ -24,3 +24,6 @@ test-results/
 playwright-report/
 # stray screenshots in the repo root
 /*.png
+
+# local uploads (storage adapter, dev)
+/public/uploads/

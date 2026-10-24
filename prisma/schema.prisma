@@ -78,6 +78,9 @@ model Business {
   website                  String?
   description              String?
   primaryColor             String              @default("#e84545")
+  logoUrl                  String?
+  socialLinks              Json?
+  googleReviewUrl          String?
   availabilityJson         String              @default("{}")
   currency                 String              @default("USD")
   paymentMode              String              @default("postpaid")

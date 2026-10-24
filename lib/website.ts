@@ -45,6 +45,10 @@ export interface ContactSection {
   showPhone: boolean;
   showEmail: boolean;
   showAddress: boolean;
+  /** Google map from the address; on unless set to false. */
+  showMap?: boolean;
+  /** Opening-hours block from the business hours; on unless set to false. */
+  showHours?: boolean;
 }
 
 export interface WebsiteConfig {
