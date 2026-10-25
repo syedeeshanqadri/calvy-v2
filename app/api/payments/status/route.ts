@@ -6,6 +6,7 @@ import { reconcileOrder } from "@/lib/onlinePayment";
 import { rateLimit, clientIp } from "@/lib/ratelimit";
 import { parseQuery } from "@/lib/validation/common";
 import { formatDateLabel, formatTimeLabel, safeTimeZone } from "@/lib/time";
+import { trackingUrl } from "@/lib/tracking";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +26,7 @@ async function GET_handler(request: NextRequest) {
   const a = await prisma.appointment.findUnique({
     where: { id: appointmentId },
     select: {
-      date: true, estimatedAt: true, tokenNumber: true, holdExpiresAt: true,
+      id: true, date: true, estimatedAt: true, tokenNumber: true, holdExpiresAt: true,
       service: { select: { name: true } }, staff: { select: { name: true } }, tokenSession: { select: { name: true } },
       business: { select: { name: true, slug: true, timezone: true } },
     },
@@ -37,7 +38,7 @@ async function GET_handler(request: NextRequest) {
     booking: {
       businessName: a.business.name, businessSlug: a.business.slug, serviceName: a.service.name,
       staffName: a.staff?.name ?? null, date: formatDateLabel(a.date, tz), time: formatTimeLabel(a.estimatedAt ?? a.date, tz),
-      token: a.tokenNumber ? { number: a.tokenNumber, sessionName: a.tokenSession?.name ?? "" } : null,
+      token: a.tokenNumber ? { number: a.tokenNumber, sessionName: a.tokenSession?.name ?? "", trackUrl: trackingUrl(a.business.slug, a.id) } : null,
       holdExpiresAt: view === "pending" ? a.holdExpiresAt : null,
     },
   });
