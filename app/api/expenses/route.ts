@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { checkLimit, denialResponse } from "@/lib/limits";
 
 import { parseBody, parseQuery } from "@/lib/validation/common";
 import { expenseCreateSchema, expenseListQuery } from "@/lib/validation/dashboard";
@@ -12,6 +13,8 @@ export const dynamic = "force-dynamic";
 async function GET_handler(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.businessId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const denied = await checkLimit(session.user.businessId, "expenses", { owner: true });
+  if (denied) return denialResponse(denied);
 
   const q = parseQuery(req.url, expenseListQuery);
   if (!q.ok) return q.res;
@@ -36,6 +39,8 @@ async function GET_handler(req: NextRequest) {
 async function POST_handler(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.businessId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const denied = await checkLimit(session.user.businessId, "expenses", { owner: true });
+  if (denied) return denialResponse(denied);
 
   const parsed = await parseBody(req, expenseCreateSchema);
   if (!parsed.ok) return parsed.res;

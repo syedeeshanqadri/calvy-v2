@@ -2,6 +2,7 @@ import { safeRoute } from "@/lib/api";
 import { timingSafeEqual } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getEffectiveLimits } from "@/lib/getFeatures";
 import { sendBookingReminder } from "@/lib/email";
 import { sendReminderWhatsApp } from "@/lib/whatsapp";
 import { sendPushToBusiness } from "@/lib/push";
@@ -68,8 +69,11 @@ async function GET_handler(req: NextRequest) {
       // Rule: reminderSent = true only if the email was delivered, or (no email
       // on file) the WhatsApp attempt did not throw, or the client has neither
       // channel (nothing to send; avoids retry loops).
-      const hasEmail = !!appt.client.email;
-      const hasPhone = !!appt.client.phone;
+      // The plan decides which reminder channels exist (a lapsed plan counts as Free). A channel the plan
+      // does not include is skipped, and with no channel left there is nothing to send or retry.
+      const limits = await getEffectiveLimits(appt.business);
+      const hasEmail = !!appt.client.email && limits.emailReminders;
+      const hasPhone = !!appt.client.phone && limits.whatsappReminders;
       let delivered = !hasEmail && !hasPhone;
       if (hasEmail) {
         const res = await sendBookingReminder({

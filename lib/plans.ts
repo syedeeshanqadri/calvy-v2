@@ -186,36 +186,45 @@ export function getLimits(plan: string): PlanLimits {
   return PLAN_LIMITS[normalizePlanId(plan)];
 }
 
+/** The columns of a PlanConfig row that carry limits and flags (the DB calls the WhatsApp flag smsReminders). */
+export interface PlanConfigRow {
+  maxStaff: number; maxServices: number; maxMonthlyAppointments: number; maxBroadcastsPerMonth: number; platformFeeMinorIN: number;
+  analytics: boolean; customBranding: boolean; imageUpload: boolean; seoControls: boolean; chatbotWidget: boolean;
+  groupBooking: boolean; multiService: boolean; stripePayments: boolean; emailReminders: boolean; smsReminders: boolean;
+  broadcasts: boolean; csvExport: boolean; expenseTracking: boolean; wallet: boolean; customSlotInterval: boolean;
+  removeBranding: boolean; prioritySupport: boolean;
+}
+
+/** The one place a PlanConfig row becomes PlanLimits: the admin screen, billing screen and API checks all use it. */
+export function limitsFromConfig(c: PlanConfigRow): PlanLimits {
+  const { smsReminders, ...rest } = c;
+  return { ...rest, whatsappReminders: smsReminders };
+}
+
+/** The inverse, for seeding a missing PlanConfig row from the code defaults (defaults are used ONLY for this). */
+export function configFromLimits(l: PlanLimits): PlanConfigRow {
+  const { whatsappReminders, ...rest } = l;
+  return { ...rest, smsReminders: whatsappReminders };
+}
+
+/** Everything needed to create a PlanConfig row for a plan from the code defaults. */
+export function planSeed(planId: PlanId) {
+  return {
+    planId,
+    name: PLAN_META[planId].name,
+    price: PLAN_META[planId].price,
+    annualPrice: PLAN_META[planId].annualPrice,
+    description: PLAN_META[planId].description,
+    features: "[]",
+    ...configFromLimits(PLAN_LIMITS[planId]),
+  };
+}
+
 export async function getLimitsFromDB(plan: string): Promise<PlanLimits> {
   try {
     const { prisma } = await import("@/lib/prisma");
-    const planKey = normalizePlanId(plan);
-    const config = await prisma.planConfig.findUnique({ where: { planId: planKey } });
-    if (!config) return getLimits(plan);
-    return {
-      maxStaff: config.maxStaff,
-      maxServices: config.maxServices,
-      maxMonthlyAppointments: config.maxMonthlyAppointments,
-      maxBroadcastsPerMonth: config.maxBroadcastsPerMonth,
-      platformFeeMinorIN: config.platformFeeMinorIN,
-      analytics: config.analytics,
-      customBranding: config.customBranding,
-      imageUpload: config.imageUpload,
-      seoControls: config.seoControls,
-      chatbotWidget: config.chatbotWidget,
-      groupBooking: config.groupBooking,
-      multiService: config.multiService,
-      stripePayments: config.stripePayments,
-      emailReminders: config.emailReminders,
-      whatsappReminders: config.smsReminders,
-      broadcasts: config.broadcasts,
-      csvExport: config.csvExport,
-      expenseTracking: config.expenseTracking,
-      wallet: config.wallet,
-      customSlotInterval: config.customSlotInterval,
-      removeBranding: config.removeBranding,
-      prioritySupport: config.prioritySupport,
-    };
+    const config = await prisma.planConfig.findUnique({ where: { planId: normalizePlanId(plan) } });
+    return config ? limitsFromConfig(config) : getLimits(plan);
   } catch {
     return getLimits(plan);
   }
