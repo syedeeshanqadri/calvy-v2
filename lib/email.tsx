@@ -8,6 +8,9 @@ import {
   BookingReminderEmail,
   BookingCancellationEmail,
   BookingRescheduleEmail,
+  QueueMovedBackEmail,
+  QueueNoShowEmail,
+  QueueMovedNextDayEmail,
   InvoiceEmail,
   EmailVerificationEmail,
   LeadAcknowledgmentEmail,
@@ -189,6 +192,30 @@ export function sendBookingReschedule(d: BookingDetails & { oldDate: string; old
     to: d.to, type: "reschedule", ctx: d.ctx,
     subject: `Your ${apptWord(d.terms)} was moved to ${d.date} at ${d.time}`,
     react: <BookingRescheduleEmail {...bookingProps(d)} oldDate={d.oldDate} oldTime={d.oldTime} />,
+  });
+}
+
+export function sendQueueMovedBack(d: BookingDetails & { place: number }) {
+  return dispatch({
+    to: d.to, type: "queue_moved_back", ctx: d.ctx,
+    subject: `You are now #${d.place} in line at ${d.businessName}`,
+    react: <QueueMovedBackEmail {...bookingProps(d)} place={d.place} />,
+  });
+}
+
+export function sendQueueNoShow(d: BookingDetails) {
+  return dispatch({
+    to: d.to, type: "queue_no_show", ctx: d.ctx,
+    subject: `Your ${apptWord(d.terms)} at ${d.businessName} was closed`,
+    react: <QueueNoShowEmail {...bookingProps(d)} />,
+  });
+}
+
+export function sendQueueMovedNextDay(d: BookingDetails) {
+  return dispatch({
+    to: d.to, type: "queue_next_day", ctx: d.ctx,
+    subject: `Your ${apptWord(d.terms)} at ${d.businessName} moved to ${d.date}`,
+    react: <QueueMovedNextDayEmail {...bookingProps(d)} />,
   });
 }
 

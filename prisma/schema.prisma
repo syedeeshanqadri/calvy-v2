@@ -253,6 +253,16 @@ model Appointment {
   reminderSent       Boolean            @default(false)
   /// Set while status = pending_payment: the slot/token is held until then.
   holdExpiresAt      DateTime?          @db.Timestamptz(3)
+  // Token queue (reception screen). queuePosition = order in the open queue (null until the first queue action).
+  source             BookingSource      @default(ONLINE)
+  queuePosition      Int?
+  queueState         QueueState?
+  notPresentCount    Int                @default(0)
+  servingStartedAt   DateTime?          @db.Timestamptz(3)
+  /// The earlier booking this one was carried over from ("Not coming"); at most one carry-over per booking.
+  carriedFromId      String?            @unique
+  carriedFrom        Appointment?       @relation("CarryOver", fields: [carriedFromId], references: [id], onDelete: SetNull)
+  carriedTo          Appointment?       @relation("CarryOver")
   // Token booking (Business.bookingMode = TOKEN). Numbers are per (tokenSessionId, sessionDate) and never reused.
   tokenSessionId     String?
   sessionDate        DateTime?          @db.Date
@@ -273,6 +283,7 @@ model Appointment {
   @@index([staffId, date])
   @@index([date, reminderSent])
   @@index([status, holdExpiresAt])
+  @@index([businessId, sessionDate, queuePosition])
 }
 
 model WithdrawalRequest {
@@ -552,4 +563,18 @@ model WebhookEvent {
   receivedAt DateTime    @default(now())
 
   @@unique([provider, eventId])
+}
+
+enum BookingSource {
+  ONLINE
+  DASHBOARD
+  WALK_IN
+}
+
+enum QueueState {
+  WAITING
+  SERVING
+  DONE
+  NO_SHOW
+  MOVED
 }

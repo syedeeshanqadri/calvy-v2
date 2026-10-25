@@ -6,7 +6,7 @@ import { signOut } from "next-auth/react";
 import {
   LayoutDashboard, CalendarDays, Calendar, Users, MoreHorizontal, X,
   UserCog, CreditCard, Wallet, BarChart2, Wrench, Link2, Globe,
-  Sparkles, SlidersHorizontal, LogOut, Megaphone, Receipt,
+  Sparkles, SlidersHorizontal, LogOut, Megaphone, Receipt, ListOrdered,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useFlags } from "@/components/providers/FlagsProvider";
@@ -20,6 +20,10 @@ const PRIMARY: { label: string; href: string; icon: typeof LayoutDashboard; exac
   { term: "appointment", label: "Bookings", href: "/dashboard/appointments", icon: Calendar },
   { term: "client", label: "Clients", href: "/dashboard/clients", icon: Users },
 ];
+
+// Token businesses live in the queue all day: it takes Calendar's place in the bar (Calendar moves to More).
+const QUEUE_ITEM = { label: "Queue", href: "/dashboard/queue", icon: ListOrdered };
+const CALENDAR_ITEM = PRIMARY[1];
 
 const ALL_MORE_ITEMS: { label: string; href: string; icon: typeof UserCog; flag?: FeatureFlag; term?: TermKey }[] = [
   { label: "Staff", href: "/dashboard/staff", icon: UserCog },
@@ -38,9 +42,10 @@ const ALL_MORE_ITEMS: { label: string; href: string; icon: typeof UserCog; flag?
 export function BottomNav() {
   const pathname = usePathname();
   const flags = useFlags();
-  const { t } = useTerms();
+  const { t, tokenMode } = useTerms();
   const labelOf = (i: { label: string; term?: TermKey }) => (i.term ? t(i.term, { plural: true, cap: true }) : i.label);
-  const MORE_ITEMS = ALL_MORE_ITEMS.filter((i) => !i.flag || flags[i.flag]);
+  const bar = tokenMode ? PRIMARY.map((i) => (i === CALENDAR_ITEM ? QUEUE_ITEM : i)) : PRIMARY;
+  const MORE_ITEMS = [...(tokenMode ? [CALENDAR_ITEM] : []), ...ALL_MORE_ITEMS].filter((i) => !("flag" in i) || !i.flag || flags[i.flag]);
   const [showMore, setShowMore] = useState(false);
 
   const isMoreActive = MORE_ITEMS.some(item => pathname.startsWith(item.href));
@@ -120,8 +125,8 @@ export function BottomNav() {
       {/* Bottom tab bar */}
       <nav className="fixed bottom-0 left-0 right-0 z-30 bg-white/95 backdrop-blur-md border-t border-[#e8e6e0] lg:hidden">
         <div className="flex items-stretch h-16">
-          {PRIMARY.map(item => {
-            const isActive = item.exact ? pathname === item.href : pathname.startsWith(item.href);
+          {bar.map(item => {
+            const isActive = "exact" in item && item.exact ? pathname === item.href : pathname.startsWith(item.href);
             return (
               <Link
                 key={item.href}
