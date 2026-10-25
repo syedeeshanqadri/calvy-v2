@@ -175,3 +175,38 @@ export function nextWorkingDate(weekdays: number[], afterDate: string, isClosed:
   }
   return null;
 }
+
+export interface OutcomeFacts {
+  outcome: QueuePlan["outcome"];
+  token?: number;
+  name?: string;
+  /** Place in line after "Not present" moved the token back (1 = next up). */
+  place?: number;
+  /** The token now being served after the action. */
+  called?: { token: number; name: string };
+  /** Where "Not coming" carried the token. */
+  movedTo?: { dateLabel: string; token: number };
+  /** Whether the customer has an email on file (so one was sent). */
+  emailed?: boolean;
+}
+
+/** Plain-language result of a queue action, shown on the reception screen. */
+export function describeOutcome(f: OutcomeFacts): string {
+  const who = f.token !== undefined ? `Token ${f.token}${f.name ? ` (${f.name})` : ""}` : "This token";
+  const calling = f.called ? ` Now serving token ${f.called.token} (${f.called.name}).` : "";
+  const mail = (sent: string, none: string) => (f.emailed ? ` ${sent}` : ` ${none}`);
+  switch (f.outcome) {
+    case "advanced":
+      return `${who} is done.${calling || " No one else is waiting."}`;
+    case "moved_back":
+      return `${who} was not here when called, so it moved back to place ${f.place ?? "?"} in line.${calling}${mail("They were emailed their new place.", "No email on file, so tell them yourself.")}`;
+    case "no_show":
+      return `${who} closed: they did not come after being called twice.${calling}${mail("They were emailed.", "No email on file.")}`;
+    case "carry_over":
+      return `${who} moved to ${f.movedTo?.dateLabel ?? "the next working day"} as token ${f.movedTo?.token ?? "?"}. A token can be moved only once.${calling}${mail("They were emailed the new day.", "No email on file, so tell them yourself.")}`;
+    case "closed":
+      return `${who} closed: it was already moved once and they could not come again.${calling}${mail("They were emailed.", "No email on file.")}`;
+    default:
+      return "No one is waiting.";
+  }
+}

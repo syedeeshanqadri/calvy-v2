@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  QueueActionError, canCarryOver, computeEtas, moveBack, nextWorkingDate, openQueue, placeInLine, planNext,
+  QueueActionError, canCarryOver, computeEtas, describeOutcome, moveBack, nextWorkingDate, openQueue, placeInLine, planNext,
   planNotComing, planNotPresent, planWalkIn, positionsFor, type QueueItem,
 } from "@/lib/queue";
 
@@ -138,5 +138,32 @@ describe("next working day", () => {
   it("is null when nothing opens within the window", () => {
     expect(nextWorkingDate(weekdays, "2026-10-26", () => true, 10)).toBeNull();
     expect(nextWorkingDate([], "2026-10-26", () => false)).toBeNull();
+  });
+});
+
+describe("plain-language outcomes", () => {
+  const called = { token: 4, name: "Aman" };
+  it("second miss: closed because they did not come twice", () => {
+    expect(describeOutcome({ outcome: "no_show", token: 3, name: "Riya", called, emailed: true })).toBe(
+      "Token 3 (Riya) closed: they did not come after being called twice. Now serving token 4 (Aman). They were emailed.",
+    );
+  });
+  it("first miss: moved back with the place", () => {
+    const m = describeOutcome({ outcome: "moved_back", token: 3, name: "Riya", place: 3, called, emailed: true });
+    expect(m).toContain("Token 3 (Riya) was not here when called, so it moved back to place 3 in line.");
+    expect(m).toContain("Now serving token 4 (Aman).");
+  });
+  it("no email on file says so", () => {
+    expect(describeOutcome({ outcome: "moved_back", token: 3, name: "Walk-in", place: 2, emailed: false })).toContain("No email on file");
+  });
+  it("carry-over names the new day and token; closing explains why", () => {
+    expect(describeOutcome({ outcome: "carry_over", token: 3, name: "Riya", movedTo: { dateLabel: "Tuesday, October 27", token: 5 }, emailed: true }))
+      .toContain("Token 3 (Riya) moved to Tuesday, October 27 as token 5.");
+    expect(describeOutcome({ outcome: "closed", token: 3, name: "Riya", emailed: true })).toContain("already moved once");
+  });
+  it("done and idle", () => {
+    expect(describeOutcome({ outcome: "advanced", token: 1, name: "Riya", called })).toBe("Token 1 (Riya) is done. Now serving token 4 (Aman).");
+    expect(describeOutcome({ outcome: "advanced", token: 1, name: "Riya" })).toBe("Token 1 (Riya) is done. No one else is waiting.");
+    expect(describeOutcome({ outcome: "idle" })).toBe("No one is waiting.");
   });
 });

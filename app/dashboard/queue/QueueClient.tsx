@@ -70,20 +70,12 @@ export function QueueClient({ today, services }: { today: string; services: { id
   }
 
   const act = (action: "next" | "not_present" | "not_coming", row?: QueueRow) =>
-    post("/api/queue/action", { sessionId: queue!.session.id, date, action, appointmentId: row?.id }, (d) => {
-      const o = d.outcome as string;
-      const moved = d.movedTo as { date: string; tokenNumber: number } | undefined;
-      if (o === "moved_back") return `Token #${d.subjectToken} moved back. They were emailed their new place.`;
-      if (o === "no_show") return `Token #${d.subjectToken} closed as no-show.`;
-      if (o === "carry_over") return `Token #${d.subjectToken} moved to ${moved?.date} as #${moved?.tokenNumber}.`;
-      if (o === "closed") return `Token #${d.subjectToken} was already moved once, so it is closed.`;
-      return o === "idle" ? "No one is waiting." : "Next token called.";
-    });
+    post("/api/queue/action", { sessionId: queue!.session.id, date, action, appointmentId: row?.id }, (d) => String(d.message ?? "Done."));
 
   function notComing(row: QueueRow) {
     const text = row.carried
-      ? `#${row.tokenNumber} was already moved once, so this will close the ${appt}. Continue?`
-      : `Move #${row.tokenNumber} (${row.clientName}) to the next working day? They can be moved only once.`;
+      ? `Token ${row.tokenNumber} (${row.clientName}) was already moved once, so this will close the ${appt} for good. Continue?`
+      : `Move token ${row.tokenNumber} (${row.clientName}) to the next working day? A token can be moved only once.`;
     if (window.confirm(text)) void act("not_coming", row);
   }
 
@@ -91,7 +83,7 @@ export function QueueClient({ today, services }: { today: string; services: { id
     e.preventDefault();
     if (!queue) return;
     const done = await post("/api/queue/walk-in", { sessionId: queue.session.id, date, name: walk.name, phone: walk.phone, serviceId: walk.serviceId || undefined },
-      (d) => `Walk-in added as token #${d.tokenNumber}, estimated ${d.etaTime}.`);
+      (d) => `Walk-in added: token ${d.tokenNumber} for ${walk.name.trim()}, estimated around ${d.etaTime}.`);
     if (done) { setWalk((w) => ({ ...w, name: "", phone: "" })); setWalkOpen(false); }
   }
 

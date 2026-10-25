@@ -9,12 +9,13 @@ import { getEffectiveLimits } from "@/lib/getFeatures";
 import { assertMonthlyHeadroom, startOfBusinessMonth, LimitReachedError } from "@/lib/limits";
 import { logger } from "@/lib/logger";
 import {
-  QueueActionError, computeEtas, isOpen, nextWorkingDate, openQueue, placeInLine, planNext, planNotComing,
+  QueueActionError, computeEtas, describeOutcome, isOpen, nextWorkingDate, openQueue, placeInLine, planNext, planNotComing,
   planNotPresent, planWalkIn, positionsFor, stateOf, type ItemUpdate, type QueueItem, type QueuePlan, type QueueState,
 } from "@/lib/queue";
 import { t } from "@/lib/terms";
 import { addDays, formatDateLabel, parseYMD, utcToZoned, weekdayOf, zonedDayRange, zonedToUtc } from "@/lib/time";
 import { minToHhmm, sessionCapacity } from "@/lib/tokens";
+import { BOOKING_TX_OPTIONS } from "@/lib/booking";
 
 type Tx = Prisma.TransactionClient;
 
@@ -107,42 +108,53 @@ function toRow(a: RowWithRelations, eta: Date | undefined, place: number, tz: st
   };
 }
 
-async function sessionInfo(businessId: string, sessionId: string, date: string): Promise<QueueSessionInfo> {
-  const s = await prisma.tokenSession.findFirst({ where: { id: sessionId, businessId }, include: { staff: { select: { name: true } } } });
-  if (!s) throw new QueueRequestError("Session not found.", 404);
-  const rows = await prisma.appointment.findMany({
-    where: { tokenSessionId: sessionId, sessionDate: dateOnly(date), tokenNumber: { not: null } },
-    select: { tokenNumber: true, queueState: true, status: true },
-  });
+/** Rows that belong on the queue screen: not held, expired or cancelled by the customer. */
+const onScreen = (a: { status: string; queueState: string | null }) =>
+  ["confirmed", "completed", "no-show"].includes(a.status) || (a.status === "cancelled" && ["MOVED", "NO_SHOW", "DONE"].includes(a.queueState ?? ""));
+
+type SessionWithStaff = Prisma.TokenSessionGetPayload<{ include: { staff: { select: { name: true } } } }>;
+
+function infoFor(s: SessionWithStaff, rows: { tokenNumber: number | null; queueState: string | null; status: string }[]): QueueSessionInfo {
   return {
     id: s.id, name: s.name, staffId: s.staffId, staffName: s.staff?.name ?? null,
     startTime: minToHhmm(s.startMin), endTime: minToHhmm(s.endMin), minutesPerToken: s.minutesPerToken, capacity: sessionCapacity(s),
     issued: Math.max(0, ...rows.map((r) => r.tokenNumber ?? 0)),
-    open: rows.filter((r) => r.status === "confirmed" && isOpen({ state: r.queueState })).length,
+    open: rows.filter((r) => r.status === "confirmed" && isOpen({ state: r.queueState as QueueState | null })).length,
   };
 }
 
-/** Sessions running on `date` (active, matching weekday), with how many tokens are issued / still open. */
-export async function loadQueueSessions(businessId: string, date: string): Promise<QueueSessionInfo[]> {
-  assertRealDate(date);
-  const sessions = await prisma.tokenSession.findMany({ where: { businessId, isActive: true }, orderBy: { startMin: "asc" } });
-  const today = sessions.filter((s) => s.weekdays.includes(weekdayOf(date)));
-  return Promise.all(today.map((s) => sessionInfo(businessId, s.id, date)));
-}
+export interface QueueScreen { sessions: QueueSessionInfo[]; queue: QueueView | null }
 
-export async function loadQueue(biz: QueueBusiness, sessionId: string, date: string): Promise<QueueView> {
+/**
+ * Everything the reception screen shows, in two queries (sessions, then all their appointments for the
+ * day): the day's sessions with counts, and the live queue of the chosen one (default: the first).
+ */
+export async function loadQueueScreen(biz: QueueBusiness, date: string, sessionId?: string): Promise<QueueScreen> {
   assertRealDate(date);
-  const info = await sessionInfo(biz.id, sessionId, date);
-  const session = await prisma.tokenSession.findUniqueOrThrow({ where: { id: sessionId } });
-  const rows = await loadRows(prisma, biz.id, sessionId, date);
-  const openItems = openQueue(rows.map(toItem));
-  const order = openItems.map((i) => i.id);
-  const etas = etasFor(order, rows, session, date, biz.timezone);
+  const all = await prisma.tokenSession.findMany({
+    where: { businessId: biz.id, isActive: true }, include: { staff: { select: { name: true } } }, orderBy: { startMin: "asc" },
+  });
+  const today = all.filter((s) => s.weekdays.includes(weekdayOf(date)));
+  if (today.length === 0) return { sessions: [], queue: null };
+  const apps = await prisma.appointment.findMany({
+    where: { businessId: biz.id, tokenSessionId: { in: today.map((s) => s.id) }, sessionDate: dateOnly(date), tokenNumber: { not: null } },
+    include: rowInclude,
+    orderBy: { tokenNumber: "asc" },
+  });
+  const sessions = today.map((s) => infoFor(s, apps.filter((a) => a.tokenSessionId === s.id)));
+
+  const chosen = today.find((s) => s.id === sessionId) ?? today[0];
+  const rows = apps.filter((a) => a.tokenSessionId === chosen.id && onScreen(a));
+  const order = openQueue(rows.map(toItem)).map((i) => i.id);
+  const etas = etasFor(order, rows, chosen, date, biz.timezone);
   const byId = new Map(rows.map((r) => [r.id, r]));
   return {
-    session: info, date,
-    open: order.map((id, i) => toRow(byId.get(id)!, etas[id], i + 1, biz.timezone)),
-    closed: rows.filter((r) => !isOpen({ state: r.queueState })).map((r) => toRow(r, undefined, 0, biz.timezone)),
+    sessions,
+    queue: {
+      session: sessions.find((x) => x.id === chosen.id)!, date,
+      open: order.map((id, i) => toRow(byId.get(id)!, etas[id], i + 1, biz.timezone)),
+      closed: rows.filter((r) => !isOpen({ state: r.queueState })).map((r) => toRow(r, undefined, 0, biz.timezone)),
+    },
   };
 }
 
@@ -164,14 +176,20 @@ async function writePlan(tx: Tx, rows: RowWithRelations[], plan: QueuePlan, sess
   const etas = computeEtas({ order: plan.order, servingId, sessionStart: zonedToUtc(date, session.startMin, tz), servingStartedAt: startedAt, minutesPerToken: session.minutesPerToken });
   const positions = positionsFor(plan.order);
 
-  for (const id of new Set([...Object.keys(plan.updates), ...plan.order])) {
-    await tx.appointment.update({
-      where: { id },
-      data: {
-        ...apply(plan.updates[id] ?? {}),
-        ...(positions[id] ? { queuePosition: positions[id], estimatedAt: etas[id] } : {}),
-      },
-    });
+  // State changes touch at most a few rows; positions and ETAs are one batched statement.
+  for (const [id, u] of Object.entries(plan.updates)) {
+    const data = apply(u);
+    if (Object.keys(data).length) await tx.appointment.update({ where: { id }, data });
+  }
+  if (plan.order.length) {
+    const ids = plan.order;
+    const pos = ids.map((id) => positions[id]);
+    const eta = ids.map((id) => etas[id].toISOString());
+    await tx.$executeRaw`
+      UPDATE "Appointment" AS a
+      SET "queuePosition" = v.pos, "estimatedAt" = v.eta::timestamptz
+      FROM unnest(${ids}::text[], ${pos}::int[], ${eta}::text[]) AS v(id, pos, eta)
+      WHERE a.id = v.id`;
   }
   return { etas };
 }
@@ -180,9 +198,8 @@ export type QueueAction = "next" | "not_present" | "not_coming";
 
 export interface QueueActionResult {
   outcome: QueuePlan["outcome"];
-  subjectToken?: number;
-  /** Where a carried-over token went. */
-  movedTo?: { date: string; tokenNumber: number };
+  /** Plain-language result for the reception screen. */
+  message: string;
 }
 
 /** Run a reception action on a session's queue. */
@@ -215,7 +232,7 @@ export async function runQueueAction(
 
     const { etas } = await writePlan(tx, rows, plan, session, input.date, tz);
     const subject = plan.subjectId ? rows.find((r) => r.id === plan.subjectId) : undefined;
-    let movedTo: QueueActionResult["movedTo"];
+    let movedTo: { date: string; tokenNumber: number } | undefined;
     let carried: { appointmentId: string; estimatedAt: Date } | undefined;
 
     if (plan.outcome === "carry_over" && subject) {
@@ -255,8 +272,8 @@ export async function runQueueAction(
       movedTo = { date: target, tokenNumber: newTokenNumber };
     }
 
-    return { plan, subject, etas, movedTo, carried, session };
-  });
+    return { plan, subject, etas, movedTo, carried, session, rows };
+  }, BOOKING_TX_OPTIONS);
 
   const { plan, subject, etas, movedTo, carried, session } = done;
 
@@ -291,7 +308,18 @@ export async function runQueueAction(
     }
   }
 
-  return { outcome: plan.outcome, subjectToken: subject?.tokenNumber ?? undefined, movedTo };
+  const calledId = Object.entries(plan.updates).find(([, u]) => u.state === "SERVING")?.[0];
+  const called = calledId ? done.rows.find((r) => r.id === calledId) : undefined;
+  return {
+    outcome: plan.outcome,
+    message: describeOutcome({
+      outcome: plan.outcome, token: subject?.tokenNumber ?? undefined, name: subject?.client.name,
+      place: plan.subjectId ? placeInLine(plan.order, plan.subjectId) : undefined,
+      called: called ? { token: called.tokenNumber ?? 0, name: called.client.name } : undefined,
+      movedTo: movedTo && carried ? { dateLabel: formatDateLabel(carried.estimatedAt, tz), token: movedTo.tokenNumber } : undefined,
+      emailed: !!subject?.client.email,
+    }),
+  };
 }
 
 /** Reception adds a customer who walked in: name + phone, no email needed, no fee, last in the queue. */
@@ -301,35 +329,35 @@ export async function addWalkIn(
 ): Promise<{ tokenNumber: number; etaTime: string }> {
   assertRealDate(input.date);
   const tz = biz.timezone;
-  const limits = await getEffectiveLimits(biz);
+
+  // Reads and the client lookup happen before the transaction so it stays short (each query is a
+  // network round trip to the database).
+  const [limits, session] = await Promise.all([
+    getEffectiveLimits(biz),
+    prisma.tokenSession.findFirst({ where: { id: input.sessionId, businessId: biz.id, isActive: true } }),
+  ]);
+  if (!session) throw new QueueRequestError("Session not found.", 404);
+  if (!session.weekdays.includes(weekdayOf(input.date))) throw new QueueRequestError("That session does not run on this date.");
+  const service = await prisma.service.findFirst({
+    where: {
+      businessId: biz.id, isActive: true, ...(input.serviceId ? { id: input.serviceId } : {}),
+      ...(session.staffId ? { staff: { some: { staffId: session.staffId } } } : {}),
+    },
+    orderBy: { createdAt: "asc" },
+  });
+  if (!service) throw new QueueRequestError("No service available for this session.");
+  const client = await findOrCreateClient(prisma, biz.id, { name: input.name, phone: input.phone }, tz, { trusted: true });
   const monthStart = startOfBusinessMonth(tz);
 
   try {
-    return await prisma.$transaction(async (tx) => {
-      await lock(tx, lockKey(input.sessionId, input.date));
-      const session = await tx.tokenSession.findFirst({ where: { id: input.sessionId, businessId: biz.id, isActive: true } });
-      if (!session) throw new QueueRequestError("Session not found.", 404);
-      if (!session.weekdays.includes(weekdayOf(input.date))) throw new QueueRequestError("That session does not run on this date.");
-
-      const services = await tx.service.findMany({
-        where: {
-          businessId: biz.id, isActive: true, ...(input.serviceId ? { id: input.serviceId } : {}),
-          ...(session.staffId ? { staff: { some: { staffId: session.staffId } } } : {}),
-        },
-        orderBy: { createdAt: "asc" },
-        take: 1,
-      });
-      const service = services[0];
-      if (!service) throw new QueueRequestError("No service available for this session.");
-
+    const result = await prisma.$transaction(async (tx) => {
+      await lock(tx, lockKey(session.id, input.date));
       await assertMonthlyHeadroom(tx, biz.id, limits.maxMonthlyAppointments, monthStart);
-      const client = await findOrCreateClient(tx, biz.id, { name: input.name, phone: input.phone }, tz, { trusted: true });
       const rows = await loadRows(tx, biz.id, session.id, input.date);
       const last = await tx.appointment.aggregate({ where: { tokenSessionId: session.id, sessionDate: dateOnly(input.date) }, _max: { tokenNumber: true } });
       const openIds = openQueue(rows.map(toItem)).map((i) => i.id);
       const plan = planWalkIn(last._max.tokenNumber ?? 0, openIds.map((_, i) => i + 1));
-      const etas = etasFor([...openIds, "new"], rows, session, input.date, tz);
-      const estimatedAt = etas["new"];
+      const estimatedAt = etasFor([...openIds, "new"], rows, session, input.date, tz)["new"];
 
       await tx.appointment.create({
         data: {
@@ -340,9 +368,11 @@ export async function addWalkIn(
           queuePosition: plan.position, estimatedAt,
         },
       });
-      await tx.client.update({ where: { id: client.id }, data: { totalAppointments: { increment: 1 }, lastVisit: estimatedAt } });
-      return { tokenNumber: plan.tokenNumber, etaTime: utcToZoned(estimatedAt, tz).time };
-    });
+      return { tokenNumber: plan.tokenNumber, estimatedAt };
+    }, BOOKING_TX_OPTIONS);
+
+    await prisma.client.update({ where: { id: client.id }, data: { totalAppointments: { increment: 1 }, lastVisit: result.estimatedAt } });
+    return { tokenNumber: result.tokenNumber, etaTime: utcToZoned(result.estimatedAt, tz).time };
   } catch (e) {
     if (e instanceof LimitReachedError) throw new QueueRequestError("Your plan's monthly appointment limit has been reached.", 402);
     throw e;

@@ -1,7 +1,7 @@
 import { safeRoute } from "@/lib/api";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { loadQueue, loadQueueSessions } from "@/lib/queueDb";
+import { loadQueueScreen } from "@/lib/queueDb";
 import { queueContext, queueError } from "@/lib/queueApi";
 import { dateField, id, parseQuery } from "@/lib/validation/common";
 
@@ -16,10 +16,7 @@ async function GET_handler(req: NextRequest) {
   const q = parseQuery(req.url, query);
   if (!q.ok) return q.res;
   try {
-    const sessions = await loadQueueSessions(ctx.biz.id, q.data.date);
-    const chosen = q.data.sessionId ?? sessions[0]?.id;
-    const queue = chosen && sessions.some((s) => s.id === chosen) ? await loadQueue(ctx.biz, chosen, q.data.date) : null;
-    return NextResponse.json({ sessions, queue });
+    return NextResponse.json(await loadQueueScreen(ctx.biz, q.data.date, q.data.sessionId));
   } catch (e) {
     return queueError(e);
   }
