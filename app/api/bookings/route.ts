@@ -359,7 +359,7 @@ async function POST_handler(req: NextRequest) {
     }
     if (!hold) {
       await notify(appointment.id, 0);
-      return NextResponse.json({ success: true, appointmentId: appointment.id, paymentMode: "postpaid" });
+      return NextResponse.json({ success: true, appointmentId: appointment.id, paymentMode: "postpaid", confirmationWithheld: suppressContactMessages });
     }
     const started = await startCheckout({
       appointmentId: appointment.id, businessId: business.id, businessName: business.name,
@@ -384,7 +384,7 @@ async function POST_handler(req: NextRequest) {
       throw err;
     }
     await notify(appointment.id, 0);
-    return NextResponse.json({ success: true, appointmentId: appointment.id, paymentMode: "postpaid" });
+    return NextResponse.json({ success: true, appointmentId: appointment.id, paymentMode: "postpaid", confirmationWithheld: suppressContactMessages });
   }
 
   // Prepaid path — redirect to Razorpay Payment Link
@@ -445,7 +445,7 @@ async function POST_handler(req: NextRequest) {
     throw err;
   }
   await notify(appointment.id, totalPrice);
-  return NextResponse.json({ success: true, appointmentId: appointment.id });
+  return NextResponse.json({ success: true, appointmentId: appointment.id, confirmationWithheld: suppressContactMessages });
 }
 
 export const POST = safeRoute(POST_handler);

@@ -293,6 +293,7 @@ describe("POST /api/bookings: contact details and booking for someone else", () 
     expect(sendBookingConfirmation).not.toHaveBeenCalled();
     expect(sendBookingConfirmationWhatsApp).not.toHaveBeenCalled();
     expect(push).toHaveBeenCalled(); // the business still hears about it
+    expect((await res.json()).confirmationWithheld).toBe(true); // and the booker is told, not left waiting
   });
 
   it("just under the quota the contact gets their confirmation as normal", async () => {

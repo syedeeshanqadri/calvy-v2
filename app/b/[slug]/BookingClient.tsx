@@ -97,6 +97,8 @@ export function BookingClient({ business }: { business: Business }) {
   // Month availability, tagged with the request it answers so stale answers are ignored.
   const [monthData, setMonthData] = useState<{ key: string; days: Record<string, boolean> | null; next: string | null } | null>(null);
   const [booked, setBooked] = useState(false);
+  // The server did not email/WhatsApp the confirmation (a contact over its daily quota): say so, never silently.
+  const [confirmationWithheld, setConfirmationWithheld] = useState(false);
   const [tokenDate, setTokenDate] = useState("");
   const [tokenPick, setTokenPick] = useState<TokenOption | null>(null);
   const [tokenResult, setTokenResult] = useState<{ number: number; estimatedTime: string; sessionName: string; dateLabel: string; staffName: string | null; trackUrl?: string | null } | null>(null);
@@ -271,7 +273,7 @@ export function BookingClient({ business }: { business: Business }) {
         return;
       }
       if (data.checkout) { await launchCheckout(data.checkout); return; }
-      if (data.url) { window.location.href = data.url; } else { if (data.token) setTokenResult(data.token); setBooked(true); }
+      if (data.url) { window.location.href = data.url; } else { if (data.token) setTokenResult(data.token); setConfirmationWithheld(!!data.confirmationWithheld); setBooked(true); }
     } catch (e) { setError(e instanceof Error && e.message.startsWith("Could not load") ? e.message : "Network error. Please try again."); }
     finally { setLoading(false); }
   }
@@ -284,7 +286,13 @@ export function BookingClient({ business }: { business: Business }) {
             <Check size={28} className="text-green-600" />
           </div>
           <h1 className="font-syne font-bold text-2xl mb-2">You&apos;re booked! 🎉</h1>
-          <p className="text-[#6b6b80] mb-6">A confirmation has been sent to <strong>{form.email}</strong>.</p>
+          {confirmationWithheld ? (
+            <p className="text-amber-900 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm mb-6">
+              Your {appt1} is booked, but we could not send a confirmation message because of the number of bookings made with these contact details today. Please keep the details below, or contact {business.name} if you need a copy.
+            </p>
+          ) : (
+            <p className="text-[#6b6b80] mb-6">A confirmation has been sent to <strong>{form.email}</strong>.</p>
+          )}
           <div className="bg-[#f8f7f4] rounded-2xl p-5 text-left mb-6 space-y-2.5">
             <div className="flex justify-between text-sm"><span className="text-[#6b6b80]">Business</span><span className="font-medium">{business.name}</span></div>
             <div className="flex justify-between text-sm">

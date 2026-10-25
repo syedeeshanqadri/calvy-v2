@@ -235,5 +235,5 @@ export async function bookToken(input: TokenBookingInput): Promise<NextResponse>
   });
   await sendConfirmationFor(appointment.id, { contactMessages: !suppressContactMessages });
 
-  return NextResponse.json({ success: true, appointmentId: appointment.id, paymentMode: business.paymentMode, token });
+  return NextResponse.json({ success: true, appointmentId: appointment.id, paymentMode: business.paymentMode, token, confirmationWithheld: suppressContactMessages });
 }
