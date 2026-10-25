@@ -68,22 +68,25 @@ async function POST_handler(req: NextRequest) {
   });
   if (!business) return NextResponse.json({ error: "Business not found." }, { status: 404 });
 
-  // Per-contact limit: the "already has an appointment" answer must not be a cheap way to probe
-  // whether a given person has booked, so one email gets a handful of attempts per hour.
-  // Keyed on the same normalised email and phone the client lookup matches on, so respelling the
-  // address or switching between email and phone cannot dodge it.
+  // The "already has an appointment" answer tells a caller that someone has booked, so it is the one
+  // thing limited per contact: a handful of such answers per hour. Ordinary bookings never touch
+  // these buckets, so a stranger cannot use up someone's allowance and lock them out of booking.
+  // Keyed on the same normalised email and phone the client lookup matches on.
   const contactKeys = [
-    `booking-contact:${business.id}:email:${tryNormalizeEmail(clientEmail) ?? clientEmail.trim().toLowerCase()}`,
-    ...(normalizePhone(clientPhone, business.timezone) ? [`booking-contact:${business.id}:phone:${normalizePhone(clientPhone, business.timezone)}`] : []),
+    `booking-dup:${business.id}:email:${tryNormalizeEmail(clientEmail) ?? clientEmail.trim().toLowerCase()}`,
+    ...(normalizePhone(clientPhone, business.timezone) ? [`booking-dup:${business.id}:phone:${normalizePhone(clientPhone, business.timezone)}`] : []),
   ];
-  for (const key of contactKeys) {
-    const contactLimit = await rateLimit(key, 12, 3_600_000);
-    if (!contactLimit.ok) {
-      return NextResponse.json(
-        { error: "Too many booking attempts for this contact. Please try again later." },
-        { status: 429, headers: { "Retry-After": String(contactLimit.retryAfter) } },
-      );
+  async function duplicateResponse(err: DuplicatePatientError): Promise<NextResponse> {
+    for (const key of contactKeys) {
+      const l = await rateLimit(key, 6, 3_600_000);
+      if (!l.ok) {
+        return NextResponse.json(
+          { error: "Too many attempts for this contact. Please try again later." },
+          { status: 429, headers: { "Retry-After": String(l.retryAfter) } },
+        );
+      }
     }
+    return NextResponse.json({ error: err.message, code: err.code }, { status: 409 });
   }
 
   // India needs email and phone; elsewhere only email.
@@ -153,7 +156,7 @@ async function POST_handler(req: NextRequest) {
         notes, maxMonthlyAppointments: limits.maxMonthlyAppointments, monthStart, payConfig, patientName,
       });
     } catch (err) {
-      if (err instanceof DuplicatePatientError) return NextResponse.json({ error: err.message, code: err.code }, { status: 409 });
+      if (err instanceof DuplicatePatientError) return await duplicateResponse(err);
       if (err instanceof LimitReachedError) return await limitResponse();
       throw err;
     }
@@ -338,7 +341,7 @@ async function POST_handler(req: NextRequest) {
     try {
       appointment = await createAppointment(client.id, "unpaid", venueMode, hold);
     } catch (err) {
-      if (err instanceof DuplicatePatientError) return NextResponse.json({ error: err.message, code: err.code }, { status: 409 });
+      if (err instanceof DuplicatePatientError) return await duplicateResponse(err);
       if (err instanceof SlotConflictError) return conflictResponse();
       if (err instanceof LimitReachedError) return await limitResponse();
       throw err;
@@ -364,7 +367,7 @@ async function POST_handler(req: NextRequest) {
     try {
       appointment = await createAppointment(client.id, "unpaid", "postpaid");
     } catch (err) {
-      if (err instanceof DuplicatePatientError) return NextResponse.json({ error: err.message, code: err.code }, { status: 409 });
+      if (err instanceof DuplicatePatientError) return await duplicateResponse(err);
       if (err instanceof SlotConflictError) return conflictResponse();
       if (err instanceof LimitReachedError) return await limitResponse();
       throw err;
@@ -425,7 +428,7 @@ async function POST_handler(req: NextRequest) {
   try {
     appointment = await createAppointment(client.id, "unpaid", "prepaid");
   } catch (err) {
-    if (err instanceof DuplicatePatientError) return NextResponse.json({ error: err.message, code: err.code }, { status: 409 });
+    if (err instanceof DuplicatePatientError) return await duplicateResponse(err);
       if (err instanceof SlotConflictError) return conflictResponse();
     if (err instanceof LimitReachedError) return await limitResponse();
     throw err;
