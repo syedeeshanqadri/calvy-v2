@@ -103,6 +103,43 @@ export function BookingRescheduleEmail(p: BookingProps & { oldDate: string; oldT
   );
 }
 
+/** Queue emails: a token's place changed while the customer waits. */
+export function QueueMovedBackEmail(p: BookingProps & { place: number }) {
+  return (
+    <EmailLayout tenant={p.tenant} preview={`You are now #${p.place} in line at ${p.businessName}`}>
+      <Badge text="Moved back" color="#b45309" bg="#fdf2e3" />
+      <H>You were not here when we called you</H>
+      <P>Hi {p.clientName.split(" ")[0]}, your token at <strong style={{ color: brand.ink }}>{p.businessName}</strong> was called but you were not present, so we moved you back in the queue. Please stay close.</P>
+      <BookingDetails p={p} />
+      <P>You are now number {p.place} in line. If you miss your turn again, this {appt(p)} will be closed.</P>
+    </EmailLayout>
+  );
+}
+
+export function QueueNoShowEmail(p: BookingProps) {
+  return (
+    <EmailLayout tenant={p.tenant} preview={`Your ${appt(p)} at ${p.businessName} was closed`}>
+      <Badge text="Closed" color="#b91c1c" bg="#fdeaea" />
+      <H>Your {appt(p)} was closed</H>
+      <P>Hi {p.clientName.split(" ")[0]}, we called your token at <strong style={{ color: brand.ink }}>{p.businessName}</strong> twice and you were not present, so the {appt(p)} has been closed.</P>
+      <BookingDetails p={p} />
+      <P>You can book again any time.</P>
+    </EmailLayout>
+  );
+}
+
+export function QueueMovedNextDayEmail(p: BookingProps) {
+  return (
+    <EmailLayout tenant={p.tenant} preview={`Your ${appt(p)} at ${p.businessName} moved to ${p.date}`}>
+      <Badge text="Moved to next day" color="#b45309" bg="#fdf2e3" />
+      <H>Your {appt(p)} moved to {p.date}</H>
+      <P>Hi {p.clientName.split(" ")[0]}, since you could not make it, we moved your token at <strong style={{ color: brand.ink }}>{p.businessName}</strong> to the next working day. This is the only time it can be moved.</P>
+      <BookingDetails p={p} />
+      <P>See you then!</P>
+    </EmailLayout>
+  );
+}
+
 export interface InvoiceProps extends BookingProps {
   invoiceNumber: string;
   clientEmail: string;

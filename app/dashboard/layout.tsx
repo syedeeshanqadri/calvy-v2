@@ -12,16 +12,18 @@ export default async function DashboardRootLayout({ children }: { children: Reac
   let currency = "USD";
   let packId: string | undefined;
   let termsOverride: unknown;
+  let bookingMode: string | undefined;
 
   if (session?.user?.businessId) {
     try {
       const biz = await prisma.business.findUnique({
         where: { id: session.user.businessId },
-        select: { currency: true, packId: true, termsOverride: true },
+        select: { currency: true, packId: true, termsOverride: true, bookingMode: true },
       });
       currency = biz?.currency ?? "USD";
       packId = biz?.packId;
       termsOverride = biz?.termsOverride;
+      bookingMode = biz?.bookingMode;
     } catch {
       // DB cold-start — fall back to USD, page will still render
     }
@@ -31,18 +33,19 @@ export default async function DashboardRootLayout({ children }: { children: Reac
     // yet — so check the DB authoritatively to avoid a redirect loop.
     const biz = await prisma.business.findUnique({
       where: { ownerId: session.user.id },
-      select: { currency: true, packId: true, termsOverride: true },
+      select: { currency: true, packId: true, termsOverride: true, bookingMode: true },
     });
     if (!biz) redirect("/onboarding");
     currency = biz.currency ?? "USD";
     packId = biz.packId;
     termsOverride = biz.termsOverride;
+    bookingMode = biz.bookingMode;
   }
 
   return (
     <FlagsProvider flags={getFlags()}>
       <CurrencyProvider currency={currency}>
-        <TermsProvider packId={packId} termsOverride={termsOverride}>{children}</TermsProvider>
+        <TermsProvider packId={packId} termsOverride={termsOverride} bookingMode={bookingMode}>{children}</TermsProvider>
       </CurrencyProvider>
     </FlagsProvider>
   );

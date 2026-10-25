@@ -5,6 +5,7 @@ import { findOrCreateClient } from "@/lib/clients";
 import { DEFAULT_CURRENCY } from "@/lib/currency";
 import { isFeatureEnabled } from "@/lib/flags";
 import { PENDING_PAYMENT, holdExpiry } from "@/lib/holds";
+import { BOOKING_TX_OPTIONS } from "@/lib/booking";
 import { chargeFor, sendConfirmationFor, startCheckout, type PayConfig } from "@/lib/onlinePayment";
 import { assertMonthlyHeadroom } from "@/lib/limits";
 import { addDays, formatDateLabel, parseYMD, utcToZoned, weekdayOf, zonedToUtc } from "@/lib/time";
@@ -104,7 +105,7 @@ function prismaStore(sessionId: string, dateStr: string): TokenStore<Prisma.Tran
       prisma.$transaction(async (tx) => {
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${key}, 0))`;
         return fn(tx);
-      }),
+      }, BOOKING_TX_OPTIONS),
     async lastNumber(tx) {
       const r = await tx.appointment.aggregate({
         where: { tokenSessionId: sessionId, sessionDate: dateOnly(dateStr) },

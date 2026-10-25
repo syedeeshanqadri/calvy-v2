@@ -6,6 +6,7 @@ import { isFeatureEnabled } from "@/lib/flags";
 import { getEffectiveLimits } from "@/lib/getFeatures";
 import { computeCharge, countryFromCurrency, toMinor, type Charge, type FeePayer, type OnlinePayMode } from "@/lib/fees";
 import { EXPIRED, PENDING_PAYMENT, onPaid } from "@/lib/holds";
+import { BOOKING_TX_OPTIONS } from "@/lib/booking";
 import { getPaymentProvider, type PaymentProvider } from "@/lib/payments";
 import { applyPaymentEvent } from "@/lib/payments/events";
 import { prismaPaymentEventStore } from "@/lib/payments/db";
@@ -212,7 +213,7 @@ export async function settlePaidPayment(paymentId: string): Promise<SettleResult
       await tx.appointment.update({ where: { id: appt.id }, data: { status: EXPIRED } });
     }
     return { action, appointmentId: appt.id, amountMinor: payment.amountMinor };
-  });
+  }, BOOKING_TX_OPTIONS);
 
   if (decision.action === "confirm") {
     await sendConfirmationFor(decision.appointmentId, { paid: true });
