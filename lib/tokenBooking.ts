@@ -7,7 +7,7 @@ import { isFeatureEnabled } from "@/lib/flags";
 import { PENDING_PAYMENT, holdExpiry } from "@/lib/holds";
 import { BOOKING_TX_OPTIONS } from "@/lib/booking";
 import { trackingUrl } from "@/lib/tracking";
-import { assertNoDuplicatePatient } from "@/lib/patientsDb";
+import { assertContactUnderDailyCap, assertNoDuplicatePatient } from "@/lib/patientsDb";
 import { chargeFor, sendConfirmationFor, startCheckout, type PayConfig } from "@/lib/onlinePayment";
 import { assertMonthlyHeadroom } from "@/lib/limits";
 import { addDays, formatDateLabel, parseYMD, utcToZoned, weekdayOf, zonedToUtc } from "@/lib/time";
@@ -184,6 +184,7 @@ export async function bookToken(input: TokenBookingInput): Promise<NextResponse>
     await assertMonthlyHeadroom(tx, business.id, input.maxMonthlyAppointments, input.monthStart);
     // Under the session lock, so a double-click cannot take two tokens for the same person.
     await assertNoDuplicatePatient(tx, { businessId: business.id, clientId: client.id, patientName: input.patientName, date, tz });
+    await assertContactUnderDailyCap(tx, { businessId: business.id, clientId: client.id, businessName: business.name });
     const estimatedAt = zonedToUtc(date, a.estimatedMin, tz);
     return tx.appointment.create({
       data: {

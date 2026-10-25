@@ -26,7 +26,7 @@ vi.mock("@/lib/whatsapp", () => ({ sendBookingConfirmationWhatsApp: vi.fn() }));
 vi.mock("@/lib/push", () => ({ sendPushToBusiness: vi.fn(async () => {}) }));
 vi.mock("@/lib/razorpay", () => ({ razorpay: {} }));
 vi.mock("@/lib/ratelimit", () => ({
-  rateLimit: vi.fn(async () => ({ ok: true, retryAfter: 0 })),
+  rateLimit: Object.assign(vi.fn(async () => ({ ok: true, retryAfter: 0 })), { peek: vi.fn(async () => ({ ok: true, retryAfter: 0 })) }),
   clientIp: () => "1.1.1.1",
 }));
 

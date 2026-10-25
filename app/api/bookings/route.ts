@@ -21,7 +21,7 @@ import { bookToken } from "@/lib/tokenBooking";
 import { missingContact } from "@/lib/patients";
 import { tryNormalizeEmail } from "@/lib/email-normalize";
 import { normalizePhone } from "@/lib/phone";
-import { assertNoDuplicatePatient, DuplicatePatientError } from "@/lib/patientsDb";
+import { assertContactUnderDailyCap, assertNoDuplicatePatient, ContactLimitError, DuplicatePatientError } from "@/lib/patientsDb";
 import { isFeatureEnabled } from "@/lib/flags";
 import { PENDING_PAYMENT, holdExpiry } from "@/lib/holds";
 import { chargeFor, getPayConfig, startCheckout } from "@/lib/onlinePayment";
@@ -68,25 +68,30 @@ async function POST_handler(req: NextRequest) {
   });
   if (!business) return NextResponse.json({ error: "Business not found." }, { status: 404 });
 
-  // The "already has an appointment" answer tells a caller that someone has booked, so it is the one
-  // thing limited per contact: a handful of such answers per hour. Ordinary bookings never touch
-  // these buckets, so a stranger cannot use up someone's allowance and lock them out of booking.
-  // Keyed on the same normalised email and phone the client lookup matches on.
+  // The "already has an appointment" answer tells a caller that someone has booked, so a contact that
+  // has received a handful of those answers is put on a cooldown: until it ends, EVERY booking for
+  // that contact gets the same 429, whatever the booking state, so the cooldown itself reveals
+  // nothing. Only duplicate answers count towards it (below); ordinary bookings never do, so a
+  // stranger cannot lock someone out by simply sending requests. Keyed on the normalised email and
+  // phone the client lookup matches on.
   const contactKeys = [
     `booking-dup:${business.id}:email:${tryNormalizeEmail(clientEmail) ?? clientEmail.trim().toLowerCase()}`,
     ...(normalizePhone(clientPhone, business.timezone) ? [`booking-dup:${business.id}:phone:${normalizePhone(clientPhone, business.timezone)}`] : []),
   ];
+  const DUP_ANSWERS_PER_HOUR = 6;
+  const cooldownResponse = (retryAfter: number) =>
+    NextResponse.json({ error: "Too many attempts for this contact. Please try again later." }, { status: 429, headers: { "Retry-After": String(retryAfter) } });
+  for (const key of contactKeys) {
+    const open = await rateLimit.peek(key, DUP_ANSWERS_PER_HOUR, 3_600_000);
+    if (!open.ok) return cooldownResponse(open.retryAfter);
+  }
   async function duplicateResponse(err: DuplicatePatientError): Promise<NextResponse> {
+    let retryAfter = 0;
     for (const key of contactKeys) {
-      const l = await rateLimit(key, 6, 3_600_000);
-      if (!l.ok) {
-        return NextResponse.json(
-          { error: "Too many attempts for this contact. Please try again later." },
-          { status: 429, headers: { "Retry-After": String(l.retryAfter) } },
-        );
-      }
+      const l = await rateLimit(key, DUP_ANSWERS_PER_HOUR, 3_600_000);
+      if (!l.ok) retryAfter = Math.max(retryAfter, l.retryAfter);
     }
-    return NextResponse.json({ error: err.message, code: err.code }, { status: 409 });
+    return retryAfter > 0 ? cooldownResponse(retryAfter) : NextResponse.json({ error: err.message, code: err.code }, { status: 409 });
   }
 
   // India needs email and phone; elsewhere only email.
@@ -157,6 +162,7 @@ async function POST_handler(req: NextRequest) {
       });
     } catch (err) {
       if (err instanceof DuplicatePatientError) return await duplicateResponse(err);
+      if (err instanceof ContactLimitError) return NextResponse.json({ error: err.message, code: err.code }, { status: 429 });
       if (err instanceof LimitReachedError) return await limitResponse();
       throw err;
     }
@@ -232,6 +238,7 @@ async function POST_handler(req: NextRequest) {
               // Same person twice on a day is refused. Under a per-patient lock, so two parallel
               // requests (even for different staff) cannot both pass.
               await assertNoDuplicatePatient(tx, { businessId: business!.id, clientId, patientName, date, tz });
+              await assertContactUnderDailyCap(tx, { businessId: business!.id, clientId, businessName: business!.name });
               const r = await loadAvailability(tx, { ...query, staffId: cand });
               return r.ok && (r.available.get(time)?.resourceIds.includes(cand) ?? false);
             },
@@ -342,6 +349,7 @@ async function POST_handler(req: NextRequest) {
       appointment = await createAppointment(client.id, "unpaid", venueMode, hold);
     } catch (err) {
       if (err instanceof DuplicatePatientError) return await duplicateResponse(err);
+      if (err instanceof ContactLimitError) return NextResponse.json({ error: err.message, code: err.code }, { status: 429 });
       if (err instanceof SlotConflictError) return conflictResponse();
       if (err instanceof LimitReachedError) return await limitResponse();
       throw err;
@@ -368,6 +376,7 @@ async function POST_handler(req: NextRequest) {
       appointment = await createAppointment(client.id, "unpaid", "postpaid");
     } catch (err) {
       if (err instanceof DuplicatePatientError) return await duplicateResponse(err);
+      if (err instanceof ContactLimitError) return NextResponse.json({ error: err.message, code: err.code }, { status: 429 });
       if (err instanceof SlotConflictError) return conflictResponse();
       if (err instanceof LimitReachedError) return await limitResponse();
       throw err;
@@ -429,6 +438,7 @@ async function POST_handler(req: NextRequest) {
     appointment = await createAppointment(client.id, "unpaid", "prepaid");
   } catch (err) {
     if (err instanceof DuplicatePatientError) return await duplicateResponse(err);
+      if (err instanceof ContactLimitError) return NextResponse.json({ error: err.message, code: err.code }, { status: 429 });
       if (err instanceof SlotConflictError) return conflictResponse();
     if (err instanceof LimitReachedError) return await limitResponse();
     throw err;

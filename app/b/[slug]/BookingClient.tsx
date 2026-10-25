@@ -74,6 +74,8 @@ export function BookingClient({ business }: { business: Business }) {
   const [form, setForm] = useState({ name: "", email: "", phone: "", notes: "" });
   // Booking for someone else: the booker's email/phone stay, the patient name identifies who it is for.
   const [forSomeone, setForSomeone] = useState(false);
+  // Set when the same person already has an appointment that day: we ask "are you booking for someone else?".
+  const [duplicate, setDuplicate] = useState<{ message: string; kept: boolean } | null>(null);
   const [patientName, setPatientName] = useState("");
   const againMode = parseAgain(searchParams?.get("again"));
   useEffect(() => {
@@ -263,9 +265,9 @@ export function BookingClient({ business }: { business: Business }) {
       });
       const data = await res.json();
       if (!res.ok) {
+        // Same person already booked that day: ask whether this is for someone else (see the prompt below).
+        if (data.code === "DUPLICATE_PATIENT") { setDuplicate({ message: data.error, kept: false }); return; }
         setError(data.error ?? "Something went wrong.");
-        // Same person already booked that day: send them back to enter the other person's name.
-        if (data.code === "DUPLICATE_PATIENT") { setForSomeone(true); setStep("details"); }
         return;
       }
       if (data.checkout) { await launchCheckout(data.checkout); return; }
@@ -617,9 +619,10 @@ export function BookingClient({ business }: { business: Business }) {
                   <span>I&apos;m booking this {appt1} for someone else<span className="block text-xs text-[#6b6b80]">Confirmations come to you. Each person is a separate {appt1} and is paid for separately.</span></span>
                 </label>
                 {forSomeone && (
-                  <div>
+                  <div className="space-y-2">
+                    <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">This is a separate {appt1} for another person, so it is paid for separately, even if you are signed in.</p>
                     <label htmlFor="booking-patient-name" className="text-sm font-medium text-[#0f0f1a] block mb-1.5">Their full name *</label>
-                    <input id="booking-patient-name" value={patientName} maxLength={120} onChange={e => setPatientName(e.target.value)} placeholder="Who is this for?"
+                    <input id="booking-patient-name" autoFocus value={patientName} maxLength={120} onChange={e => setPatientName(e.target.value)} placeholder="Who is this for?"
                       className="w-full rounded-xl border border-[#e8e6e0] px-4 py-3 text-sm bg-white focus:outline-none focus:ring-2 focus:border-accent/40" />
                   </div>
                 )}
@@ -702,6 +705,31 @@ export function BookingClient({ business }: { business: Business }) {
               📧 A confirmation will be sent to <strong>{form.email}</strong> along with a reminder 24h before.
             </div>
             {error && <p className="text-sm text-red-600 bg-red-50 rounded-xl px-4 py-3 mb-4">{error}</p>}
+            {duplicate && (
+              <div role="alert" className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-4 mb-4 text-sm text-amber-900 space-y-3">
+                {duplicate.kept ? (
+                  <>
+                    <p className="font-semibold">Your existing appointment is unchanged.</p>
+                    <p>There is nothing more to do. You do not need to book again.</p>
+                    <button type="button" onClick={() => { setDuplicate(null); setStep("service"); setSelectedServices([]); resetAfterServices(); }}
+                      className="min-h-11 rounded-xl border border-amber-400 bg-white px-4 font-medium">Start a new booking</button>
+                  </>
+                ) : (
+                  <>
+                    <p className="font-semibold">Your appointment is already scheduled.</p>
+                    <p>{duplicate.message.replace(/ To book for someone else, enter their name\.$/, "")}</p>
+                    <p className="font-medium">Are you booking for someone else?</p>
+                    <div className="grid sm:grid-cols-2 gap-2">
+                      <button type="button" onClick={() => { setDuplicate(null); setForSomeone(true); setPatientName(""); setStep("details"); }}
+                        className="min-h-11 rounded-xl bg-[#0f0f1a] px-4 text-white font-semibold">Yes, for someone else</button>
+                      <button type="button" onClick={() => setDuplicate({ ...duplicate, kept: true })}
+                        className="min-h-11 rounded-xl border border-amber-400 bg-white px-4 font-medium">No, keep my appointment</button>
+                    </div>
+                    <p className="text-xs">If yes, you will enter their name and pay for their {appt1} separately.</p>
+                  </>
+                )}
+              </div>
+            )}
           </div>
         )}
 
@@ -714,7 +742,7 @@ export function BookingClient({ business }: { business: Business }) {
           ) : <div />}
 
           {step === "confirm" ? (
-            <button onClick={handleConfirm} disabled={loading || !form.name || !form.email || !isValidEmail(form.email) || (phoneNeeded && !form.phone.trim()) || (forSomeone && !patientName.trim())}
+            <button onClick={handleConfirm} disabled={!!duplicate || loading || !form.name || !form.email || !isValidEmail(form.email) || (phoneNeeded && !form.phone.trim()) || (forSomeone && !patientName.trim())}
               className="flex items-center gap-2 text-white font-semibold px-6 py-3 rounded-xl text-sm transition-colors disabled:opacity-60 disabled:cursor-not-allowed hover:opacity-90"
               style={{ background: color, color: fg }}>
               {loading ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}

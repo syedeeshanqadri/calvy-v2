@@ -29,7 +29,7 @@ vi.mock("@/lib/whatsapp", () => ({ sendBookingConfirmationWhatsApp: vi.fn() }));
 vi.mock("@/lib/push", () => ({ sendPushToBusiness: push }));
 vi.mock("@/lib/razorpay", () => ({ razorpay: {} }));
 vi.mock("@/lib/ratelimit", () => ({
-  rateLimit: vi.fn(async () => ({ ok: true, retryAfter: 0 })),
+  rateLimit: Object.assign(vi.fn(async () => ({ ok: true, retryAfter: 0 })), { peek: vi.fn(async () => ({ ok: true, retryAfter: 0 })) }),
   clientIp: () => "1.1.1.1",
 }));
 
@@ -188,7 +188,9 @@ describe("POST /api/bookings: plan limits (S2-05)", () => {
 
   it("an active paid plan keeps its own (unlimited) limits", async () => {
     planCfg({ maxMonthlyAppointments: 5 });
-    db.appointment.count.mockResolvedValue(500);
+    // 500 this month (the monthly counter), none in the last 24 hours (the per-contact daily cap)
+    db.appointment.count.mockImplementation(async (args: { where?: { createdAt?: { gte: Date } } }) =>
+      (args?.where?.createdAt?.gte ?? new Date(0)) < new Date("2026-10-13T00:00:00Z") ? 500 : 0);
     expect((await POST(req(valid))).status).toBe(200);
   });
 });
@@ -238,6 +240,7 @@ describe("POST /api/bookings: contact details and booking for someone else", () 
 
   const dupRows = async (args: { where?: { clientId?: string } }) =>
     args?.where?.clientId ? [{ patientName: "Jo", status: "confirmed", holdExpiresAt: null, client: { name: "Jo" } }] : [];
+  const okLimit = async () => ({ ok: true, retryAfter: 0 });
 
   it("ordinary bookings never use up a contact's allowance (a stranger cannot lock someone out)", async () => {
     vi.mocked(rateLimit).mockClear();
@@ -256,13 +259,39 @@ describe("POST /api/bookings: contact details and booking for someone else", () 
     expect(keys.some((k) => k.startsWith("booking-dup:biz:phone:+91"))).toBe(true);
   });
 
-  it("after a few such answers the contact gets 429 instead, so the question cannot be asked in bulk", async () => {
+  it("a contact in cooldown gets the same 429 for EVERY booking, duplicate or not (no oracle)", async () => {
+    vi.mocked(rateLimit.peek).mockResolvedValue({ ok: false, retryAfter: 120 });
+    // no duplicate exists: still 429
+    const clean = await POST(req(valid));
+    // a duplicate exists: also 429, same body
     db.appointment.findMany.mockImplementation(dupRows);
-    vi.mocked(rateLimit).mockImplementation(async (key: string) => (key.startsWith("booking-dup:") ? { ok: false, retryAfter: 120 } : { ok: true, retryAfter: 0 }));
+    const dup = await POST(req(valid));
+    expect(clean.status).toBe(429);
+    expect(dup.status).toBe(429);
+    expect(await clean.json()).toEqual(await dup.json());
+    expect(clean.headers.get("Retry-After")).toBe("120");
+    expect(db.appointment.create).not.toHaveBeenCalled();
+    vi.mocked(rateLimit.peek).mockImplementation(okLimit);
+  });
+
+  it("the sixth duplicate answer in an hour starts the cooldown", async () => {
+    db.appointment.findMany.mockImplementation(dupRows);
+    vi.mocked(rateLimit).mockImplementationOnce(okLimit).mockImplementationOnce(okLimit).mockResolvedValueOnce({ ok: false, retryAfter: 300 });
     const res = await POST(req(valid));
     expect(res.status).toBe(429);
-    expect(res.headers.get("Retry-After")).toBe("120");
+    expect(res.headers.get("Retry-After")).toBe("300");
+  });
+
+  it("one contact cannot create more than the daily cap of bookings (flood of emails)", async () => {
+    db.appointment.count.mockResolvedValue(30);
+    const res = await POST(req(valid));
+    expect(res.status).toBe(429);
+    expect((await res.json()).code).toBe("CONTACT_LIMIT");
     expect(db.appointment.create).not.toHaveBeenCalled();
-    vi.mocked(rateLimit).mockImplementation(async () => ({ ok: true, retryAfter: 0 }));
+  });
+
+  it("just under the daily cap still books", async () => {
+    db.appointment.count.mockResolvedValue(29);
+    expect((await POST(req(valid))).status).toBe(200);
   });
 });

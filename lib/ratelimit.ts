@@ -39,6 +39,15 @@ const INCR_SCRIPT =
   "if c == 1 then redis.call('PEXPIRE', KEYS[1], ARGV[1]) end " +
   "return c";
 
+// Read a counter without changing it (used by peek). Redis EVAL is server-side Lua, not JS eval;
+// the script is a constant and the key only ever reaches it as KEYS[1].
+const PEEK_SCRIPT = "return redis.call('GET', KEYS[1]) or 0";
+
+/** A rate limiter: call it to count a hit; `peek` checks the same bucket without counting. */
+export type RateLimiter = ((rawKey: string, limit: number, windowMs: number) => Promise<RateLimitResult>) & {
+  peek: (rawKey: string, limit: number, windowMs: number) => Promise<RateLimitResult>;
+};
+
 /**
  * Keys longer than 200 chars (e.g. an attacker-supplied email) have their
  * variable part (everything after a short "prefix:") replaced by its SHA-256
@@ -160,7 +169,50 @@ export function createRateLimiter(opts: RateLimiterOptions = {}) {
     }
   }
 
-  return async function rateLimit(
+  /** In-memory peek: is this bucket already used up? Does not count a hit. */
+  function memoryPeek(key: string, limit: number): RateLimitResult {
+    const b = buckets.get(key);
+    const t = now();
+    if (!b || t > b.resetAt || b.count < limit) return { ok: true, retryAfter: 0 };
+    return { ok: false, retryAfter: Math.max(1, Math.ceil((b.resetAt - t) / 1000)) };
+  }
+
+  /**
+   * Check whether a bucket is used up without counting a hit, so a request can be refused (or
+   * allowed) up front without the check itself consuming the allowance. Falls back to the
+   * in-memory view when Redis is not configured, paused or failing.
+   */
+  async function peek(rawKey: string, limit: number, windowMs: number): Promise<RateLimitResult> {
+    if (!Number.isFinite(limit) || !Number.isFinite(windowMs)) return { ok: true, retryAfter: 0 };
+    const key = normalizeKey(String(rawKey));
+    let redis: RedisLike | undefined;
+    try {
+      redis = getRedis();
+    } catch {
+      redis = undefined;
+    }
+    if (!redis || windowMs <= 0 || (openUntil !== 0 && now() < openUntil)) return memoryPeek(key, limit);
+    const t = now();
+    const windowStart = Math.floor(t / windowMs) * windowMs;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      const reply = await Promise.race([
+        redis.eval(PEEK_SCRIPT, [`rl:${key}:${windowStart}`], []),
+        new Promise<never>((_, reject) => {
+          timer = setTimeout(() => reject(new Error("redis timeout")), timeoutMs);
+        }),
+      ]);
+      return parseCount(reply) >= limit
+        ? { ok: false, retryAfter: Math.max(1, Math.ceil((windowStart + windowMs - t) / 1000)) }
+        : { ok: true, retryAfter: 0 };
+    } catch {
+      return memoryPeek(key, limit);
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
+  }
+
+  const limiter = async function rateLimit(
     rawKey: string,
     limit: number,
     windowMs: number,
@@ -198,6 +250,7 @@ export function createRateLimiter(opts: RateLimiterOptions = {}) {
       return memoryLimit(key, limit, windowMs);
     }
   };
+  return Object.assign(limiter, { peek }) as RateLimiter;
 }
 
 let cachedRedis: Redis | undefined;
