@@ -34,6 +34,7 @@ vi.mock("@/lib/ratelimit", () => ({
 }));
 
 import { POST } from "@/app/api/bookings/route";
+import { rateLimit } from "@/lib/ratelimit";
 
 const req = (body: unknown) =>
   new NextRequest("http://localhost/api/bookings", {
@@ -233,5 +234,14 @@ describe("POST /api/bookings: contact details and booking for someone else", () 
       args?.where?.clientId ? [{ patientName: "Jo", status: "confirmed", holdExpiresAt: null, client: { name: "Jo" } }] : []);
     const res = await POST(req({ ...valid, patientName: "Meena Kapoor" }));
     expect(res.status).toBe(200);
+  });
+
+  it("one email gets a limited number of attempts per hour, so the duplicate answer cannot be probed", async () => {
+    vi.mocked(rateLimit).mockResolvedValueOnce({ ok: true, retryAfter: 0 }).mockResolvedValueOnce({ ok: false, retryAfter: 120 });
+    const res = await POST(req(valid));
+    expect(res.status).toBe(429);
+    expect(res.headers.get("Retry-After")).toBe("120");
+    expect(db.appointment.create).not.toHaveBeenCalled();
+    expect(vi.mocked(rateLimit).mock.calls[1][0]).toBe("booking-contact:biz:jo@x.com");
   });
 });

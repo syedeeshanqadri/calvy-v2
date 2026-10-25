@@ -66,6 +66,16 @@ async function POST_handler(req: NextRequest) {
   });
   if (!business) return NextResponse.json({ error: "Business not found." }, { status: 404 });
 
+  // Per-contact limit: the "already has an appointment" answer must not be a cheap way to probe
+  // whether a given person has booked, so one email gets a handful of attempts per hour.
+  const contactLimit = await rateLimit(`booking-contact:${business.id}:${clientEmail.toLowerCase()}`, 12, 3_600_000);
+  if (!contactLimit.ok) {
+    return NextResponse.json(
+      { error: "Too many booking attempts for this email. Please try again later." },
+      { status: 429, headers: { "Retry-After": String(contactLimit.retryAfter) } },
+    );
+  }
+
   // India needs email and phone; elsewhere only email.
   const missing = missingContact(business.currency, { email: clientEmail, phone: clientPhone });
   if (missing) return NextResponse.json({ error: missing }, { status: 400 });
@@ -206,6 +216,9 @@ async function POST_handler(req: NextRequest) {
               // Monthly cap re-checked under its own business lock (after the staff
               // lock) so parallel bookings for different staff cannot overshoot it.
               await assertMonthlyHeadroom(tx, business!.id, limits.maxMonthlyAppointments, monthStart);
+              // Same person twice on a day is refused. Under a per-patient lock, so two parallel
+              // requests (even for different staff) cannot both pass.
+              await assertNoDuplicatePatient(tx, { businessId: business!.id, clientId, patientName, date, tz });
               const r = await loadAvailability(tx, { ...query, staffId: cand });
               return r.ok && (r.available.get(time)?.resourceIds.includes(cand) ?? false);
             },
@@ -306,27 +319,16 @@ async function POST_handler(req: NextRequest) {
 
   let client: Awaited<ReturnType<typeof getOrCreateClient>>;
 
-  // The same person cannot hold two active appointments on a day; another person's name is fine.
-  async function duplicateGuard(clientId: string): Promise<NextResponse | null> {
-    try {
-      await assertNoDuplicatePatient(prisma, { businessId: business!.id, clientId, patientName, date, tz });
-      return null;
-    } catch (err) {
-      if (err instanceof DuplicatePatientError) return NextResponse.json({ error: err.message, code: err.code }, { status: 409 });
-      throw err;
-    }
-  }
-
   // Online payments on: hold the slot while the customer pays, or confirm when nothing is due.
   if (onlinePayments) {
     client = await getOrCreateClient();
-    { const dup = await duplicateGuard(client.id); if (dup) return dup; }
     const hold = charge.chargeMinor > 0 ? holdExpiry() : null;
     const venueMode = business.onlinePayMode === "FULL_ONLINE" && hold ? "prepaid" : "postpaid";
     let appointment;
     try {
       appointment = await createAppointment(client.id, "unpaid", venueMode, hold);
     } catch (err) {
+      if (err instanceof DuplicatePatientError) return NextResponse.json({ error: err.message, code: err.code }, { status: 409 });
       if (err instanceof SlotConflictError) return conflictResponse();
       if (err instanceof LimitReachedError) return await limitResponse();
       throw err;
@@ -348,11 +350,11 @@ async function POST_handler(req: NextRequest) {
   // Postpaid path — create appointments directly, client pays at visit
   if (paymentMode === "postpaid") {
     client = await getOrCreateClient();
-    { const dup = await duplicateGuard(client.id); if (dup) return dup; }
     let appointment;
     try {
       appointment = await createAppointment(client.id, "unpaid", "postpaid");
     } catch (err) {
+      if (err instanceof DuplicatePatientError) return NextResponse.json({ error: err.message, code: err.code }, { status: 409 });
       if (err instanceof SlotConflictError) return conflictResponse();
       if (err instanceof LimitReachedError) return await limitResponse();
       throw err;
@@ -409,12 +411,12 @@ async function POST_handler(req: NextRequest) {
 
   // Dev/demo mode — create appointments without payment
   client = await getOrCreateClient();
-    { const dup = await duplicateGuard(client.id); if (dup) return dup; }
   let appointment;
   try {
     appointment = await createAppointment(client.id, "unpaid", "prepaid");
   } catch (err) {
-    if (err instanceof SlotConflictError) return conflictResponse();
+    if (err instanceof DuplicatePatientError) return NextResponse.json({ error: err.message, code: err.code }, { status: 409 });
+      if (err instanceof SlotConflictError) return conflictResponse();
     if (err instanceof LimitReachedError) return await limitResponse();
     throw err;
   }
