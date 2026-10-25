@@ -21,7 +21,8 @@ export async function creditClosedBooking(
   // Same lock as refundPayment: either the refund wins (then nothing is left to credit) or the
   // credit wins (then the refund is refused). Never both.
   await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${paymentLockKey(found.id)}, 0))`;
-  const payment = await tx.payment.findUnique({ where: { id: found.id } });
+  // Re-read under the lock: a refund that committed while we waited has changed the status.
+  const payment = await tx.payment.findFirst({ where: { id: found.id, status: "PAID", refundedMinor: 0 } });
   if (!payment) return null;
   const amountMinor = creditForPayment(payment);
   if (amountMinor <= 0) return null;
