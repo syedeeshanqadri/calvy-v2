@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { applyCredit, creditBalance, creditForPayment, creditLabel } from "@/lib/credit";
+import { applyCredit, creditBalance, creditForPayment, creditLabel, paymentLockKey, refundBlockedByCredit } from "@/lib/credit";
 
 describe("what a missed or cancelled booking turns into", () => {
   it("Rs 10 booking fee only: the Rs 10", () => {
@@ -40,5 +40,22 @@ describe("using credit on a new booking", () => {
   });
   it("labels amounts for emails", () => {
     expect(creditLabel(1000, "INR")).toMatch(/10/);
+  });
+});
+
+describe("a payment is credited or refunded, never both", () => {
+  it("is not refundable once it became wallet credit", () => {
+    expect(refundBlockedByCredit([{ kind: "MISSED", amountMinor: 1000 }])).toBe(true);
+    expect(refundBlockedByCredit([{ kind: "CANCELLED", amountMinor: 51000 }])).toBe(true);
+  });
+  it("is refundable when no credit was issued from it", () => {
+    expect(refundBlockedByCredit([])).toBe(false);
+    expect(refundBlockedByCredit([{ kind: "USED", amountMinor: -1000 }])).toBe(false);
+  });
+  it("is refundable again once the credit has been removed", () => {
+    expect(refundBlockedByCredit([{ kind: "MISSED", amountMinor: 1000 }, { kind: "REFUND_REMOVED", amountMinor: -1000 }])).toBe(false);
+  });
+  it("credit and refund of one payment share a lock key", () => {
+    expect(paymentLockKey("pay_1")).toBe("pay:pay_1");
   });
 });

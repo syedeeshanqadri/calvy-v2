@@ -6,6 +6,7 @@ import { isFeatureEnabled } from "@/lib/flags";
 import { getEffectiveLimits } from "@/lib/getFeatures";
 import { computeCharge, countryFromCurrency, toMinor, type Charge, type FeePayer, type OnlinePayMode } from "@/lib/fees";
 import { EXPIRED, PENDING_PAYMENT, onPaid } from "@/lib/holds";
+import { paymentLockKey, refundBlockedByCredit } from "@/lib/credit";
 import { BOOKING_TX_OPTIONS } from "@/lib/booking";
 import { getPaymentProvider, type PaymentProvider } from "@/lib/payments";
 import { applyPaymentEvent } from "@/lib/payments/events";
@@ -168,7 +169,15 @@ export async function sendConfirmationFor(appointmentId: string, opts: { paid?: 
  */
 export async function refundPayment(paymentId: string, amountMinor: number, reason: string, provider: PaymentProvider | null = getPaymentProvider()): Promise<boolean> {
   if (!provider || amountMinor <= 0) return false;
-  const claimed = await prisma.payment.updateMany({ where: { id: paymentId, status: "PAID" }, data: { status: "REFUNDED", refundedMinor: amountMinor } });
+  // Claim and credit-check under the payment lock: a payment that already became wallet credit is
+  // never refunded as well (the customer would be paid twice).
+  const claimed = await prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${paymentLockKey(paymentId)}, 0))`;
+    const credits = await tx.customerCredit.findMany({ where: { paymentId }, select: { kind: true, amountMinor: true } });
+    if (refundBlockedByCredit(credits)) return { count: 0, blocked: true };
+    return { ...(await tx.payment.updateMany({ where: { id: paymentId, status: "PAID" }, data: { status: "REFUNDED", refundedMinor: amountMinor } })), blocked: false };
+  }, BOOKING_TX_OPTIONS);
+  if (claimed.blocked) logger.warn("[Payments] refund refused: this payment already became wallet credit", { paymentId });
   if (claimed.count === 0) return false;
   const payment = await prisma.payment.findUniqueOrThrow({ where: { id: paymentId } });
   try {

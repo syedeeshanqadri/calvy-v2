@@ -30,3 +30,17 @@ export function applyCredit(chargeMinor: number, balanceMinor: number): { usedMi
   const usedMinor = Math.max(0, Math.min(chargeMinor, balanceMinor));
   return { usedMinor, payMinor: chargeMinor - usedMinor };
 }
+
+/** Advisory-lock key serialising everything that moves one payment's money (credit it, refund it). */
+export const paymentLockKey = (paymentId: string) => `pay:${paymentId}`;
+
+/**
+ * A payment whose money already became wallet credit must not also be refunded: the customer would
+ * be paid twice. Credit entries that came from a payment block refunding it; to refund, the clinic
+ * first removes the credit (a REFUND_REMOVED entry), which comes with the refund screen.
+ */
+export function refundBlockedByCredit(entries: { kind: CreditKind; amountMinor: number }[]): boolean {
+  const issued = entries.filter((e) => e.kind === "MISSED" || e.kind === "CANCELLED").reduce((n, e) => n + e.amountMinor, 0);
+  const removed = entries.filter((e) => e.kind === "REFUND_REMOVED").reduce((n, e) => n + -e.amountMinor, 0);
+  return issued - removed > 0;
+}

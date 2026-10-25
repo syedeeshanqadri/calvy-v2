@@ -1,6 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { creditBalance, creditForPayment, type CreditKind } from "@/lib/credit";
+import { creditBalance, creditForPayment, paymentLockKey, type CreditKind } from "@/lib/credit";
 
 type Db = Prisma.TransactionClient | typeof prisma;
 
@@ -16,7 +16,12 @@ export async function creditClosedBooking(
   const existing = await tx.customerCredit.findUnique({ where: { appointmentId_kind: { appointmentId: p.appointmentId, kind: p.kind } } });
   if (existing) return { amountMinor: existing.amountMinor, currency: existing.currency };
 
-  const payment = await tx.payment.findFirst({ where: { appointmentId: p.appointmentId, status: "PAID" }, orderBy: { createdAt: "desc" } });
+  const found = await tx.payment.findFirst({ where: { appointmentId: p.appointmentId, status: "PAID" }, orderBy: { createdAt: "desc" }, select: { id: true } });
+  if (!found) return null;
+  // Same lock as refundPayment: either the refund wins (then nothing is left to credit) or the
+  // credit wins (then the refund is refused). Never both.
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${paymentLockKey(found.id)}, 0))`;
+  const payment = await tx.payment.findUnique({ where: { id: found.id } });
   if (!payment) return null;
   const amountMinor = creditForPayment(payment);
   if (amountMinor <= 0) return null;
