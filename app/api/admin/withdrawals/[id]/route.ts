@@ -10,7 +10,7 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
   const session = await getServerSession(authOptions);
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const isAdmin = session.user.role === "admin" || session.user.email === process.env.SUPER_ADMIN_EMAIL;
+  const isAdmin = session.user.kind !== "customer" && (session.user.role === "admin" || session.user.email === process.env.SUPER_ADMIN_EMAIL);
   if (!isAdmin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { status, adminNotes } = await req.json();

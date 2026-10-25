@@ -238,7 +238,7 @@ export function sendLeadAcknowledgment({ to, name, demoRequested }: { to: string
 }
 
 // Imported here (not in the header list) to keep this change append-only.
-import { PasswordResetEmail } from "@/emails/templates";
+import { PasswordResetEmail, CustomerVerifyEmail, CustomerResetEmail } from "@/emails/templates";
 import { logger } from "@/lib/logger";
 import { SUPPORT_EMAIL } from "@/lib/site";
 
@@ -248,6 +248,25 @@ export function sendPasswordResetEmail({ to, name, token, baseUrl }: { to: strin
     to, type: "password_reset",
     subject: "Reset your Calvy password",
     react: <PasswordResetEmail name={name} resetUrl={`${appUrl}/reset-password?token=${token}`} />,
+  });
+}
+
+/** Customer accounts: links go to /my, never to the owner screens. */
+export function sendCustomerVerificationEmail({ to, name, token, baseUrl }: { to: string; name: string; token: string; baseUrl?: string }) {
+  const appUrl = baseUrl ?? process.env.NEXT_PUBLIC_APP_URL ?? "https://calvy.io";
+  return dispatch({
+    to, type: "customer_verification",
+    subject: "Verify your email",
+    react: <CustomerVerifyEmail name={name} verifyUrl={`${appUrl}/my/verify-email?token=${token}`} />,
+  });
+}
+
+export function sendCustomerPasswordResetEmail({ to, name, token, baseUrl }: { to: string; name: string; token: string; baseUrl?: string }) {
+  const appUrl = baseUrl ?? process.env.NEXT_PUBLIC_APP_URL ?? "https://calvy.io";
+  return dispatch({
+    to, type: "customer_password_reset",
+    subject: "Reset your password",
+    react: <CustomerResetEmail name={name} resetUrl={`${appUrl}/my/reset-password?token=${token}`} />,
   });
 }
 

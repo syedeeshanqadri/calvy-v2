@@ -74,6 +74,22 @@ export const authOptions: NextAuthOptions = {
         }
       },
     }),
+    // Customer accounts: a separate table, so owners and customers never share credentials.
+    CredentialsProvider({
+      id: "customer",
+      name: "customer",
+      credentials: { email: { label: "Email", type: "email" }, password: { label: "Password", type: "password" } },
+      async authorize(credentials) {
+        const email = tryNormalizeEmail(credentials?.email);
+        if (!email || !credentials?.password) return null;
+        const rl = await rateLimit(`customer-login:${email}`, 10, 60_000);
+        if (!rl.ok) throw new Error("TooManyAttempts");
+        const customer = await prisma.customer.findUnique({ where: { email } });
+        if (!customer || !(await bcrypt.compare(credentials.password, customer.password))) return null;
+        if (!customer.emailVerified) throw new Error("EmailNotVerified");
+        return { id: customer.id, name: customer.name, email: customer.email, kind: "customer" } as { id: string; name: string; email: string };
+      },
+    }),
     ...oauthProviders,
   ],
   // 7-day sessions (refreshed at most once a day); the JWT lifetime matches.
@@ -83,7 +99,7 @@ export const authOptions: NextAuthOptions = {
     // For OAuth sign-ins, ensure a matching User exists (linked by verified
     // email). The business is created later in the onboarding step.
     async signIn({ user, account }) {
-      if (!account || account.provider === "credentials") return true;
+      if (!account || account.provider === "credentials" || account.provider === "customer") return true;
       if (!user.email) return false; // provider didn't share an email — can't proceed
 
       const oauthEmail = tryNormalizeEmail(user.email);
@@ -104,6 +120,14 @@ export const authOptions: NextAuthOptions = {
       return true;
     },
     async jwt({ token, user }) {
+      // Customer sessions carry no business claims and never get any.
+      if ((user as { kind?: string } | undefined)?.kind === "customer") {
+        token.kind = "customer";
+        token.customerId = user!.id;
+        token.uid = undefined; token.role = undefined; token.businessId = undefined; token.businessSlug = undefined; token.businessName = undefined;
+        return token;
+      }
+      if (token.kind === "customer") return token;
       // On sign-in, resolve our DB user by email (works for credentials + OAuth,
       // since OAuth token.sub is the provider's id, not ours).
       const rawEmail = (user?.email ?? token.email) as string | undefined;
@@ -134,6 +158,8 @@ export const authOptions: NextAuthOptions = {
     async session({ session, token }) {
       if (session.user) {
         session.user.id = (token.uid as string | undefined) ?? token.sub!;
+        session.user.kind = token.kind;
+        session.user.customerId = token.customerId;
         session.user.role = token.role as string | undefined;
         session.user.businessId = token.businessId as string | undefined;
         session.user.businessSlug = token.businessSlug as string | undefined;

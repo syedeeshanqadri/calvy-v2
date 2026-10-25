@@ -1,7 +1,7 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
-type AdminCandidate = { role?: string | null; email?: string | null } | null | undefined;
+type AdminCandidate = { role?: string | null; email?: string | null; kind?: string | null } | null | undefined;
 
 /**
  * The single admin check. An unset or empty SUPER_ADMIN_EMAIL never matches,
@@ -9,6 +9,8 @@ type AdminCandidate = { role?: string | null; email?: string | null } | null | u
  */
 export function isAdminUser(user: AdminCandidate): boolean {
   if (!user) return false;
+  // A customer account is never an admin, whatever its email says.
+  if (user.kind === "customer") return false;
   if (user.role === "admin") return true;
   const superEmail = process.env.SUPER_ADMIN_EMAIL?.trim().toLowerCase();
   const email = user.email?.trim().toLowerCase();

@@ -8,6 +8,9 @@ declare module "next-auth" {
       businessId?: string;
       businessSlug?: string;
       businessName?: string;
+      /** "customer" for customer accounts; absent for business owners. */
+      kind?: string;
+      customerId?: string;
     } & DefaultSession["user"];
   }
 }
@@ -19,5 +22,7 @@ declare module "next-auth/jwt" {
     businessId?: string;
     businessSlug?: string;
     businessName?: string;
+    kind?: string;
+    customerId?: string;
   }
 }

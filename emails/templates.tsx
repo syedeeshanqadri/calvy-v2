@@ -191,6 +191,28 @@ export function InvoiceEmail(p: InvoiceProps) {
   );
 }
 
+export function CustomerVerifyEmail({ name, verifyUrl }: { name: string; verifyUrl: string }) {
+  return (
+    <EmailLayout preview="Verify your email to see your bookings">
+      <H>Verify your email</H>
+      <P>Hi {name.split(" ")[0]}, confirm your email address to see your bookings and wallet in one place.</P>
+      <CTA href={verifyUrl} label="Verify my email" />
+      <P>This link expires in 24 hours. If you did not create an account, you can ignore this email.</P>
+    </EmailLayout>
+  );
+}
+
+export function CustomerResetEmail({ name, resetUrl }: { name: string; resetUrl: string }) {
+  return (
+    <EmailLayout preview="Reset your password">
+      <H>Reset your password</H>
+      <P>Hi {name.split(" ")[0]}, we received a request to reset the password for your bookings account.</P>
+      <CTA href={resetUrl} label="Choose a new password" />
+      <P>This link expires in 1 hour. If you did not ask for this, ignore this email.</P>
+    </EmailLayout>
+  );
+}
+
 export function EmailVerificationEmail({ name, verifyUrl }: { name: string; verifyUrl: string }) {
   return (
     <EmailLayout preview="Verify your email to start using Calvy">

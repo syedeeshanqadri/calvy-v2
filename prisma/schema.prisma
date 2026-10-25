@@ -621,3 +621,32 @@ model CustomerCredit {
   @@unique([appointmentId, kind])
   @@index([businessId, clientId])
 }
+
+/// A customer account (email + password), separate from business-owner User accounts. Bookings are
+/// linked by VERIFIED email only: nothing is shown until emailVerified is set.
+model Customer {
+  id                String          @id @default(cuid())
+  name              String
+  /// Lowercased.
+  email             String          @unique
+  password          String
+  emailVerified     DateTime?
+  passwordChangedAt DateTime?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  tokens            CustomerToken[]
+}
+
+/// Single-use emailed links for customers (purpose "verify" or "reset"); only the hash is stored.
+model CustomerToken {
+  id         String    @id @default(cuid())
+  customerId String
+  purpose    String
+  tokenHash  String    @unique
+  expiresAt  DateTime
+  createdAt  DateTime  @default(now())
+  usedAt     DateTime?
+  customer   Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([customerId, purpose])
+}
