@@ -124,6 +124,8 @@ export const authOptions: NextAuthOptions = {
       if ((user as { kind?: string } | undefined)?.kind === "customer") {
         token.kind = "customer";
         token.customerId = user!.id;
+        // Set at sign-in only (NextAuth re-issues the JWT daily, so iat cannot be used).
+        token.customerAuthAt = Date.now();
         token.uid = undefined; token.role = undefined; token.businessId = undefined; token.businessSlug = undefined; token.businessName = undefined;
         return token;
       }
@@ -160,6 +162,7 @@ export const authOptions: NextAuthOptions = {
         session.user.id = (token.uid as string | undefined) ?? token.sub!;
         session.user.kind = token.kind;
         session.user.customerId = token.customerId;
+        session.user.authAt = token.customerAuthAt;
         session.user.role = token.role as string | undefined;
         session.user.businessId = token.businessId as string | undefined;
         session.user.businessSlug = token.businessSlug as string | undefined;

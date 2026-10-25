@@ -11,6 +11,8 @@ declare module "next-auth" {
       /** "customer" for customer accounts; absent for business owners. */
       kind?: string;
       customerId?: string;
+      /** When this customer signed in (ms); a password change after it ends the session. */
+      authAt?: number;
     } & DefaultSession["user"];
   }
 }
@@ -24,5 +26,6 @@ declare module "next-auth/jwt" {
     businessName?: string;
     kind?: string;
     customerId?: string;
+    customerAuthAt?: number;
   }
 }

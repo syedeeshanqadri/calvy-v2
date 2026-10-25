@@ -29,7 +29,7 @@ import { POST as signup } from "@/app/api/customer/signup/route";
 import { POST as reset } from "@/app/api/customer/reset-password/route";
 import { PATCH as profile } from "@/app/api/customer/profile/route";
 import { overviewForCustomer } from "@/lib/customerDb";
-import { canAccessOwnerArea, customerIdOf, isCustomerToken } from "@/lib/customerAccess";
+import { canAccessOwnerArea, customerIdOf, customerSessionCurrent, isCustomerToken } from "@/lib/customerAccess";
 import { isAdminUser } from "@/lib/adminAuth";
 import { splitBookings, walletsByBusiness } from "@/lib/customerView";
 
@@ -167,8 +167,20 @@ describe("role isolation", () => {
     expect((await profile(patch({ name: "X" }))).status).toBe(401);
     expect(db.customer.update).not.toHaveBeenCalled();
   });
+  it("a password change or reset ends sessions that began before it", () => {
+    const changed = new Date("2026-10-26T10:00:00Z");
+    expect(customerSessionCurrent(changed.getTime() - 1, changed)).toBe(false);
+    expect(customerSessionCurrent(undefined, changed)).toBe(false);
+    expect(customerSessionCurrent(changed.getTime() + 1, changed)).toBe(true);
+    expect(customerSessionCurrent(undefined, null)).toBe(true);
+  });
+  it("an old session is refused by customer APIs after the password changed", async () => {
+    session.current = { user: { id: "c1", kind: "customer", customerId: "c1", authAt: 1000 } };
+    db.customer.findUnique.mockResolvedValue({ id: "c1", name: "A", email: "a@x.com", emailVerified: new Date(), passwordChangedAt: new Date(5000) });
+    expect((await profile(patch({ name: "X" }))).status).toBe(401);
+  });
   it("a customer session can change its own name", async () => {
-    session.current = { user: { id: "c1", kind: "customer", customerId: "c1" } };
+    session.current = { user: { id: "c1", kind: "customer", customerId: "c1", authAt: Date.now() } };
     db.customer.findUnique.mockResolvedValue({ id: "c1", name: "Old", email: "a@x.com", emailVerified: new Date() });
     expect((await profile(patch({ name: "New" }))).status).toBe(200);
     expect(db.customer.update).toHaveBeenCalledWith({ where: { id: "c1" }, data: { name: "New" } });
