@@ -272,6 +272,13 @@ describe("POST /api/bookings: contact details and booking for someone else", () 
     expect((await POST(req({ ...valid, patientName: "Leela Rao" }))).status).toBe(409);
   });
 
+  it("the booker themselves is never capped, so a stranger filling the cap cannot lock the contact's owner out", async () => {
+    db.business.findUnique.mockResolvedValue(business({ maxPeoplePerBooker: 2 }));
+    db.appointment.findMany.mockImplementation(people(["Meena Kapoor", "Asha Rao"]));
+    expect((await POST(req(valid))).status).toBe(200);
+    expect((await POST(req({ ...valid, patientName: "Ravi Rao" }))).status).toBe(409);
+  });
+
   it("the cap does not hide a duplicate: a person already booked gets the duplicate answer", async () => {
     db.business.findUnique.mockResolvedValue(business({ maxPeoplePerBooker: 1 }));
     db.appointment.findMany.mockImplementation(people(["Jo"]));

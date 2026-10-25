@@ -56,14 +56,21 @@ export async function assertNoDuplicatePatient(
 /**
  * Fair use: one booker contact may book for at most `max` different people per day (per session for
  * tokens). A person who already has a booking is handled by the duplicate rule, not counted again.
+ * The booker booking for themselves is exempt (see below). The refusal is answered through the same
+ * per-requester cooldown as the duplicate refusal, and shares its known tradeoff: it tells the caller
+ * that the contact already has that many people booked that day.
  * Takes the per-contact lock (the same one contactAtDailyCap uses, which is re-entrant), so parallel
  * bookings for different people cannot all slip under the cap. Call it inside the booking
  * transaction, after assertNoDuplicatePatient.
  */
 export async function assertWithinPeopleCap(
   db: Db,
-  p: { businessId: string; clientId: string; patientName: string; date: string; tz: string; tokenSessionId?: string | null; max: number },
+  p: { businessId: string; clientId: string; patientName: string; bookerName: string; date: string; tz: string; tokenSessionId?: string | null; max: number },
 ): Promise<void> {
+  // Contact details are not verified, so a stranger could fill a contact's cap with made-up names. The
+  // booker themselves is therefore never capped: the cap only limits ADDITIONAL people, and the
+  // owner of the contact can always still book their own appointment.
+  if (normalizeName(p.patientName) === normalizeName(p.bookerName)) return;
   await db.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`contact:${p.businessId}:${p.clientId}`}, 0))`;
   const rows = await db.appointment.findMany({ where: windowWhere(p), select: windowSelect });
   if (exceedsPeopleCap(p.patientName, asExisting(rows), p.max)) throw new PeopleCapError(peopleCapMessage(p.max));

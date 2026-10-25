@@ -248,7 +248,7 @@ async function POST_handler(req: NextRequest) {
               // Same person twice on a day is refused. Under a per-patient lock, so two parallel
               // requests (even for different staff) cannot both pass.
               await assertNoDuplicatePatient(tx, { businessId: business!.id, clientId, patientName, date, tz });
-              await assertWithinPeopleCap(tx, { businessId: business!.id, clientId, patientName, date, tz, max: business!.maxPeoplePerBooker });
+              await assertWithinPeopleCap(tx, { businessId: business!.id, clientId, patientName, bookerName: clientName, date, tz, max: business!.maxPeoplePerBooker });
               suppressContactMessages = await contactAtDailyCap(tx, { businessId: business!.id, clientId });
               const r = await loadAvailability(tx, { ...query, staffId: cand });
               return r.ok && (r.available.get(time)?.resourceIds.includes(cand) ?? false);

@@ -191,7 +191,7 @@ export async function bookToken(input: TokenBookingInput): Promise<NextResponse>
     // Under the session lock, so a double-click cannot take two tokens for the same person.
     // The same person may hold tokens in different sessions of a day, so both rules look at this session only.
     await assertNoDuplicatePatient(tx, { businessId: business.id, clientId: client.id, patientName: input.patientName, date, tz, tokenSessionId: session.id });
-    await assertWithinPeopleCap(tx, { businessId: business.id, clientId: client.id, patientName: input.patientName, date, tz, tokenSessionId: session.id, max: input.maxPeoplePerBooker });
+    await assertWithinPeopleCap(tx, { businessId: business.id, clientId: client.id, patientName: input.patientName, bookerName: input.client.name, date, tz, tokenSessionId: session.id, max: input.maxPeoplePerBooker });
     suppressContactMessages = await contactAtDailyCap(tx, { businessId: business.id, clientId: client.id });
     const estimatedAt = zonedToUtc(date, a.estimatedMin, tz);
     return tx.appointment.create({
