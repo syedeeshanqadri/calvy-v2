@@ -4,16 +4,18 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { findOrCreateClient } from "@/lib/clients";
-import { sendQueueMovedBack, sendQueueMovedNextDay, sendQueueNoShow, type BookingDetails } from "@/lib/email";
+import { sendQueueClosed, sendQueueMovedBack, type BookingDetails } from "@/lib/email";
+import { creditLabel } from "@/lib/credit";
+import { creditClosedBooking } from "@/lib/creditDb";
 import { getEffectiveLimits } from "@/lib/getFeatures";
 import { assertMonthlyHeadroom, startOfBusinessMonth, LimitReachedError } from "@/lib/limits";
 import { logger } from "@/lib/logger";
 import {
-  QueueActionError, computeEtas, describeOutcome, isOpen, nextWorkingDate, openQueue, placeInLine, planNext, planNotComing,
+  QueueActionError, computeEtas, describeOutcome, isOpen, openQueue, placeInLine, planNext, planNotComing,
   planNotPresent, planWalkIn, positionsFor, stateOf, type ItemUpdate, type QueueItem, type QueuePlan, type QueueState,
 } from "@/lib/queue";
 import { t } from "@/lib/terms";
-import { addDays, formatDateLabel, parseYMD, utcToZoned, weekdayOf, zonedDayRange, zonedToUtc } from "@/lib/time";
+import { formatDateLabel, parseYMD, utcToZoned, weekdayOf, zonedToUtc } from "@/lib/time";
 import { minToHhmm, sessionCapacity } from "@/lib/tokens";
 import { BOOKING_TX_OPTIONS } from "@/lib/booking";
 import { trackingUrl } from "@/lib/tracking";
@@ -78,7 +80,7 @@ async function loadRows(db: Tx | typeof prisma, businessId: string, sessionId: s
   return db.appointment.findMany({
     where: {
       businessId, tokenSessionId: sessionId, sessionDate: dateOnly(date), tokenNumber: { not: null },
-      OR: [{ status: { in: ["confirmed", "completed", "no-show"] } }, { status: "cancelled", queueState: { in: ["MOVED", "NO_SHOW", "DONE"] } }],
+      OR: [{ status: { in: ["confirmed", "completed", "no-show"] } }, { status: "cancelled", queueState: { in: ["MOVED", "NO_SHOW", "DONE", "CANCELLED"] } }],
     },
     include: rowInclude,
     orderBy: { tokenNumber: "asc" },
@@ -111,7 +113,7 @@ function toRow(a: RowWithRelations, eta: Date | undefined, place: number, tz: st
 
 /** Rows that belong on the queue screen: not held, expired or cancelled by the customer. */
 const onScreen = (a: { status: string; queueState: string | null }) =>
-  ["confirmed", "completed", "no-show"].includes(a.status) || (a.status === "cancelled" && ["MOVED", "NO_SHOW", "DONE"].includes(a.queueState ?? ""));
+  ["confirmed", "completed", "no-show"].includes(a.status) || (a.status === "cancelled" && ["MOVED", "NO_SHOW", "DONE", "CANCELLED"].includes(a.queueState ?? ""));
 
 type SessionWithStaff = Prisma.TokenSessionGetPayload<{ include: { staff: { select: { name: true } } } }>;
 
@@ -159,7 +161,7 @@ export async function loadQueueScreen(biz: QueueBusiness, date: string, sessionI
   };
 }
 
-const STATUS_FOR: Partial<Record<QueueState, string>> = { DONE: "completed", NO_SHOW: "no-show", MOVED: "cancelled" };
+const STATUS_FOR: Partial<Record<QueueState, string>> = { DONE: "completed", NO_SHOW: "no-show", MOVED: "cancelled", CANCELLED: "cancelled" };
 
 async function writePlan(tx: Tx, rows: RowWithRelations[], plan: QueuePlan, session: { startMin: number; minutesPerToken: number }, date: string, tz: string) {
   const byId = new Map(rows.map((r) => [r.id, r]));
@@ -233,50 +235,20 @@ export async function runQueueAction(
 
     const { etas } = await writePlan(tx, rows, plan, session, input.date, tz);
     const subject = plan.subjectId ? rows.find((r) => r.id === plan.subjectId) : undefined;
-    let movedTo: { date: string; tokenNumber: number } | undefined;
-    let carried: { appointmentId: string; estimatedAt: Date } | undefined;
 
-    if (plan.outcome === "carry_over" && subject) {
-      // Same session, next working day, end of that queue; the paid state travels with the booking.
-      const closures = await tx.timeOff.findMany({
-        where: {
-          businessId: biz.id, OR: [{ staffId: null }, ...(session.staffId ? [{ staffId: session.staffId }] : [])],
-          endAt: { gt: zonedDayRange(input.date, tz).start }, startAt: { lt: zonedDayRange(addDays(input.date, 61), tz).end },
-        },
-        select: { startAt: true, endAt: true },
+    // A booking closed here (missed four calls, or cancelled) turns what was paid online into wallet
+    // credit for that customer at this clinic. Nothing is refunded and nothing moves to another day.
+    let credit: { amountMinor: number; currency: string } | null = null;
+    if (subject && (plan.outcome === "no_show" || plan.outcome === "cancelled")) {
+      credit = await creditClosedBooking(tx, {
+        businessId: biz.id, clientId: subject.clientId, appointmentId: subject.id, kind: plan.outcome === "no_show" ? "MISSED" : "CANCELLED",
       });
-      const isClosed = (d: string) => {
-        const r = zonedDayRange(d, tz);
-        return closures.some((c) => c.startAt < r.end && c.endAt > r.start);
-      };
-      const target = nextWorkingDate(session.weekdays, input.date, isClosed);
-      if (!target) throw new QueueRequestError("No working day found to move this token to.", 409);
-      await lock(tx, lockKey(session.id, target));
-      const targetRows = await loadRows(tx, biz.id, session.id, target);
-      const last = await tx.appointment.aggregate({ where: { tokenSessionId: session.id, sessionDate: dateOnly(target) }, _max: { tokenNumber: true } });
-      const targetOpen = openQueue(targetRows.map(toItem)).map((i) => i.id);
-      const walk = planWalkIn(last._max.tokenNumber ?? 0, targetOpen.map((_, i) => i + 1));
-      const newTokenNumber = walk.tokenNumber;
-      const targetEtas = etasFor([...targetOpen, "new"], targetRows, session, target, tz);
-      const estimatedAt = targetEtas["new"] ?? zonedToUtc(target, session.startMin + (newTokenNumber - 1) * session.minutesPerToken, tz);
-      const created = await tx.appointment.create({
-        data: {
-          businessId: biz.id, clientId: subject.clientId, staffId: subject.staffId, serviceId: subject.serviceId,
-          date: estimatedAt, endAt: new Date(estimatedAt.getTime() + session.minutesPerToken * 60_000),
-          duration: subject.duration, price: subject.price, status: "confirmed", notes: subject.notes,
-          paymentStatus: subject.paymentStatus, paymentMode: subject.paymentMode, source: subject.source,
-          tokenSessionId: session.id, sessionDate: dateOnly(target), tokenNumber: newTokenNumber,
-          queuePosition: walk.position, estimatedAt, carriedFromId: subject.id,
-        },
-      });
-      carried = { appointmentId: created.id, estimatedAt };
-      movedTo = { date: target, tokenNumber: newTokenNumber };
     }
 
-    return { plan, subject, etas, movedTo, carried, session, rows };
+    return { plan, subject, etas, credit, session, rows };
   }, BOOKING_TX_OPTIONS);
 
-  const { plan, subject, etas, movedTo, carried, session } = done;
+  const { plan, subject, etas, credit, session } = done;
 
   // Customer emails run after the transaction; a failed email never undoes the queue action.
   if (subject?.client.email && plan.subjectId) {
@@ -296,13 +268,11 @@ export async function runQueueAction(
     if (base) {
       try {
         if (plan.outcome === "moved_back") await sendQueueMovedBack({ ...base, place: placeInLine(plan.order, plan.subjectId) });
-        else if (plan.outcome === "no_show" || plan.outcome === "closed") await sendQueueNoShow(base);
-        else if (plan.outcome === "carry_over" && movedTo && carried) {
-          await sendQueueMovedNextDay({
-            ...base, date: formatDateLabel(carried.estimatedAt, tz), time: utcToZoned(carried.estimatedAt, tz).time,
-            token: { number: movedTo.tokenNumber, estimatedTime: utcToZoned(carried.estimatedAt, tz).time, sessionName: session.name },
-            appointmentDate: carried.estimatedAt, trackUrl: trackingUrl(full!.slug, carried.appointmentId) ?? undefined,
-            ctx: { appointmentId: carried.appointmentId, businessId: biz.id },
+        else if (plan.outcome === "no_show" || plan.outcome === "cancelled") {
+          await sendQueueClosed({
+            ...base, reason: plan.outcome === "no_show" ? "missed" : "cancelled",
+            creditLabel: credit ? creditLabel(credit.amountMinor, credit.currency) : undefined,
+            loginUrl: `${(process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000").replace(/\/$/, "")}/my`,
           });
         }
       } catch (e) {
@@ -319,7 +289,8 @@ export async function runQueueAction(
       outcome: plan.outcome, token: subject?.tokenNumber ?? undefined, name: subject?.client.name,
       place: plan.subjectId ? placeInLine(plan.order, plan.subjectId) : undefined,
       called: called ? { token: called.tokenNumber ?? 0, name: called.client.name } : undefined,
-      movedTo: movedTo && carried ? { dateLabel: formatDateLabel(carried.estimatedAt, tz), token: movedTo.tokenNumber } : undefined,
+      misses: subject ? (plan.updates[subject.id]?.notPresentCount ?? subject.notPresentCount) : undefined,
+      credit: plan.outcome === "no_show" || plan.outcome === "cancelled" ? (credit ? creditLabel(credit.amountMinor, credit.currency) : null) : undefined,
       emailed: !!subject?.client.email,
     }),
   };

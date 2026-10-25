@@ -56,9 +56,11 @@ export interface TrackingView {
   etaMinutes: number | null;
   /** Estimated time of day, HH:MM in the business timezone. */
   etaTime: string | null;
-  /** Why a no-show was closed: called twice, or moved once already and could not come again. */
-  closedReason: "missed_twice" | "not_coming_again" | null;
-  /** You missed your call once and were moved back. */
+  /** Why a booking was closed: the number was called four times and nobody came. */
+  closedReason: "missed_calls" | null;
+  /** How many of your four calls you have missed. */
+  missedCalls: number;
+  /** You missed a call and were moved back. */
   movedBack: boolean;
   /** This booking is itself a carry-over from an earlier day. */
   carriedFromEarlier: boolean;
@@ -95,6 +97,7 @@ export function buildTrackingView(src: TrackingSource): TrackingView {
   else if (me.status === "expired") state = "expired";
   else if (stateOf(me) === "MOVED") state = "moved";
   else if (stateOf(me) === "NO_SHOW") state = "no_show";
+  else if (stateOf(me) === "CANCELLED") state = "cancelled";
   else if (stateOf(me) === "DONE" || me.status === "completed") state = "done";
   else if (me.status === "cancelled") state = "cancelled";
   else state = stateOf(me) === "SERVING" ? "serving" : "waiting";
@@ -113,7 +116,8 @@ export function buildTrackingView(src: TrackingSource): TrackingView {
     place,
     etaMinutes: eta ? (state === "serving" ? 0 : Math.max(0, Math.round((eta.getTime() - src.now.getTime()) / 60_000))) : null,
     etaTime: eta ? src.formatTime(eta) : null,
-    closedReason: state === "no_show" ? (me.notPresentCount >= 2 ? "missed_twice" : "not_coming_again") : null,
+    closedReason: state === "no_show" ? "missed_calls" : null,
+    missedCalls: me.notPresentCount,
     movedBack: live && state === "waiting" && me.notPresentCount > 0,
     carriedFromEarlier: me.carriedFromId !== null,
     movedTo: state === "moved" ? src.movedTo : null,

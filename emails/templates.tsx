@@ -119,33 +119,34 @@ export function QueueMovedBackEmail(p: BookingProps & { place: number }) {
       <H>You were not here when we called you</H>
       <P>Hi {p.clientName.split(" ")[0]}, your token at <strong style={{ color: brand.ink }}>{p.businessName}</strong> was called but you were not present, so we moved you back in the queue. Please stay close.</P>
       <BookingDetails p={p} />
-      <P>You are now number {p.place} in line. If you miss your turn again, this {appt(p)} will be closed.</P>
+      <P>You are now number {p.place} in line. You get four calls in all: if you are not present for the fourth, this {appt(p)} is closed and what you paid is saved in your wallet.</P>
       {p.trackUrl ? <CTA href={p.trackUrl} label="Track your place in line" /> : null}
     </EmailLayout>
   );
 }
 
-export function QueueNoShowEmail(p: BookingProps) {
+/** A token was closed at the clinic (missed four calls, or cancelled). What was paid is in their wallet. */
+export function QueueClosedEmail(p: BookingProps & { reason: "missed" | "cancelled"; creditLabel?: string; loginUrl?: string }) {
+  const missed = p.reason === "missed";
   return (
-    <EmailLayout tenant={p.tenant} preview={`Your ${appt(p)} at ${p.businessName} was closed`}>
-      <Badge text="Closed" color="#b91c1c" bg="#fdeaea" />
-      <H>Your {appt(p)} was closed</H>
-      <P>Hi {p.clientName.split(" ")[0]}, we called your token at <strong style={{ color: brand.ink }}>{p.businessName}</strong> twice and you were not present, so the {appt(p)} has been closed.</P>
+    <EmailLayout tenant={p.tenant} preview={`Your ${appt(p)} at ${p.businessName} was ${missed ? "missed" : "cancelled"}`}>
+      <Badge text={missed ? "Missed" : "Cancelled"} color="#b91c1c" bg="#fdeaea" />
+      <H>{missed ? `You missed your ${appt(p)}` : `Your ${appt(p)} was cancelled`}</H>
+      <P>
+        Hi {p.clientName.split(" ")[0]},{" "}
+        {missed
+          ? <>your number was called four times at <strong style={{ color: brand.ink }}>{p.businessName}</strong> and you were not present, so the {appt(p)} was closed.</>
+          : <>your {appt(p)} at <strong style={{ color: brand.ink }}>{p.businessName}</strong> was cancelled.</>}
+      </P>
       <BookingDetails p={p} />
-      <P>You can book again any time.</P>
-    </EmailLayout>
-  );
-}
-
-export function QueueMovedNextDayEmail(p: BookingProps) {
-  return (
-    <EmailLayout tenant={p.tenant} preview={`Your ${appt(p)} at ${p.businessName} moved to ${p.date}`}>
-      <Badge text="Moved to next day" color="#b45309" bg="#fdf2e3" />
-      <H>Your {appt(p)} moved to {p.date}</H>
-      <P>Hi {p.clientName.split(" ")[0]}, since you could not make it, we moved your token at <strong style={{ color: brand.ink }}>{p.businessName}</strong> to the next working day. This is the only time it can be moved.</P>
-      <BookingDetails p={p} />
-      {p.trackUrl ? <CTA href={p.trackUrl} label="Track your new token" /> : null}
-      <P>See you then!</P>
+      {p.creditLabel ? (
+        <P>
+          <strong style={{ color: brand.ink }}>{p.creditLabel}</strong> you paid is saved in your wallet at {p.businessName}. It does not expire, and you can use it for a new booking on any date.
+        </P>
+      ) : (
+        <P>You can book again on any date.</P>
+      )}
+      {p.loginUrl ? <CTA href={p.loginUrl} label={p.creditLabel ? "Sign in and book another date" : "Book another date"} /> : null}
     </EmailLayout>
   );
 }

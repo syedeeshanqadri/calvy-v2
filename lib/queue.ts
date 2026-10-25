@@ -1,8 +1,7 @@
 // Token queue rules (pure): Next, Not present, Not coming, walk-ins, ETAs.
 // Rules: docs/steps-3-5-design.md "Queue actions". The DB layer (lib/queueDb.ts) applies the plans.
-import { addDays, weekdayOf } from "@/lib/time";
 
-export type QueueState = "WAITING" | "SERVING" | "DONE" | "NO_SHOW" | "MOVED";
+export type QueueState = "WAITING" | "SERVING" | "DONE" | "NO_SHOW" | "MOVED" | "CANCELLED";
 
 export interface QueueItem {
   id: string;
@@ -58,7 +57,7 @@ export interface QueuePlan {
   /** Open queue after the action, head first. */
   order: string[];
   updates: Record<string, ItemUpdate>;
-  outcome: "advanced" | "moved_back" | "no_show" | "carry_over" | "closed" | "idle";
+  outcome: "advanced" | "moved_back" | "no_show" | "cancelled" | "idle";
   /** The token the action was about, when there is one. */
   subjectId?: string;
 }
@@ -84,48 +83,46 @@ export function planNext(items: QueueItem[], now: Date): QueuePlan {
   return { order: remaining.map((i) => i.id), updates, outcome: "advanced", subjectId: serving?.id };
 }
 
+/** Calls a token gets before the booking is closed as missed. */
+export const MAX_CALLS = 4;
+
 /**
- * Not present: the token being served did not show up. First time it moves back 2 places (to the end
- * with fewer than 2 behind) and the next token is called; the second time it is closed as NO_SHOW.
+ * Not present: the token being served did not show up. Misses 1 and 2 move it back 2 places, miss 3
+ * moves it to the end of the queue, miss 4 closes the booking as missed (NO_SHOW). The next token is
+ * called each time. Nothing moves to another day; a closed booking's payment becomes wallet credit.
  */
 export function planNotPresent(items: QueueItem[], id: string, now: Date): QueuePlan {
   const open = openQueue(items);
   const item = open.find((i) => i.id === id);
   if (!item || stateOf(item) !== "SERVING") throw new QueueActionError("Only the token being served can be marked not present.");
-  const count = item.notPresentCount + 1;
+  const misses = item.notPresentCount + 1;
   const updates: Record<string, ItemUpdate> = {};
 
-  if (count >= 2) {
-    updates[id] = { state: "NO_SHOW", notPresentCount: count };
+  if (misses >= MAX_CALLS) {
+    updates[id] = { state: "NO_SHOW", notPresentCount: misses };
     const order = open.filter((i) => i.id !== id).map((i) => i.id);
     promoteHead(order, updates, now);
     return { order, updates, outcome: "no_show", subjectId: id };
   }
-  updates[id] = { state: "WAITING", notPresentCount: count, servingStartedAt: null };
-  const order = moveBack(open.map((i) => i.id), id, 2);
+  updates[id] = { state: "WAITING", notPresentCount: misses, servingStartedAt: null };
+  const ids = open.map((i) => i.id);
+  // Misses 1 and 2: back two places. Miss 3: to the end, behind everyone booked so far.
+  const order = misses === MAX_CALLS - 1 ? [...ids.filter((x) => x !== id), id] : moveBack(ids, id, 2);
   // The token that moved back must not stay at the head; call whoever is now first.
   if (order[0] !== id) updates[order[0]] = { state: "SERVING", servingStartedAt: now };
   return { order, updates, outcome: "moved_back", subjectId: id };
 }
 
-/**
- * Not coming: the customer will not attend. The first time the booking carries over to the next
- * working day; a booking that is already a carry-over is closed (no further carry-over).
- */
+/** Not coming: the customer cancels. The booking closes and what they paid becomes wallet credit. */
 export function planNotComing(items: QueueItem[], id: string, now: Date): QueuePlan {
   const open = openQueue(items);
   const item = open.find((i) => i.id === id);
   if (!item) throw new QueueActionError("That token is not in the queue.");
-  const wasServing = stateOf(item) === "SERVING";
-  const closing = item.carriedFromId !== null;
-  const updates: Record<string, ItemUpdate> = { [id]: { state: closing ? "NO_SHOW" : "MOVED" } };
+  const updates: Record<string, ItemUpdate> = { [id]: { state: "CANCELLED" } };
   const order = open.filter((i) => i.id !== id).map((i) => i.id);
-  if (wasServing) promoteHead(order, updates, now);
-  return { order, updates, outcome: closing ? "closed" : "carry_over", subjectId: id };
+  if (stateOf(item) === "SERVING") promoteHead(order, updates, now);
+  return { order, updates, outcome: "cancelled", subjectId: id };
 }
-
-/** Whether a "Not coming" on this booking carries it over (true) or closes it (false). */
-export const canCarryOver = (i: Pick<QueueItem, "carriedFromId">) => i.carriedFromId === null;
 
 /** Walk-in: next token number and the last place in the queue. No fee, no capacity limit (reception decides). */
 export function planWalkIn(lastTokenNumber: number, openPositions: number[]): { tokenNumber: number; position: number } {
@@ -163,29 +160,18 @@ export function computeEtas(p: {
   return out;
 }
 
-/**
- * The next date after `afterDate` (YYYY-MM-DD) on which the session runs and the business is open.
- * Skips weekdays the session does not run and any closed day; null when none within `maxDays`.
- */
-export function nextWorkingDate(weekdays: number[], afterDate: string, isClosed: (date: string) => boolean, maxDays = 60): string | null {
-  let date = afterDate;
-  for (let i = 0; i < maxDays; i++) {
-    date = addDays(date, 1);
-    if (weekdays.includes(weekdayOf(date)) && !isClosed(date)) return date;
-  }
-  return null;
-}
-
 export interface OutcomeFacts {
   outcome: QueuePlan["outcome"];
   token?: number;
   name?: string;
+  /** This was the customer's Nth missed call (1 to 4). */
+  misses?: number;
   /** Place in line after "Not present" moved the token back (1 = next up). */
   place?: number;
   /** The token now being served after the action. */
   called?: { token: number; name: string };
-  /** Where "Not coming" carried the token. */
-  movedTo?: { dateLabel: string; token: number };
+  /** Wallet credit added, formatted (e.g. "Rs 10.00"); null when nothing had been paid online. */
+  credit?: string | null;
   /** Whether the customer has an email on file (so one was sent). */
   emailed?: boolean;
 }
@@ -195,17 +181,18 @@ export function describeOutcome(f: OutcomeFacts): string {
   const who = f.token !== undefined ? `Token ${f.token}${f.name ? ` (${f.name})` : ""}` : "This token";
   const calling = f.called ? ` Now serving token ${f.called.token} (${f.called.name}).` : "";
   const mail = (sent: string, none: string) => (f.emailed ? ` ${sent}` : ` ${none}`);
+  const wallet = f.credit ? ` ${f.credit} was saved in their wallet for a future booking.` : " Nothing was paid online, so there is no credit.";
   switch (f.outcome) {
     case "advanced":
       return `${who} is done.${calling || " No one else is waiting."}`;
-    case "moved_back":
-      return `${who} was not here when called, so it moved back to place ${f.place ?? "?"} in line.${calling}${mail("They were emailed their new place.", "No email on file, so tell them yourself.")}`;
+    case "moved_back": {
+      const where = f.misses === MAX_CALLS - 1 ? "the end of the line" : `place ${f.place ?? "?"} in line`;
+      return `${who} was not here when called (missed call ${f.misses ?? "?"} of ${MAX_CALLS}), so it moved to ${where}.${calling}${mail("They were emailed.", "No email on file, so tell them yourself.")}`;
+    }
     case "no_show":
-      return `${who} closed: they did not come after being called twice.${calling}${mail("They were emailed.", "No email on file.")}`;
-    case "carry_over":
-      return `${who} moved to ${f.movedTo?.dateLabel ?? "the next working day"} as token ${f.movedTo?.token ?? "?"}. A token can be moved only once.${calling}${mail("They were emailed the new day.", "No email on file, so tell them yourself.")}`;
-    case "closed":
-      return `${who} closed: it was already moved once and they could not come again.${calling}${mail("They were emailed.", "No email on file.")}`;
+      return `${who} closed: not present after being called ${MAX_CALLS} times.${wallet}${calling}${mail("They were emailed how to book another date.", "No email on file, so tell them yourself.")}`;
+    case "cancelled":
+      return `${who} cancelled.${wallet}${calling}${mail("They were emailed how to book another date.", "No email on file, so tell them yourself.")}`;
     default:
       return "No one is waiting.";
   }
