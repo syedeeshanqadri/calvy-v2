@@ -6,7 +6,7 @@ import { Check, Clock, Loader2, X } from "lucide-react";
 type View = "pending" | "confirmed" | "failed" | "expired" | "refunded";
 interface Booking {
   businessName: string; businessSlug: string; serviceName: string; staffName: string | null;
-  date: string; time: string; token: { number: number; sessionName: string } | null;
+  date: string; time: string; token: { number: number; sessionName: string; trackUrl: string | null } | null;
 }
 
 const POLL_MS = 3000;
@@ -76,6 +76,9 @@ function ReturnInner() {
                     <Row label="Token" value={`#${b.token.number}`} strong />
                     <Row label="Estimated time" value={b.time} />
                     <Row label="Session" value={b.token.sessionName} />
+                    {b.token.trackUrl && (
+                      <a href={b.token.trackUrl} className="block text-center bg-[#0f0f1a] text-white font-semibold rounded-xl px-4 py-3 mt-2">Track your place in line</a>
+                    )}
                   </>
                 ) : (
                   <Row label="Time" value={b.time} />

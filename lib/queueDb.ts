@@ -16,6 +16,7 @@ import { t } from "@/lib/terms";
 import { addDays, formatDateLabel, parseYMD, utcToZoned, weekdayOf, zonedDayRange, zonedToUtc } from "@/lib/time";
 import { minToHhmm, sessionCapacity } from "@/lib/tokens";
 import { BOOKING_TX_OPTIONS } from "@/lib/booking";
+import { trackingUrl } from "@/lib/tracking";
 
 type Tx = Prisma.TransactionClient;
 
@@ -279,7 +280,7 @@ export async function runQueueAction(
 
   // Customer emails run after the transaction; a failed email never undoes the queue action.
   if (subject?.client.email && plan.subjectId) {
-    const full = await prisma.business.findUnique({ where: { id: biz.id }, select: { name: true, packId: true, termsOverride: true, currency: true } });
+    const full = await prisma.business.findUnique({ where: { id: biz.id }, select: { name: true, slug: true, packId: true, termsOverride: true, currency: true } });
     const base: BookingDetails | null = full
       ? {
           to: subject.client.email, clientName: subject.client.name, businessName: full.name, serviceName: subject.service.name,
@@ -288,6 +289,7 @@ export async function runQueueAction(
           time: etas[plan.subjectId] ? utcToZoned(etas[plan.subjectId], tz).time : minToHhmm(session.startMin),
           duration: session.minutesPerToken, price: subject.price, currency: full.currency ?? undefined,
           token: { number: subject.tokenNumber ?? 0, estimatedTime: etas[plan.subjectId] ? utcToZoned(etas[plan.subjectId], tz).time : "", sessionName: session.name },
+          trackUrl: trackingUrl(full.slug, subject.id) ?? undefined,
           ctx: { appointmentId: subject.id, businessId: biz.id },
         }
       : null;
@@ -299,7 +301,8 @@ export async function runQueueAction(
           await sendQueueMovedNextDay({
             ...base, date: formatDateLabel(carried.estimatedAt, tz), time: utcToZoned(carried.estimatedAt, tz).time,
             token: { number: movedTo.tokenNumber, estimatedTime: utcToZoned(carried.estimatedAt, tz).time, sessionName: session.name },
-            appointmentDate: carried.estimatedAt, ctx: { appointmentId: carried.appointmentId, businessId: biz.id },
+            appointmentDate: carried.estimatedAt, trackUrl: trackingUrl(full!.slug, carried.appointmentId) ?? undefined,
+            ctx: { appointmentId: carried.appointmentId, businessId: biz.id },
           });
         }
       } catch (e) {

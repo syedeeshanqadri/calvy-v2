@@ -6,6 +6,7 @@ import { DEFAULT_CURRENCY } from "@/lib/currency";
 import { isFeatureEnabled } from "@/lib/flags";
 import { PENDING_PAYMENT, holdExpiry } from "@/lib/holds";
 import { BOOKING_TX_OPTIONS } from "@/lib/booking";
+import { trackingUrl } from "@/lib/tracking";
 import { chargeFor, sendConfirmationFor, startCheckout, type PayConfig } from "@/lib/onlinePayment";
 import { assertMonthlyHeadroom } from "@/lib/limits";
 import { addDays, formatDateLabel, parseYMD, utcToZoned, weekdayOf, zonedToUtc } from "@/lib/time";
@@ -120,7 +121,7 @@ const err = (status: number, error: string, code?: string) => NextResponse.json(
 
 export interface TokenBookingInput {
   business: {
-    id: string; name: string; phone: string | null; paymentMode: string; timezone: string; maxAdvanceDays: number; currency: string | null;
+    id: string; name: string; slug: string; phone: string | null; paymentMode: string; timezone: string; maxAdvanceDays: number; currency: string | null;
     packId: string; termsOverride: unknown;
   };
   services: { id: string; name: string; price: number }[];
@@ -206,7 +207,7 @@ export async function bookToken(input: TokenBookingInput): Promise<NextResponse>
   const appointment = result.value;
   const estimatedTime = minToHhmm(estimatedMin);
   const dateLabel = formatDateLabel(appointment.date, tz);
-  const token = { number, estimatedTime, sessionName: session.name, date, dateLabel, staffName };
+  const token = { number, estimatedTime, sessionName: session.name, date, dateLabel, staffName, trackUrl: trackingUrl(business.slug, appointment.id) };
 
   if (charge.chargeMinor > 0) {
     // Token number is taken now; if the payment never completes the hold lapses and the number is not reused.

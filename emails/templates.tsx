@@ -19,6 +19,8 @@ export interface BookingProps {
   tenant?: TenantBrand;
   /** Token bookings show the number and an estimated time instead of a fixed time. */
   token?: { number: number; estimatedTime: string; sessionName: string };
+  /** Signed public link to the live queue page (token bookings). */
+  trackUrl?: string;
 }
 
 const appt = (p: BookingProps) => t(p.terms ?? {}, "appointment");
@@ -57,6 +59,12 @@ export function BookingConfirmationEmail(p: BookingProps) {
       <H>You&apos;re booked! 🎉</H>
       <P>Hi {p.clientName.split(" ")[0]}, your {appt(p)} at <strong style={{ color: brand.ink }}>{p.businessName}</strong> is confirmed. Here are the details:</P>
       <BookingDetails p={p} />
+      {p.token && p.trackUrl ? (
+        <>
+          <P>Follow the queue live and see how long is left, so you only need to arrive close to your turn.</P>
+          <CTA href={p.trackUrl} label="Track your place in line" />
+        </>
+      ) : null}
       <P>We&apos;ve added this to your calendar (see the attachment). See you soon! 👋</P>
     </EmailLayout>
   );
@@ -112,6 +120,7 @@ export function QueueMovedBackEmail(p: BookingProps & { place: number }) {
       <P>Hi {p.clientName.split(" ")[0]}, your token at <strong style={{ color: brand.ink }}>{p.businessName}</strong> was called but you were not present, so we moved you back in the queue. Please stay close.</P>
       <BookingDetails p={p} />
       <P>You are now number {p.place} in line. If you miss your turn again, this {appt(p)} will be closed.</P>
+      {p.trackUrl ? <CTA href={p.trackUrl} label="Track your place in line" /> : null}
     </EmailLayout>
   );
 }
@@ -135,6 +144,7 @@ export function QueueMovedNextDayEmail(p: BookingProps) {
       <H>Your {appt(p)} moved to {p.date}</H>
       <P>Hi {p.clientName.split(" ")[0]}, since you could not make it, we moved your token at <strong style={{ color: brand.ink }}>{p.businessName}</strong> to the next working day. This is the only time it can be moved.</P>
       <BookingDetails p={p} />
+      {p.trackUrl ? <CTA href={p.trackUrl} label="Track your new token" /> : null}
       <P>See you then!</P>
     </EmailLayout>
   );

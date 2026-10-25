@@ -80,7 +80,7 @@ export function BookingClient({ business }: { business: Business }) {
   const [booked, setBooked] = useState(false);
   const [tokenDate, setTokenDate] = useState("");
   const [tokenPick, setTokenPick] = useState<TokenOption | null>(null);
-  const [tokenResult, setTokenResult] = useState<{ number: number; estimatedTime: string; sessionName: string; dateLabel: string; staffName: string | null } | null>(null);
+  const [tokenResult, setTokenResult] = useState<{ number: number; estimatedTime: string; sessionName: string; dateLabel: string; staffName: string | null; trackUrl?: string | null } | null>(null);
   const [error, setError] = useState("");
   const isValidEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
@@ -270,6 +270,9 @@ export function BookingClient({ business }: { business: Business }) {
                 <div className="flex justify-between text-sm"><span className="text-[#6b6b80]">Estimated time</span><span className="font-medium">{tokenResult.estimatedTime}</span></div>
                 <div className="flex justify-between text-sm"><span className="text-[#6b6b80]">Session</span><span className="font-medium">{tokenResult.sessionName}</span></div>
                 {tokenResult.staffName && <div className="flex justify-between text-sm"><span className="text-[#6b6b80]">{Stf1}</span><span className="font-medium">{tokenResult.staffName}</span></div>}
+                {tokenResult.trackUrl && (
+                  <a href={tokenResult.trackUrl} className="block text-center font-semibold rounded-xl px-4 py-3 mt-2" style={{ background: color, color: fg }}>Track your place in line</a>
+                )}
               </>
             ) : (
               <>
