@@ -13,7 +13,7 @@ export default async function AdminWithdrawalsPage() {
   const session = await getServerSession(authOptions);
   if (!session?.user) redirect("/login");
 
-  const isAdmin = session.user.role === "admin" || session.user.email === process.env.SUPER_ADMIN_EMAIL;
+  const isAdmin = session.user.kind !== "customer" && (session.user.role === "admin" || session.user.email === process.env.SUPER_ADMIN_EMAIL);
   if (!isAdmin) redirect("/dashboard");
 
   const withdrawals = await prisma.withdrawalRequest.findMany({

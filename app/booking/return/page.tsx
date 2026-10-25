@@ -3,7 +3,8 @@ import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Check, Clock, Loader2, X } from "lucide-react";
-import { confirmMyBooking, type MyBooking } from "@/lib/bookAgain";
+import { confirmMyBooking, loadBooker, type MyBooking } from "@/lib/bookAgain";
+import { CreateAccountOffer } from "@/components/booking/CreateAccountOffer";
 import { AnotherBooking } from "@/components/booking/AnotherBooking";
 
 type View = "pending" | "confirmed" | "failed" | "expired" | "refunded";
@@ -22,6 +23,7 @@ function ReturnInner() {
   const [polls, setPolls] = useState(0);
   // What this browser kept about the booking (who it is for, what was booked), once the payment is confirmed.
   const [mine, setMine] = useState<MyBooking | null>(null);
+  const [bookerEmail, setBookerEmail] = useState("");
 
   useEffect(() => {
     if (!orderId) return;
@@ -35,7 +37,10 @@ function ReturnInner() {
         if (cancelled) return;
         if (!res.ok) { setError(data.error ?? "We couldn't find this booking."); return; }
         setState(data);
-        if (data.view === "confirmed") setMine(confirmMyBooking(data.booking.businessSlug, orderId));
+        if (data.view === "confirmed") {
+          setMine(confirmMyBooking(data.booking.businessSlug, orderId));
+          setBookerEmail(loadBooker(data.booking.businessSlug)?.email ?? "");
+        }
         n += 1;
         setPolls(n);
         if (data.view === "pending" && n < MAX_POLLS) timer = setTimeout(tick, POLL_MS);
@@ -92,6 +97,7 @@ function ReturnInner() {
                 )}
               </div>
             )}
+            {b && <div className="mt-5"><CreateAccountOffer email={bookerEmail} /></div>}
             {b && (
               <div className="mt-5 text-left">
                 {mine?.serviceIds?.length ? (

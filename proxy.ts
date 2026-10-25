@@ -2,6 +2,7 @@ import { withAuth } from "next-auth/middleware";
 import { getToken } from "next-auth/jwt";
 import { NextResponse, type NextRequest } from "next/server";
 import { featureForApiPath, isFeatureEnabled } from "@/lib/flags";
+import { canAccessOwnerArea, isCustomerToken } from "@/lib/customerAccess";
 
 const ROOT_DOMAIN = process.env.NEXT_PUBLIC_ROOT_DOMAIN ?? "calvy.io";
 
@@ -41,7 +42,8 @@ const authMiddleware = withAuth(
   },
   {
     pages: { signIn: "/login" },
-    callbacks: { authorized: ({ token }) => !!token },
+    // A customer account is signed in, but never into the owner areas.
+    callbacks: { authorized: ({ token }) => canAccessOwnerArea(token) },
   }
 );
 
@@ -71,7 +73,7 @@ export default async function middleware(req: NextRequest) {
     const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
     if (token) {
       const url = req.nextUrl.clone();
-      url.pathname = "/dashboard";
+      url.pathname = isCustomerToken(token) ? "/my" : "/dashboard";
       url.search = "";
       return NextResponse.redirect(url);
     }

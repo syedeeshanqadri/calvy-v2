@@ -14,6 +14,7 @@ import { launchCheckout } from "@/lib/payments/launchCheckout";
 import { HOLD_MINUTES } from "@/lib/holds";
 import { addMyBooking, datesBookerHolds, loadBooker, loadMyBookings, saveBooker, sessionsBookerHolds, takeAgain, type MyBooking } from "@/lib/bookAgain";
 import { AnotherBooking } from "@/components/booking/AnotherBooking";
+import { CreateAccountOffer } from "@/components/booking/CreateAccountOffer";
 import { PATIENT_GENDERS, PATIENT_RELATIONS, PATIENT_RELATION_LABELS, type PatientRelation } from "@/lib/patients";
 import type { PayConfig } from "@/lib/onlinePayment";
 
@@ -367,6 +368,7 @@ export function BookingClient({ business }: { business: Business }) {
           </div>
           <AnotherBooking slug={business.slug} bookPath={typeof window !== "undefined" ? window.location.pathname : `/${business.slug}/book-now`}
             serviceIds={selectedServices} staffId={selectedStaff && selectedStaff !== "any" ? selectedStaff : null} date={bookingDateIso} appointmentWord={appt1} />
+          <CreateAccountOffer email={form.email} />
           {reviewUrl && (
             <div className="mb-2">
               <p className="text-xs text-[#6b6b80] mb-3">Enjoyed booking with us? We&apos;d love a quick review.</p>
