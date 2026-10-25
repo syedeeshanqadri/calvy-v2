@@ -7,6 +7,7 @@ import { isFeatureEnabled } from "@/lib/flags";
 import { PENDING_PAYMENT, holdExpiry } from "@/lib/holds";
 import { BOOKING_TX_OPTIONS } from "@/lib/booking";
 import { trackingUrl } from "@/lib/tracking";
+import { assertNoDuplicatePatient } from "@/lib/patientsDb";
 import { chargeFor, sendConfirmationFor, startCheckout, type PayConfig } from "@/lib/onlinePayment";
 import { assertMonthlyHeadroom } from "@/lib/limits";
 import { addDays, formatDateLabel, parseYMD, utcToZoned, weekdayOf, zonedToUtc } from "@/lib/time";
@@ -134,6 +135,8 @@ export interface TokenBookingInput {
   tz: string;
   /** Online payment settings (null = confirm without paying). */
   payConfig: PayConfig | null;
+  /** Who the token is for (the booker unless they booked for someone else). */
+  patientName: string;
 }
 
 /** Book the next token in a session: confirm at once, or hold it while the customer pays online. */
@@ -179,12 +182,14 @@ export async function bookToken(input: TokenBookingInput): Promise<NextResponse>
 
   const result = await issueToken(prismaStore(session.id, date), session, date, async (tx, a) => {
     await assertMonthlyHeadroom(tx, business.id, input.maxMonthlyAppointments, input.monthStart);
+    // Under the session lock, so a double-click cannot take two tokens for the same person.
+    await assertNoDuplicatePatient(tx, { businessId: business.id, clientId: client.id, patientName: input.patientName, date, tz });
     const estimatedAt = zonedToUtc(date, a.estimatedMin, tz);
     return tx.appointment.create({
       data: {
         businessId: business.id, clientId: client.id, staffId: session.staffId, serviceId: services[0].id,
         date: estimatedAt, endAt: new Date(estimatedAt.getTime() + session.minutesPerToken * 60_000),
-        duration: session.minutesPerToken, price: totalPrice, notes,
+        duration: session.minutesPerToken, price: totalPrice, notes, patientName: input.patientName,
         status: holdExpiresAt ? PENDING_PAYMENT : "confirmed", holdExpiresAt,
         paymentStatus: "unpaid", paymentMode: business.paymentMode,
         tokenSessionId: session.id, sessionDate: dateOnly(date), tokenNumber: a.number, estimatedAt,

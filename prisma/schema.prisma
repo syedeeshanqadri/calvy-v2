@@ -262,6 +262,8 @@ model Appointment {
   notPresentCount    Int                @default(0)
   servingStartedAt   DateTime?          @db.Timestamptz(3)
   /// The earlier booking this one was carried over from ("Not coming"); at most one carry-over per booking.
+  /// Who the appointment is for (a booker can book for others). Null on older bookings: then the contact's name.
+  patientName        String?
   carriedFromId      String?            @unique
   carriedFrom        Appointment?       @relation("CarryOver", fields: [carriedFromId], references: [id], onDelete: SetNull)
   carriedTo          Appointment?       @relation("CarryOver")

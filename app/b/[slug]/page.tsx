@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getPayConfig } from "@/lib/onlinePayment";
+import { contactRequirements } from "@/lib/patients";
 import { parseSocialLinks, safeReviewLink } from "@/lib/brandLinks";
 import { BookingClient } from "./BookingClient";
 
@@ -28,6 +29,7 @@ export default async function BusinessBookingPage(props: { params: Promise<{ slu
     businessType: business.businessType,
     packId: business.packId,
     bookingMode: business.bookingMode,
+    phoneRequired: contactRequirements(business.currency).phone,
     payConfig: await getPayConfig(business),
     termsOverride: business.termsOverride,
     description: business.description ?? "",

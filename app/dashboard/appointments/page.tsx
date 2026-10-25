@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { AppointmentsClient } from "./AppointmentsClient";
 import { getBusinessFeatures } from "@/lib/getFeatures";
+import { patientNameOf } from "@/lib/patients";
 
 export const dynamic = 'force-dynamic';
 
@@ -38,7 +39,7 @@ export default async function AppointmentsPage() {
     }
     return {
       id: a.id,
-      clientName: a.client.name,
+      clientName: patientNameOf(a),
       clientEmail: a.client.email ?? a.client.phone ?? "",
       serviceName,
       staffId: a.staffId,

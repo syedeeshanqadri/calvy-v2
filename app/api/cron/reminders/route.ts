@@ -6,6 +6,7 @@ import { sendBookingReminder } from "@/lib/email";
 import { sendReminderWhatsApp } from "@/lib/whatsapp";
 import { sendPushToBusiness } from "@/lib/push";
 import { logger } from "@/lib/logger";
+import { patientNameOf } from "@/lib/patients";
 import { releaseExpiredHolds } from "@/lib/onlinePayment";
 import { safeTimeZone, utcToZoned, addDays, formatDateLabel, formatTimeLabel } from "@/lib/time";
 
@@ -103,7 +104,7 @@ async function GET_handler(req: NextRequest) {
       // Push to the business owner's dashboard/PWA.
       await sendPushToBusiness(appt.businessId, {
         title: "Appointment reminder",
-        body: `${appt.client.name} — ${appt.service.name} tomorrow at ${timeLabel}`,
+        body: `${patientNameOf(appt)} — ${appt.service.name} tomorrow at ${timeLabel}`,
         url: "/dashboard/appointments",
         tag: `reminder-${appt.id}`,
       }).catch((e) => logger.error("[Cron] reminder push failed:", { err: e }));

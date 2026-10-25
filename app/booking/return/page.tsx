@@ -1,6 +1,7 @@
 "use client";
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { Check, Clock, Loader2, X } from "lucide-react";
 
 type View = "pending" | "confirmed" | "failed" | "expired" | "refunded";
@@ -83,6 +84,13 @@ function ReturnInner() {
                 ) : (
                   <Row label="Time" value={b.time} />
                 )}
+              </div>
+            )}
+            {b && (
+              <div className="border-t border-[#f0ede8] mt-5 pt-5 space-y-2.5 text-left">
+                <p className="text-sm font-semibold">Schedule another appointment</p>
+                <Link href={`/${b.businessSlug}/book-now?again=same`} className="block rounded-xl border border-[#e8e6e0] px-4 py-3 text-sm font-medium hover:bg-[#f8f7f4]">For me, on another date</Link>
+                <Link href={`/${b.businessSlug}/book-now?again=other`} className="block rounded-xl border border-[#e8e6e0] px-4 py-3 text-sm font-medium hover:bg-[#f8f7f4]">For someone else</Link>
               </div>
             )}
           </>

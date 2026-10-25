@@ -48,7 +48,7 @@ const business = (over: Record<string, unknown> = {}) => ({
   plan: "professional", planStatus: "active", trialEndsAt: null, timezone: "Asia/Kolkata",
   slotInterval: 30, minNoticeMinutes: 0, maxAdvanceDays: 90, services: [service], ...over,
 });
-const valid = { businessSlug: "x", serviceId: "s1", date: "2026-10-20", time: "10:00", clientName: "Jo", clientEmail: "jo@x.com" };
+const valid = { businessSlug: "x", serviceId: "s1", date: "2026-10-20", time: "10:00", clientName: "Jo", clientEmail: "jo@x.com", clientPhone: "+91 98765 43210" };
 const staffRow = (id: string) => ({ id, services: [{ serviceId: "s1" }] });
 
 beforeEach(() => {
@@ -189,5 +189,49 @@ describe("POST /api/bookings: plan limits (S2-05)", () => {
     planCfg({ maxMonthlyAppointments: 5 });
     db.appointment.count.mockResolvedValue(500);
     expect((await POST(req(valid))).status).toBe(200);
+  });
+});
+
+describe("POST /api/bookings: contact details and booking for someone else", () => {
+  it("India (INR) needs a phone number: 400, nothing inserted", async () => {
+    const { clientPhone: _drop, ...noPhone } = valid;
+    const res = await POST(req(noPhone));
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toBe("A phone number is required.");
+    expect(db.appointment.create).not.toHaveBeenCalled();
+  });
+
+  it("another country needs only an email", async () => {
+    db.business.findUnique.mockResolvedValue(business({ currency: "USD" }));
+    const { clientPhone: _drop, ...noPhone } = valid;
+    const res = await POST(req(noPhone));
+    expect(res.status).toBe(200);
+  });
+
+  it("stores who the appointment is for; defaults to the booker", async () => {
+    await POST(req({ ...valid, patientName: "Meena Kapoor" }));
+    expect(db.appointment.create.mock.calls.at(-1)?.[0].data.patientName).toBe("Meena Kapoor");
+    await POST(req(valid));
+    expect(db.appointment.create.mock.calls.at(-1)?.[0].data.patientName).toBe("Jo");
+  });
+
+  it("the same person twice on one day is refused with a message asking for another name", async () => {
+    // The availability engine also lists appointments; only the duplicate lookup filters by client.
+    db.appointment.findMany.mockImplementation(async (args: { where?: { clientId?: string } }) =>
+      args?.where?.clientId ? [{ patientName: "Jo", status: "confirmed", holdExpiresAt: null, client: { name: "Jo" } }] : []);
+    const res = await POST(req(valid));
+    expect(res.status).toBe(409);
+    const body = await res.json();
+    expect(body.code).toBe("DUPLICATE_PATIENT");
+    expect(body.error).toMatch(/Jo already has an appointment on .*To book for someone else, enter their name\./);
+    expect(db.appointment.create).not.toHaveBeenCalled();
+  });
+
+  it("a different person's name is allowed even with the same contact", async () => {
+    // The availability engine also lists appointments; only the duplicate lookup filters by client.
+    db.appointment.findMany.mockImplementation(async (args: { where?: { clientId?: string } }) =>
+      args?.where?.clientId ? [{ patientName: "Jo", status: "confirmed", holdExpiresAt: null, client: { name: "Jo" } }] : []);
+    const res = await POST(req({ ...valid, patientName: "Meena Kapoor" }));
+    expect(res.status).toBe(200);
   });
 });

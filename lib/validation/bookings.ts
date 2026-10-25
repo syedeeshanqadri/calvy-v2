@@ -12,6 +12,8 @@ export const bookingSchema = z
     /** Token businesses: the session to take a token in (no time). */
     tokenSessionId: z.preprocess(blankToUndef, id.optional()),
     clientName: text(120).min(1),
+    /** Who the appointment is for when booking for someone else (defaults to the booker). */
+    patientName: z.preprocess(blankToUndef, text(120).min(1).optional()),
     clientEmail: emailField,
     clientPhone: z.preprocess(blankToUndef, phoneField.optional()),
     notes: z.preprocess(blankToUndef, text(1000).optional()),

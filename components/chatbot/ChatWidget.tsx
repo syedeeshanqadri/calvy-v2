@@ -11,6 +11,8 @@ interface Service {
 }
 interface ChatBusiness {
   slug: string; name: string; primaryColor: string; currency: string; services: Service[];
+  /** India needs a phone number as well as an email. */
+  phoneRequired?: boolean;
 }
 
 type Step = "services" | "date" | "time" | "details" | "confirm" | "success";
@@ -35,6 +37,7 @@ function bold(text: string) {
 
 export function ChatWidget({ business }: { business: ChatBusiness }) {
   const color = business.primaryColor || "#0284c7";
+  const phoneRequired = !!business.phoneRequired;
   const [open, setOpen] = useState(false);
   const [started, setStarted] = useState(false);
   const [step, setStep] = useState<Step>("services");
@@ -123,7 +126,7 @@ export function ChatWidget({ business }: { business: ChatBusiness }) {
   }
 
   function submitDetails() {
-    if (!details.name || !details.email) return;
+    if (!details.name || !details.email || (phoneRequired && !details.phone.trim())) return;
     const dateLabel = new Date(selectedDate + "T12:00:00").toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
     const names = selectedSvcs.map(s => s.name).join(" & ");
     push(
@@ -352,12 +355,12 @@ export function ChatWidget({ business }: { business: ChatBusiness }) {
                   className="w-full h-9 rounded-xl border border-gray-200 px-3 text-sm focus:outline-none transition-colors"
                   onFocus={e => (e.target.style.borderColor = color)}
                   onBlur={e => (e.target.style.borderColor = "")} />
-                <input type="tel" placeholder="Phone (optional)" value={details.phone}
+                <input type="tel" placeholder={phoneRequired ? "Phone number *" : "Phone (optional)"} value={details.phone}
                   onChange={e => setDetails(d => ({ ...d, phone: e.target.value }))}
                   className="w-full h-9 rounded-xl border border-gray-200 px-3 text-sm focus:outline-none transition-colors"
                   onFocus={e => (e.target.style.borderColor = color)}
                   onBlur={e => (e.target.style.borderColor = "")} />
-                <button onClick={submitDetails} disabled={!details.name || !details.email}
+                <button onClick={submitDetails} disabled={!details.name || !details.email || (phoneRequired && !details.phone.trim())}
                   className="w-full py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-40 hover:opacity-90 transition-opacity"
                   style={{ background: color }}>
                   Review Booking →

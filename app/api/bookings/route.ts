@@ -18,6 +18,8 @@ import { checkLimit, startOfBusinessMonth, assertMonthlyHeadroom, LimitReachedEr
 import { zonedTimeToUtc, formatDateLabel, safeTimeZone } from "@/lib/time";
 import { logger } from "@/lib/logger";
 import { bookToken } from "@/lib/tokenBooking";
+import { missingContact } from "@/lib/patients";
+import { assertNoDuplicatePatient, DuplicatePatientError } from "@/lib/patientsDb";
 import { isFeatureEnabled } from "@/lib/flags";
 import { PENDING_PAYMENT, holdExpiry } from "@/lib/holds";
 import { chargeFor, getPayConfig, startCheckout } from "@/lib/onlinePayment";
@@ -52,6 +54,8 @@ async function POST_handler(req: NextRequest) {
   const parsed = await parseBody(req, bookingSchema);
   if (!parsed.ok) return parsed.res;
   const { businessSlug, staffId, date, time: timeInput, tokenSessionId, clientName, clientEmail, clientPhone, notes } = parsed.data;
+  // The appointment is for the booker unless they entered another person's name.
+  const patientName = (parsed.data.patientName ?? clientName).trim();
 
   // Support serviceIds[] (multi-service) and legacy serviceId (single)
   const serviceIds: string[] = parsed.data.serviceIds?.length ? parsed.data.serviceIds : [parsed.data.serviceId!];
@@ -61,6 +65,10 @@ async function POST_handler(req: NextRequest) {
     include: { services: true },
   });
   if (!business) return NextResponse.json({ error: "Business not found." }, { status: 404 });
+
+  // India needs email and phone; elsewhere only email.
+  const missing = missingContact(business.currency, { email: clientEmail, phone: clientPhone });
+  if (missing) return NextResponse.json({ error: missing }, { status: 400 });
 
   // Plan limits. A lapsed plan falls back to Free limits; reaching the monthly
   // cap returns 402 with a customer-facing message (never an upgrade prompt).
@@ -122,9 +130,10 @@ async function POST_handler(req: NextRequest) {
       return await bookToken({
         business, services: orderedServices, tokenSessionId, date, tz: bizTz,
         client: { name: clientName, email: clientEmail, phone: clientPhone },
-        notes, maxMonthlyAppointments: limits.maxMonthlyAppointments, monthStart, payConfig,
+        notes, maxMonthlyAppointments: limits.maxMonthlyAppointments, monthStart, payConfig, patientName,
       });
     } catch (err) {
+      if (err instanceof DuplicatePatientError) return NextResponse.json({ error: err.message, code: err.code }, { status: 409 });
       if (err instanceof LimitReachedError) return await limitResponse();
       throw err;
     }
@@ -216,6 +225,7 @@ async function POST_handler(req: NextRequest) {
                 price: totalPrice,
                 status: holdExpiresAt ? PENDING_PAYMENT : "confirmed",
                 holdExpiresAt,
+                patientName,
                 notes: combinedNotes,
                 paymentStatus,
                 paymentMode: paymentModeVal,
@@ -249,7 +259,7 @@ async function POST_handler(req: NextRequest) {
 
     sendPushToBusiness(business!.id, {
       title: "New booking received",
-      body: `${clientName} — ${serviceNamesLabel} on ${dateLabel} at ${time}`,
+      body: `${patientName} — ${serviceNamesLabel} on ${dateLabel} at ${time}`,
       url: "/dashboard/appointments",
       tag: "new-booking",
     }).catch(() => {});
@@ -258,6 +268,7 @@ async function POST_handler(req: NextRequest) {
       await sendBookingConfirmation({
         to: clientEmail,
         clientName,
+        patientName,
         businessName: business!.name,
         serviceName: serviceNamesLabel,
         staffName: staffMember?.name ?? `Your ${t(business!, "staff")}`,
@@ -295,9 +306,21 @@ async function POST_handler(req: NextRequest) {
 
   let client: Awaited<ReturnType<typeof getOrCreateClient>>;
 
+  // The same person cannot hold two active appointments on a day; another person's name is fine.
+  async function duplicateGuard(clientId: string): Promise<NextResponse | null> {
+    try {
+      await assertNoDuplicatePatient(prisma, { businessId: business!.id, clientId, patientName, date, tz });
+      return null;
+    } catch (err) {
+      if (err instanceof DuplicatePatientError) return NextResponse.json({ error: err.message, code: err.code }, { status: 409 });
+      throw err;
+    }
+  }
+
   // Online payments on: hold the slot while the customer pays, or confirm when nothing is due.
   if (onlinePayments) {
     client = await getOrCreateClient();
+    { const dup = await duplicateGuard(client.id); if (dup) return dup; }
     const hold = charge.chargeMinor > 0 ? holdExpiry() : null;
     const venueMode = business.onlinePayMode === "FULL_ONLINE" && hold ? "prepaid" : "postpaid";
     let appointment;
@@ -325,6 +348,7 @@ async function POST_handler(req: NextRequest) {
   // Postpaid path — create appointments directly, client pays at visit
   if (paymentMode === "postpaid") {
     client = await getOrCreateClient();
+    { const dup = await duplicateGuard(client.id); if (dup) return dup; }
     let appointment;
     try {
       appointment = await createAppointment(client.id, "unpaid", "postpaid");
@@ -385,6 +409,7 @@ async function POST_handler(req: NextRequest) {
 
   // Dev/demo mode — create appointments without payment
   client = await getOrCreateClient();
+    { const dup = await duplicateGuard(client.id); if (dup) return dup; }
   let appointment;
   try {
     appointment = await createAppointment(client.id, "unpaid", "prepaid");

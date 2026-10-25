@@ -12,6 +12,7 @@ import { TokenPicker, type TokenOption } from "@/components/tokens/TokenPicker";
 import { computeCharge, toMinor } from "@/lib/fees";
 import { launchCheckout } from "@/lib/payments/launchCheckout";
 import { HOLD_MINUTES } from "@/lib/holds";
+import { loadBooker, parseAgain, saveBooker } from "@/lib/bookAgain";
 import type { PayConfig } from "@/lib/onlinePayment";
 
 type Step = "service" | "staff" | "datetime" | "details" | "confirm";
@@ -37,6 +38,8 @@ interface Business {
   slug: string; name: string; primaryColor: string; businessType: string;
   description: string; phone: string; address: string; website: string;
   currency: string; paymentMode: string;
+  /** India needs a phone number as well as an email. */
+  phoneRequired?: boolean;
   /** Cashfree online payments (null = no online charge; legacy paymentMode applies). */
   payConfig?: PayConfig | null;
   packId: string; termsOverride: unknown; bookingMode?: "SLOT" | "TOKEN";
@@ -69,6 +72,20 @@ export function BookingClient({ business }: { business: Business }) {
   const [selectedDate, setSelectedDate] = useState<number | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [form, setForm] = useState({ name: "", email: "", phone: "", notes: "" });
+  // Booking for someone else: the booker's email/phone stay, the patient name identifies who it is for.
+  const [forSomeone, setForSomeone] = useState(false);
+  const [patientName, setPatientName] = useState("");
+  const againMode = parseAgain(searchParams?.get("again"));
+  useEffect(() => {
+    if (!againMode) return;
+    const saved = loadBooker(business.slug);
+    if (!saved) return;
+    // After the first paint, so the server HTML and the first client render match.
+    void Promise.resolve().then(() => {
+      setForm((f) => ({ ...f, name: saved.name, email: saved.email, phone: saved.phone }));
+      setForSomeone(againMode === "other");
+    });
+  }, [againMode, business.slug]);
   const [loading, setLoading] = useState(false);
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [availableSlots, setAvailableSlots] = useState<string[]>([]);
@@ -214,6 +231,8 @@ export function BookingClient({ business }: { business: Business }) {
   const onlineCharge = payConfig ? computeCharge({ ...payConfig, priceMinor: toMinor(totalPrice) }) : null;
   const payNowMinor = onlineCharge?.chargeMinor ?? 0;
   const payNowLabel = formatCurrencyAmount(payNowMinor / 100, business.currency);
+  // Phone is required in India, and whenever an online payment is due.
+  const phoneNeeded = !!business.phoneRequired || payNowMinor > 0;
   const paymentLabel = payConfig
     ? payNowMinor === 0
       ? `Pay at ${appt1}`
@@ -223,6 +242,7 @@ export function BookingClient({ business }: { business: Business }) {
 
   async function handleConfirm() {
     setLoading(true); setError("");
+    saveBooker(business.slug, { name: form.name, email: form.email, phone: form.phone });
     try {
       const res = await fetch("/api/bookings", {
         method: "POST",
@@ -235,13 +255,19 @@ export function BookingClient({ business }: { business: Business }) {
             ? { date: tokenDate, tokenSessionId: tokenPick?.id }
             : { date: `${viewYear}-${String(viewMonth + 1).padStart(2, "0")}-${String(selectedDate).padStart(2, "0")}`, time: selectedTime }),
           clientName: form.name,
+          patientName: forSomeone && patientName.trim() ? patientName.trim() : undefined,
           clientEmail: form.email,
           clientPhone: form.phone || null,
           notes: form.notes || null,
         }),
       });
       const data = await res.json();
-      if (!res.ok) { setError(data.error ?? "Something went wrong."); return; }
+      if (!res.ok) {
+        setError(data.error ?? "Something went wrong.");
+        // Same person already booked that day: send them back to enter the other person's name.
+        if (data.code === "DUPLICATE_PATIENT") { setForSomeone(true); setStep("details"); }
+        return;
+      }
       if (data.checkout) { await launchCheckout(data.checkout); return; }
       if (data.url) { window.location.href = data.url; } else { if (data.token) setTokenResult(data.token); setBooked(true); }
     } catch (e) { setError(e instanceof Error && e.message.startsWith("Could not load") ? e.message : "Network error. Please try again."); }
@@ -288,6 +314,11 @@ export function BookingClient({ business }: { business: Business }) {
               <span className="text-[#6b6b80]">Payment</span>
               <span className="font-medium">{payAtVenue ? `Pay at ${appt1}` : "Paid online"}</span>
             </div>
+          </div>
+          <div className="border-t border-[#f0ede8] pt-5 mb-5 space-y-2.5">
+            <p className="text-sm font-semibold">Schedule another {appt1}</p>
+            <a href="?again=same" className="block w-full rounded-xl border border-[#e8e6e0] px-4 py-3 text-sm font-medium hover:bg-[#f8f7f4]">For {patientName.trim() && forSomeone ? patientName.trim() : "me"}, on another date</a>
+            <a href="?again=other" className="block w-full rounded-xl border border-[#e8e6e0] px-4 py-3 text-sm font-medium hover:bg-[#f8f7f4]">For someone else</a>
           </div>
           {reviewUrl && (
             <div className="mb-2">
@@ -567,7 +598,7 @@ export function BookingClient({ business }: { business: Business }) {
             <p className="text-[#6b6b80] mb-6">We&apos;ll send your confirmation and reminders here.</p>
             <div className="bg-white rounded-2xl border border-[#e8e6e0] p-6 space-y-4">
               <div className="grid sm:grid-cols-2 gap-4">
-                {[{ label: "Full name", key: "name", type: "text", placeholder: "Jane Smith" }, { label: payNowMinor > 0 ? "Phone number (needed to pay online)" : "Phone number", key: "phone", type: "tel", placeholder: "+91 98765 43210" }].map(f => (
+                {[{ label: "Full name", key: "name", type: "text", placeholder: "Jane Smith" }, { label: phoneNeeded ? "Phone number *" : "Phone number (optional)", key: "phone", type: "tel", placeholder: "+91 98765 43210" }].map(f => (
                   <div key={f.key}>
                     <label htmlFor={`booking-${f.key}`} className="text-sm font-medium text-[#0f0f1a] block mb-1.5">{f.label}</label>
                     <input id={`booking-${f.key}`} type={f.type} placeholder={f.placeholder} value={form[f.key as keyof typeof form]} onChange={e => setForm({ ...form, [f.key]: e.target.value })}
@@ -579,6 +610,19 @@ export function BookingClient({ business }: { business: Business }) {
                 <label htmlFor="booking-email-address" className="text-sm font-medium text-[#0f0f1a] block mb-1.5">Email address</label>
                 <input id="booking-email-address" type="email" required placeholder="jane@email.com" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })}
                   className="w-full rounded-xl border border-[#e8e6e0] px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:border-accent transition-all" />
+              </div>
+              <div className="rounded-xl bg-[#f8f7f4] p-4 space-y-3">
+                <label className="flex items-start gap-2 text-sm">
+                  <input type="checkbox" className="mt-1" checked={forSomeone} onChange={e => setForSomeone(e.target.checked)} />
+                  <span>I&apos;m booking this {appt1} for someone else<span className="block text-xs text-[#6b6b80]">Confirmations come to you. Each person is a separate {appt1} and is paid for separately.</span></span>
+                </label>
+                {forSomeone && (
+                  <div>
+                    <label htmlFor="booking-patient-name" className="text-sm font-medium text-[#0f0f1a] block mb-1.5">Their full name *</label>
+                    <input id="booking-patient-name" value={patientName} maxLength={120} onChange={e => setPatientName(e.target.value)} placeholder="Who is this for?"
+                      className="w-full rounded-xl border border-[#e8e6e0] px-4 py-3 text-sm bg-white focus:outline-none focus:ring-2 focus:border-accent/40" />
+                  </div>
+                )}
               </div>
               <div>
                 <label htmlFor="booking-notes-optional" className="text-sm font-medium text-[#0f0f1a] block mb-1.5">Notes (optional)</label>
@@ -626,7 +670,8 @@ export function BookingClient({ business }: { business: Business }) {
                 ...(tokenMode
                   ? [{ label: "Session", value: tokenPick ? `${tokenPick.name} (${tokenPick.startTime} – ${tokenPick.endTime})` : "—" }, { label: "Token", value: "Number and estimated time are shown once confirmed" }]
                   : [{ label: "Time", value: selectedTime }, { label: "Total duration", value: `${totalDuration} min` }]),
-                { label: "Name", value: form.name },
+                { label: forSomeone ? "Booked by" : "Name", value: form.name },
+                ...(forSomeone && patientName.trim() ? [{ label: `${Svc1} for`, value: patientName.trim() }] : []),
                 { label: "Email", value: form.email },
               ].map(row => (
                 <div key={row.label} className="flex justify-between text-sm py-2.5 border-b border-[#f5f3ef] last:border-0">
@@ -669,7 +714,7 @@ export function BookingClient({ business }: { business: Business }) {
           ) : <div />}
 
           {step === "confirm" ? (
-            <button onClick={handleConfirm} disabled={loading || !form.name || !form.email || !isValidEmail(form.email) || (payNowMinor > 0 && !form.phone.trim())}
+            <button onClick={handleConfirm} disabled={loading || !form.name || !form.email || !isValidEmail(form.email) || (phoneNeeded && !form.phone.trim()) || (forSomeone && !patientName.trim())}
               className="flex items-center gap-2 text-white font-semibold px-6 py-3 rounded-xl text-sm transition-colors disabled:opacity-60 disabled:cursor-not-allowed hover:opacity-90"
               style={{ background: color, color: fg }}>
               {loading ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
@@ -680,7 +725,7 @@ export function BookingClient({ business }: { business: Business }) {
               (step === "service" && selectedServices.length === 0) ||
               (step === "staff" && (provider.kind === "none" || (provider.kind === "choose" && !selectedStaff))) ||
               (step === "datetime" && (tokenMode ? !tokenPick : (!selectedDate || !selectedTime))) ||
-              (step === "details" && (!form.name || !form.email || !isValidEmail(form.email) || (payNowMinor > 0 && !form.phone.trim())))
+              (step === "details" && (!form.name || !form.email || !isValidEmail(form.email) || (phoneNeeded && !form.phone.trim()) || (forSomeone && !patientName.trim())))
             }
               className="flex items-center gap-2 bg-[#0f0f1a] text-white font-semibold px-6 py-3 rounded-xl text-sm hover:bg-[#1a1a2e] transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
               Continue <ChevronRight size={16} />

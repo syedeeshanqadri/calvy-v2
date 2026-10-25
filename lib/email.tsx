@@ -127,6 +127,7 @@ export interface BookingDetails {
   terms?: TermsSource; // business pack wording
   token?: { number: number; estimatedTime: string; sessionName: string }; // token booking
   trackUrl?: string; // live queue page
+  patientName?: string; // who the appointment is for, when not the recipient
   ctx?: EmailContext;
 }
 
@@ -136,7 +137,7 @@ function bookingProps(d: BookingDetails): BookingProps {
   return {
     clientName: d.clientName, businessName: d.businessName, serviceName: d.serviceName,
     staffName: d.staffName, date: d.date, time: d.time, duration: d.duration,
-    price: d.price, currency: d.currency ?? DEFAULT_CURRENCY, terms: d.terms, token: d.token, trackUrl: d.trackUrl,
+    price: d.price, currency: d.currency ?? DEFAULT_CURRENCY, terms: d.terms, token: d.token, trackUrl: d.trackUrl, patientName: d.patientName,
   };
 }
 

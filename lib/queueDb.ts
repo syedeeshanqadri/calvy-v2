@@ -19,6 +19,7 @@ import { formatDateLabel, parseYMD, utcToZoned, weekdayOf, zonedToUtc } from "@/
 import { minToHhmm, sessionCapacity } from "@/lib/tokens";
 import { BOOKING_TX_OPTIONS } from "@/lib/booking";
 import { trackingUrl } from "@/lib/tracking";
+import { patientNameOf } from "@/lib/patients";
 
 type Tx = Prisma.TransactionClient;
 
@@ -106,7 +107,7 @@ function etasFor(order: string[], rows: RowWithRelations[], session: { startMin:
 function toRow(a: RowWithRelations, eta: Date | undefined, place: number, tz: string): QueueRow {
   return {
     id: a.id, tokenNumber: a.tokenNumber ?? 0, state: stateOf({ state: a.queueState }),
-    clientName: a.client.name, clientPhone: a.client.phone, serviceName: a.service.name, source: a.source,
+    clientName: patientNameOf(a), clientPhone: a.client.phone, serviceName: a.service.name, source: a.source,
     etaTime: eta ? utcToZoned(eta, tz).time : "", place, notPresentCount: a.notPresentCount, carried: a.carriedFromId !== null,
   };
 }
@@ -255,7 +256,7 @@ export async function runQueueAction(
     const full = await prisma.business.findUnique({ where: { id: biz.id }, select: { name: true, slug: true, packId: true, termsOverride: true, currency: true } });
     const base: BookingDetails | null = full
       ? {
-          to: subject.client.email, clientName: subject.client.name, businessName: full.name, serviceName: subject.service.name,
+          to: subject.client.email, clientName: subject.client.name, patientName: subject.patientName ?? undefined, businessName: full.name, serviceName: subject.service.name,
           staffName: session.staffId ? (await prisma.staff.findUnique({ where: { id: session.staffId }, select: { name: true } }))?.name ?? "" : `Your ${t(full, "staff")}`,
           terms: full, date: formatDateLabel(zonedToUtc(input.date, session.startMin, tz), tz),
           time: etas[plan.subjectId] ? utcToZoned(etas[plan.subjectId], tz).time : minToHhmm(session.startMin),
