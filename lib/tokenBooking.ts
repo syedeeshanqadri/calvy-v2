@@ -7,7 +7,7 @@ import { isFeatureEnabled } from "@/lib/flags";
 import { PENDING_PAYMENT, holdExpiry } from "@/lib/holds";
 import { BOOKING_TX_OPTIONS } from "@/lib/booking";
 import { trackingUrl } from "@/lib/tracking";
-import { assertContactUnderDailyCap, assertNoDuplicatePatient } from "@/lib/patientsDb";
+import { assertNoDuplicatePatient, contactAtDailyCap } from "@/lib/patientsDb";
 import { chargeFor, sendConfirmationFor, startCheckout, type PayConfig } from "@/lib/onlinePayment";
 import { assertMonthlyHeadroom } from "@/lib/limits";
 import { addDays, formatDateLabel, parseYMD, utcToZoned, weekdayOf, zonedToUtc } from "@/lib/time";
@@ -180,11 +180,13 @@ export async function bookToken(input: TokenBookingInput): Promise<NextResponse>
 
   const client = await findOrCreateClient(prisma, business.id, input.client, tz);
 
+  // Over the contact's daily quota: still booked, but no email or WhatsApp goes to the contact.
+  let suppressContactMessages = false;
   const result = await issueToken(prismaStore(session.id, date), session, date, async (tx, a) => {
     await assertMonthlyHeadroom(tx, business.id, input.maxMonthlyAppointments, input.monthStart);
     // Under the session lock, so a double-click cannot take two tokens for the same person.
     await assertNoDuplicatePatient(tx, { businessId: business.id, clientId: client.id, patientName: input.patientName, date, tz });
-    await assertContactUnderDailyCap(tx, { businessId: business.id, clientId: client.id, businessName: business.name });
+    suppressContactMessages = await contactAtDailyCap(tx, { businessId: business.id, clientId: client.id });
     const estimatedAt = zonedToUtc(date, a.estimatedMin, tz);
     return tx.appointment.create({
       data: {
@@ -231,7 +233,7 @@ export async function bookToken(input: TokenBookingInput): Promise<NextResponse>
     where: { id: client.id },
     data: { totalAppointments: { increment: 1 }, lastVisit: appointment.date },
   });
-  await sendConfirmationFor(appointment.id);
+  await sendConfirmationFor(appointment.id, { contactMessages: !suppressContactMessages });
 
   return NextResponse.json({ success: true, appointmentId: appointment.id, paymentMode: business.paymentMode, token });
 }

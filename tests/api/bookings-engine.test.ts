@@ -35,6 +35,8 @@ vi.mock("@/lib/ratelimit", () => ({
 
 import { POST } from "@/app/api/bookings/route";
 import { rateLimit } from "@/lib/ratelimit";
+import { sendBookingConfirmation } from "@/lib/email";
+import { sendBookingConfirmationWhatsApp } from "@/lib/whatsapp";
 
 const req = (body: unknown) =>
   new NextRequest("http://localhost/api/bookings", {
@@ -255,8 +257,9 @@ describe("POST /api/bookings: contact details and booking for someone else", () 
     const res = await POST(req({ ...valid, clientEmail: "Jo@X.com" }));
     expect(res.status).toBe(409);
     const keys = vi.mocked(rateLimit).mock.calls.map((c) => c[0]);
-    expect(keys).toContain("booking-dup:biz:email:jo@x.com");
-    expect(keys.some((k) => k.startsWith("booking-dup:biz:phone:+91"))).toBe(true);
+    // keyed on the requester too, so a stranger can only put themselves in cooldown
+    expect(keys).toContain("booking-dup:biz:1.1.1.1:email:jo@x.com");
+    expect(keys.some((k) => k.startsWith("booking-dup:biz:1.1.1.1:phone:+91"))).toBe(true);
   });
 
   it("a contact in cooldown gets the same 429 for EVERY booking, duplicate or not (no oracle)", async () => {
@@ -282,16 +285,27 @@ describe("POST /api/bookings: contact details and booking for someone else", () 
     expect(res.headers.get("Retry-After")).toBe("300");
   });
 
-  it("one contact cannot create more than the daily cap of bookings (flood of emails)", async () => {
+  it("over a contact's daily quota the booking STILL goes through, but the contact is not messaged", async () => {
     db.appointment.count.mockResolvedValue(30);
     const res = await POST(req(valid));
-    expect(res.status).toBe(429);
-    expect((await res.json()).code).toBe("CONTACT_LIMIT");
-    expect(db.appointment.create).not.toHaveBeenCalled();
+    expect(res.status).toBe(200);
+    expect(db.appointment.create).toHaveBeenCalled();
+    expect(sendBookingConfirmation).not.toHaveBeenCalled();
+    expect(sendBookingConfirmationWhatsApp).not.toHaveBeenCalled();
+    expect(push).toHaveBeenCalled(); // the business still hears about it
   });
 
-  it("just under the daily cap still books", async () => {
+  it("just under the quota the contact gets their confirmation as normal", async () => {
     db.appointment.count.mockResolvedValue(29);
     expect((await POST(req(valid))).status).toBe(200);
+    expect(sendBookingConfirmation).toHaveBeenCalledTimes(1);
+  });
+
+  it("the cooldown for one requester does not stop the same contact booking from elsewhere", async () => {
+    vi.mocked(rateLimit.peek).mockImplementation(async (key: string) => (key.includes(":1.1.1.1:") ? { ok: false, retryAfter: 60 } : { ok: true, retryAfter: 0 }));
+    expect((await POST(req(valid))).status).toBe(429); // the probing requester
+    vi.mocked(rateLimit.peek).mockImplementation(async (key: string) => (key.includes(":9.9.9.9:") ? { ok: false, retryAfter: 60 } : { ok: true, retryAfter: 0 }));
+    expect((await POST(req(valid))).status).toBe(200); // the owner, from their own network
+    vi.mocked(rateLimit.peek).mockImplementation(okLimit);
   });
 });

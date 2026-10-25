@@ -38,23 +38,24 @@ export async function assertNoDuplicatePatient(
   if (dup) throw new DuplicatePatientError(duplicatePatientMessage(p.patientName, formatDateLabel(zonedToUtc(p.date, 12 * 60, p.tz), p.tz)));
 }
 
-/** Thrown when one contact (email/phone) has created too many bookings in a day. */
-export class ContactLimitError extends Error {
-  readonly code = "CONTACT_LIMIT";
-}
-
 /** Generous: a family booking several people never gets near it; a flood in one person's name does. */
 export const MAX_BOOKINGS_PER_CONTACT_PER_DAY = 30;
 
 /**
- * Cap on bookings created under one contact in the last 24 hours. It protects the person whose
- * email/phone is on the booking from a flood of confirmation emails, and it counts rows that were
- * really created, so ordinary attempts and refused ones never use it up.
+ * Has this contact already had the day's quota of bookings created under it? When yes, the booking
+ * still goes through, but no confirmation email or WhatsApp is sent to the contact. That bounds a
+ * flood of messages at someone's inbox without ever blocking the person from booking: contact
+ * details are not verified, so a limit that blocked them could be used against their owner.
+ *
+ * Takes a per-contact lock first, so concurrent bookings cannot all slip under the quota. Call it
+ * inside the booking transaction, after the resource and patient locks (fixed lock order).
  */
-export async function assertContactUnderDailyCap(db: Db, p: { businessId: string; clientId: string; businessName: string; now?: Date }): Promise<void> {
+export async function contactAtDailyCap(
+  db: Db,
+  p: { businessId: string; clientId: string; now?: Date },
+): Promise<boolean> {
+  await db.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`contact:${p.businessId}:${p.clientId}`}, 0))`;
   const since = new Date((p.now ?? new Date()).getTime() - 24 * 3_600_000);
   const created = await db.appointment.count({ where: { businessId: p.businessId, clientId: p.clientId, createdAt: { gte: since } } });
-  if (created >= MAX_BOOKINGS_PER_CONTACT_PER_DAY) {
-    throw new ContactLimitError(`Too many bookings were made with these contact details today. Please contact ${p.businessName} directly.`);
-  }
+  return created >= MAX_BOOKINGS_PER_CONTACT_PER_DAY;
 }

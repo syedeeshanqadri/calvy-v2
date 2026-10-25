@@ -21,7 +21,7 @@ import { bookToken } from "@/lib/tokenBooking";
 import { missingContact } from "@/lib/patients";
 import { tryNormalizeEmail } from "@/lib/email-normalize";
 import { normalizePhone } from "@/lib/phone";
-import { assertContactUnderDailyCap, assertNoDuplicatePatient, ContactLimitError, DuplicatePatientError } from "@/lib/patientsDb";
+import { assertNoDuplicatePatient, contactAtDailyCap, DuplicatePatientError } from "@/lib/patientsDb";
 import { isFeatureEnabled } from "@/lib/flags";
 import { PENDING_PAYMENT, holdExpiry } from "@/lib/holds";
 import { chargeFor, getPayConfig, startCheckout } from "@/lib/onlinePayment";
@@ -70,13 +70,14 @@ async function POST_handler(req: NextRequest) {
 
   // The "already has an appointment" answer tells a caller that someone has booked, so a contact that
   // has received a handful of those answers is put on a cooldown: until it ends, EVERY booking for
-  // that contact gets the same 429, whatever the booking state, so the cooldown itself reveals
-  // nothing. Only duplicate answers count towards it (below); ordinary bookings never do, so a
-  // stranger cannot lock someone out by simply sending requests. Keyed on the normalised email and
-  // phone the client lookup matches on.
+  // that contact gets the same 429 FROM THAT REQUESTER (contact plus IP), whatever the booking
+  // state, so the cooldown itself reveals nothing. It is keyed on the requester too, so a stranger can
+  // only put themselves in cooldown, never lock the contact's owner out; ordinary bookings never count.
+  // Contact keys use the normalised email and phone the client lookup matches on.
+  const requester = clientIp(req);
   const contactKeys = [
-    `booking-dup:${business.id}:email:${tryNormalizeEmail(clientEmail) ?? clientEmail.trim().toLowerCase()}`,
-    ...(normalizePhone(clientPhone, business.timezone) ? [`booking-dup:${business.id}:phone:${normalizePhone(clientPhone, business.timezone)}`] : []),
+    `booking-dup:${business.id}:${requester}:email:${tryNormalizeEmail(clientEmail) ?? clientEmail.trim().toLowerCase()}`,
+    ...(normalizePhone(clientPhone, business.timezone) ? [`booking-dup:${business.id}:${requester}:phone:${normalizePhone(clientPhone, business.timezone)}`] : []),
   ];
   const DUP_ANSWERS_PER_HOUR = 6;
   const cooldownResponse = (retryAfter: number) =>
@@ -162,7 +163,6 @@ async function POST_handler(req: NextRequest) {
       });
     } catch (err) {
       if (err instanceof DuplicatePatientError) return await duplicateResponse(err);
-      if (err instanceof ContactLimitError) return NextResponse.json({ error: err.message, code: err.code }, { status: 429 });
       if (err instanceof LimitReachedError) return await limitResponse();
       throw err;
     }
@@ -238,7 +238,7 @@ async function POST_handler(req: NextRequest) {
               // Same person twice on a day is refused. Under a per-patient lock, so two parallel
               // requests (even for different staff) cannot both pass.
               await assertNoDuplicatePatient(tx, { businessId: business!.id, clientId, patientName, date, tz });
-              await assertContactUnderDailyCap(tx, { businessId: business!.id, clientId, businessName: business!.name });
+              suppressContactMessages = await contactAtDailyCap(tx, { businessId: business!.id, clientId });
               const r = await loadAvailability(tx, { ...query, staffId: cand });
               return r.ok && (r.available.get(time)?.resourceIds.includes(cand) ?? false);
             },
@@ -275,6 +275,10 @@ async function POST_handler(req: NextRequest) {
   }
 
   // Post-commit work shared by the postpaid and demo paths.
+  // Set when this contact already had a day's quota of bookings: the booking still goes through, but
+  // no email or WhatsApp is sent to the contact (a flood protection that never blocks anyone).
+  let suppressContactMessages = false;
+
   async function notify(appointmentId: string, spent: number) {
     await prisma.client.update({
       where: { id: client.id },
@@ -298,7 +302,7 @@ async function POST_handler(req: NextRequest) {
     }).catch(() => {});
 
     try {
-      await sendBookingConfirmation({
+      if (!suppressContactMessages) await sendBookingConfirmation({
         to: clientEmail,
         clientName,
         patientName,
@@ -318,7 +322,7 @@ async function POST_handler(req: NextRequest) {
       logger.error("[Email] Failed:", { err });
     }
 
-    if (clientPhone) {
+    if (clientPhone && !suppressContactMessages) {
       try {
         await sendBookingConfirmationWhatsApp({
           to: clientPhone,
@@ -349,7 +353,6 @@ async function POST_handler(req: NextRequest) {
       appointment = await createAppointment(client.id, "unpaid", venueMode, hold);
     } catch (err) {
       if (err instanceof DuplicatePatientError) return await duplicateResponse(err);
-      if (err instanceof ContactLimitError) return NextResponse.json({ error: err.message, code: err.code }, { status: 429 });
       if (err instanceof SlotConflictError) return conflictResponse();
       if (err instanceof LimitReachedError) return await limitResponse();
       throw err;
@@ -376,7 +379,6 @@ async function POST_handler(req: NextRequest) {
       appointment = await createAppointment(client.id, "unpaid", "postpaid");
     } catch (err) {
       if (err instanceof DuplicatePatientError) return await duplicateResponse(err);
-      if (err instanceof ContactLimitError) return NextResponse.json({ error: err.message, code: err.code }, { status: 429 });
       if (err instanceof SlotConflictError) return conflictResponse();
       if (err instanceof LimitReachedError) return await limitResponse();
       throw err;
@@ -438,7 +440,6 @@ async function POST_handler(req: NextRequest) {
     appointment = await createAppointment(client.id, "unpaid", "prepaid");
   } catch (err) {
     if (err instanceof DuplicatePatientError) return await duplicateResponse(err);
-      if (err instanceof ContactLimitError) return NextResponse.json({ error: err.message, code: err.code }, { status: 429 });
       if (err instanceof SlotConflictError) return conflictResponse();
     if (err instanceof LimitReachedError) return await limitResponse();
     throw err;

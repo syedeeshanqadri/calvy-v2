@@ -117,7 +117,7 @@ function serviceLabel(first: string, notes: string | null): string {
 }
 
 /** Customer confirmation (email + WhatsApp) and owner push for a confirmed appointment. */
-export async function sendConfirmationFor(appointmentId: string, opts: { paid?: boolean } = {}): Promise<void> {
+export async function sendConfirmationFor(appointmentId: string, opts: { paid?: boolean; contactMessages?: boolean } = {}): Promise<void> {
   const a = await prisma.appointment.findUnique({
     where: { id: appointmentId },
     include: { client: true, service: true, staff: true, business: true, tokenSession: true },
@@ -137,6 +137,8 @@ export async function sendConfirmationFor(appointmentId: string, opts: { paid?: 
     url: "/dashboard/appointments",
     tag: "new-booking",
   }).catch(() => {});
+
+  if (opts.contactMessages === false) return; // flood protection: the business was told, the contact is not messaged
 
   if (a.client.email) {
     try {
