@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { PATIENT_GENDERS, PATIENT_RELATIONS } from "@/lib/patients";
 import { text, id, emailField, dateField, timeField, phoneField, blankToUndef } from "./common";
 
 export const bookingSchema = z
@@ -14,6 +15,10 @@ export const bookingSchema = z
     clientName: text(120).min(1),
     /** Who the appointment is for when booking for someone else (defaults to the booker). */
     patientName: z.preprocess(blankToUndef, text(120).min(1).optional()),
+    /** Only with patientName: how they relate to the booker, and (clinic pack) their age and gender. */
+    patientRelation: z.preprocess(blankToUndef, z.enum(PATIENT_RELATIONS).optional()),
+    patientAge: z.preprocess(blankToUndef, z.coerce.number().int().min(0).max(120).optional()),
+    patientGender: z.preprocess(blankToUndef, z.enum(PATIENT_GENDERS).optional()),
     clientEmail: emailField,
     clientPhone: z.preprocess(blankToUndef, phoneField.optional()),
     notes: z.preprocess(blankToUndef, text(1000).optional()),

@@ -63,3 +63,50 @@ export function findDuplicatePatient<T extends ExistingBooking>(candidateName: s
 export function duplicatePatientMessage(name: string, dateLabel: string): string {
   return `${name.trim()} already has an appointment on ${dateLabel}. To book for someone else, enter their name.`;
 }
+
+export const PATIENT_RELATIONS = ["child", "parent", "spouse", "other"] as const;
+export type PatientRelation = (typeof PATIENT_RELATIONS)[number];
+export const PATIENT_RELATION_LABELS: Record<PatientRelation, string> = { child: "Child", parent: "Parent", spouse: "Spouse", other: "Other" };
+export const PATIENT_GENDERS = ["female", "male", "other"] as const;
+
+/** Default and bounds of the fair-use cap on different people per booker contact per day. */
+export const DEFAULT_MAX_PEOPLE_PER_BOOKER = 4;
+export const MAX_PEOPLE_PER_BOOKER_LIMIT = 20;
+
+/**
+ * How a booking reads to staff: the patient's name, plus who booked it when that is someone else.
+ * "Meena Kapoor (booked by Riya Kapoor)"; just the name when the booker is the patient.
+ */
+export function bookingForLabel(a: { patientName?: string | null; client?: { name: string } | null }): string {
+  const patient = patientNameOf(a);
+  const booker = a.client?.name?.trim() ?? "";
+  if (!booker || !patient || normalizeName(patient) === normalizeName(booker)) return patient || booker;
+  return `${patient} (booked by ${booker})`;
+}
+
+/** Is a booking active for the duplicate and fair-use rules? Lapsed payment holds are not. */
+function isActive(e: ExistingBooking, now: Date): boolean {
+  if (!(BLOCKING_STATUSES as readonly string[]).includes(e.status)) return false;
+  return !(e.status === "pending_payment" && !(e.holdExpiresAt && e.holdExpiresAt.getTime() > now.getTime()));
+}
+
+/** How many different people a contact has active bookings for (names compared loosely). */
+export function countDistinctPatients(existing: ExistingBooking[], now: Date = new Date()): number {
+  const names = new Set<string>();
+  for (const e of existing) {
+    if (isActive(e, now)) names.add(normalizeName(e.patientName?.trim() || e.clientName));
+  }
+  names.delete("");
+  return names.size;
+}
+
+/** Would one more person take the contact over the fair-use cap? A person already counted never does. */
+export function exceedsPeopleCap(candidateName: string, existing: ExistingBooking[], max: number, now: Date = new Date()): boolean {
+  const want = normalizeName(candidateName);
+  const known = existing.some((e) => isActive(e, now) && normalizeName(e.patientName?.trim() || e.clientName) === want);
+  return !known && countDistinctPatients(existing, now) >= max;
+}
+
+export function peopleCapMessage(max: number): string {
+  return `You have already booked for ${max} different people today. To book for more, please contact the business directly.`;
+}

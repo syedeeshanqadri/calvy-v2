@@ -12,7 +12,9 @@ import { TokenPicker, type TokenOption } from "@/components/tokens/TokenPicker";
 import { computeCharge, toMinor } from "@/lib/fees";
 import { launchCheckout } from "@/lib/payments/launchCheckout";
 import { HOLD_MINUTES } from "@/lib/holds";
-import { loadBooker, parseAgain, saveBooker } from "@/lib/bookAgain";
+import { addMyBooking, datesBookerHolds, loadBooker, loadMyBookings, saveBooker, sessionsBookerHolds, takeAgain, type MyBooking } from "@/lib/bookAgain";
+import { AnotherBooking } from "@/components/booking/AnotherBooking";
+import { PATIENT_GENDERS, PATIENT_RELATIONS, PATIENT_RELATION_LABELS, type PatientRelation } from "@/lib/patients";
 import type { PayConfig } from "@/lib/onlinePayment";
 
 type Step = "service" | "staff" | "datetime" | "details" | "confirm";
@@ -72,22 +74,17 @@ export function BookingClient({ business }: { business: Business }) {
   const [selectedDate, setSelectedDate] = useState<number | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [form, setForm] = useState({ name: "", email: "", phone: "", notes: "" });
-  // Booking for someone else: the booker's email/phone stay, the patient name identifies who it is for.
+  // "Who is this appointment for?" Someone else: the booker's email/phone stay, the patient is who it is for.
   const [forSomeone, setForSomeone] = useState(false);
-  // Set when the same person already has an appointment that day: we ask "are you booking for someone else?".
-  const [duplicate, setDuplicate] = useState<{ message: string; kept: boolean } | null>(null);
   const [patientName, setPatientName] = useState("");
-  const againMode = parseAgain(searchParams?.get("again"));
-  useEffect(() => {
-    if (!againMode) return;
-    const saved = loadBooker(business.slug);
-    if (!saved) return;
-    // After the first paint, so the server HTML and the first client render match.
-    void Promise.resolve().then(() => {
-      setForm((f) => ({ ...f, name: saved.name, email: saved.email, phone: saved.phone }));
-      setForSomeone(againMode === "other");
-    });
-  }, [againMode, business.slug]);
+  const [relation, setRelation] = useState<PatientRelation | "">("");
+  const [patientAge, setPatientAge] = useState("");
+  const [patientGender, setPatientGender] = useState("");
+  // The server refused: this person already has a booking that day, or the booker passed the fair-use cap.
+  const [refusal, setRefusal] = useState<{ message: string; code: string } | null>(null);
+  // Bookings made in this tab, to grey out dates the booker already holds (the server still decides).
+  const [mine, setMine] = useState<MyBooking[]>([]);
+  const [savedName, setSavedName] = useState("");
   const [loading, setLoading] = useState(false);
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [availableSlots, setAvailableSlots] = useState<string[]>([]);
@@ -134,6 +131,31 @@ export function BookingClient({ business }: { business: Business }) {
     else setViewMonth(m => m + 1);
     setSelectedDate(null); setSelectedTime(null);
   }
+
+  useEffect(() => {
+    const saved = loadBooker(business.slug);
+    const again = takeAgain(business.slug);
+    // After the first paint, so the server HTML and the first client render match.
+    void Promise.resolve().then(() => {
+      setMine(loadMyBookings(business.slug));
+      setSavedName(saved?.name ?? "");
+      if (!saved || !again) return;
+      setForm((f) => ({ ...f, name: saved.name, email: saved.email, phone: saved.phone }));
+      const ids = again.serviceIds.filter((id) => services.some((x) => x.id === id));
+      if (ids.length === 0) return;
+      setSelectedServices(ids);
+      setSelectedStaff(again.staffId ?? "any");
+      setForSomeone(again.mode === "other");
+      if (again.mode === "other" && again.date) {
+        const [y, m, d] = again.date.split("-").map(Number);
+        if (tokenMode) setTokenDate(again.date);
+        else { setViewYear(y); setViewMonth(m - 1); setSelectedDate(d); }
+      }
+      setStep("datetime");
+    });
+    // Runs once per page load; `services` and `tokenMode` come from props that do not change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [business.slug]);
 
   function toggleService(id: string) {
     setSelectedServices(prev =>
@@ -229,6 +251,12 @@ export function BookingClient({ business }: { business: Business }) {
 
   const tokenDateLabel = tokenDate ? (() => { const [y, m, d] = tokenDate.split("-").map(Number); return `${MONTHS[m - 1]} ${d}, ${y}`; })() : "—";
   const dateStr = tokenMode ? tokenDateLabel : selectedDate ? `${MONTHS[viewMonth]} ${selectedDate}, ${viewYear}` : "—";
+  const bookingDateIso = tokenMode ? tokenDate : selectedDate ? `${viewYear}-${String(viewMonth + 1).padStart(2, "0")}-${String(selectedDate).padStart(2, "0")}` : "";
+  const bookerName = form.name || savedName;
+  // Booking for myself: dates (or, for tokens, sessions) I already hold are greyed out. Someone else is allowed the same day.
+  const heldDates = forSomeone ? {} : datesBookerHolds(mine, bookerName);
+  const heldSessions = forSomeone ? {} : sessionsBookerHolds(mine, bookerName, tokenDate);
+  const patientLabel = forSomeone && patientName.trim() ? patientName.trim() : form.name;
   const serviceNamesLabel = selectedServiceObjs.map(s => s.name).join(" & ") || "—";
   // Online charge for this booking (same calculator as the server, which stays authoritative).
   const payConfig = business.payConfig ?? null;
@@ -259,7 +287,11 @@ export function BookingClient({ business }: { business: Business }) {
             ? { date: tokenDate, tokenSessionId: tokenPick?.id }
             : { date: `${viewYear}-${String(viewMonth + 1).padStart(2, "0")}-${String(selectedDate).padStart(2, "0")}`, time: selectedTime }),
           clientName: form.name,
-          patientName: forSomeone && patientName.trim() ? patientName.trim() : undefined,
+          ...(forSomeone && patientName.trim() ? {
+            patientName: patientName.trim(),
+            patientRelation: relation || undefined,
+            ...(business.packId === "CLINIC" ? { patientAge: patientAge || undefined, patientGender: patientGender || undefined } : {}),
+          } : {}),
           clientEmail: form.email,
           clientPhone: form.phone || null,
           notes: form.notes || null,
@@ -267,12 +299,19 @@ export function BookingClient({ business }: { business: Business }) {
       });
       const data = await res.json();
       if (!res.ok) {
-        // Same person already booked that day: ask whether this is for someone else (see the prompt below).
-        if (data.code === "DUPLICATE_PATIENT") { setDuplicate({ message: data.error, kept: false }); return; }
+        // Same person already booked that day, or too many people for this booker: a friendly answer, not an error.
+        if (data.code === "DUPLICATE_PATIENT" || data.code === "PEOPLE_CAP") { setRefusal({ message: data.error, code: data.code }); return; }
         setError(data.error ?? "Something went wrong.");
         return;
       }
-      if (data.checkout) { await launchCheckout(data.checkout); return; }
+      // Remember this booking in the tab, so the next one can grey out the date. A paid one counts once paid.
+      const kept = { date: bookingDateIso, patient: patientLabel, label: data.token ? `Token #${data.token.number}` : `${selectedTime}`, tokenSessionId: tokenMode ? tokenPick?.id : undefined, serviceIds: selectedServices, staffId: selectedStaff && selectedStaff !== "any" ? selectedStaff : null };
+      if (data.checkout) {
+        addMyBooking(business.slug, { ...kept, orderId: data.checkout.orderId, confirmed: false });
+        await launchCheckout(data.checkout);
+        return;
+      }
+      addMyBooking(business.slug, { ...kept, confirmed: true });
       if (data.url) { window.location.href = data.url; } else { if (data.token) setTokenResult(data.token); setConfirmationWithheld(!!data.confirmationWithheld); setBooked(true); }
     } catch (e) { setError(e instanceof Error && e.message.startsWith("Could not load") ? e.message : "Network error. Please try again."); }
     finally { setLoading(false); }
@@ -295,6 +334,7 @@ export function BookingClient({ business }: { business: Business }) {
           )}
           <div className="bg-[#f8f7f4] rounded-2xl p-5 text-left mb-6 space-y-2.5">
             <div className="flex justify-between text-sm"><span className="text-[#6b6b80]">Business</span><span className="font-medium">{business.name}</span></div>
+            <div className="flex justify-between text-sm"><span className="text-[#6b6b80]">For</span><span className="font-medium text-right max-w-[60%]">{patientLabel}</span></div>
             <div className="flex justify-between text-sm">
               <span className="text-[#6b6b80]">{word("service", { cap: true, plural: selectedServiceObjs.length > 1 })}</span>
               <span className="font-medium text-right max-w-[60%]">{serviceNamesLabel}</span>
@@ -325,11 +365,8 @@ export function BookingClient({ business }: { business: Business }) {
               <span className="font-medium">{payAtVenue ? `Pay at ${appt1}` : "Paid online"}</span>
             </div>
           </div>
-          <div className="border-t border-[#f0ede8] pt-5 mb-5 space-y-2.5">
-            <p className="text-sm font-semibold">Schedule another {appt1}</p>
-            <a href="?again=same" className="block w-full rounded-xl border border-[#e8e6e0] px-4 py-3 text-sm font-medium hover:bg-[#f8f7f4]">For {patientName.trim() && forSomeone ? patientName.trim() : "me"}, on another date</a>
-            <a href="?again=other" className="block w-full rounded-xl border border-[#e8e6e0] px-4 py-3 text-sm font-medium hover:bg-[#f8f7f4]">For someone else</a>
-          </div>
+          <AnotherBooking slug={business.slug} bookPath={typeof window !== "undefined" ? window.location.pathname : `/${business.slug}/book-now`}
+            serviceIds={selectedServices} staffId={selectedStaff && selectedStaff !== "any" ? selectedStaff : null} date={bookingDateIso} appointmentWord={appt1} />
           {reviewUrl && (
             <div className="mb-2">
               <p className="text-xs text-[#6b6b80] mb-3">Enjoyed booking with us? We&apos;d love a quick review.</p>
@@ -513,6 +550,7 @@ export function BookingClient({ business }: { business: Business }) {
           <TokenPicker
             slug={business.slug} serviceIds={selectedServices} date={tokenDate} selectedId={tokenPick?.id ?? null}
             onPick={(d, option) => { setTokenDate(d); setTokenPick(option); }}
+            heldSessions={heldSessions}
             staffWord={stf1} appointmentWord={appt1} color={color} fg={fg}
           />
         )}
@@ -532,15 +570,19 @@ export function BookingClient({ business }: { business: Business }) {
               <div className="grid grid-cols-7 gap-1">
                 {calCells.map((day, i) => {
                   const past = day ? isPastDay(day) : false;
-                  const full = !!day && !past && !dayHasSlots(day);
+                  const heldLabel = day ? heldDates[`${monthKey}-${String(day).padStart(2, "0")}`] : undefined;
+                  const held = !!heldLabel;
+                  const full = !!day && !past && !held && !dayHasSlots(day);
                   const isSelected = day === selectedDate;
                   return (
-                    <button key={i} disabled={!day || past || full} onClick={() => day && setSelectedDate(day)}
-                      aria-label={day && full ? `${MONTHS[viewMonth]} ${day}, no availability` : undefined}
+                    <button key={i} disabled={!day || past || full || held} onClick={() => day && setSelectedDate(day)}
+                      title={held ? `You already have ${heldLabel} on this day` : undefined}
+                      aria-label={day && full ? `${MONTHS[viewMonth]} ${day}, no availability` : held ? `${MONTHS[viewMonth]} ${day}, you already have ${heldLabel} on this day` : undefined}
                       className={cn("aspect-square rounded-xl text-sm transition-all font-medium",
                         !day && "invisible",
                         past && "text-[#d0cec8] cursor-not-allowed",
                         full && "text-[#d0cec8] cursor-not-allowed line-through",
+                        held && "bg-amber-50 text-amber-800 cursor-not-allowed ring-1 ring-amber-200",
                         !past && !full && day && !isSelected && "hover:bg-[#f8f7f4] cursor-pointer",
                         isSelected && "text-white")}
                       style={isSelected ? { background: color, color: fg } : {}}>
@@ -550,6 +592,11 @@ export function BookingClient({ business }: { business: Business }) {
                 })}
               </div>
             </div>
+            {Object.keys(heldDates).some(d => d.startsWith(monthKey)) && (
+              <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 mb-4">
+                Highlighted days are ones where you already have a {appt1} ({Object.entries(heldDates).filter(([d]) => d.startsWith(monthKey)).map(([d, l]) => `${Number(d.slice(8))}: ${l}`).join(", ")}). Booking for someone else? Choose &quot;Someone else&quot; on the next step.
+              </p>
+            )}
             {monthHasNone && !monthLoading && (
               <div className="bg-white rounded-2xl border border-[#e8e6e0] p-4 mb-4 text-sm flex items-center justify-between gap-3">
                 <span className="text-[#6b6b80]">
@@ -604,9 +651,54 @@ export function BookingClient({ business }: { business: Business }) {
         {/* Step: Details */}
         {step === "details" && (
           <div>
-            <h2 className="font-syne font-bold text-2xl mb-2">Your details</h2>
-            <p className="text-[#6b6b80] mb-6">We&apos;ll send your confirmation and reminders here.</p>
+            <h2 className="font-syne font-bold text-2xl mb-2">{forSomeone ? "Who is this for, and who is booking?" : "Your details"}</h2>
+            <p className="text-[#6b6b80] mb-6">We&apos;ll send the confirmation and reminders to the person booking.</p>
             <div className="bg-white rounded-2xl border border-[#e8e6e0] p-6 space-y-4">
+              <fieldset className="space-y-2">
+                <legend className="text-sm font-semibold text-[#0f0f1a] mb-2">Who is this {appt1} for?</legend>
+                <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label={`Who is this ${appt1} for?`}>
+                  {[{ v: false, label: "Myself" }, { v: true, label: "Someone else" }].map(o => (
+                    <button key={o.label} type="button" role="radio" aria-checked={forSomeone === o.v} onClick={() => setForSomeone(o.v)}
+                      className={cn("min-h-11 rounded-xl border px-4 text-sm font-semibold transition-colors", forSomeone === o.v ? "border-transparent" : "border-[#e8e6e0] hover:bg-[#f8f7f4]")}
+                      style={forSomeone === o.v ? { background: color, color: fg } : undefined}>{o.label}</button>
+                  ))}
+                </div>
+              </fieldset>
+              {forSomeone && (
+                <div className="rounded-xl bg-[#f8f7f4] p-4 space-y-3">
+                  <div>
+                    <label htmlFor="booking-patient-name" className="text-sm font-medium text-[#0f0f1a] block mb-1.5">Patient&apos;s full name *</label>
+                    <input id="booking-patient-name" value={patientName} maxLength={120} onChange={e => setPatientName(e.target.value)} placeholder="Who is this for?"
+                      className="w-full rounded-xl border border-[#e8e6e0] px-4 py-3 text-sm bg-white focus:outline-none focus:ring-2 focus:border-accent/40" />
+                  </div>
+                  <div>
+                    <label htmlFor="booking-relation" className="text-sm font-medium text-[#0f0f1a] block mb-1.5">Relation to you (optional)</label>
+                    <select id="booking-relation" value={relation} onChange={e => setRelation(e.target.value as PatientRelation | "")}
+                      className="w-full rounded-xl border border-[#e8e6e0] px-4 py-3 text-sm bg-white">
+                      <option value="">Choose…</option>
+                      {PATIENT_RELATIONS.map(r => <option key={r} value={r}>{PATIENT_RELATION_LABELS[r]}</option>)}
+                    </select>
+                  </div>
+                  {business.packId === "CLINIC" && (
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label htmlFor="booking-age" className="text-sm font-medium text-[#0f0f1a] block mb-1.5">Age (optional)</label>
+                        <input id="booking-age" type="number" inputMode="numeric" min={0} max={120} value={patientAge} onChange={e => setPatientAge(e.target.value)}
+                          className="w-full rounded-xl border border-[#e8e6e0] px-4 py-3 text-sm bg-white" />
+                      </div>
+                      <div>
+                        <label htmlFor="booking-gender" className="text-sm font-medium text-[#0f0f1a] block mb-1.5">Gender (optional)</label>
+                        <select id="booking-gender" value={patientGender} onChange={e => setPatientGender(e.target.value)} className="w-full rounded-xl border border-[#e8e6e0] px-4 py-3 text-sm bg-white">
+                          <option value="">Choose…</option>
+                          {PATIENT_GENDERS.map(g => <option key={g} value={g}>{g[0].toUpperCase() + g.slice(1)}</option>)}
+                        </select>
+                      </div>
+                    </div>
+                  )}
+                  <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">This is a separate {appt1} with its own payment, even if you already have one.</p>
+                </div>
+              )}
+              {forSomeone && <p className="text-sm font-semibold text-[#0f0f1a] pt-1">Your details (the person booking)</p>}
               <div className="grid sm:grid-cols-2 gap-4">
                 {[{ label: "Full name", key: "name", type: "text", placeholder: "Jane Smith" }, { label: phoneNeeded ? "Phone number *" : "Phone number (optional)", key: "phone", type: "tel", placeholder: "+91 98765 43210" }].map(f => (
                   <div key={f.key}>
@@ -620,20 +712,6 @@ export function BookingClient({ business }: { business: Business }) {
                 <label htmlFor="booking-email-address" className="text-sm font-medium text-[#0f0f1a] block mb-1.5">Email address</label>
                 <input id="booking-email-address" type="email" required placeholder="jane@email.com" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })}
                   className="w-full rounded-xl border border-[#e8e6e0] px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:border-accent transition-all" />
-              </div>
-              <div className="rounded-xl bg-[#f8f7f4] p-4 space-y-3">
-                <label className="flex items-start gap-2 text-sm">
-                  <input type="checkbox" className="mt-1" checked={forSomeone} onChange={e => setForSomeone(e.target.checked)} />
-                  <span>I&apos;m booking this {appt1} for someone else<span className="block text-xs text-[#6b6b80]">Confirmations come to you. Each person is a separate {appt1} and is paid for separately.</span></span>
-                </label>
-                {forSomeone && (
-                  <div className="space-y-2">
-                    <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">This is a separate {appt1} for another person, so it is paid for separately, even if you are signed in.</p>
-                    <label htmlFor="booking-patient-name" className="text-sm font-medium text-[#0f0f1a] block mb-1.5">Their full name *</label>
-                    <input id="booking-patient-name" autoFocus value={patientName} maxLength={120} onChange={e => setPatientName(e.target.value)} placeholder="Who is this for?"
-                      className="w-full rounded-xl border border-[#e8e6e0] px-4 py-3 text-sm bg-white focus:outline-none focus:ring-2 focus:border-accent/40" />
-                  </div>
-                )}
               </div>
               <div>
                 <label htmlFor="booking-notes-optional" className="text-sm font-medium text-[#0f0f1a] block mb-1.5">Notes (optional)</label>
@@ -649,6 +727,12 @@ export function BookingClient({ business }: { business: Business }) {
           <div>
             <h2 className="font-syne font-bold text-2xl mb-2">Confirm booking</h2>
             <p className="text-[#6b6b80] mb-6">Review your {appt1} details before confirming.</p>
+            <div className="rounded-2xl border border-[#e8e6e0] bg-white p-5 mb-4" data-testid="booking-summary">
+              <p className="text-sm"><span className="text-[#6b6b80]">Booking for:</span> <strong>{patientLabel}</strong>
+                <span className="text-[#6b6b80]"> · Booked by:</span> <strong>{form.name}</strong>
+                <span className="text-[#6b6b80]"> · </span><strong style={{ color }}>{payNowMinor > 0 ? payNowLabel : formatCurrencyAmount(totalPrice, business.currency)}</strong></p>
+              {forSomeone && <p className="text-xs text-[#6b6b80] mt-2">This is a separate {appt1} with its own {payNowMinor > 0 ? "payment" : "fee"} of {payNowMinor > 0 ? payNowLabel : formatCurrencyAmount(totalPrice, business.currency)}.</p>}
+            </div>
             <div className="bg-white rounded-2xl border border-[#e8e6e0] p-6 mb-4">
               <div className="flex justify-between text-sm py-2.5 border-b border-[#f5f3ef]">
                 <span className="text-[#6b6b80]">Business</span>
@@ -682,7 +766,7 @@ export function BookingClient({ business }: { business: Business }) {
                   ? [{ label: "Session", value: tokenPick ? `${tokenPick.name} (${tokenPick.startTime} – ${tokenPick.endTime})` : "—" }, { label: "Token", value: "Number and estimated time are shown once confirmed" }]
                   : [{ label: "Time", value: selectedTime }, { label: "Total duration", value: `${totalDuration} min` }]),
                 { label: forSomeone ? "Booked by" : "Name", value: form.name },
-                ...(forSomeone && patientName.trim() ? [{ label: `${Svc1} for`, value: patientName.trim() }] : []),
+                ...(forSomeone && patientName.trim() ? [{ label: `${Svc1} for`, value: `${patientName.trim()}${relation ? ` (${PATIENT_RELATION_LABELS[relation]})` : ""}` }] : []),
                 { label: "Email", value: form.email },
               ].map(row => (
                 <div key={row.label} className="flex justify-between text-sm py-2.5 border-b border-[#f5f3ef] last:border-0">
@@ -713,27 +797,24 @@ export function BookingClient({ business }: { business: Business }) {
               📧 A confirmation will be sent to <strong>{form.email}</strong> along with a reminder 24h before.
             </div>
             {error && <p className="text-sm text-red-600 bg-red-50 rounded-xl px-4 py-3 mb-4">{error}</p>}
-            {duplicate && (
+            {refusal && (
               <div role="alert" className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-4 mb-4 text-sm text-amber-900 space-y-3">
-                {duplicate.kept ? (
+                {refusal.code === "PEOPLE_CAP" ? (
                   <>
-                    <p className="font-semibold">Your existing appointment is unchanged.</p>
-                    <p>There is nothing more to do. You do not need to book again.</p>
-                    <button type="button" onClick={() => { setDuplicate(null); setStep("service"); setSelectedServices([]); resetAfterServices(); }}
-                      className="min-h-11 rounded-xl border border-amber-400 bg-white px-4 font-medium">Start a new booking</button>
+                    <p className="font-semibold">That is the most people we can book for you in one day.</p>
+                    <p>{refusal.message}</p>
                   </>
                 ) : (
                   <>
-                    <p className="font-semibold">Your appointment is already scheduled.</p>
-                    <p>{duplicate.message.replace(/ To book for someone else, enter their name\.$/, "")}</p>
-                    <p className="font-medium">Are you booking for someone else?</p>
+                    <p className="font-semibold">That {appt1} is already booked.</p>
+                    <p>{refusal.message.replace(/ To book for someone else, enter their name\.$/, "")}</p>
+                    <p className="font-medium">Book another {appt1}:</p>
                     <div className="grid sm:grid-cols-2 gap-2">
-                      <button type="button" onClick={() => { setDuplicate(null); setForSomeone(true); setPatientName(""); setStep("details"); }}
-                        className="min-h-11 rounded-xl bg-[#0f0f1a] px-4 text-white font-semibold">Yes, for someone else</button>
-                      <button type="button" onClick={() => setDuplicate({ ...duplicate, kept: true })}
-                        className="min-h-11 rounded-xl border border-amber-400 bg-white px-4 font-medium">No, keep my appointment</button>
+                      <button type="button" onClick={() => { setRefusal(null); setForSomeone(false); setSelectedDate(null); setSelectedTime(null); setTokenPick(null); setStep("datetime"); }}
+                        className="min-h-14 rounded-xl border border-amber-400 bg-white px-4 font-semibold">For me, on another date</button>
+                      <button type="button" onClick={() => { setRefusal(null); setForSomeone(true); setPatientName(""); setStep("details"); }}
+                        className="min-h-14 rounded-xl bg-[#0f0f1a] px-4 text-white font-semibold">For someone else</button>
                     </div>
-                    <p className="text-xs">If yes, you will enter their name and pay for their {appt1} separately.</p>
                   </>
                 )}
               </div>
@@ -750,7 +831,7 @@ export function BookingClient({ business }: { business: Business }) {
           ) : <div />}
 
           {step === "confirm" ? (
-            <button onClick={handleConfirm} disabled={!!duplicate || loading || !form.name || !form.email || !isValidEmail(form.email) || (phoneNeeded && !form.phone.trim()) || (forSomeone && !patientName.trim())}
+            <button onClick={handleConfirm} disabled={!!refusal || loading || !form.name || !form.email || !isValidEmail(form.email) || (phoneNeeded && !form.phone.trim()) || (forSomeone && !patientName.trim())}
               className="flex items-center gap-2 text-white font-semibold px-6 py-3 rounded-xl text-sm transition-colors disabled:opacity-60 disabled:cursor-not-allowed hover:opacity-90"
               style={{ background: color, color: fg }}>
               {loading ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}

@@ -12,7 +12,7 @@ import { MiniCalendar } from "@/components/dashboard/MiniCalendar";
 import { TeamWidget } from "@/components/dashboard/TeamWidget";
 import { QuickActions } from "@/components/dashboard/QuickActions";
 import { safeTimeZone, utcToZoned, zonedDayRange, formatDateLabel } from "@/lib/time";
-import { patientNameOf } from "@/lib/patients";
+import { bookingForLabel } from "@/lib/patients";
 
 export const dynamic = 'force-dynamic';
 
@@ -127,7 +127,7 @@ export default async function DashboardPage() {
     }
     return {
       id: a.id,
-      clientName: patientNameOf(a),
+      clientName: bookingForLabel(a),
       clientEmail: a.client.email ?? a.client.phone ?? "",
       serviceName,
       staffName: a.staff?.name ?? "—",

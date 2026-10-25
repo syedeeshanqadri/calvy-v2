@@ -1,14 +1,36 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { BLOCKING_STATUSES, duplicatePatientMessage, findDuplicatePatient, normalizeName } from "@/lib/patients";
+import { BLOCKING_STATUSES, duplicatePatientMessage, exceedsPeopleCap, findDuplicatePatient, normalizeName, peopleCapMessage } from "@/lib/patients";
 import { formatDateLabel, zonedDayRange, zonedToUtc } from "@/lib/time";
 
 type Db = Prisma.TransactionClient | typeof prisma;
 
 /** Thrown when the same patient already has an active appointment that day. */
 export class DuplicatePatientError extends Error {
-  readonly code = "DUPLICATE_PATIENT";
+  readonly code: string = "DUPLICATE_PATIENT";
 }
+
+/** Thrown when a booker contact would pass the fair-use cap of different people per day. Answered like a duplicate. */
+export class PeopleCapError extends DuplicatePatientError {
+  readonly code: string = "PEOPLE_CAP";
+}
+
+/** The contact's bookings in the window the duplicate and fair-use rules look at: the day, or the token session that day. */
+function windowWhere(p: { businessId: string; clientId: string; date: string; tz: string; tokenSessionId?: string | null }) {
+  const day = zonedDayRange(p.date, p.tz);
+  return {
+    businessId: p.businessId,
+    clientId: p.clientId,
+    date: { gte: day.start, lt: day.end },
+    status: { in: [...BLOCKING_STATUSES] },
+    // Tokens: the same person may hold a token in a different session of the same day.
+    ...(p.tokenSessionId ? { tokenSessionId: p.tokenSessionId } : {}),
+  };
+}
+
+const windowSelect = { patientName: true, status: true, holdExpiresAt: true, client: { select: { name: true } } } as const;
+const asExisting = (rows: { patientName: string | null; status: string; holdExpiresAt: Date | null; client: { name: string } | null }[]) =>
+  rows.map((r) => ({ patientName: r.patientName, clientName: r.client?.name ?? "", status: r.status, holdExpiresAt: r.holdExpiresAt }));
 
 /**
  * One person cannot hold two active appointments with a business on the same day, but one contact
@@ -21,21 +43,30 @@ export class DuplicatePatientError extends Error {
  */
 export async function assertNoDuplicatePatient(
   db: Db,
-  p: { businessId: string; clientId: string; patientName: string; date: string; tz: string },
+  p: { businessId: string; clientId: string; patientName: string; date: string; tz: string; tokenSessionId?: string | null },
 ): Promise<void> {
   // One lock per patient per business: concurrent bookings for the same person line up here, so the
   // second one sees the first. Held until the surrounding transaction ends.
   await db.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`patient:${p.businessId}:${p.clientId}:${normalizeName(p.patientName)}`}, 0))`;
-  const day = zonedDayRange(p.date, p.tz);
-  const rows = await db.appointment.findMany({
-    where: { businessId: p.businessId, clientId: p.clientId, date: { gte: day.start, lt: day.end }, status: { in: [...BLOCKING_STATUSES] } },
-    select: { patientName: true, status: true, holdExpiresAt: true, client: { select: { name: true } } },
-  });
-  const dup = findDuplicatePatient(
-    p.patientName,
-    rows.map((r) => ({ patientName: r.patientName, clientName: r.client?.name ?? "", status: r.status, holdExpiresAt: r.holdExpiresAt })),
-  );
+  const rows = await db.appointment.findMany({ where: windowWhere(p), select: windowSelect });
+  const dup = findDuplicatePatient(p.patientName, asExisting(rows));
   if (dup) throw new DuplicatePatientError(duplicatePatientMessage(p.patientName, formatDateLabel(zonedToUtc(p.date, 12 * 60, p.tz), p.tz)));
+}
+
+/**
+ * Fair use: one booker contact may book for at most `max` different people per day (per session for
+ * tokens). A person who already has a booking is handled by the duplicate rule, not counted again.
+ * Takes the per-contact lock (the same one contactAtDailyCap uses, which is re-entrant), so parallel
+ * bookings for different people cannot all slip under the cap. Call it inside the booking
+ * transaction, after assertNoDuplicatePatient.
+ */
+export async function assertWithinPeopleCap(
+  db: Db,
+  p: { businessId: string; clientId: string; patientName: string; date: string; tz: string; tokenSessionId?: string | null; max: number },
+): Promise<void> {
+  await db.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`contact:${p.businessId}:${p.clientId}`}, 0))`;
+  const rows = await db.appointment.findMany({ where: windowWhere(p), select: windowSelect });
+  if (exceedsPeopleCap(p.patientName, asExisting(rows), p.max)) throw new PeopleCapError(peopleCapMessage(p.max));
 }
 
 /** Generous: a family booking several people never gets near it; a flood in one person's name does. */

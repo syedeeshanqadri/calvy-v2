@@ -21,7 +21,7 @@ import { bookToken } from "@/lib/tokenBooking";
 import { missingContact } from "@/lib/patients";
 import { tryNormalizeEmail } from "@/lib/email-normalize";
 import { normalizePhone } from "@/lib/phone";
-import { assertNoDuplicatePatient, contactAtDailyCap, DuplicatePatientError } from "@/lib/patientsDb";
+import { assertNoDuplicatePatient, assertWithinPeopleCap, contactAtDailyCap, DuplicatePatientError } from "@/lib/patientsDb";
 import { isFeatureEnabled } from "@/lib/flags";
 import { PENDING_PAYMENT, holdExpiry } from "@/lib/holds";
 import { chargeFor, getPayConfig, startCheckout } from "@/lib/onlinePayment";
@@ -58,6 +58,7 @@ async function POST_handler(req: NextRequest) {
   const { businessSlug, staffId, date, time: timeInput, tokenSessionId, clientName, clientEmail, clientPhone, notes } = parsed.data;
   // The appointment is for the booker unless they entered another person's name.
   const patientName = (parsed.data.patientName ?? clientName).trim();
+  const bookingForOther = !!parsed.data.patientName;
 
   // Support serviceIds[] (multi-service) and legacy serviceId (single)
   const serviceIds: string[] = parsed.data.serviceIds?.length ? parsed.data.serviceIds : [parsed.data.serviceId!];
@@ -67,6 +68,14 @@ async function POST_handler(req: NextRequest) {
     include: { services: true },
   });
   if (!business) return NextResponse.json({ error: "Business not found." }, { status: 404 });
+  // Who the booking is for: relation for anyone else; age and gender only where the clinic pack asks for them.
+  const patientDetails = bookingForOther
+    ? {
+        patientRelation: parsed.data.patientRelation ?? null,
+        patientAge: business.packId === "CLINIC" ? parsed.data.patientAge ?? null : null,
+        patientGender: business.packId === "CLINIC" ? parsed.data.patientGender ?? null : null,
+      }
+    : { patientRelation: null, patientAge: null, patientGender: null };
 
   // The "already has an appointment" answer tells a caller that someone has booked, so a contact that
   // has received a handful of those answers is put on a cooldown: until it ends, EVERY booking for
@@ -159,7 +168,8 @@ async function POST_handler(req: NextRequest) {
       return await bookToken({
         business, services: orderedServices, tokenSessionId, date, tz: bizTz,
         client: { name: clientName, email: clientEmail, phone: clientPhone },
-        notes, maxMonthlyAppointments: limits.maxMonthlyAppointments, monthStart, payConfig, patientName,
+        notes, maxMonthlyAppointments: limits.maxMonthlyAppointments, monthStart, payConfig, patientName, patientDetails,
+        maxPeoplePerBooker: business.maxPeoplePerBooker,
       });
     } catch (err) {
       if (err instanceof DuplicatePatientError) return await duplicateResponse(err);
@@ -238,6 +248,7 @@ async function POST_handler(req: NextRequest) {
               // Same person twice on a day is refused. Under a per-patient lock, so two parallel
               // requests (even for different staff) cannot both pass.
               await assertNoDuplicatePatient(tx, { businessId: business!.id, clientId, patientName, date, tz });
+              await assertWithinPeopleCap(tx, { businessId: business!.id, clientId, patientName, date, tz, max: business!.maxPeoplePerBooker });
               suppressContactMessages = await contactAtDailyCap(tx, { businessId: business!.id, clientId });
               const r = await loadAvailability(tx, { ...query, staffId: cand });
               return r.ok && (r.available.get(time)?.resourceIds.includes(cand) ?? false);
@@ -259,6 +270,7 @@ async function POST_handler(req: NextRequest) {
                 status: holdExpiresAt ? PENDING_PAYMENT : "confirmed",
                 holdExpiresAt,
                 patientName,
+                ...patientDetails,
                 notes: combinedNotes,
                 paymentStatus,
                 paymentMode: paymentModeVal,
@@ -296,7 +308,7 @@ async function POST_handler(req: NextRequest) {
 
     sendPushToBusiness(business!.id, {
       title: "New booking received",
-      body: `${patientName} — ${serviceNamesLabel} on ${dateLabel} at ${time}`,
+      body: `${bookingForOther ? `${patientName} (booked by ${clientName})` : patientName} — ${serviceNamesLabel} on ${dateLabel} at ${time}`,
       url: "/dashboard/appointments",
       tag: "new-booking",
     }).catch(() => {});

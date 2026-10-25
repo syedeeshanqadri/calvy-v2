@@ -19,7 +19,7 @@ import { formatDateLabel, parseYMD, utcToZoned, weekdayOf, zonedToUtc } from "@/
 import { minToHhmm, sessionCapacity } from "@/lib/tokens";
 import { BOOKING_TX_OPTIONS } from "@/lib/booking";
 import { trackingUrl } from "@/lib/tracking";
-import { patientNameOf } from "@/lib/patients";
+import { bookingForLabel } from "@/lib/patients";
 
 type Tx = Prisma.TransactionClient;
 
@@ -107,7 +107,7 @@ function etasFor(order: string[], rows: RowWithRelations[], session: { startMin:
 function toRow(a: RowWithRelations, eta: Date | undefined, place: number, tz: string): QueueRow {
   return {
     id: a.id, tokenNumber: a.tokenNumber ?? 0, state: stateOf({ state: a.queueState }),
-    clientName: patientNameOf(a), clientPhone: a.client.phone, serviceName: a.service.name, source: a.source,
+    clientName: bookingForLabel(a), clientPhone: a.client.phone, serviceName: a.service.name, source: a.source,
     etaTime: eta ? utcToZoned(eta, tz).time : "", place, notPresentCount: a.notPresentCount, carried: a.carriedFromId !== null,
   };
 }

@@ -38,7 +38,7 @@ function BookingDetails({ p }: { p: BookingProps }) {
   return (
     <Card>
       <DetailRow label={t(p.terms ?? {}, "service", { cap: true })} value={p.serviceName} strong />
-      {p.patientName && normalizeName(p.patientName) !== normalizeName(p.clientName) ? <DetailRow label="For" value={p.patientName} strong /> : null}
+      {p.patientName && normalizeName(p.patientName) !== normalizeName(p.clientName) ? <DetailRow label="For" value={`${p.patientName} (booked by ${p.clientName})`} strong /> : null}
       {p.staffName ? <DetailRow label="With" value={p.staffName} /> : null}
       <DetailRow label="Date" value={p.date} />
       {p.token ? (

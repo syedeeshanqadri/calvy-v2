@@ -3,6 +3,8 @@ import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Check, Clock, Loader2, X } from "lucide-react";
+import { confirmMyBooking, type MyBooking } from "@/lib/bookAgain";
+import { AnotherBooking } from "@/components/booking/AnotherBooking";
 
 type View = "pending" | "confirmed" | "failed" | "expired" | "refunded";
 interface Booking {
@@ -18,6 +20,8 @@ function ReturnInner() {
   const [state, setState] = useState<{ view: View; booking: Booking } | null>(null);
   const [error, setError] = useState("");
   const [polls, setPolls] = useState(0);
+  // What this browser kept about the booking (who it is for, what was booked), once the payment is confirmed.
+  const [mine, setMine] = useState<MyBooking | null>(null);
 
   useEffect(() => {
     if (!orderId) return;
@@ -31,6 +35,7 @@ function ReturnInner() {
         if (cancelled) return;
         if (!res.ok) { setError(data.error ?? "We couldn't find this booking."); return; }
         setState(data);
+        if (data.view === "confirmed") setMine(confirmMyBooking(data.booking.businessSlug, orderId));
         n += 1;
         setPolls(n);
         if (data.view === "pending" && n < MAX_POLLS) timer = setTimeout(tick, POLL_MS);
@@ -69,6 +74,7 @@ function ReturnInner() {
             {b && (
               <div className="bg-[#f8f7f4] rounded-2xl p-5 text-left space-y-2.5 text-sm">
                 <Row label="Business" value={b.businessName} />
+                {mine && <Row label="For" value={mine.patient} />}
                 <Row label="Service" value={b.serviceName} />
                 {b.staffName && <Row label="With" value={b.staffName} />}
                 <Row label="Date" value={b.date} />
@@ -87,10 +93,12 @@ function ReturnInner() {
               </div>
             )}
             {b && (
-              <div className="border-t border-[#f0ede8] mt-5 pt-5 space-y-2.5 text-left">
-                <p className="text-sm font-semibold">Schedule another appointment</p>
-                <Link href={`/${b.businessSlug}/book-now?again=same`} className="block rounded-xl border border-[#e8e6e0] px-4 py-3 text-sm font-medium hover:bg-[#f8f7f4]">For me, on another date</Link>
-                <Link href={`/${b.businessSlug}/book-now?again=other`} className="block rounded-xl border border-[#e8e6e0] px-4 py-3 text-sm font-medium hover:bg-[#f8f7f4]">For someone else</Link>
+              <div className="mt-5 text-left">
+                {mine?.serviceIds?.length ? (
+                  <AnotherBooking slug={b.businessSlug} bookPath={`/${b.businessSlug}/book-now`} serviceIds={mine.serviceIds} staffId={mine.staffId ?? null} date={mine.date} appointmentWord="appointment" />
+                ) : (
+                  <Link href={`/${b.businessSlug}/book-now`} className="block rounded-xl border border-[#e8e6e0] px-4 py-3 text-sm font-medium text-center hover:bg-[#f8f7f4]">Book another appointment</Link>
+                )}
               </div>
             )}
           </>

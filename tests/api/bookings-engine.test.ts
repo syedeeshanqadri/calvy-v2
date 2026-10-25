@@ -49,7 +49,7 @@ const service = { id: "s1", name: "Cut", duration: 60, price: 50, capacity: 1, i
 const business = (over: Record<string, unknown> = {}) => ({
   id: "biz", name: "Salon X", phone: "+91 99999 00000", slug: "x", currency: "INR", paymentMode: "postpaid",
   plan: "professional", planStatus: "active", trialEndsAt: null, timezone: "Asia/Kolkata",
-  slotInterval: 30, minNoticeMinutes: 0, maxAdvanceDays: 90, services: [service], ...over,
+  slotInterval: 30, minNoticeMinutes: 0, maxAdvanceDays: 90, maxPeoplePerBooker: 4, packId: "OTHER", services: [service], ...over,
 });
 const valid = { businessSlug: "x", serviceId: "s1", date: "2026-10-20", time: "10:00", clientName: "Jo", clientEmail: "jo@x.com", clientPhone: "+91 98765 43210" };
 const staffRow = (id: string) => ({ id, services: [{ serviceId: "s1" }] });
@@ -238,6 +238,60 @@ describe("POST /api/bookings: contact details and booking for someone else", () 
       args?.where?.clientId ? [{ patientName: "Jo", status: "confirmed", holdExpiresAt: null, client: { name: "Jo" } }] : []);
     const res = await POST(req({ ...valid, patientName: "Meena Kapoor" }));
     expect(res.status).toBe(200);
+  });
+
+  const people = (names: string[]) => async (args: { where?: { clientId?: string } }) =>
+    args?.where?.clientId ? names.map((n) => ({ patientName: n, status: "confirmed", holdExpiresAt: null, client: { name: "Jo" } })) : [];
+
+  it("different people each get their own booking, price and id", async () => {
+    db.appointment.findMany.mockImplementation(people(["Jo"]));
+    db.appointment.create.mockImplementation(async ({ data }: { data: Record<string, unknown> }) => ({ id: `appt-${data.patientName}`, ...data }));
+    const a = await (await POST(req({ ...valid, patientName: "Meena Kapoor" }))).json();
+    const b = await (await POST(req({ ...valid, patientName: "Asha Rao" }))).json();
+    expect(a.appointmentId).toBe("appt-Meena Kapoor");
+    expect(b.appointmentId).toBe("appt-Asha Rao");
+    const rows = db.appointment.create.mock.calls.map((c: any) => c[0].data);
+    expect(rows.map((r: any) => r.price)).toEqual([50, 50]);
+  });
+
+  it("fair-use cap: past the business's number of different people a day is refused, friendly", async () => {
+    db.business.findUnique.mockResolvedValue(business({ maxPeoplePerBooker: 2 }));
+    db.appointment.findMany.mockImplementation(people(["Jo", "Meena Kapoor"]));
+    const res = await POST(req({ ...valid, patientName: "Asha Rao" }));
+    expect(res.status).toBe(409);
+    const body = await res.json();
+    expect(body.code).toBe("PEOPLE_CAP");
+    expect(body.error).toMatch(/2 different people/);
+    expect(db.appointment.create).not.toHaveBeenCalled();
+  });
+
+  it("fair-use cap: under the cap is allowed; the default is 4", async () => {
+    db.appointment.findMany.mockImplementation(people(["Jo", "Meena Kapoor", "Asha Rao"]));
+    expect((await POST(req({ ...valid, patientName: "Ravi Rao" }))).status).toBe(200);
+    db.appointment.findMany.mockImplementation(people(["Jo", "Meena Kapoor", "Asha Rao", "Ravi Rao"]));
+    expect((await POST(req({ ...valid, patientName: "Leela Rao" }))).status).toBe(409);
+  });
+
+  it("the cap does not hide a duplicate: a person already booked gets the duplicate answer", async () => {
+    db.business.findUnique.mockResolvedValue(business({ maxPeoplePerBooker: 1 }));
+    db.appointment.findMany.mockImplementation(people(["Jo"]));
+    const body = await (await POST(req(valid))).json();
+    expect(body.code).toBe("DUPLICATE_PATIENT");
+  });
+
+  it("stores relation for someone else; age and gender only for a clinic", async () => {
+    const extra = { patientName: "Meena Kapoor", patientRelation: "parent", patientAge: 63, patientGender: "female" };
+    await POST(req({ ...valid, ...extra }));
+    expect(db.appointment.create.mock.calls.at(-1)?.[0].data).toMatchObject({ patientRelation: "parent", patientAge: null, patientGender: null });
+    db.business.findUnique.mockResolvedValue(business({ packId: "CLINIC" }));
+    await POST(req({ ...valid, ...extra }));
+    expect(db.appointment.create.mock.calls.at(-1)?.[0].data).toMatchObject({ patientRelation: "parent", patientAge: 63, patientGender: "female" });
+  });
+
+  it("booking for myself ignores relation, age and gender", async () => {
+    db.business.findUnique.mockResolvedValue(business({ packId: "CLINIC" }));
+    await POST(req({ ...valid, patientRelation: "child", patientAge: 5 }));
+    expect(db.appointment.create.mock.calls.at(-1)?.[0].data).toMatchObject({ patientRelation: null, patientAge: null });
   });
 
   const dupRows = async (args: { where?: { clientId?: string } }) =>

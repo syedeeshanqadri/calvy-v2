@@ -13,6 +13,7 @@ import { PackSettings } from "@/components/packs/PackSettings";
 import type { PackId } from "@/lib/packs/types";
 import { BookingModeSettings, type TokenSessionRow } from "@/components/tokens/BookingModeSettings";
 import { t as term } from "@/lib/terms";
+import { DEFAULT_MAX_PEOPLE_PER_BOOKER, MAX_PEOPLE_PER_BOOKER_LIMIT } from "@/lib/patients";
 
 const BUSINESS_TYPES = [
   { value: "salon", label: "Hair Salon" },
@@ -55,6 +56,7 @@ interface BusinessData {
   phone: string; email: string; address: string; website: string;
   description: string; primaryColor: string; availabilityJson: string; currency: string;
   slotInterval?: number;
+  maxPeoplePerBooker?: number;
   paymentMode?: string;
   bankAccountName?: string; bankAccountNumber?: string; bankRoutingNumber?: string; bankIban?: string;
   legalBusinessName?: string; rzpBusinessType?: string; rzpCategory?: string; rzpSubcategory?: string;
@@ -95,6 +97,7 @@ export function SettingsClient({ business, customSlotInterval = false, stripePay
   );
 
   const [slotInterval, setSlotInterval] = useState(business.slotInterval ?? 30);
+  const [maxPeople, setMaxPeople] = useState(String(business.maxPeoplePerBooker ?? DEFAULT_MAX_PEOPLE_PER_BOOKER));
 
   const [payout, setPayout] = useState({
     paymentMode: business.paymentMode ?? "postpaid",
@@ -170,7 +173,7 @@ export function SettingsClient({ business, customSlotInterval = false, stripePay
         const res = await fetch("/api/settings", {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ...profile, availabilityJson: JSON.stringify(availability), slotInterval }),
+          body: JSON.stringify({ ...profile, availabilityJson: JSON.stringify(availability), slotInterval, maxPeoplePerBooker: Number(maxPeople) }),
         });
         if (!res.ok) throw new Error("Failed to save settings");
       }
@@ -292,17 +295,28 @@ export function SettingsClient({ business, customSlotInterval = false, stripePay
         )}
 
         {tab === "booking" && (
-          <Card>
-            <CardHeader><CardTitle>Booking mode</CardTitle></CardHeader>
-            <CardContent>
-              <BookingModeSettings
-                initialMode={business.bookingMode ?? "SLOT"}
-                initialSessions={tokenSessions}
-                staff={staff}
-                appointmentWord={term(business, "appointment")}
-              />
-            </CardContent>
-          </Card>
+          <div className="space-y-6">
+            <Card>
+              <CardHeader><CardTitle>Booking mode</CardTitle></CardHeader>
+              <CardContent>
+                <BookingModeSettings
+                  initialMode={business.bookingMode ?? "SLOT"}
+                  initialSessions={tokenSessions}
+                  staff={staff}
+                  appointmentWord={term(business, "appointment")}
+                />
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader><CardTitle>People per booker</CardTitle></CardHeader>
+              <CardContent className="space-y-2">
+                <label htmlFor="max-people" className="text-sm font-medium block">Most different people one customer can book for in a day</label>
+                <input id="max-people" type="number" min={1} max={MAX_PEOPLE_PER_BOOKER_LIMIT} value={maxPeople} onChange={e => setMaxPeople(e.target.value)}
+                  className="w-24 rounded-xl border border-[#e8e6e0] px-4 py-3 text-sm" />
+                <p className="text-xs text-[#6b6b80]">A fair-use limit per email or phone number (per session for token {term(business, "appointment")}s). Each person is still a separate booking with its own payment. Press Save settings to apply.</p>
+              </CardContent>
+            </Card>
+          </div>
         )}
 
         {/* Availability tab */}

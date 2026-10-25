@@ -169,14 +169,14 @@ export async function sendBookingConfirmation(d: BookingDetails) {
 }
 
 export async function sendBookingReminder(d: {
-  to: string; clientName: string; businessName: string; serviceName: string;
+  to: string; clientName: string; patientName?: string; businessName: string; serviceName: string;
   date: string; time: string; staffName?: string; duration?: number; price?: number; currency?: string; terms?: TermsSource; ctx?: EmailContext;
 }) {
   const tenant = await tenantBrand(d.ctx?.businessId, d.businessName);
   return dispatch({
     to: d.to, type: "reminder", ctx: d.ctx,
     subject: `Reminder: ${d.serviceName} tomorrow at ${d.time}`,
-    react: <BookingReminderEmail clientName={d.clientName} businessName={d.businessName} serviceName={d.serviceName} date={d.date} time={d.time} staffName={d.staffName} duration={d.duration} price={d.price} currency={d.currency} terms={d.terms} tenant={tenant} />,
+    react: <BookingReminderEmail clientName={d.clientName} patientName={d.patientName} businessName={d.businessName} serviceName={d.serviceName} date={d.date} time={d.time} staffName={d.staffName} duration={d.duration} price={d.price} currency={d.currency} terms={d.terms} tenant={tenant} />,
   });
 }
 

@@ -19,7 +19,7 @@ import { logger } from "@/lib/logger";
 import { t } from "@/lib/terms";
 import { formatDateLabel, formatTimeLabel, safeTimeZone } from "@/lib/time";
 import { trackingUrl } from "@/lib/tracking";
-import { patientNameOf } from "@/lib/patients";
+import { bookingForLabel } from "@/lib/patients";
 
 const APP_URL = () => process.env.NEXT_PUBLIC_APP_URL ?? `http://localhost:${process.env.PORT ?? 3000}`;
 
@@ -133,7 +133,7 @@ export async function sendConfirmationFor(appointmentId: string, opts: { paid?: 
 
   sendPushToBusiness(a.businessId, {
     title: opts.paid ? "New paid booking" : "New booking received",
-    body: `${patientNameOf(a)} — ${token ? `Token #${token.number} (${token.sessionName}) ` : ""}${serviceName} on ${dateLabel}${token ? "" : ` at ${time}`}`,
+    body: `${bookingForLabel(a)} — ${token ? `Token #${token.number} (${token.sessionName}) ` : ""}${serviceName} on ${dateLabel}${token ? "" : ` at ${time}`}`,
     url: "/dashboard/appointments",
     tag: "new-booking",
   }).catch(() => {});

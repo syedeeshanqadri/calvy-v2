@@ -14,9 +14,11 @@ const localToday = () => {
 };
 
 /** Public booking step for token businesses: pick a date, then a session ("~N left"). */
-export function TokenPicker({ slug, serviceIds, date, selectedId, onPick, staffWord, appointmentWord, color, fg }: {
+export function TokenPicker({ slug, serviceIds, date, selectedId, onPick, heldSessions, staffWord, appointmentWord, color, fg }: {
   slug: string; serviceIds: string[]; date: string; selectedId: string | null;
   onPick: (date: string, option: TokenOption | null) => void;
+  /** Session id -> "Token #5": sessions in which the booker already holds a token for themselves. */
+  heldSessions?: Record<string, string>;
   staffWord: string; appointmentWord: string; color: string; fg: string;
 }) {
   const [state, setState] = useState<{ key: string; sessions: TokenOption[]; next: { date: string; sessionName: string } | null; error: string } | null>(null);
@@ -64,7 +66,8 @@ export function TokenPicker({ slug, serviceIds, date, selectedId, onPick, staffW
       {ready && ready.sessions.length > 0 && (
         <div className="space-y-2" role="radiogroup" aria-label="Sessions">
           {ready.sessions.map((s) => {
-            const full = s.left <= 0;
+            const held = heldSessions?.[s.id];
+            const full = s.left <= 0 || !!held;
             const on = selectedId === s.id;
             return (
               <button
@@ -83,7 +86,7 @@ export function TokenPicker({ slug, serviceIds, date, selectedId, onPick, staffW
                   </div>
                 </div>
                 <div className={cn("text-sm font-medium whitespace-nowrap", !on && (full ? "text-red-600" : "text-green-700"))}>
-                  {full ? "Full" : `~${s.left} left`}
+                  {held ? `You already have ${held}` : full ? "Full" : `~${s.left} left`}
                 </div>
               </button>
             );

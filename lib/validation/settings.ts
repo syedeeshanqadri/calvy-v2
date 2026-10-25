@@ -81,6 +81,12 @@ export const settingsPatchSchema = z.object({
     .min(1, "maxAdvanceDays must be between 1 and 730")
     .max(730, "maxAdvanceDays must be between 1 and 730")
     .optional(),
+  maxPeoplePerBooker: z.coerce
+    .number({ error: "maxPeoplePerBooker must be a number" })
+    .int()
+    .min(1, "maxPeoplePerBooker must be between 1 and 20")
+    .max(20, "maxPeoplePerBooker must be between 1 and 20")
+    .optional(),
   cancellationCutoffHours: z.coerce
     .number({ error: "cancellationCutoffHours must be a number" })
     .int()

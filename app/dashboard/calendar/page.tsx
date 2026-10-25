@@ -4,7 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { CalendarClient } from "./CalendarClient";
-import { patientNameOf } from "@/lib/patients";
+import { bookingForLabel } from "@/lib/patients";
 
 export const dynamic = 'force-dynamic';
 
@@ -41,7 +41,7 @@ export default async function CalendarPage() {
     const z = utcToZoned(a.date, tz);
     return {
       id: a.id,
-      clientName: patientNameOf(a),
+      clientName: bookingForLabel(a),
       clientEmail: a.client.email ?? a.client.phone ?? "",
       serviceName,
       staffId: a.staffId,

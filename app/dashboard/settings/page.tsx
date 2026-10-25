@@ -19,7 +19,7 @@ export default async function SettingsPage() {
         id: true, name: true, slug: true, businessType: true, packId: true, bookingMode: true, termsOverride: true,
         phone: true, email: true, address: true, website: true,
         description: true, primaryColor: true, availabilityJson: true, currency: true,
-        slotInterval: true,
+        slotInterval: true, maxPeoplePerBooker: true,
         paymentMode: true, bankAccountName: true, bankAccountNumber: true,
         bankRoutingNumber: true, bankIban: true,
         legalBusinessName: true, rzpBusinessType: true, rzpCategory: true, rzpSubcategory: true,
