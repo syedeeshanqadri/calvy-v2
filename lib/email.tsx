@@ -9,8 +9,7 @@ import {
   BookingCancellationEmail,
   BookingRescheduleEmail,
   QueueMovedBackEmail,
-  QueueNoShowEmail,
-  QueueMovedNextDayEmail,
+  QueueClosedEmail,
   InvoiceEmail,
   EmailVerificationEmail,
   LeadAcknowledgmentEmail,
@@ -204,19 +203,11 @@ export function sendQueueMovedBack(d: BookingDetails & { place: number }) {
   });
 }
 
-export function sendQueueNoShow(d: BookingDetails) {
+export function sendQueueClosed(d: BookingDetails & { reason: "missed" | "cancelled"; creditLabel?: string; loginUrl?: string }) {
   return dispatch({
-    to: d.to, type: "queue_no_show", ctx: d.ctx,
-    subject: `Your ${apptWord(d.terms)} at ${d.businessName} was closed`,
-    react: <QueueNoShowEmail {...bookingProps(d)} />,
-  });
-}
-
-export function sendQueueMovedNextDay(d: BookingDetails) {
-  return dispatch({
-    to: d.to, type: "queue_next_day", ctx: d.ctx,
-    subject: `Your ${apptWord(d.terms)} at ${d.businessName} moved to ${d.date}`,
-    react: <QueueMovedNextDayEmail {...bookingProps(d)} />,
+    to: d.to, type: d.reason === "missed" ? "queue_missed" : "queue_cancelled", ctx: d.ctx,
+    subject: d.reason === "missed" ? `You missed your ${apptWord(d.terms)} at ${d.businessName}` : `Your ${apptWord(d.terms)} at ${d.businessName} was cancelled`,
+    react: <QueueClosedEmail {...bookingProps(d)} reason={d.reason} creditLabel={d.creditLabel} loginUrl={d.loginUrl} />,
   });
 }
 

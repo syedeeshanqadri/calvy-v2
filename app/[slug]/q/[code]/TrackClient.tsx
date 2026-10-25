@@ -1,9 +1,11 @@
 "use client";
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { Check, Clock, X } from "lucide-react";
 import { BrandMark } from "@/components/site/Brand";
 import { safeThemeColor, readableForeground, themeVars } from "@/lib/theme";
 import { t } from "@/lib/terms";
+import { formatCurrencyAmount } from "@/lib/currency";
 import type { TrackingPage } from "@/lib/trackingDb";
 
 const POLL_MS = 15_000;
@@ -81,7 +83,7 @@ export function TrackClient({ code, initial }: { code: string; initial: Tracking
             </Card>
             {view.movedBack && (
               <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
-                You were not here when your number was called, so you were moved back. Please stay close. If you miss your call again, this {appt} will be closed.
+                You were not here when your number was called, so you were moved back (missed {view.missedCalls} of 4 calls). Please stay close. After the fourth missed call this {appt} is closed and what you paid is saved in your wallet.
               </p>
             )}
           </>
@@ -102,11 +104,9 @@ export function TrackClient({ code, initial }: { code: string; initial: Tracking
         )}
 
         {view.state === "no_show" && (
-          <Final tone="red" icon={<X size={26} />} title={`Your ${appt} was closed`}>
-            {view.closedReason === "missed_twice"
-              ? `Your number was called twice and you were not here, so token #${view.yourToken} was closed.`
-              : `Token #${view.yourToken} was already moved once and could not be moved again, so it was closed.`}
-            {" "}You can book again any time.
+          <Final tone="red" icon={<X size={26} />} title={`You missed your ${appt}`}>
+            Your number was called four times and you were not here, so token #{view.yourToken} was closed.
+            <WalletNote page={page} appt={appt} color={color} fg={fg} />
           </Final>
         )}
 
@@ -121,7 +121,11 @@ export function TrackClient({ code, initial }: { code: string; initial: Tracking
           </Final>
         )}
 
-        {view.state === "cancelled" && <Final tone="red" icon={<X size={26} />} title={`This ${appt} was cancelled`}>{" "}</Final>}
+        {view.state === "cancelled" && (
+          <Final tone="red" icon={<X size={26} />} title={`This ${appt} was cancelled`}>
+            <WalletNote page={page} appt={appt} color={color} fg={fg} />
+          </Final>
+        )}
         {view.state === "pending_payment" && <Final tone="amber" icon={<Clock size={26} />} title="Waiting for your payment">Your place is held for a short time while the payment completes.</Final>}
         {view.state === "expired" && <Final tone="red" icon={<X size={26} />} title="This booking expired">The payment was not completed in time, so the place was released.</Final>}
 
@@ -130,6 +134,25 @@ export function TrackClient({ code, initial }: { code: string; initial: Tracking
         </p>
       </div>
     </main>
+  );
+}
+
+/** What happens to the money after a missed or cancelled booking, and where to book again. */
+function WalletNote({ page, appt, color, fg }: { page: TrackingPage; appt: string; color: string; fg: string }) {
+  const { credit, business } = page;
+  return (
+    <div className="mt-3 space-y-3">
+      {credit ? (
+        <p>
+          <strong>{formatCurrencyAmount(credit.amountMinor / 100, credit.currency)}</strong> you paid is saved in your wallet at {business.name}. It does not expire and works for a new {appt} on any date.
+        </p>
+      ) : (
+        <p>You can book again on any date.</p>
+      )}
+      <Link href="/my" className="block text-center font-semibold rounded-xl px-4 py-3" style={{ background: color, color: fg }}>
+        {credit ? "Sign in and book another date" : "Book another date"}
+      </Link>
+    </div>
   );
 }
 

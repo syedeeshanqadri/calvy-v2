@@ -11,6 +11,8 @@ export interface TrackingPage {
   /** The staff member whose queue this is (business information, not customer data). */
   staffName: string | null;
   view: TrackingView;
+  /** Wallet credit this booking turned into when it was missed or cancelled (the customer's own money). */
+  credit: { amountMinor: number; currency: string } | null;
 }
 
 /** Load the tracking page for a signed code (and, when given, the slug it must belong to). */
@@ -65,7 +67,12 @@ export async function loadTracking(code: string, slug?: string, now: Date = new 
       : null,
   });
 
+  const credit = ["no_show", "cancelled"].includes(view.state)
+    ? await prisma.customerCredit.findFirst({ where: { appointmentId: a.id, kind: { in: ["MISSED", "CANCELLED"] } }, select: { amountMinor: true, currency: true } })
+    : null;
+
   return {
+    credit,
     business: {
       name: a.business.name, slug: a.business.slug, logoUrl: a.business.logoUrl, primaryColor: a.business.primaryColor,
       packId: a.business.packId, termsOverride: a.business.termsOverride,

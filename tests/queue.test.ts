@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  QueueActionError, canCarryOver, computeEtas, describeOutcome, moveBack, nextWorkingDate, openQueue, placeInLine, planNext,
+  MAX_CALLS, QueueActionError, computeEtas, describeOutcome, moveBack, openQueue, placeInLine, planNext,
   planNotComing, planNotPresent, planWalkIn, positionsFor, type QueueItem,
 } from "@/lib/queue";
 
@@ -40,53 +40,66 @@ describe("Next", () => {
   });
 });
 
-describe("Not present", () => {
-  it("first time: moves back 2 and calls the next token", () => {
-    const p = planNotPresent(queue4(), "t1", now);
+describe("Not present: four calls", () => {
+  const big = () => [q(1, { state: "SERVING" }), q(2), q(3), q(4), q(5)];
+
+  it("there are four calls in all", () => expect(MAX_CALLS).toBe(4));
+
+  it("miss 1: back two places and the next token is called", () => {
+    const p = planNotPresent(big(), "t1", now);
     expect(p.outcome).toBe("moved_back");
-    expect(p.order).toEqual(["t2", "t3", "t1", "t4"]);
+    expect(p.order).toEqual(["t2", "t3", "t1", "t4", "t5"]);
     expect(p.updates.t1).toEqual({ state: "WAITING", notPresentCount: 1, servingStartedAt: null });
     expect(p.updates.t2).toEqual({ state: "SERVING", servingStartedAt: now });
     expect(placeInLine(p.order, "t1")).toBe(3);
   });
-  it("fewer than 2 behind: goes to the end", () => {
-    const p = planNotPresent([q(1, { state: "SERVING" }), q(2), q(3)], "t1", now);
-    expect(p.order).toEqual(["t2", "t3", "t1"]);
+  it("miss 2: back two places again", () => {
+    const p = planNotPresent([q(1, { state: "SERVING", notPresentCount: 1 }), q(2), q(3), q(4), q(5)], "t1", now);
+    expect(p.outcome).toBe("moved_back");
+    expect(p.order).toEqual(["t2", "t3", "t1", "t4", "t5"]);
+    expect(p.updates.t1).toMatchObject({ notPresentCount: 2 });
   });
-  it("alone in the queue: stays put, nobody to call", () => {
+  it("miss 3: to the end of the queue, behind everyone booked", () => {
+    const p = planNotPresent([q(1, { state: "SERVING", notPresentCount: 2 }), q(2), q(3), q(4), q(5)], "t1", now);
+    expect(p.outcome).toBe("moved_back");
+    expect(p.order).toEqual(["t2", "t3", "t4", "t5", "t1"]);
+    expect(p.updates.t1).toMatchObject({ notPresentCount: 3 });
+    expect(p.updates.t2).toMatchObject({ state: "SERVING" });
+  });
+  it("miss 4: closed as missed, nothing moves to another day, the next token is called", () => {
+    const p = planNotPresent([q(1, { state: "SERVING", notPresentCount: 3 }), q(2), q(3)], "t1", now);
+    expect(p.outcome).toBe("no_show");
+    expect(p.updates.t1).toEqual({ state: "NO_SHOW", notPresentCount: 4 });
+    expect(p.updates.t2).toMatchObject({ state: "SERVING" });
+    expect(p.order).toEqual(["t2", "t3"]);
+  });
+  it("alone in the queue: stays put on a miss, nobody to call", () => {
     const p = planNotPresent([q(1, { state: "SERVING" })], "t1", now);
     expect(p.order).toEqual(["t1"]);
     expect(Object.keys(p.updates)).toEqual(["t1"]);
   });
-  it("second time: closed as NO_SHOW and the next token is called", () => {
-    const p = planNotPresent([q(1, { state: "SERVING", notPresentCount: 1 }), q(2), q(3)], "t1", now);
-    expect(p.outcome).toBe("no_show");
-    expect(p.updates.t1).toEqual({ state: "NO_SHOW", notPresentCount: 2 });
-    expect(p.updates.t2).toMatchObject({ state: "SERVING" });
-    expect(p.order).toEqual(["t2", "t3"]);
+  it("a booking that was moved here from an earlier day gets the same four calls", () => {
+    const p = planNotPresent([q(1, { state: "SERVING", carriedFromId: "old" }), q(2), q(3), q(4)], "t1", now);
+    expect(p.outcome).toBe("moved_back");
   });
   it("only the token being served can be marked not present", () => {
     expect(() => planNotPresent(queue4(), "t2", now)).toThrow(QueueActionError);
   });
 });
 
-describe("Not coming", () => {
-  it("first time: carried to the next working day, queue closes the gap", () => {
+describe("Not coming = cancelled", () => {
+  it("cancels the booking and closes the gap", () => {
     const p = planNotComing(queue4(), "t3", now);
-    expect(p.outcome).toBe("carry_over");
-    expect(p.updates.t3).toEqual({ state: "MOVED" });
+    expect(p.outcome).toBe("cancelled");
+    expect(p.updates.t3).toEqual({ state: "CANCELLED" });
     expect(p.order).toEqual(["t1", "t2", "t4"]);
   });
-  it("only ONE carry-over: a booking that was already carried is closed", () => {
-    const items = [q(1, { state: "SERVING" }), q(2, { carriedFromId: "old" })];
-    expect(canCarryOver(items[1])).toBe(false);
-    const p = planNotComing(items, "t2", now);
-    expect(p.outcome).toBe("closed");
-    expect(p.updates.t2).toEqual({ state: "NO_SHOW" });
-  });
-  it("when the serving token is not coming, the next one is called", () => {
+  it("when the serving token cancels, the next one is called", () => {
     const p = planNotComing(queue4(), "t1", now);
     expect(p.updates.t2).toMatchObject({ state: "SERVING" });
+  });
+  it("a token not in the queue cannot be cancelled here", () => {
+    expect(() => planNotComing([q(1, { state: "DONE" })], "t1", now)).toThrow(QueueActionError);
   });
 });
 
@@ -126,40 +139,29 @@ describe("ETAs", () => {
   });
 });
 
-describe("next working day", () => {
-  const weekdays = [1, 2, 3, 4, 5, 6]; // Mon-Sat
-  it("skips weekdays the session does not run", () => {
-    expect(nextWorkingDate(weekdays, "2026-10-24", () => false)).toBe("2026-10-26"); // Sat -> Mon (Sun skipped)
-  });
-  it("skips closed days (holidays, time off)", () => {
-    const closed = new Set(["2026-10-27", "2026-10-28"]);
-    expect(nextWorkingDate(weekdays, "2026-10-26", (d) => closed.has(d))).toBe("2026-10-29");
-  });
-  it("is null when nothing opens within the window", () => {
-    expect(nextWorkingDate(weekdays, "2026-10-26", () => true, 10)).toBeNull();
-    expect(nextWorkingDate([], "2026-10-26", () => false)).toBeNull();
-  });
-});
-
 describe("plain-language outcomes", () => {
   const called = { token: 4, name: "Aman" };
-  it("second miss: closed because they did not come twice", () => {
-    expect(describeOutcome({ outcome: "no_show", token: 3, name: "Riya", called, emailed: true })).toBe(
-      "Token 3 (Riya) closed: they did not come after being called twice. Now serving token 4 (Aman). They were emailed.",
-    );
-  });
-  it("first miss: moved back with the place", () => {
-    const m = describeOutcome({ outcome: "moved_back", token: 3, name: "Riya", place: 3, called, emailed: true });
-    expect(m).toContain("Token 3 (Riya) was not here when called, so it moved back to place 3 in line.");
+  it("miss 1 and 2: moved back with the place and the call count", () => {
+    const m = describeOutcome({ outcome: "moved_back", token: 3, name: "Riya", misses: 1, place: 3, called, emailed: true });
+    expect(m).toContain("Token 3 (Riya) was not here when called (missed call 1 of 4), so it moved to place 3 in line.");
     expect(m).toContain("Now serving token 4 (Aman).");
   });
-  it("no email on file says so", () => {
-    expect(describeOutcome({ outcome: "moved_back", token: 3, name: "Walk-in", place: 2, emailed: false })).toContain("No email on file");
+  it("miss 3: to the end of the line", () => {
+    expect(describeOutcome({ outcome: "moved_back", token: 3, name: "Riya", misses: 3, place: 5, emailed: true })).toContain("missed call 3 of 4), so it moved to the end of the line");
   });
-  it("carry-over names the new day and token; closing explains why", () => {
-    expect(describeOutcome({ outcome: "carry_over", token: 3, name: "Riya", movedTo: { dateLabel: "Tuesday, October 27", token: 5 }, emailed: true }))
-      .toContain("Token 3 (Riya) moved to Tuesday, October 27 as token 5.");
-    expect(describeOutcome({ outcome: "closed", token: 3, name: "Riya", emailed: true })).toContain("already moved once");
+  it("miss 4: closed, with the wallet credit", () => {
+    expect(describeOutcome({ outcome: "no_show", token: 3, name: "Riya", credit: "Rs 10.00", called, emailed: true })).toBe(
+      "Token 3 (Riya) closed: not present after being called 4 times. Rs 10.00 was saved in their wallet for a future booking. Now serving token 4 (Aman). They were emailed how to book another date.",
+    );
+  });
+  it("nothing paid online: says there is no credit", () => {
+    expect(describeOutcome({ outcome: "no_show", token: 3, name: "Walk-in", credit: null, emailed: false })).toContain("Nothing was paid online, so there is no credit.");
+  });
+  it("cancelled", () => {
+    expect(describeOutcome({ outcome: "cancelled", token: 3, name: "Riya", credit: "Rs 510.00", emailed: true })).toContain("Token 3 (Riya) cancelled. Rs 510.00 was saved in their wallet");
+  });
+  it("no email on file says so", () => {
+    expect(describeOutcome({ outcome: "moved_back", token: 3, misses: 1, place: 2, emailed: false })).toContain("No email on file");
   });
   it("done and idle", () => {
     expect(describeOutcome({ outcome: "advanced", token: 1, name: "Riya", called })).toBe("Token 1 (Riya) is done. Now serving token 4 (Aman).");

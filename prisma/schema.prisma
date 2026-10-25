@@ -116,6 +116,7 @@ model Business {
   timeOff                  TimeOff[]
   tokenSessions            TokenSession[]
   payments                 Payment[]
+  customerCredits          CustomerCredit[]
   platformFees             PlatformFeeEntry[]
   createdAt                DateTime            @default(now())
   updatedAt                DateTime            @updatedAt
@@ -180,18 +181,19 @@ model StaffService {
 }
 
 model Client {
-  id                String        @id @default(cuid())
+  id                String           @id @default(cuid())
   businessId        String
   name              String
   email             String?
   phone             String?
   notes             String?
-  totalAppointments Int           @default(0)
-  totalSpent        Float         @default(0)
+  totalAppointments Int              @default(0)
+  totalSpent        Float            @default(0)
   lastVisit         DateTime?
-  createdAt         DateTime      @default(now())
+  createdAt         DateTime         @default(now())
   appointments      Appointment[]
-  business          Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  credits           CustomerCredit[]
+  business          Business         @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
   @@unique([businessId, email])
   @@unique([businessId, phone])
@@ -272,6 +274,7 @@ model Appointment {
   updatedAt          DateTime           @updatedAt
   tokenSession       TokenSession?      @relation(fields: [tokenSessionId], references: [id], onDelete: SetNull)
   payments           Payment[]
+  credits            CustomerCredit[]
   platformFees       PlatformFeeEntry[]
   service            Service            @relation(fields: [serviceId], references: [id])
   staff              Staff?             @relation(fields: [staffId], references: [id])
@@ -577,4 +580,36 @@ enum QueueState {
   DONE
   NO_SHOW
   MOVED
+  CANCELLED
+}
+
+enum CreditKind {
+  MISSED
+  CANCELLED
+  USED
+  REFUND_REMOVED
+  ADJUSTMENT
+}
+
+/// Append-only wallet ledger per customer per clinic (Client is already per business).
+/// Balance = SUM(amountMinor): positive when a missed or cancelled paid booking is credited,
+/// negative when credit is used, refunded out, or adjusted. Never expires.
+model CustomerCredit {
+  id            String       @id @default(cuid())
+  businessId    String
+  clientId      String
+  kind          CreditKind
+  amountMinor   Int
+  currency      String
+  appointmentId String?
+  paymentId     String?
+  note          String?
+  createdAt     DateTime     @default(now())
+  business      Business     @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  client        Client       @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  appointment   Appointment? @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
+
+  /// One credit per booking per cause: a repeated queue action can never credit twice.
+  @@unique([appointmentId, kind])
+  @@index([businessId, clientId])
 }

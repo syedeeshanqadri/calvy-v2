@@ -68,8 +68,8 @@ describe("tracking view states", () => {
   });
   it("done, no-show, moved, cancelled, pending payment, expired", () => {
     expect(view(8, [q(8, { state: "DONE" })], { status: "completed" }).state).toBe("done");
-    expect(view(8, [q(8, { state: "NO_SHOW", notPresentCount: 2 })], { status: "no-show" })).toMatchObject({ state: "no_show", closedReason: "missed_twice" });
-    expect(view(8, [q(8, { state: "NO_SHOW", carriedFromId: "old" })], { status: "no-show" })).toMatchObject({ state: "no_show", closedReason: "not_coming_again" });
+    expect(view(8, [q(8, { state: "NO_SHOW", notPresentCount: 4 })], { status: "no-show" })).toMatchObject({ state: "no_show", closedReason: "missed_calls", missedCalls: 4 });
+    expect(view(8, [q(8, { state: "CANCELLED" })], { status: "cancelled" }).state).toBe("cancelled");
     expect(view(8, [q(8)], { status: "cancelled", state: null }).state).toBe("cancelled");
     expect(view(8, [q(8)], { status: "pending_payment" }).state).toBe("pending_payment");
     expect(view(8, [q(8)], { status: "expired" }).state).toBe("expired");
@@ -77,8 +77,8 @@ describe("tracking view states", () => {
     expect(moved).toMatchObject({ state: "moved", movedTo: { token: 5 } });
   });
   it("moved back and carried-over are flagged", () => {
-    const v = view(9, [q(8, { state: "SERVING" }), q(9, { notPresentCount: 1, carriedFromId: "old" })]);
-    expect(v).toMatchObject({ state: "waiting", movedBack: true, carriedFromEarlier: true });
+    const v = view(9, [q(8, { state: "SERVING" }), q(9, { notPresentCount: 2, carriedFromId: "old" })]);
+    expect(v).toMatchObject({ state: "waiting", movedBack: true, missedCalls: 2, carriedFromEarlier: true });
   });
   it("a closed or moved booking has no place or ETA", () => {
     const v = view(8, [q(8, { state: "NO_SHOW", notPresentCount: 2 }), q(9)], { status: "no-show" });
@@ -100,7 +100,7 @@ describe("payload has no personal data", () => {
     const json = JSON.stringify(view(12, withPii));
     for (const secret of ["Secret", "Another", "Person", "+9198", "@example.com", "t8", "t9"]) expect(json).not.toContain(secret);
     expect(Object.keys(JSON.parse(json)).sort()).toEqual([
-      "ahead", "carriedFromEarlier", "closedReason", "etaMinutes", "etaTime", "movedBack", "movedTo", "nowServing", "place", "state", "yourToken",
+      "ahead", "carriedFromEarlier", "closedReason", "etaMinutes", "etaTime", "missedCalls", "movedBack", "movedTo", "nowServing", "place", "state", "yourToken",
     ]);
   });
 });

@@ -151,7 +151,8 @@ async function PATCH_handler(req: NextRequest, props: { params: Promise<{ id: st
       if (await refundPayment(paid.id, refundMinor, "Cancelled by the business")) {
         updated = await prisma.appointment.update({ where: { id: appointment.id }, data: { paymentStatus: "refunded" } });
       } else {
-        logger.error("[Appointments] refund on cancel failed", { appointmentId: appointment.id, paymentId: paid.id });
+        // Refused when the payment already became wallet credit (missed or cancelled at reception).
+        logger.warn("[Appointments] no refund on cancel: already credited to the wallet, or the gateway refused", { appointmentId: appointment.id, paymentId: paid.id });
       }
     }
   }

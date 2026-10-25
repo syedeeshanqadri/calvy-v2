@@ -73,9 +73,7 @@ export function QueueClient({ today, services }: { today: string; services: { id
     post("/api/queue/action", { sessionId: queue!.session.id, date, action, appointmentId: row?.id }, (d) => String(d.message ?? "Done."));
 
   function notComing(row: QueueRow) {
-    const text = row.carried
-      ? `Token ${row.tokenNumber} (${row.clientName}) was already moved once, so this will close the ${appt} for good. Continue?`
-      : `Move token ${row.tokenNumber} (${row.clientName}) to the next working day? A token can be moved only once.`;
+    const text = `Cancel token ${row.tokenNumber} (${row.clientName})? Whatever they paid online is saved in their wallet for a future booking. Nothing is refunded automatically.`;
     if (window.confirm(text)) void act("not_coming", row);
   }
 
@@ -143,7 +141,7 @@ export function QueueClient({ today, services }: { today: string; services: { id
                 </button>
                 <div className="grid grid-cols-2 gap-3">
                   <button type="button" disabled={busy} onClick={() => act("not_present", serving)} className={cn(bigBtn, "border border-amber-300 bg-amber-50 text-amber-900")}>Not present</button>
-                  <button type="button" disabled={busy} onClick={() => notComing(serving)} className={cn(bigBtn, "border border-[#e8e6e0] bg-white")}>Not coming</button>
+                  <button type="button" disabled={busy} onClick={() => notComing(serving)} className={cn(bigBtn, "border border-[#e8e6e0] bg-white")}>Cancel (not coming)</button>
                 </div>
               </>
             ) : waiting.length > 0 ? (
@@ -175,7 +173,7 @@ export function QueueClient({ today, services }: { today: string; services: { id
                       {r.serviceName}
                       {r.source === "WALK_IN" && " · Walk-in"}
                       {r.carried && " · Moved from earlier"}
-                      {r.notPresentCount > 0 && " · Missed once"}
+                      {r.notPresentCount > 0 && ` · Missed ${r.notPresentCount} of 4 calls`}
                     </div>
                   </div>
                   <button type="button" disabled={busy} onClick={() => notComing(r)} className="shrink-0 min-h-11 px-3 rounded-xl border border-[#e8e6e0] text-sm">Not coming</button>
@@ -223,7 +221,7 @@ export function QueueClient({ today, services }: { today: string; services: { id
                 {queue.closed.map((r) => (
                   <li key={r.id} className="py-2 flex justify-between gap-3">
                     <span className="truncate">#{r.tokenNumber} {r.clientName}</span>
-                    <span className="text-[#6b6b80] shrink-0">{r.state === "DONE" ? "Done" : r.state === "NO_SHOW" ? "No-show" : "Moved to next day"}</span>
+                    <span className="text-[#6b6b80] shrink-0">{r.state === "DONE" ? "Done" : r.state === "NO_SHOW" ? "Missed" : r.state === "CANCELLED" ? "Cancelled" : "Moved"}</span>
                   </li>
                 ))}
               </ul>
