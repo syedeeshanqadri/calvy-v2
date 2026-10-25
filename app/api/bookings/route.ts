@@ -18,6 +18,10 @@ import { checkLimit, startOfBusinessMonth, assertMonthlyHeadroom, LimitReachedEr
 import { zonedTimeToUtc, formatDateLabel, safeTimeZone } from "@/lib/time";
 import { logger } from "@/lib/logger";
 import { bookToken } from "@/lib/tokenBooking";
+import { missingContact } from "@/lib/patients";
+import { tryNormalizeEmail } from "@/lib/email-normalize";
+import { normalizePhone } from "@/lib/phone";
+import { assertNoDuplicatePatient, assertWithinPeopleCap, contactAtDailyCap, DuplicatePatientError } from "@/lib/patientsDb";
 import { isFeatureEnabled } from "@/lib/flags";
 import { PENDING_PAYMENT, holdExpiry } from "@/lib/holds";
 import { chargeFor, getPayConfig, startCheckout } from "@/lib/onlinePayment";
@@ -52,6 +56,9 @@ async function POST_handler(req: NextRequest) {
   const parsed = await parseBody(req, bookingSchema);
   if (!parsed.ok) return parsed.res;
   const { businessSlug, staffId, date, time: timeInput, tokenSessionId, clientName, clientEmail, clientPhone, notes } = parsed.data;
+  // The appointment is for the booker unless they entered another person's name.
+  const patientName = (parsed.data.patientName ?? clientName).trim();
+  const bookingForOther = !!parsed.data.patientName;
 
   // Support serviceIds[] (multi-service) and legacy serviceId (single)
   const serviceIds: string[] = parsed.data.serviceIds?.length ? parsed.data.serviceIds : [parsed.data.serviceId!];
@@ -61,6 +68,45 @@ async function POST_handler(req: NextRequest) {
     include: { services: true },
   });
   if (!business) return NextResponse.json({ error: "Business not found." }, { status: 404 });
+  // Who the booking is for: relation for anyone else; age and gender only where the clinic pack asks for them.
+  const patientDetails = bookingForOther
+    ? {
+        patientRelation: parsed.data.patientRelation ?? null,
+        patientAge: business.packId === "CLINIC" ? parsed.data.patientAge ?? null : null,
+        patientGender: business.packId === "CLINIC" ? parsed.data.patientGender ?? null : null,
+      }
+    : { patientRelation: null, patientAge: null, patientGender: null };
+
+  // The "already has an appointment" answer tells a caller that someone has booked, so a contact that
+  // has received a handful of those answers is put on a cooldown: until it ends, EVERY booking for
+  // that contact gets the same 429 FROM THAT REQUESTER (contact plus IP), whatever the booking
+  // state, so the cooldown itself reveals nothing. It is keyed on the requester too, so a stranger can
+  // only put themselves in cooldown, never lock the contact's owner out; ordinary bookings never count.
+  // Contact keys use the normalised email and phone the client lookup matches on.
+  const requester = clientIp(req);
+  const contactKeys = [
+    `booking-dup:${business.id}:${requester}:email:${tryNormalizeEmail(clientEmail) ?? clientEmail.trim().toLowerCase()}`,
+    ...(normalizePhone(clientPhone, business.timezone) ? [`booking-dup:${business.id}:${requester}:phone:${normalizePhone(clientPhone, business.timezone)}`] : []),
+  ];
+  const DUP_ANSWERS_PER_HOUR = 6;
+  const cooldownResponse = (retryAfter: number) =>
+    NextResponse.json({ error: "Too many attempts for this contact. Please try again later." }, { status: 429, headers: { "Retry-After": String(retryAfter) } });
+  for (const key of contactKeys) {
+    const open = await rateLimit.peek(key, DUP_ANSWERS_PER_HOUR, 3_600_000);
+    if (!open.ok) return cooldownResponse(open.retryAfter);
+  }
+  async function duplicateResponse(err: DuplicatePatientError): Promise<NextResponse> {
+    let retryAfter = 0;
+    for (const key of contactKeys) {
+      const l = await rateLimit(key, DUP_ANSWERS_PER_HOUR, 3_600_000);
+      if (!l.ok) retryAfter = Math.max(retryAfter, l.retryAfter);
+    }
+    return retryAfter > 0 ? cooldownResponse(retryAfter) : NextResponse.json({ error: err.message, code: err.code }, { status: 409 });
+  }
+
+  // India needs email and phone; elsewhere only email.
+  const missing = missingContact(business.currency, { email: clientEmail, phone: clientPhone });
+  if (missing) return NextResponse.json({ error: missing }, { status: 400 });
 
   // Plan limits. A lapsed plan falls back to Free limits; reaching the monthly
   // cap returns 402 with a customer-facing message (never an upgrade prompt).
@@ -122,9 +168,11 @@ async function POST_handler(req: NextRequest) {
       return await bookToken({
         business, services: orderedServices, tokenSessionId, date, tz: bizTz,
         client: { name: clientName, email: clientEmail, phone: clientPhone },
-        notes, maxMonthlyAppointments: limits.maxMonthlyAppointments, monthStart, payConfig,
+        notes, maxMonthlyAppointments: limits.maxMonthlyAppointments, monthStart, payConfig, patientName, patientDetails,
+        maxPeoplePerBooker: business.maxPeoplePerBooker,
       });
     } catch (err) {
+      if (err instanceof DuplicatePatientError) return await duplicateResponse(err);
       if (err instanceof LimitReachedError) return await limitResponse();
       throw err;
     }
@@ -197,6 +245,11 @@ async function POST_handler(req: NextRequest) {
               // Monthly cap re-checked under its own business lock (after the staff
               // lock) so parallel bookings for different staff cannot overshoot it.
               await assertMonthlyHeadroom(tx, business!.id, limits.maxMonthlyAppointments, monthStart);
+              // Same person twice on a day is refused. Under a per-patient lock, so two parallel
+              // requests (even for different staff) cannot both pass.
+              await assertNoDuplicatePatient(tx, { businessId: business!.id, clientId, patientName, date, tz });
+              await assertWithinPeopleCap(tx, { businessId: business!.id, clientId, patientName, bookerName: clientName, date, tz, max: business!.maxPeoplePerBooker });
+              suppressContactMessages = await contactAtDailyCap(tx, { businessId: business!.id, clientId });
               const r = await loadAvailability(tx, { ...query, staffId: cand });
               return r.ok && (r.available.get(time)?.resourceIds.includes(cand) ?? false);
             },
@@ -216,6 +269,8 @@ async function POST_handler(req: NextRequest) {
                 price: totalPrice,
                 status: holdExpiresAt ? PENDING_PAYMENT : "confirmed",
                 holdExpiresAt,
+                patientName,
+                ...patientDetails,
                 notes: combinedNotes,
                 paymentStatus,
                 paymentMode: paymentModeVal,
@@ -232,6 +287,10 @@ async function POST_handler(req: NextRequest) {
   }
 
   // Post-commit work shared by the postpaid and demo paths.
+  // Set when this contact already had a day's quota of bookings: the booking still goes through, but
+  // no email or WhatsApp is sent to the contact (a flood protection that never blocks anyone).
+  let suppressContactMessages = false;
+
   async function notify(appointmentId: string, spent: number) {
     await prisma.client.update({
       where: { id: client.id },
@@ -249,15 +308,16 @@ async function POST_handler(req: NextRequest) {
 
     sendPushToBusiness(business!.id, {
       title: "New booking received",
-      body: `${clientName} — ${serviceNamesLabel} on ${dateLabel} at ${time}`,
+      body: `${bookingForOther ? `${patientName} (booked by ${clientName})` : patientName} — ${serviceNamesLabel} on ${dateLabel} at ${time}`,
       url: "/dashboard/appointments",
       tag: "new-booking",
     }).catch(() => {});
 
     try {
-      await sendBookingConfirmation({
+      if (!suppressContactMessages) await sendBookingConfirmation({
         to: clientEmail,
         clientName,
+        patientName,
         businessName: business!.name,
         serviceName: serviceNamesLabel,
         staffName: staffMember?.name ?? `Your ${t(business!, "staff")}`,
@@ -274,7 +334,7 @@ async function POST_handler(req: NextRequest) {
       logger.error("[Email] Failed:", { err });
     }
 
-    if (clientPhone) {
+    if (clientPhone && !suppressContactMessages) {
       try {
         await sendBookingConfirmationWhatsApp({
           to: clientPhone,
@@ -304,13 +364,14 @@ async function POST_handler(req: NextRequest) {
     try {
       appointment = await createAppointment(client.id, "unpaid", venueMode, hold);
     } catch (err) {
+      if (err instanceof DuplicatePatientError) return await duplicateResponse(err);
       if (err instanceof SlotConflictError) return conflictResponse();
       if (err instanceof LimitReachedError) return await limitResponse();
       throw err;
     }
     if (!hold) {
       await notify(appointment.id, 0);
-      return NextResponse.json({ success: true, appointmentId: appointment.id, paymentMode: "postpaid" });
+      return NextResponse.json({ success: true, appointmentId: appointment.id, paymentMode: "postpaid", confirmationWithheld: suppressContactMessages });
     }
     const started = await startCheckout({
       appointmentId: appointment.id, businessId: business.id, businessName: business.name,
@@ -329,12 +390,13 @@ async function POST_handler(req: NextRequest) {
     try {
       appointment = await createAppointment(client.id, "unpaid", "postpaid");
     } catch (err) {
+      if (err instanceof DuplicatePatientError) return await duplicateResponse(err);
       if (err instanceof SlotConflictError) return conflictResponse();
       if (err instanceof LimitReachedError) return await limitResponse();
       throw err;
     }
     await notify(appointment.id, 0);
-    return NextResponse.json({ success: true, appointmentId: appointment.id, paymentMode: "postpaid" });
+    return NextResponse.json({ success: true, appointmentId: appointment.id, paymentMode: "postpaid", confirmationWithheld: suppressContactMessages });
   }
 
   // Prepaid path — redirect to Razorpay Payment Link
@@ -389,12 +451,13 @@ async function POST_handler(req: NextRequest) {
   try {
     appointment = await createAppointment(client.id, "unpaid", "prepaid");
   } catch (err) {
-    if (err instanceof SlotConflictError) return conflictResponse();
+    if (err instanceof DuplicatePatientError) return await duplicateResponse(err);
+      if (err instanceof SlotConflictError) return conflictResponse();
     if (err instanceof LimitReachedError) return await limitResponse();
     throw err;
   }
   await notify(appointment.id, totalPrice);
-  return NextResponse.json({ success: true, appointmentId: appointment.id });
+  return NextResponse.json({ success: true, appointmentId: appointment.id, confirmationWithheld: suppressContactMessages });
 }
 
 export const POST = safeRoute(POST_handler);

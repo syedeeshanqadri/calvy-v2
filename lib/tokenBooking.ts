@@ -7,6 +7,7 @@ import { isFeatureEnabled } from "@/lib/flags";
 import { PENDING_PAYMENT, holdExpiry } from "@/lib/holds";
 import { BOOKING_TX_OPTIONS } from "@/lib/booking";
 import { trackingUrl } from "@/lib/tracking";
+import { assertNoDuplicatePatient, assertWithinPeopleCap, contactAtDailyCap } from "@/lib/patientsDb";
 import { chargeFor, sendConfirmationFor, startCheckout, type PayConfig } from "@/lib/onlinePayment";
 import { assertMonthlyHeadroom } from "@/lib/limits";
 import { addDays, formatDateLabel, parseYMD, utcToZoned, weekdayOf, zonedToUtc } from "@/lib/time";
@@ -134,6 +135,12 @@ export interface TokenBookingInput {
   tz: string;
   /** Online payment settings (null = confirm without paying). */
   payConfig: PayConfig | null;
+  /** Who the token is for (the booker unless they booked for someone else). */
+  patientName: string;
+  /** Relation, age and gender of someone else (already limited to what the business collects). */
+  patientDetails: { patientRelation: string | null; patientAge: number | null; patientGender: string | null };
+  /** Fair use: most different people one booker contact may take tokens for per session. */
+  maxPeoplePerBooker: number;
 }
 
 /** Book the next token in a session: confirm at once, or hold it while the customer pays online. */
@@ -177,14 +184,21 @@ export async function bookToken(input: TokenBookingInput): Promise<NextResponse>
 
   const client = await findOrCreateClient(prisma, business.id, input.client, tz);
 
+  // Over the contact's daily quota: still booked, but no email or WhatsApp goes to the contact.
+  let suppressContactMessages = false;
   const result = await issueToken(prismaStore(session.id, date), session, date, async (tx, a) => {
     await assertMonthlyHeadroom(tx, business.id, input.maxMonthlyAppointments, input.monthStart);
+    // Under the session lock, so a double-click cannot take two tokens for the same person.
+    // The same person may hold tokens in different sessions of a day, so both rules look at this session only.
+    await assertNoDuplicatePatient(tx, { businessId: business.id, clientId: client.id, patientName: input.patientName, date, tz, tokenSessionId: session.id });
+    await assertWithinPeopleCap(tx, { businessId: business.id, clientId: client.id, patientName: input.patientName, bookerName: input.client.name, date, tz, tokenSessionId: session.id, max: input.maxPeoplePerBooker });
+    suppressContactMessages = await contactAtDailyCap(tx, { businessId: business.id, clientId: client.id });
     const estimatedAt = zonedToUtc(date, a.estimatedMin, tz);
     return tx.appointment.create({
       data: {
         businessId: business.id, clientId: client.id, staffId: session.staffId, serviceId: services[0].id,
         date: estimatedAt, endAt: new Date(estimatedAt.getTime() + session.minutesPerToken * 60_000),
-        duration: session.minutesPerToken, price: totalPrice, notes,
+        duration: session.minutesPerToken, price: totalPrice, notes, patientName: input.patientName, ...input.patientDetails,
         status: holdExpiresAt ? PENDING_PAYMENT : "confirmed", holdExpiresAt,
         paymentStatus: "unpaid", paymentMode: business.paymentMode,
         tokenSessionId: session.id, sessionDate: dateOnly(date), tokenNumber: a.number, estimatedAt,
@@ -225,7 +239,7 @@ export async function bookToken(input: TokenBookingInput): Promise<NextResponse>
     where: { id: client.id },
     data: { totalAppointments: { increment: 1 }, lastVisit: appointment.date },
   });
-  await sendConfirmationFor(appointment.id);
+  await sendConfirmationFor(appointment.id, { contactMessages: !suppressContactMessages });
 
-  return NextResponse.json({ success: true, appointmentId: appointment.id, paymentMode: business.paymentMode, token });
+  return NextResponse.json({ success: true, appointmentId: appointment.id, paymentMode: business.paymentMode, token, confirmationWithheld: suppressContactMessages });
 }

@@ -3,9 +3,12 @@ import { Section, Text } from "@react-email/components";
 import { EmailLayout, H, P, Card, DetailRow, CTA, Hairline, brand, type TenantBrand } from "./EmailLayout";
 import { formatCurrencyAmount } from "@/lib/currency";
 import { t, type TermsSource } from "@/lib/terms";
+import { normalizeName } from "@/lib/patients";
 
 export interface BookingProps {
   clientName: string;
+  /** Set when the appointment is for someone other than the person receiving the email. */
+  patientName?: string;
   businessName: string;
   serviceName: string;
   staffName?: string;
@@ -35,6 +38,7 @@ function BookingDetails({ p }: { p: BookingProps }) {
   return (
     <Card>
       <DetailRow label={t(p.terms ?? {}, "service", { cap: true })} value={p.serviceName} strong />
+      {p.patientName && normalizeName(p.patientName) !== normalizeName(p.clientName) ? <DetailRow label="For" value={`${p.patientName} (booked by ${p.clientName})`} strong /> : null}
       {p.staffName ? <DetailRow label="With" value={p.staffName} /> : null}
       <DetailRow label="Date" value={p.date} />
       {p.token ? (

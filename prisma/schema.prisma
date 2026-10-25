@@ -111,6 +111,8 @@ model Business {
   timezone                 String              @default("Asia/Kolkata")
   minNoticeMinutes         Int                 @default(0)
   maxAdvanceDays           Int                 @default(90)
+  /// Fair use: most different people one booker contact can book for per day (per session for tokens).
+  maxPeoplePerBooker       Int                 @default(4)
   cancellationCutoffHours  Int                 @default(0)
   workingHours             WorkingHours[]
   timeOff                  TimeOff[]
@@ -262,6 +264,12 @@ model Appointment {
   notPresentCount    Int                @default(0)
   servingStartedAt   DateTime?          @db.Timestamptz(3)
   /// The earlier booking this one was carried over from ("Not coming"); at most one carry-over per booking.
+  /// Who the appointment is for (a booker can book for others). Null on older bookings: then the contact's name.
+  patientName        String?
+  /// For someone else: how they relate to the booker (child, parent, spouse, other), and (clinic pack) age and gender.
+  patientRelation    String?
+  patientAge         Int?
+  patientGender      String?
   carriedFromId      String?            @unique
   carriedFrom        Appointment?       @relation("CarryOver", fields: [carriedFromId], references: [id], onDelete: SetNull)
   carriedTo          Appointment?       @relation("CarryOver")

@@ -19,6 +19,7 @@ import { logger } from "@/lib/logger";
 import { t } from "@/lib/terms";
 import { formatDateLabel, formatTimeLabel, safeTimeZone } from "@/lib/time";
 import { trackingUrl } from "@/lib/tracking";
+import { bookingForLabel } from "@/lib/patients";
 
 const APP_URL = () => process.env.NEXT_PUBLIC_APP_URL ?? `http://localhost:${process.env.PORT ?? 3000}`;
 
@@ -116,7 +117,7 @@ function serviceLabel(first: string, notes: string | null): string {
 }
 
 /** Customer confirmation (email + WhatsApp) and owner push for a confirmed appointment. */
-export async function sendConfirmationFor(appointmentId: string, opts: { paid?: boolean } = {}): Promise<void> {
+export async function sendConfirmationFor(appointmentId: string, opts: { paid?: boolean; contactMessages?: boolean } = {}): Promise<void> {
   const a = await prisma.appointment.findUnique({
     where: { id: appointmentId },
     include: { client: true, service: true, staff: true, business: true, tokenSession: true },
@@ -132,15 +133,17 @@ export async function sendConfirmationFor(appointmentId: string, opts: { paid?: 
 
   sendPushToBusiness(a.businessId, {
     title: opts.paid ? "New paid booking" : "New booking received",
-    body: `${a.client.name} — ${token ? `Token #${token.number} (${token.sessionName}) ` : ""}${serviceName} on ${dateLabel}${token ? "" : ` at ${time}`}`,
+    body: `${bookingForLabel(a)} — ${token ? `Token #${token.number} (${token.sessionName}) ` : ""}${serviceName} on ${dateLabel}${token ? "" : ` at ${time}`}`,
     url: "/dashboard/appointments",
     tag: "new-booking",
   }).catch(() => {});
 
+  if (opts.contactMessages === false) return; // flood protection: the business was told, the contact is not messaged
+
   if (a.client.email) {
     try {
       await sendBookingConfirmation({
-        to: a.client.email, clientName: a.client.name, businessName: a.business.name, serviceName,
+        to: a.client.email, clientName: a.client.name, patientName: a.patientName ?? undefined, businessName: a.business.name, serviceName,
         staffName: a.staff?.name ?? `Your ${t(a.business, "staff")}`, terms: a.business,
         date: dateLabel, time, duration: a.duration, price: a.price,
         currency: a.business.currency ?? DEFAULT_CURRENCY, appointmentDate: a.date, token,

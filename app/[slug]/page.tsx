@@ -10,6 +10,7 @@ import { formatCurrencyAmount } from "@/lib/currency";
 import { getFlags } from "@/lib/flags";
 import { ChatWidget } from "@/components/chatbot/ChatWidget";
 import { getBusinessFeatures } from "@/lib/getFeatures";
+import { contactRequirements } from "@/lib/patients";
 import { safeThemeColor, readableForeground, themeVars } from "@/lib/theme";
 import { BrandMark, SocialIcons, ReviewButton } from "@/components/site/Brand";
 import { parseSocialLinks, safeReviewLink } from "@/lib/brandLinks";
@@ -479,6 +480,7 @@ export default async function TenantWebsitePage(props: { params: Promise<{ slug:
           name: business.name,
           primaryColor: primary,
           currency: business.currency ?? "USD",
+          phoneRequired: contactRequirements(business.currency).phone,
           services: business.services.map(s => ({
             id: s.id,
             name: s.name,

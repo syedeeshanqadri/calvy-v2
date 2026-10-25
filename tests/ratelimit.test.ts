@@ -157,3 +157,58 @@ describe("clientIp", () => {
     expect(clientIp(new Request("http://x"))).toBe("unknown");
   });
 });
+
+describe("peek: check a bucket without counting a hit", () => {
+  it("never consumes, and reports when the bucket is used up", async () => {
+    const clock = fakeClock();
+    const rateLimit = createRateLimiter({ now: clock.now });
+    for (let i = 0; i < 20; i++) expect((await rateLimit.peek("k", 3, 60_000)).ok).toBe(true); // peeking is free
+    for (let i = 0; i < 3; i++) expect((await rateLimit("k", 3, 60_000)).ok).toBe(true);
+    const full = await rateLimit.peek("k", 3, 60_000);
+    expect(full.ok).toBe(false);
+    expect(full.retryAfter).toBe(60);
+    expect((await rateLimit("k", 3, 60_000)).ok).toBe(false); // still blocked, peeking changed nothing
+  });
+
+  it("opens again when the window ends", async () => {
+    const clock = fakeClock();
+    const rateLimit = createRateLimiter({ now: clock.now });
+    for (let i = 0; i < 3; i++) await rateLimit("k", 3, 60_000);
+    expect((await rateLimit.peek("k", 3, 60_000)).ok).toBe(false);
+    clock.advance(61_000);
+    expect((await rateLimit.peek("k", 3, 60_000)).ok).toBe(true);
+  });
+
+  it("a key nobody has hit is open", async () => {
+    expect((await createRateLimiter({ now: fakeClock().now }).peek("fresh", 1, 60_000)).ok).toBe(true);
+  });
+
+  it("with Redis it reads the same window counter without incrementing it", async () => {
+    const clock = fakeClock(1_000_000);
+    const store = new Map<string, number>();
+    const redis: RedisLike = {
+      async eval(script, keys) {
+        if (script.includes("GET")) return store.get(keys[0]) ?? 0; // peek
+        const c = (store.get(keys[0]) ?? 0) + 1; // count a hit
+        store.set(keys[0], c);
+        return c;
+      },
+    };
+    const rateLimit = createRateLimiter({ redis, now: clock.now });
+    expect((await rateLimit.peek("k", 2, 60_000)).ok).toBe(true);
+    await rateLimit("k", 2, 60_000);
+    await rateLimit("k", 2, 60_000);
+    expect([...store.values()]).toEqual([2]);
+    expect((await rateLimit.peek("k", 2, 60_000)).ok).toBe(false);
+    expect([...store.values()]).toEqual([2]); // unchanged by peeking
+  });
+
+  it("falls back to the in-memory view when Redis fails", async () => {
+    const redis: RedisLike = { async eval() { throw new Error("down"); } };
+    const rateLimit = createRateLimiter({ redis, now: fakeClock().now });
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    for (let i = 0; i < 2; i++) await rateLimit("k", 2, 60_000); // counted in memory after the failure
+    expect((await rateLimit.peek("k", 2, 60_000)).ok).toBe(false);
+  });
+});
+
