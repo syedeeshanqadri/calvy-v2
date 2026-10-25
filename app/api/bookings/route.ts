@@ -19,6 +19,8 @@ import { zonedTimeToUtc, formatDateLabel, safeTimeZone } from "@/lib/time";
 import { logger } from "@/lib/logger";
 import { bookToken } from "@/lib/tokenBooking";
 import { missingContact } from "@/lib/patients";
+import { tryNormalizeEmail } from "@/lib/email-normalize";
+import { normalizePhone } from "@/lib/phone";
 import { assertNoDuplicatePatient, DuplicatePatientError } from "@/lib/patientsDb";
 import { isFeatureEnabled } from "@/lib/flags";
 import { PENDING_PAYMENT, holdExpiry } from "@/lib/holds";
@@ -68,12 +70,20 @@ async function POST_handler(req: NextRequest) {
 
   // Per-contact limit: the "already has an appointment" answer must not be a cheap way to probe
   // whether a given person has booked, so one email gets a handful of attempts per hour.
-  const contactLimit = await rateLimit(`booking-contact:${business.id}:${clientEmail.toLowerCase()}`, 12, 3_600_000);
-  if (!contactLimit.ok) {
-    return NextResponse.json(
-      { error: "Too many booking attempts for this email. Please try again later." },
-      { status: 429, headers: { "Retry-After": String(contactLimit.retryAfter) } },
-    );
+  // Keyed on the same normalised email and phone the client lookup matches on, so respelling the
+  // address or switching between email and phone cannot dodge it.
+  const contactKeys = [
+    `booking-contact:${business.id}:email:${tryNormalizeEmail(clientEmail) ?? clientEmail.trim().toLowerCase()}`,
+    ...(normalizePhone(clientPhone, business.timezone) ? [`booking-contact:${business.id}:phone:${normalizePhone(clientPhone, business.timezone)}`] : []),
+  ];
+  for (const key of contactKeys) {
+    const contactLimit = await rateLimit(key, 12, 3_600_000);
+    if (!contactLimit.ok) {
+      return NextResponse.json(
+        { error: "Too many booking attempts for this contact. Please try again later." },
+        { status: 429, headers: { "Retry-After": String(contactLimit.retryAfter) } },
+      );
+    }
   }
 
   // India needs email and phone; elsewhere only email.

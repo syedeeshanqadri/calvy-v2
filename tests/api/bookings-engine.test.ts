@@ -242,6 +242,20 @@ describe("POST /api/bookings: contact details and booking for someone else", () 
     expect(res.status).toBe(429);
     expect(res.headers.get("Retry-After")).toBe("120");
     expect(db.appointment.create).not.toHaveBeenCalled();
-    expect(vi.mocked(rateLimit).mock.calls[1][0]).toBe("booking-contact:biz:jo@x.com");
+    expect(vi.mocked(rateLimit).mock.calls[1][0]).toBe("booking-contact:biz:email:jo@x.com");
+  });
+
+  it("the limit also follows the phone number, so switching email cannot dodge it", async () => {
+    vi.mocked(rateLimit).mockClear();
+    await POST(req({ ...valid, clientEmail: "other.address@x.com" }));
+    const keys = vi.mocked(rateLimit).mock.calls.map((c) => c[0]);
+    expect(keys).toContain("booking-contact:biz:email:other.address@x.com");
+    expect(keys.some((k) => k.startsWith("booking-contact:biz:phone:+91"))).toBe(true);
+  });
+
+  it("a respelled email counts as the same contact", async () => {
+    vi.mocked(rateLimit).mockClear();
+    await POST(req({ ...valid, clientEmail: "  JO@X.com " }));
+    expect(vi.mocked(rateLimit).mock.calls.map((c) => c[0])).toContain("booking-contact:biz:email:jo@x.com");
   });
 });
