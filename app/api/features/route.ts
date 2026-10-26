@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getLimitsFromDB } from "@/lib/plans";
+import { isPlanEnforcementOn } from "@/lib/flags";
 
 export const dynamic = 'force-dynamic';
 
@@ -25,7 +26,8 @@ async function GET_handler() {
 
   const limits = await getLimitsFromDB(business.plan);
 
-  return NextResponse.json({ limits, plan: business.plan });
+  // `enforcement` says whether these limits are applied (off: everything is unlocked).
+  return NextResponse.json({ limits, plan: business.plan, enforcement: isPlanEnforcementOn() });
 }
 
 export const GET = safeRoute(GET_handler);

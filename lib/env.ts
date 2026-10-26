@@ -17,6 +17,7 @@ const optionalVars = {
   NEXT_PUBLIC_APP_URL: optional,
   NEXT_PUBLIC_ROOT_DOMAIN: optional,
   SUPER_ADMIN_EMAIL: optional,
+  PLAN_ENFORCEMENT: optional,
   ADMIN_SETUP_SECRET: optional,
   CRON_SECRET: optional,
   RESEND_API_KEY: optional,

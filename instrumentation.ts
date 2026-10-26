@@ -16,6 +16,10 @@ export async function register() {
     console.warn(`[time] server timezone is ${serverTz}, not UTC. Bookings are unaffected (stored as UTC), but running with TZ=UTC is recommended.`);
   }
 
+  // One line so it is obvious which mode this server is in (limits and gates apply only when ON).
+  const { isPlanEnforcementOn } = await import("@/lib/flags");
+  console.warn(`[plans] PLAN_ENFORCEMENT is ${isPlanEnforcementOn() ? "ON: plan limits and feature gates apply" : "OFF: every business has every feature and no limits"}`);
+
   const { checkEnv, disabledServices, missingStorageEnv } = await import("@/lib/env");
   const { missingRequired } = checkEnv();
 
