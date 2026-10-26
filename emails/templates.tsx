@@ -43,7 +43,7 @@ function BookingDetails({ p }: { p: BookingProps }) {
       <DetailRow label="Date" value={p.date} />
       {p.token ? (
         <>
-          <DetailRow label="Token" value={`#${p.token.number}`} strong />
+          <DetailRow label="Queue number" value={`#${p.token.number}`} strong />
           <DetailRow label="Estimated time" value={p.token.estimatedTime} />
           <DetailRow label="Session" value={p.token.sessionName} />
         </>
@@ -60,16 +60,16 @@ export function BookingConfirmationEmail(p: BookingProps) {
   return (
     <EmailLayout tenant={p.tenant} preview={`You're booked with ${p.businessName} on ${p.date}`}>
       <Badge text="Confirmed" color={brand.green} bg="#e7f7ec" />
-      <H>You&apos;re booked! 🎉</H>
+      <H>You&apos;re booked</H>
       <P>Hi {p.clientName.split(" ")[0]}, your {appt(p)} at <strong style={{ color: brand.ink }}>{p.businessName}</strong> is confirmed. Here are the details:</P>
       <BookingDetails p={p} />
       {p.token && p.trackUrl ? (
         <>
           <P>Follow the queue live and see how long is left, so you only need to arrive close to your turn.</P>
-          <CTA href={p.trackUrl} label="Track your place in line" />
+          <CTA color={p.tenant?.color} fg={p.tenant?.fg} href={p.trackUrl} label="Track your place in line" />
         </>
       ) : null}
-      <P>We&apos;ve added this to your calendar (see the attachment). See you soon! 👋</P>
+      <P>We&apos;ve added this to your calendar (see the attachment). See you soon.</P>
     </EmailLayout>
   );
 }
@@ -78,7 +78,7 @@ export function BookingReminderEmail(p: BookingProps) {
   return (
     <EmailLayout tenant={p.tenant} preview={`Reminder: ${p.serviceName} tomorrow at ${p.time}`}>
       <Badge text="Reminder" color={brand.accent} bg="#e6f2fb" />
-      <H>Your {appt(p)} is tomorrow 🗓</H>
+      <H>Your {appt(p)} is tomorrow</H>
       <P>Hi {p.clientName.split(" ")[0]}, a friendly reminder about your upcoming {appt(p)} at <strong style={{ color: brand.ink }}>{p.businessName}</strong>.</P>
       <BookingDetails p={p} />
       <P>See you there! If you need to make a change, just reply to this email.</P>
@@ -88,20 +88,20 @@ export function BookingReminderEmail(p: BookingProps) {
 
 export function BookingCancellationEmail(p: BookingProps & { rebookUrl?: string }) {
   return (
-    <EmailLayout preview={`Your ${appt(p)} at ${p.businessName} was cancelled`}>
+    <EmailLayout tenant={p.tenant} preview={`Your ${appt(p)} at ${p.businessName} was cancelled`}>
       <Badge text="Cancelled" color="#b91c1c" bg="#fdeaea" />
       <H>Your {appt(p)} was cancelled</H>
       <P>Hi {p.clientName.split(" ")[0]}, the following {appt(p)} at <strong style={{ color: brand.ink }}>{p.businessName}</strong> has been cancelled:</P>
       <BookingDetails p={p} />
       <P>If this wasn&apos;t expected, or you&apos;d like to rebook, you can do so any time.</P>
-      {p.rebookUrl ? <CTA href={p.rebookUrl} label="Book again" /> : null}
+      {p.rebookUrl ? <CTA color={p.tenant?.color} fg={p.tenant?.fg} href={p.rebookUrl} label="Book again" /> : null}
     </EmailLayout>
   );
 }
 
 export function BookingRescheduleEmail(p: BookingProps & { oldDate: string; oldTime: string }) {
   return (
-    <EmailLayout preview={`Your ${appt(p)} was moved to ${p.date} at ${p.time}`}>
+    <EmailLayout tenant={p.tenant} preview={`Your ${appt(p)} was moved to ${p.date} at ${p.time}`}>
       <Badge text="Rescheduled" color="#b45309" bg="#fdf2e3" />
       <H>Your {appt(p)} has moved</H>
       <P>Hi {p.clientName.split(" ")[0]}, your {appt(p)} at <strong style={{ color: brand.ink }}>{p.businessName}</strong> has been rescheduled.</P>
@@ -110,21 +110,21 @@ export function BookingRescheduleEmail(p: BookingProps & { oldDate: string; oldT
         <DetailRow label="Now" value={`${p.date}, ${p.time}`} strong />
       </Card>
       <BookingDetails p={p} />
-      <P>See you at the new time! 👋</P>
+      <P>See you at the new time.</P>
     </EmailLayout>
   );
 }
 
-/** Queue emails: a token's place changed while the customer waits. */
+/** Queue emails: a customer's place changed while they wait. */
 export function QueueMovedBackEmail(p: BookingProps & { place: number }) {
   return (
     <EmailLayout tenant={p.tenant} preview={`You are now #${p.place} in line at ${p.businessName}`}>
       <Badge text="Moved back" color="#b45309" bg="#fdf2e3" />
       <H>You were not here when we called you</H>
-      <P>Hi {p.clientName.split(" ")[0]}, your token at <strong style={{ color: brand.ink }}>{p.businessName}</strong> was called but you were not present, so we moved you back in the queue. Please stay close.</P>
+      <P>Hi {p.clientName.split(" ")[0]}, your place in the queue at <strong style={{ color: brand.ink }}>{p.businessName}</strong> came up but you were not present, so we moved you back in the queue. Please stay close.</P>
       <BookingDetails p={p} />
       <P>You are now number {p.place} in line. You get four calls in all: if you are not present for the fourth, this {appt(p)} is closed and what you paid is saved in your wallet.</P>
-      {p.trackUrl ? <CTA href={p.trackUrl} label="Track your place in line" /> : null}
+      {p.trackUrl ? <CTA color={p.tenant?.color} fg={p.tenant?.fg} href={p.trackUrl} label="Track your place in line" /> : null}
     </EmailLayout>
   );
 }
@@ -150,7 +150,7 @@ export function QueueClosedEmail(p: BookingProps & { reason: "missed" | "cancell
       ) : (
         <P>You can book again on any date.</P>
       )}
-      {p.loginUrl ? <CTA href={p.loginUrl} label={p.creditLabel ? "Sign in and book another date" : "Book another date"} /> : null}
+      {p.loginUrl ? <CTA color={p.tenant?.color} fg={p.tenant?.fg} href={p.loginUrl} label={p.creditLabel ? "Sign in and book another date" : "Book another date"} /> : null}
     </EmailLayout>
   );
 }
@@ -164,7 +164,7 @@ export interface InvoiceProps extends BookingProps {
 export function InvoiceEmail(p: InvoiceProps) {
   const total = typeof p.price === "number" ? formatCurrencyAmount(p.price, p.currency ?? "INR") : "—";
   return (
-    <EmailLayout preview={`Receipt from ${p.businessName} — ${total}`}>
+    <EmailLayout tenant={p.tenant} preview={`Receipt from ${p.businessName} — ${total}`}>
       <table width="100%"><tbody><tr>
         <td><Text style={{ fontSize: "22px", fontWeight: 700, color: brand.ink, margin: 0 }}>Receipt</Text>
           <Text style={{ fontSize: "13px", color: brand.muted, margin: "2px 0 0" }}>#{p.invoiceNumber}</Text></td>
