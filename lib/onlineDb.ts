@@ -9,7 +9,7 @@ import { meetingUrlFor } from "@/lib/online";
 export async function loadMeetingUrl(appointmentId: string): Promise<string | null> {
   const a = await prisma.appointment.findUnique({
     where: { id: appointmentId },
-    select: { isOnline: true, service: { select: { meetingUrl: true } }, staff: { select: { meetingUrl: true } } },
+    select: { isOnline: true, meetingUrl: true, service: { select: { meetingUrl: true } }, staff: { select: { meetingUrl: true } } },
   });
   return a ? meetingUrlFor(a) : null;
 }

@@ -263,6 +263,8 @@ model Appointment {
   reminderSent       Boolean            @default(false)
   /// The customer chose (or the service forces) an online consultation for this booking.
   isOnline           Boolean            @default(false)
+  /// A link set on this booking by staff while editing it; beats the service and staff links.
+  meetingUrl         String?
   /// Set while status = pending_payment: the slot/token is held until then.
   holdExpiresAt      DateTime?          @db.Timestamptz(3)
   // Token queue (reception screen). queuePosition = order in the open queue (null until the first queue action).

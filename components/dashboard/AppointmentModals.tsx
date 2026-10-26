@@ -293,6 +293,7 @@ export function AppointmentDetailModal({
   const [status, setStatus] = useState("");
   const [paymentStatus, setPaymentStatus] = useState("");
   const [paymentMode, setPaymentMode] = useState("");
+  const [link, setLink] = useState("");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
@@ -308,6 +309,7 @@ export function AppointmentDetailModal({
     setStatus(appt.status);
     setPaymentStatus(appt.paymentStatus);
     setPaymentMode(appt.paymentMode);
+    setLink(appt.meetingUrl ?? "");
     setResDate(appt.date);
     setResStaff(appt.staffId ?? "");
     setResTime("");
@@ -327,7 +329,7 @@ export function AppointmentDetailModal({
   if (!appt) return <Modal isOpen={false} onClose={onClose}>{null}</Modal>;
 
   const movable = !["cancelled", "completed", "no-show"].includes(appt.status);
-  const dirty = status !== appt.status || paymentStatus !== appt.paymentStatus || paymentMode !== appt.paymentMode;
+  const dirty = status !== appt.status || paymentStatus !== appt.paymentStatus || paymentMode !== appt.paymentMode || (!!appt.isOnline && link.trim() !== (appt.meetingUrl ?? ""));
 
   async function patch(body: Record<string, unknown>) {
     const res = await fetch(`/api/appointments/${appt!.id}`, {
@@ -343,7 +345,7 @@ export function AppointmentDetailModal({
     setSaving(true);
     setError("");
     try {
-      await patch({ status, paymentStatus, paymentMode });
+      await patch({ status, paymentStatus, paymentMode, ...(appt!.isOnline && link.trim() !== (appt!.meetingUrl ?? "") && { meetingUrl: link.trim() }) });
       setSaved(true);
       onChanged();
     } catch (e) {
@@ -412,12 +414,15 @@ export function AppointmentDetailModal({
         </div>
 
         {appt.isOnline && (
-          <div className="flex items-center justify-between gap-3 bg-sky-50 border border-sky-200 rounded-xl p-3">
-            <div className="min-w-0">
+          <div className="bg-sky-50 border border-sky-200 rounded-xl p-3 space-y-2">
+            <div className="flex items-center justify-between gap-3">
               <OnlineBadge />
-              <p className="text-xs text-[#6b6b80] mt-1 truncate">{appt.meetingUrl ?? "No meeting link set on the staff member or service."}</p>
+              {appt.meetingUrl && link.trim() === appt.meetingUrl && <JoinButton url={appt.meetingUrl} size="md" />}
             </div>
-            <JoinButton url={appt.meetingUrl} size="md" />
+            <Input label="Meeting link" type="url" placeholder="https://meet.google.com/…" value={link} onChange={(e) => setLink(e.target.value)} />
+            <p className="text-xs text-[#6b6b80]">
+              {appt.meetingUrl ? "Change it and press Save changes; the customer is emailed the new link." : "No link is set yet. Add one and press Save changes; the customer is emailed it."}
+            </p>
           </div>
         )}
 

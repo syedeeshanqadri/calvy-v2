@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { meetingUrlOrEmpty } from "@/lib/online";
 import { text, id, emailField, dateField, timeField, phoneField, blankToUndef } from "./common";
 
 export const APPOINTMENT_STATUSES = ["confirmed", "pending", "completed", "cancelled", "no-show"] as const;
@@ -43,6 +44,8 @@ export const appointmentPatchSchema = z
     date: dateField.optional(),
     time: timeField.optional(),
     staffId: z.preprocess(blankToUndef, id.optional()),
+    /** Online appointments: the link for this booking. Empty clears it (the service / staff link applies again). */
+    meetingUrl: meetingUrlOrEmpty.optional(),
   })
   .refine((b) => (b.date === undefined) === (b.time === undefined), {
     message: "date and time must be sent together",

@@ -51,7 +51,7 @@ export function resolveBookingMode(
   return { ok: true, isOnline: requested === "online" };
 }
 
-/** The link for an online booking: the service's own override, else the staff member's default. */
+/** The default link for an online booking: the service's own override, else the staff member's. */
 export function resolveMeetingUrl(
   svc: { meetingUrl?: string | null } | null | undefined,
   staff: { meetingUrl?: string | null } | null | undefined,
@@ -61,9 +61,10 @@ export function resolveMeetingUrl(
 
 /** Link to show for an appointment: only online ones have one. Callers must already have authorised the viewer. */
 export function meetingUrlFor(
-  appt: { isOnline: boolean; service?: { meetingUrl?: string | null } | null; staff?: { meetingUrl?: string | null } | null },
+  appt: { isOnline: boolean; meetingUrl?: string | null; service?: { meetingUrl?: string | null } | null; staff?: { meetingUrl?: string | null } | null },
 ): string | null {
-  return appt.isOnline ? resolveMeetingUrl(appt.service, appt.staff) : null;
+  // A link set on the appointment itself (by staff, while editing it) beats the service and staff links.
+  return appt.isOnline ? appt.meetingUrl?.trim() || resolveMeetingUrl(appt.service, appt.staff) : null;
 }
 
 /** Public badge text for a service ("" for in-person only). Says nothing about any link. */

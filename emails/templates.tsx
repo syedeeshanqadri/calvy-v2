@@ -72,6 +72,20 @@ function OnlineJoin({ p }: { p: BookingProps }) {
   );
 }
 
+/** Staff added or changed the joining link of an online appointment. */
+export function MeetingLinkEmail(p: BookingProps & { meetingUrl: string; updated: boolean }) {
+  return (
+    <EmailLayout tenant={p.tenant} preview={`Your joining link for ${p.date} at ${p.time}`}>
+      <Badge text={p.updated ? "Link updated" : "Link added"} color={brand.accent} bg="#e6f2fb" />
+      <H>{p.updated ? "Your joining link has changed" : "Your joining link is ready"}</H>
+      <P>Hi {p.clientName.split(" ")[0]}, {p.updated ? "the link for" : "here is the link to join"} your online {appt(p)} at <strong style={{ color: brand.ink }}>{p.businessName}</strong>{p.updated ? " has changed. Please use this one." : "."}</P>
+      <BookingDetails p={{ ...p, online: { meetingUrl: p.meetingUrl } }} />
+      <CTA color={p.tenant?.color} fg={p.tenant?.fg} href={p.meetingUrl} label="Join the consultation" />
+      <P>It works on your phone or computer. Join at your appointment time.</P>
+    </EmailLayout>
+  );
+}
+
 export function BookingConfirmationEmail(p: BookingProps) {
   return (
     <EmailLayout tenant={p.tenant} preview={`You're booked with ${p.businessName} on ${p.date}`}>

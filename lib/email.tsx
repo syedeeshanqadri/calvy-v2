@@ -5,6 +5,7 @@ import { render } from "@react-email/render";
 import { formatCurrencyAmount, DEFAULT_CURRENCY } from "@/lib/currency";
 import {
   BookingConfirmationEmail,
+  MeetingLinkEmail,
   BookingReminderEmail,
   BookingCancellationEmail,
   BookingRescheduleEmail,
@@ -178,6 +179,15 @@ export async function sendBookingReminder(d: {
     to: d.to, type: "reminder", ctx: d.ctx,
     subject: `Reminder: ${d.serviceName} tomorrow at ${d.time}`,
     react: <BookingReminderEmail clientName={d.clientName} patientName={d.patientName} businessName={d.businessName} serviceName={d.serviceName} date={d.date} time={d.time} staffName={d.staffName} duration={d.duration} price={d.price} currency={d.currency} terms={d.terms} online={d.online} tenant={tenant} />,
+  });
+}
+
+export async function sendMeetingLinkAdded(d: BookingDetails & { meetingUrl: string; updated: boolean }) {
+  const tenant = await tenantBrand(d.ctx?.businessId, d.businessName);
+  return dispatch({
+    to: d.to, type: "meeting_link", ctx: d.ctx,
+    subject: d.updated ? `Your joining link has changed — ${d.businessName}` : `Your joining link for ${d.date} at ${d.time} — ${d.businessName}`,
+    react: <MeetingLinkEmail {...bookingProps(d)} tenant={tenant} meetingUrl={d.meetingUrl} updated={d.updated} />,
   });
 }
 

@@ -27,7 +27,7 @@ export async function loadTracking(code: string, slug?: string, now: Date = new 
     where: { id },
     select: {
       id: true, status: true, tokenNumber: true, queuePosition: true, queueState: true, notPresentCount: true, carriedFromId: true,
-      estimatedAt: true, sessionDate: true, tokenSessionId: true, isOnline: true,
+      estimatedAt: true, sessionDate: true, tokenSessionId: true, isOnline: true, meetingUrl: true,
       service: { select: { meetingUrl: true } }, staff: { select: { meetingUrl: true } },
       business: { select: { name: true, slug: true, logoUrl: true, primaryColor: true, packId: true, termsOverride: true, timezone: true } },
       tokenSession: { select: { name: true, startMin: true, endMin: true, minutesPerToken: true, staff: { select: { name: true } } } },

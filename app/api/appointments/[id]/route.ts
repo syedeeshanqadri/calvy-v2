@@ -6,13 +6,14 @@ import { prisma } from "@/lib/prisma";
 import { parseBody } from "@/lib/validation/common";
 import { appointmentPatchSchema } from "@/lib/validation/appointments";
 import { t } from "@/lib/terms";
-import { sendBookingCancellation, sendBookingReschedule, sendInvoice, type BookingDetails } from "@/lib/email";
+import { sendBookingCancellation, sendBookingReschedule, sendInvoice, sendMeetingLinkAdded, type BookingDetails } from "@/lib/email";
 import { logger } from "@/lib/logger";
 import { bookExclusive, SlotConflictError, conflictMessage, isPastBooking } from "@/lib/booking";
 import { loadAvailability, type AvailabilityQuery } from "@/lib/availability";
 import { safeTimeZone, formatDateLabel, formatTimeLabel, zonedTimeToUtc, utcToZoned } from "@/lib/time";
 import { settleCancellation } from "@/lib/holds";
 import { refundPayment } from "@/lib/onlinePayment";
+import { meetingUrlFor } from "@/lib/online";
 
 export const dynamic = 'force-dynamic';
 
@@ -34,7 +35,7 @@ async function PATCH_handler(req: NextRequest, props: { params: Promise<{ id: st
 
   const parsed = await parseBody(req, appointmentPatchSchema);
   if (!parsed.ok) return parsed.res;
-  const { status, paymentStatus, paymentMode, date, time, staffId } = parsed.data;
+  const { status, paymentStatus, paymentMode, date, time, staffId, meetingUrl } = parsed.data;
   const businessId = session.user.businessId;
 
   const biz = await prisma.business.findUnique({ where: { id: businessId }, select: { timezone: true } });
@@ -72,7 +73,18 @@ async function PATCH_handler(req: NextRequest, props: { params: Promise<{ id: st
   }
   const willReschedule = !!newDate;
 
+  // A link is only for online appointments. Empty clears it (the service / staff link applies again).
+  if (meetingUrl !== undefined && !appointment.isOnline) {
+    return NextResponse.json({ error: "Only online appointments have a meeting link." }, { status: 400 });
+  }
+  const before = await prisma.appointment.findFirst({
+    where: { id: appointment.id, businessId },
+    include: { service: { select: { meetingUrl: true } }, staff: { select: { meetingUrl: true } } },
+  });
+  const linkBefore = before ? meetingUrlFor(before) : null;
+
   const data = {
+    ...(meetingUrl !== undefined && { meetingUrl: meetingUrl || null }),
     ...(status && { status }),
     ...(paymentStatus && { paymentStatus }),
     ...(paymentMode && { paymentMode }),
@@ -196,6 +208,38 @@ async function PATCH_handler(req: NextRequest, props: { params: Promise<{ id: st
       }
     } catch (err) {
       logger.error("[Appointments] transactional email error:", { err });
+    }
+  }
+
+  // The customer is told when staff add or change the joining link (not for cancelled or finished bookings).
+  if (meetingUrl !== undefined && !willCancel && ["confirmed", "pending"].includes(updated?.status ?? "")) {
+    try {
+      const full = await prisma.appointment.findFirst({
+        where: { id: params.id, businessId },
+        include: { client: true, service: true, staff: true, business: true },
+      });
+      const linkAfter = full ? meetingUrlFor(full) : null;
+      if (full?.client?.email && linkAfter && linkAfter !== linkBefore) {
+        await sendMeetingLinkAdded({
+          to: full.client.email,
+          clientName: full.client.name,
+          patientName: full.patientName ?? undefined,
+          businessName: full.business.name,
+          serviceName: full.service.name,
+          staffName: full.staff?.name ?? `Your ${t(full.business, "staff")}`,
+          terms: full.business,
+          date: fmtDate(full.date),
+          time: fmtTime(full.date),
+          duration: full.duration,
+          price: full.price,
+          currency: full.business.currency ?? "INR",
+          meetingUrl: linkAfter,
+          updated: !!linkBefore,
+          ctx: { appointmentId: full.id, businessId: full.businessId },
+        });
+      }
+    } catch (err) {
+      logger.error("[Appointments] meeting link email error:", { err });
     }
   }
 
