@@ -77,7 +77,8 @@ export async function loadTracking(code: string, slug?: string, now: Date = new 
 
   return {
     credit,
-    online: a.isOnline && a.status !== "cancelled" ? { meetingUrl: meetingUrlFor(a) } : null,
+    // Only a confirmed booking that is still in the queue: never while payment is pending, or once expired, cancelled, missed or done.
+    online: a.isOnline && a.status === "confirmed" && ["waiting", "serving"].includes(view.state) ? { meetingUrl: meetingUrlFor(a) } : null,
     business: {
       name: a.business.name, slug: a.business.slug, logoUrl: a.business.logoUrl, primaryColor: a.business.primaryColor,
       packId: a.business.packId, termsOverride: a.business.termsOverride,

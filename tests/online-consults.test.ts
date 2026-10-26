@@ -151,6 +151,11 @@ describe("tracking page (signed code) shows the link only for online bookings", 
     expect((await loadTracking(code))?.online).toBeNull();
     rows.appt = make(true);
     expect(await loadTracking("cmgx1ab2c0000xyz1234.forged")).toBeNull();
+    // Unpaid hold and cancelled bookings never get it.
+    rows.appt = { ...make(true), status: "pending_payment" };
+    expect((await loadTracking(code))?.online).toBeNull();
+    rows.appt = { ...make(true), status: "cancelled" };
+    expect((await loadTracking(code))?.online).toBeNull();
   });
 });
 
