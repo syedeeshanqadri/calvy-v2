@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ArrowRight, TrendingUp } from "lucide-react";
+import { DemoButton } from "./DemoButton";
 
 export function CTA() {
   return (
@@ -26,9 +27,9 @@ export function CTA() {
                 Get your booking page free
                 <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
               </Link>
-              <Link href="/#demo" className="inline-flex items-center justify-center gap-2 min-h-12 border border-white/30 text-white hover:bg-white/10 font-semibold px-8 py-4 rounded-2xl transition-all text-base">
+              <DemoButton source="cta-demo" className="inline-flex items-center justify-center gap-2 min-h-12 border border-white/30 text-white hover:bg-white/10 font-semibold px-8 py-4 rounded-2xl transition-all text-base">
                 Book a personal demo
-              </Link>
+              </DemoButton>
             </div>
             <p className="text-sky-300 text-sm mt-6">Free forever plan · No credit card · Cancel anytime</p>
           </div>

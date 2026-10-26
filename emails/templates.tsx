@@ -270,8 +270,8 @@ export function PasswordResetEmail({ name, resetUrl }: { name: string; resetUrl:
 export function LeadAcknowledgmentEmail({ name, demoRequested }: { name: string; demoRequested: boolean }) {
   return (
     <EmailLayout preview="Thanks for reaching out to Calvy">
-      <H>Thanks, {name.split(" ")[0]}! 👋</H>
-      <P>We got your details{demoRequested ? " and your demo request" : ""}. A member of the Calvy team will be in touch very shortly{demoRequested ? " to schedule your demo" : ""}.</P>
+      <H>{demoRequested ? `Your demo is booked, ${name.split(" ")[0]}` : `Thanks, ${name.split(" ")[0]}! 👋`}</H>
+      <P>{demoRequested ? "Thanks for booking a personal demo of Calvy. You will be contacted soon with your demo: a member of our team will reach out by phone or email to agree a time that suits you." : "We got your details. A member of the Calvy team will be in touch very shortly."}</P>
       <P>In the meantime, you can start free in under a minute — no card required.</P>
       <CTA href="https://calvy.io/signup" label="Get your booking page free" />
     </EmailLayout>

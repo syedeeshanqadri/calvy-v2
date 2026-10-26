@@ -248,7 +248,7 @@ export function sendVerificationEmail({ to, name, token }: { to: string; name: s
 export function sendLeadAcknowledgment({ to, name, demoRequested }: { to: string; name: string; demoRequested: boolean }) {
   return dispatch({
     to, type: "lead",
-    subject: demoRequested ? "Your Calvy demo — let's get it booked" : "Thanks for reaching out to Calvy",
+    subject: demoRequested ? "Your Calvy demo is booked" : "Thanks for reaching out to Calvy",
     react: <LeadAcknowledgmentEmail name={name} demoRequested={demoRequested} />,
   });
 }

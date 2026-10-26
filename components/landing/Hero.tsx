@@ -4,6 +4,7 @@ import { ArrowRight, Star, Check, Bell, DollarSign } from "lucide-react";
 import { ProductCarousel } from "./ProductCarousel";
 import { ClientPhone, OwnerPhone } from "./PhoneMockups";
 import { HeroLeadForm } from "./HeroLeadForm";
+import { DemoButton } from "./DemoButton";
 
 /* ─── Hero section ───────────────────────────────────────────── */
 export function Hero() {
@@ -44,9 +45,9 @@ export function Hero() {
               <HeroLeadForm />
             </div>
             <div className="mb-6">
-              <Link href="/#demo" className="inline-flex items-center gap-1.5 min-h-11 text-sky-700 font-semibold text-sm hover:gap-2.5 transition-all">
+              <DemoButton source="hero-demo" className="inline-flex items-center gap-1.5 min-h-11 text-sky-700 font-semibold text-sm hover:gap-2.5 transition-all">
                 Or book a personal demo <ArrowRight size={15} />
-              </Link>
+              </DemoButton>
             </div>
 
             <div className="flex flex-col gap-2.5 mb-10">
