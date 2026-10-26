@@ -2,6 +2,7 @@ import { safeTimeZone, utcToZoned } from "@/lib/time";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getFlags } from "@/lib/flags";
 import { redirect } from "next/navigation";
 import { AppointmentsClient } from "./AppointmentsClient";
 import { getBusinessFeatures } from "@/lib/getFeatures";
@@ -63,6 +64,7 @@ export default async function AppointmentsPage() {
       services={services.map(s => ({ id: s.id, name: s.name, duration: s.duration, price: s.price }))}
       staff={staff.map(s => ({ id: s.id, name: s.name }))}
       csvExport={features.csvExport}
+      upgradeHref={getFlags().payments ? "/dashboard/billing" : null}
     />
   );
 }
