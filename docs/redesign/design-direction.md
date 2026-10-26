@@ -39,7 +39,8 @@ Scope: tenant site `{slug}` and booking page `/b/{slug}`. Mobile-first at 375px,
 
 ## Booking flow
 - **Slot:** service (multi-select, category tabs, live total) → staff ("Any available" first, each with next free time) → date & time (date strip, closed days struck through, slots grouped by part of day, "India Standard Time" stated) → who is this for (Myself / Someone else + name) → details (name, phone +91, optional email and notes, WhatsApp reminders) → pay → confirmation.
-- **Token:** service → date & session (doctor, hours, tokens left, the patient's estimated time; sessions not open yet are disabled with the time booking opens) → who → details → pay → confirmation with a large token number, estimated time, "Track your place in line". No staff step: the session belongs to a doctor.
+- **Token:** service → date & session (doctor, hours, places left, the patient's estimated time; sessions not open yet are disabled with the time booking opens) → who → details → pay → confirmation with a large queue number, estimated time, "Track your place in line". No staff step: the session belongs to a doctor.
+- **Copy rule:** "token" is an internal setting name only. Customers never see it: buttons say "Get appointment" / "Get another appointment", the number is "your number in the queue", capacity is "places left".
 - **Pay** is shown only when online payment is on; options follow PayConfig (full now / booking fee now / pay at venue). Otherwise skipped, and the last button reads "Confirm booking" / "Get appointment".
 - **Confirmation:** outcome headline, ticket (what, who for, when, with whom, where, payment), "Add to calendar", **"Book another"** (keeps contact details), change/cancel link, then Google review + socials.
 - **Chrome:** back button, "Step n of N" + progress bar (real sequence), summary panel on the right on desktop; on mobile the summary collapses into a bottom bar with total + Continue.
