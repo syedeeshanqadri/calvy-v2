@@ -5,7 +5,7 @@ import Image from "next/image";
 import { prisma } from "@/lib/prisma";
 import { t } from "@/lib/terms";
 import { parseWebsiteConfig, defaultWebsiteConfig, WebsiteConfig, currentPhoto } from "@/lib/website";
-import { MapPin, Phone, Mail, Clock, ArrowRight, Check } from "lucide-react";
+import { MapPin, Phone, Mail, Clock, ArrowRight, Check, Users, Tag, MessageCircle, CalendarClock } from "lucide-react";
 import { formatCurrencyAmount } from "@/lib/currency";
 import { getFlags } from "@/lib/flags";
 import { ChatWidget } from "@/components/chatbot/ChatWidget";
@@ -16,6 +16,10 @@ import { BrandMark, SocialIcons, ReviewButton, initialsOf } from "@/components/s
 import { parseSocialLinks, safeReviewLink } from "@/lib/brandLinks";
 import { formatOpeningHours, mapsEmbedUrl, openStatus, summarizeHours } from "@/lib/hours";
 import { siteFontClasses } from "./fonts";
+import { SiteHero } from "./SiteHero";
+import { PackIcon } from "@/components/site/PackIcon";
+import { getPack } from "@/lib/packs";
+import { heroLayoutFor } from "@/lib/siteLayout";
 import "./site.css";
 
 export const dynamic = "force-dynamic";
@@ -138,22 +142,45 @@ export default async function TenantWebsitePage(props: { params: Promise<{ slug:
   const hasContactRows = showPhone || showEmail || showAddress;
   const heroImage = currentPhoto(cfg.hero.image, business.businessType, "hero");
   const aboutImage = currentPhoto(cfg.about.image, business.businessType, "about");
-  // The open-now card sits on the hero photo; without a photo it moves into the facts strip.
-  const heroShowsStatus = cfg.hero.enabled && !!heroImage && !!status && showHours;
-  // Text on the booking card button: brand colour on white, or the light brand colour on a dark button.
   const onInvert = primaryFg === "#ffffff" ? brandInk(primary) : primary;
   const footerHours = summarizeHours(hours);
-  const factItems = [
-    status && showHours && !heroShowsStatus && { key: "hours", icon: <Clock className="st-ico" aria-hidden />, text: <span className={status.open ? "st-open" : "st-shut"}>{status.label}</span> },
-    showAddress && { key: "address", icon: <MapPin className="st-ico" aria-hidden />, text: <span>{business.address}</span> },
-    showPhone && { key: "phone", icon: <Phone className="st-ico" aria-hidden />, text: <a href={`tel:${business.phone}`}>{business.phone}</a> },
-    showEmail && { key: "email", icon: <Mail className="st-ico" aria-hidden />, text: <a href={`mailto:${business.email}`}>{business.email}</a> },
-  ].filter(Boolean) as { key: string; icon: React.ReactNode; text: React.ReactNode }[];
+  const pack = getPack(business.packId);
+  const serviceCount = business.services.length;
+  const staffCount = business.staff.length;
+  const heroChips: { icon: React.ReactNode; label: string; sub?: string; live?: boolean }[] = [];
+  if (status && showHours) heroChips.push({ icon: <Clock aria-hidden />, label: status.label, live: status.open });
+  if (prices.length > 0) heroChips.push({ icon: <Tag aria-hidden />, label: `From ${formatCurrencyAmount(Math.min(...prices), business.currency)}`, sub: `${serviceCount} ${t(business, "service", { plural: serviceCount !== 1 })}` });
+  const heroTrust: { icon: React.ReactNode; text: string }[] = [];
+  if (staffCount > 0) heroTrust.push({ icon: <Users aria-hidden />, text: `${staffCount} ${t(business, "staff", { plural: staffCount !== 1 })}` });
+  if (serviceCount > 0) heroTrust.push({ icon: <PackIcon name={pack.icons.service} />, text: `${serviceCount} ${t(business, "service", { plural: serviceCount !== 1 })}` });
+  heroTrust.push({ icon: <Check aria-hidden />, text: cfg.contact.ctaNote || "Book online in minutes" });
+  const quickServices = cfg.services.enabled ? business.services.slice(0, 5) : [];
+  const railItems = [
+    social.whatsapp && { href: social.whatsapp, label: "WhatsApp", icon: <MessageCircle className="st-ico" aria-hidden />, external: true },
+    { href: bookingUrl, label: "Book now", icon: <CalendarClock className="st-ico" aria-hidden />, external: false },
+    showPhone && { href: `tel:${business.phone}`, label: "Call", icon: <Phone className="st-ico" aria-hidden />, external: false },
+  ].filter(Boolean) as { href: string; label: string; icon: React.ReactNode; external: boolean }[];
 
   return (
     <div className={`st ${fontClasses}`} data-pack={business.packId} style={themeVars(primary) as React.CSSProperties}>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <a className="st-sr" href="#main">Skip to content</a>
+
+      {/* ── TOP INFO BAR ── */}
+      {((status && showHours) || showAddress || showPhone || hasSocial) && (
+        <div className="st-util">
+          <div className="st-wrap">
+            <div className="st-util-items">
+              {status && showHours && (
+                <span className="st-util-item"><Clock className="st-ico" aria-hidden /><span className={status.open ? "st-live" : ""}>{status.label}</span></span>
+              )}
+              {showAddress && <span className="st-util-item hide-sm"><MapPin className="st-ico" aria-hidden />{business.address}</span>}
+              {showPhone && <a className="st-util-item" href={`tel:${business.phone}`}><Phone className="st-ico" aria-hidden />{business.phone}</a>}
+            </div>
+            {hasSocial && <SocialIcons links={social} tone="light" className="hide-sm" />}
+          </div>
+        </div>
+      )}
 
       {/* ── HEADER ── */}
       <header className="st-head">
@@ -175,45 +202,41 @@ export default async function TenantWebsitePage(props: { params: Promise<{ slug:
       <main id="main">
         {/* ── HERO ── */}
         {cfg.hero.enabled && (
-          <section className="st-hero">
-            <div className={`st-hero-grid${heroImage ? " has-image" : ""}`}>
-              <div className="st-hero-copy">
-                {cfg.hero.badge && <span className="st-badge">{cfg.hero.badge}</span>}
-                <h1>{cfg.hero.headline}</h1>
-                {cfg.hero.subheadline && <p className="st-lede">{cfg.hero.subheadline}</p>}
-                <div className="st-ctas">
-                  <Link href={bookingUrl} className="st-btn st-btn-primary">{cfg.hero.ctaText}</Link>
-                  {cfg.services.enabled && cfg.hero.secondaryCtaText && business.services.length > 0 && (
-                    <a href="#services" className="st-btn st-btn-ghost">{cfg.hero.secondaryCtaText}</a>
-                  )}
-                </div>
-                {cfg.contact.ctaNote && <p className="st-reassure"><Check className="st-ico" aria-hidden />{cfg.contact.ctaNote}</p>}
-              </div>
-              {heroImage && (
-                <div className="st-hero-media">
-                  <Image src={heroImage} alt={business.name} fill priority sizes="(max-width: 900px) 100vw, 50vw" unoptimized />
-                  {heroShowsStatus && status && (
-                    <div className="st-hero-card">
-                      <span className="st-ico-wrap"><Clock className="st-ico" aria-hidden /></span>
-                      <div>
-                        <b className={status.open ? "st-open" : ""}>{status.label}</b>
-                        {showAddress && <span className="sub">{business.address}</span>}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          </section>
+          <SiteHero
+            layout={heroLayoutFor(business.packId)}
+            businessName={business.name}
+            badge={cfg.hero.badge}
+            headline={cfg.hero.headline}
+            subheadline={cfg.hero.subheadline}
+            ctaText={cfg.hero.ctaText}
+            secondaryCtaText={cfg.services.enabled && serviceCount > 0 ? cfg.hero.secondaryCtaText : undefined}
+            bookingUrl={bookingUrl}
+            image={heroImage}
+            chips={heroChips}
+            trust={heroTrust}
+            sealIcon={<PackIcon name={pack.icons.pack} />}
+          />
         )}
 
-        {/* ── QUICK FACTS ── */}
-        {factItems.length > 0 && (
-          <div className="st-facts">
+        {/* ── SERVICE SHORTCUTS ── */}
+        {quickServices.length >= 2 && (
+          <section className="st-quick" aria-label={cfg.services.title}>
             <div className="st-wrap">
-              <ul>{factItems.map((f) => <li key={f.key}>{f.icon}{f.text}</li>)}</ul>
+              <ul className="st-quick-row" style={{ "--cols": quickServices.length } as React.CSSProperties}>
+                {quickServices.map((svc) => (
+                  <li key={svc.id}>
+                    <Link href={`${bookingUrl}?service=${svc.id}`} className="st-quick-tile">
+                      <span className="st-ico-wrap"><PackIcon name={pack.icons.service} /></span>
+                      <span>
+                        <b>{svc.name}</b>
+                        <small>{svc.duration} min · {svc.price === 0 ? "Free" : formatCurrencyAmount(svc.price, business.currency)}</small>
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
             </div>
-          </div>
+          </section>
         )}
 
         {/* ── SERVICES ── */}
@@ -420,6 +443,18 @@ export default async function TenantWebsitePage(props: { params: Promise<{ slug:
       <div className="st-bar">
         <Link href={bookingUrl} className="st-btn st-btn-primary st-btn-block">{cfg.hero.ctaText}</Link>
       </div>
+
+      {/* Desktop: contact shortcuts stay on screen */}
+      {railItems.length >= 2 && (
+        <nav className="st-rail" aria-label="Contact shortcuts">
+          {railItems.map((item) => (
+            <a key={item.label} href={item.href} {...(item.external ? { target: "_blank", rel: "noopener noreferrer" } : {})}>
+              {item.icon}
+              {item.label}
+            </a>
+          ))}
+        </nav>
+      )}
 
       {/* Chat booking widget, plan-gated */}
       {features.chatbotWidget && getFlags().chatWidget && business.bookingMode !== "TOKEN" && (

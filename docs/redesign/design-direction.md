@@ -4,6 +4,9 @@ Scope: tenant site `{slug}` and booking page `/b/{slug}`. Mobile-first at 375px,
 
 **Idea:** a booking site's most useful content is *when can I come in*. Every hero carries a live availability card (next free times, today's token sessions, or upcoming classes) pulled from `/api/availability`. That card is the one bold element; everything else stays quiet.
 
+## Hero system (from the five reference designs in etc/)
+One component, three looks by pack: **split** (clinic, consultant, other: framed photo in a soft brand shape), **arch** (salon: arched window plus a round "book online" seal), **immersive** (lawyer, fitness: full-bleed dark photo, white type). Shared: two-tone headline (business name or last two words in the brand colour), trust row, floating chips, a thin top info bar, service shortcut tiles overlapping the hero edge, a desktop contact rail. The photo frame always fills the full height of the hero. Chips and trust items show only real data (open now, price from, team and service counts), never invented ratings, patient counts or years.
+
 ## Page sections (top to bottom)
 1. **Header** (sticky, 64px): logo (or monogram in theme colour), name + area, section links (desktop), one primary button ("Book" / "Get appointment").
 2. **Hero**: headline (owner-editable, ≤ 2 lines on desktop), one-sentence lede, primary + secondary CTA, availability card. Three layouts, chosen by pack: *split* (photo right, card overlapping the photo), *full-bleed* photo with dark gradient, *text-only*.
