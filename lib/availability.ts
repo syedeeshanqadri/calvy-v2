@@ -274,3 +274,45 @@ export async function loadMonthAvailability(
   }
   return { ok: true, tz: first.tz, days: result, nextAvailable };
 }
+
+export interface NextSlots {
+  ok: true;
+  tz: string;
+  /** Today in the business timezone (YYYY-MM-DD). */
+  today: string;
+  slots: { date: string; time: string; spots?: number }[];
+}
+
+/**
+ * The earliest bookable start times over the next days, for the website's "next available" card. One
+ * context load covers the whole look-ahead (the engine's per-day work is in memory), so this costs about
+ * as much as a single availability request instead of one per day.
+ */
+export async function loadNextSlots(
+  db: Db,
+  q: { businessId: string; serviceId: string; now?: number; limit?: number; perDay?: number; lookaheadDays?: number },
+): Promise<NextSlots | { ok: false; reason: "business" | "service" }> {
+  const now = q.now ?? Date.now();
+  const limit = q.limit ?? 4;
+  const perDay = q.perDay ?? 2;
+  const lookahead = q.lookaheadDays ?? 14;
+  const utcDate = (ms: number) => new Date(ms).toISOString().slice(0, 10);
+  // The business timezone is not known until the context loads, so cover a day either side in UTC.
+  const ctx = await buildContext(db, { businessId: q.businessId, serviceIds: [q.serviceId] }, {
+    firstDate: utcDate(now - 86_400_000),
+    lastDate: utcDate(now + (lookahead + 2) * 86_400_000),
+  });
+  if ("error" in ctx) return { ok: false, reason: ctx.error };
+
+  const today = utcToZoned(new Date(now), ctx.tz).date;
+  const slots: NextSlots["slots"] = [];
+  for (let i = 0; i <= lookahead && slots.length < limit; i++) {
+    const date = addDays(today, i);
+    const { available } = computeDay(ctx, date, now);
+    for (const time of Array.from(available.keys()).sort().slice(0, perDay)) {
+      if (slots.length >= limit) break;
+      slots.push({ date, time, ...(ctx.capacity > 1 ? { spots: available.get(time)?.spots } : {}) });
+    }
+  }
+  return { ok: true, tz: ctx.tz, today, slots };
+}

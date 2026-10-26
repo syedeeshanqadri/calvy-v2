@@ -5,7 +5,7 @@ import Image from "next/image";
 import { prisma } from "@/lib/prisma";
 import { t } from "@/lib/terms";
 import { parseWebsiteConfig, defaultWebsiteConfig, WebsiteConfig, currentPhoto, focusPosition } from "@/lib/website";
-import { MapPin, Phone, Mail, Clock, ArrowRight, Check, Users, Tag, MessageCircle, CalendarClock } from "lucide-react";
+import { MapPin, Phone, Mail, Clock, ArrowRight, Check, Users, Tag, MessageCircle, CalendarClock, Video } from "lucide-react";
 import { formatCurrencyAmount } from "@/lib/currency";
 import { getFlags } from "@/lib/flags";
 import { ChatWidget } from "@/components/chatbot/ChatWidget";
@@ -17,6 +17,9 @@ import { parseSocialLinks, safeReviewLink } from "@/lib/brandLinks";
 import { formatOpeningHours, mapsEmbedUrl, openStatus, summarizeHours } from "@/lib/hours";
 import { siteFontClasses } from "./fonts";
 import { SiteHero } from "./SiteHero";
+import { Suspense } from "react";
+import { HeroAvailabilityCard } from "./HeroAvailabilityCard";
+import { isOnlineService } from "@/lib/onlineService";
 import { PackIcon } from "@/components/site/PackIcon";
 import { getPack } from "@/lib/packs";
 import { heroLayoutFor } from "@/lib/siteLayout";
@@ -147,9 +150,21 @@ export default async function TenantWebsitePage(props: { params: Promise<{ slug:
   const pack = getPack(business.packId);
   const serviceCount = business.services.length;
   const staffCount = business.staff.length;
-  const heroChips: { icon: React.ReactNode; label: string; sub?: string; live?: boolean }[] = [];
-  if (status && showHours) heroChips.push({ icon: <Clock aria-hidden />, label: status.label, live: status.open });
-  if (prices.length > 0) heroChips.push({ icon: <Tag aria-hidden />, label: `From ${formatCurrencyAmount(Math.min(...prices), business.currency)}`, sub: `${serviceCount} ${t(business, "service", { plural: serviceCount !== 1 })}` });
+  // The next-available card streams in after the page, so a slow availability lookup never delays it.
+  const wantsAvailability = cfg.hero.enabled && (business.bookingMode === "TOKEN" || serviceCount > 0);
+  const availabilityCard = (where: "in-copy" | "in-media") => wantsAvailability ? (
+    <Suspense fallback={null}>
+      <HeroAvailabilityCard
+        businessId={business.id} timezone={business.timezone} maxAdvanceDays={business.maxAdvanceDays} mode={business.bookingMode}
+        serviceId={business.services[0]?.id ?? ""} serviceName={business.services[0]?.name ?? ""} bookingUrl={bookingUrl} ctaText={cfg.hero.ctaText} where={where}
+      />
+    </Suspense>
+  ) : null;
+  const anyOnline = business.services.some(isOnlineService);
+  const heroChips: { icon: React.ReactNode; label: string; sub?: string; live?: boolean; pos?: "a" | "b" }[] = [];
+  // The availability card sits where the open-now chip would; the open status is also in the top bar.
+  if (status && showHours && !wantsAvailability) heroChips.push({ icon: <Clock aria-hidden />, label: status.label, live: status.open, pos: "a" });
+  if (prices.length > 0) heroChips.push({ icon: <Tag aria-hidden />, label: `From ${formatCurrencyAmount(Math.min(...prices), business.currency)}`, sub: `${serviceCount} ${t(business, "service", { plural: serviceCount !== 1 })}`, pos: "b" });
   const heroTrust: { icon: React.ReactNode; text: string }[] = [];
   if (staffCount > 0) heroTrust.push({ icon: <Users aria-hidden />, text: `${staffCount} ${t(business, "staff", { plural: staffCount !== 1 })}` });
   if (serviceCount > 0) heroTrust.push({ icon: <PackIcon name={pack.icons.service} />, text: `${serviceCount} ${t(business, "service", { plural: serviceCount !== 1 })}` });
@@ -167,7 +182,7 @@ export default async function TenantWebsitePage(props: { params: Promise<{ slug:
       <a className="st-sr" href="#main">Skip to content</a>
 
       {/* ── TOP INFO BAR ── */}
-      {((status && showHours) || showAddress || showPhone || hasSocial) && (
+      {((status && showHours) || showAddress || showPhone || hasSocial || anyOnline) && (
         <div className="st-util">
           <div className="st-wrap">
             <div className="st-util-items">
@@ -176,6 +191,7 @@ export default async function TenantWebsitePage(props: { params: Promise<{ slug:
               )}
               {showAddress && <span className="st-util-item hide-sm"><MapPin className="st-ico" aria-hidden />{business.address}</span>}
               {showPhone && <a className="st-util-item" href={`tel:${business.phone}`}><Phone className="st-ico" aria-hidden />{business.phone}</a>}
+              {anyOnline && <span className="st-util-item"><Video className="st-ico" aria-hidden />Online appointments available</span>}
             </div>
             {hasSocial && <SocialIcons links={social} tone="light" className="hide-sm" />}
           </div>
@@ -216,6 +232,8 @@ export default async function TenantWebsitePage(props: { params: Promise<{ slug:
             chips={heroChips}
             trust={heroTrust}
             sealIcon={<PackIcon name={pack.icons.pack} />}
+            availabilityCopy={availabilityCard("in-copy")}
+            availabilityMedia={availabilityCard("in-media")}
           />
         )}
 
@@ -230,7 +248,7 @@ export default async function TenantWebsitePage(props: { params: Promise<{ slug:
                       <span className="st-ico-wrap"><PackIcon name={pack.icons.service} /></span>
                       <span>
                         <b>{svc.name}</b>
-                        <small>{svc.duration} min · {svc.price === 0 ? "Free" : formatCurrencyAmount(svc.price, business.currency)}</small>
+                        <small>{svc.duration} min · {svc.price === 0 ? "Free" : formatCurrencyAmount(svc.price, business.currency)}{isOnlineService(svc) ? " · Online" : ""}</small>
                       </span>
                     </Link>
                   </li>
@@ -258,6 +276,7 @@ export default async function TenantWebsitePage(props: { params: Promise<{ slug:
                         <div className="st-svc-name">
                           {svc.name}
                           {svc.capacity > 1 && <span className="st-tag">Up to {svc.capacity} people</span>}
+                          {isOnlineService(svc) && <span className="st-online"><Video className="st-ico" aria-hidden />Online</span>}
                         </div>
                         <div className="st-svc-price">{svc.price === 0 ? "Free" : formatCurrencyAmount(svc.price, business.currency)}</div>
                         {svc.description && <p className="st-svc-desc">{svc.description}</p>}

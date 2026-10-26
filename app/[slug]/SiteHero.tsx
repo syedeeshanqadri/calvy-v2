@@ -4,15 +4,40 @@ import type { ReactNode } from "react";
 import { splitHeadline, type HeroLayout } from "@/lib/siteLayout";
 import { focusPosition, type ImageFocus } from "@/lib/website";
 
-export interface HeroChip { icon: ReactNode; label: string; sub?: string; live?: boolean }
+/** `pos`: a = bottom-left of the photo, b = top-right. Placed by kind so a chip never lands under the availability card. */
+export interface HeroChip { icon: ReactNode; label: string; sub?: string; live?: boolean; pos?: "a" | "b" }
 export interface HeroTrust { icon: ReactNode; text: string }
+export interface HeroAvailItem { key: string; label: string; sub?: string; note?: string; muted?: boolean; href: string }
+/** The "next available" card: real start times (or today's queue sessions), each linking into booking. */
+export interface HeroAvail { title: string; sub?: string; items: HeroAvailItem[]; footHref: string; footLabel: string }
+
+export function AvailabilityCard({ avail, where }: { avail: HeroAvail; where: "in-copy" | "in-media" }) {
+  return (
+    <aside className={`st-avail ${where}`} aria-label={avail.title}>
+      <h2><span className="st-avail-dot" aria-hidden />{avail.title}</h2>
+      {avail.sub && <p className="st-avail-sub">{avail.sub}</p>}
+      <ul className="st-avail-list">
+        {avail.items.map((it) => (
+          <li key={it.key}>
+            <Link href={it.href} className={`st-avail-item${it.muted ? " muted" : ""}`}>
+              <b>{it.label}</b>
+              {it.sub && <small>{it.sub}</small>}
+              {it.note && <span className="note">{it.note}</span>}
+            </Link>
+          </li>
+        ))}
+      </ul>
+      <Link href={avail.footHref} className="st-avail-foot">{avail.footLabel}</Link>
+    </aside>
+  );
+}
 
 /**
  * The hero for every business type. One structure, three looks (split, arch, immersive) chosen by
  * the pack; the photo frame always fills the full height of the section. Chips and trust items carry
  * only facts the business already has (hours, prices, team size), never made-up numbers.
  */
-export function SiteHero({ layout, businessName, badge, headline, subheadline, ctaText, secondaryCtaText, bookingUrl, image, imageFocus, chips, trust, sealIcon }: {
+export function SiteHero({ layout, businessName, badge, headline, subheadline, ctaText, secondaryCtaText, bookingUrl, image, imageFocus, chips, trust, sealIcon, availabilityCopy, availabilityMedia }: {
   layout: HeroLayout;
   businessName: string;
   badge?: string;
@@ -26,6 +51,9 @@ export function SiteHero({ layout, businessName, badge, headline, subheadline, c
   chips: HeroChip[];
   trust: HeroTrust[];
   sealIcon?: ReactNode;
+  /** The next-available card, streamed in by the page. Rendered twice: under the copy (phones) and on the photo (desktop). */
+  availabilityCopy?: ReactNode;
+  availabilityMedia?: ReactNode;
 }) {
   const h = splitHeadline(headline, businessName);
   return (
@@ -53,6 +81,7 @@ export function SiteHero({ layout, businessName, badge, headline, subheadline, c
               ))}
             </ul>
           )}
+          {availabilityCopy}
         </div>
 
         {image && (
@@ -70,8 +99,9 @@ export function SiteHero({ layout, businessName, badge, headline, subheadline, c
               </svg>
             )}
             {layout === "arch" && sealIcon && <span className="st-seal-icon">{sealIcon}</span>}
+            {availabilityMedia}
             {chips.map((chip, i) => (
-              <div key={chip.label} className={`st-chip ${i === 0 ? "a" : "b"}`}>
+              <div key={chip.label} className={`st-chip ${chip.pos ?? (i === 0 ? "a" : "b")}`}>
                 <span className={`st-chip-ico${chip.live ? " live" : ""}`}>{chip.icon}</span>
                 <span>
                   <b>{chip.label}</b>
