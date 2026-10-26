@@ -817,7 +817,7 @@ export function BookingClient({ business, fontClasses }: { business: Business; f
             {business.description && <p>{business.description}</p>}
             {business.address && <span className="line"><MapPin aria-hidden />{business.address}</span>}
             {business.phone && <a href={`tel:${business.phone}`}><Phone aria-hidden />{business.phone}</a>}
-            {business.website && <a href={business.website} target="_blank" rel="noreferrer"><Globe aria-hidden />{business.website.replace(/^https?:\/\//, "")}</a>}
+            {business.website && /^https?:\/\//i.test(business.website) && <a href={business.website} target="_blank" rel="noreferrer"><Globe aria-hidden />{business.website.replace(/^https?:\/\//, "")}</a>}
             {hasSocial && <SocialIcons links={social} tone="dark" />}
           </div>
         </aside>

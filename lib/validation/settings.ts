@@ -55,7 +55,9 @@ export const settingsPatchSchema = z.object({
   phone: optionalText(40).optional(),
   email: optionalText(254).optional(),
   address: optionalText(300).optional(),
-  website: optionalText(300).optional(),
+  website: optionalText(300)
+    .refine((v) => !v || /^https?:\/\//i.test(v), "website must start with http:// or https://")
+    .optional(),
   description: optionalText(2000).optional(),
   primaryColor: z
     .string()

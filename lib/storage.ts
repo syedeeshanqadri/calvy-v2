@@ -14,6 +14,8 @@ export interface Storage {
   remove(key: string): Promise<void>;
   /** The object key for a URL this adapter produced, else null. */
   keyFromUrl(url: string): string | null;
+  /** Object count and total bytes under a key prefix, counting at most `limit` objects. */
+  usage(prefix: string, limit: number): Promise<{ files: number; bytes: number }>;
 }
 
 /** Keys are built by the server, but guard against traversal anyway. */
@@ -37,6 +39,23 @@ export const localStorageAdapter: Storage = {
   },
   keyFromUrl(url) {
     return url.startsWith(LOCAL_PREFIX) ? url.slice(LOCAL_PREFIX.length) : null;
+  },
+  async usage(prefix, limit) {
+    assertSafeKey(prefix.replace(/\/$/, ""));
+    const dir = path.join(process.cwd(), "public", "uploads", prefix);
+    let names: string[] = [];
+    try {
+      names = await fs.readdir(dir);
+    } catch {
+      return { files: 0, bytes: 0 };
+    }
+    let files = 0;
+    let bytes = 0;
+    for (const name of names.slice(0, limit)) {
+      const stat = await fs.stat(path.join(dir, name));
+      if (stat.isFile()) { files++; bytes += stat.size; }
+    }
+    return { files, bytes };
   },
 };
 
@@ -70,6 +89,13 @@ function s3Adapter(): Storage {
     },
     keyFromUrl(url) {
       return url.startsWith(`${base}/`) ? url.slice(base.length + 1) : null;
+    },
+    async usage(prefix, limit) {
+      assertSafeKey(prefix.replace(/\/$/, ""));
+      const { ListObjectsV2Command } = await import("@aws-sdk/client-s3");
+      const res = await (await client()).send(new ListObjectsV2Command({ Bucket: S3_BUCKET, Prefix: prefix, MaxKeys: limit }));
+      const objects = res.Contents ?? [];
+      return { files: objects.length, bytes: objects.reduce((n, o) => n + (o.Size ?? 0), 0) };
     },
   };
 }

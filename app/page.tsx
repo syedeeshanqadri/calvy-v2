@@ -1,3 +1,4 @@
+import { jsonLdString } from "@/lib/jsonLd";
 import { Navbar } from "@/components/landing/Navbar";
 import { Hero } from "@/components/landing/Hero";
 import { StatsBar } from "@/components/landing/StatsBar";
@@ -51,7 +52,7 @@ const orgWebsiteJsonLd = {
 export default function HomePage() {
   return (
     <main>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(orgWebsiteJsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString(orgWebsiteJsonLd) }} />
       <Navbar />
       <Hero />
       <StatsBar />

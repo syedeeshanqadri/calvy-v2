@@ -431,6 +431,16 @@ Items from the old Steps 3 and 4 that the 2026-10-24 re-plan deferred. Each gets
 
 ---
 
+## Step 6 final-check findings (security review of the redesign, PRs #31-#33)
+
+| ID | Item | Severity |
+|---|---|---|
+| R-01 | Upload quota check (`app/api/upload`, `lib/storage.ts` `usage`) is check-then-put, so parallel uploads can overshoot 50 files / 100 MB; bounded by the 10/min rate limit and 5 MB files. Recheck after put if it matters | Low |
+| R-02 | Confirm `lib/ratelimit` uses the distributed (Upstash) store in production so `upload:*` limits hold across serverless instances | Low |
+| R-03 | Website hero/about image URLs accept any http(s) host (`httpUrlOrEmpty`); require https and consider an allow-list of the upload host | Low |
+
+---
+
 ## Dependencies across steps
 
 - `S1-19` (migrations) blocks every schema change in Steps 2 to 9.

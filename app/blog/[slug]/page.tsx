@@ -1,3 +1,4 @@
+import { jsonLdString } from "@/lib/jsonLd";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -109,7 +110,7 @@ export default async function BlogPostPage(props: { params: Promise<{ slug: stri
   return (
     <main className="bg-white min-h-screen">
       <Navbar />
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString(jsonLd) }} />
 
       <article className="pt-28 sm:pt-32 pb-16">
         <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8">
