@@ -5,7 +5,7 @@ Scope: tenant site `{slug}` and booking page `/b/{slug}`. Mobile-first at 375px,
 **Idea:** a booking site's most useful content is *when can I come in*. Every hero carries a live availability card (next free times, today's token sessions, or upcoming classes) pulled from `/api/availability`. That card is the one bold element; everything else stays quiet.
 
 ## Page sections (top to bottom)
-1. **Header** (sticky, 64px): logo (or monogram in theme colour), name + area, section links (desktop), one primary button ("Book" / "Get a token").
+1. **Header** (sticky, 64px): logo (or monogram in theme colour), name + area, section links (desktop), one primary button ("Book" / "Get appointment").
 2. **Hero**: headline (owner-editable, ≤ 2 lines on desktop), one-sentence lede, primary + secondary CTA, availability card. Three layouts, chosen by pack: *split* (photo right, card overlapping the photo), *full-bleed* photo with dark gradient, *text-only*.
 3. **Facts strip**: open/closed today with hours, area, and the online-consultation badge (or phone if no online services).
 4. **Services**: a price list, not a card grid. Grouped by category; each row = name, tags, description, duration, price, "Book" (deep-links to that service). Desktop: sticky heading column on the left.
@@ -40,7 +40,7 @@ Scope: tenant site `{slug}` and booking page `/b/{slug}`. Mobile-first at 375px,
 ## Booking flow
 - **Slot:** service (multi-select, category tabs, live total) → staff ("Any available" first, each with next free time) → date & time (date strip, closed days struck through, slots grouped by part of day, "India Standard Time" stated) → who is this for (Myself / Someone else + name) → details (name, phone +91, optional email and notes, WhatsApp reminders) → pay → confirmation.
 - **Token:** service → date & session (doctor, hours, tokens left, the patient's estimated time; sessions not open yet are disabled with the time booking opens) → who → details → pay → confirmation with a large token number, estimated time, "Track your place in line". No staff step: the session belongs to a doctor.
-- **Pay** is shown only when online payment is on; options follow PayConfig (full now / booking fee now / pay at venue). Otherwise skipped, and the last button reads "Confirm booking" / "Get token".
+- **Pay** is shown only when online payment is on; options follow PayConfig (full now / booking fee now / pay at venue). Otherwise skipped, and the last button reads "Confirm booking" / "Get appointment".
 - **Confirmation:** outcome headline, ticket (what, who for, when, with whom, where, payment), "Add to calendar", **"Book another"** (keeps contact details), change/cancel link, then Google review + socials.
 - **Chrome:** back button, "Step n of N" + progress bar (real sequence), summary panel on the right on desktop; on mobile the summary collapses into a bottom bar with total + Continue.
 - **Online badge:** dashed outline pill with video icon on services and in the facts strip. Placeholder until online consultations ship; hide when no service is online.
