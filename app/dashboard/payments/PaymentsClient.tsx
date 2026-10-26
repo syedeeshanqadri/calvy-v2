@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { Card, CardHeader, CardTitle } from "@/components/ui/Card";
 import { StatCard } from "@/components/ui/StatCard";
+import { LockedExport } from "@/components/dashboard/LockedExport";
 import { useCurrency } from "@/components/providers/CurrencyProvider";
 import { DollarSign, TrendingUp, Clock, CheckCircle, Loader2 } from "lucide-react";
 
@@ -12,25 +13,8 @@ interface PaymentRow {
   price: number; paymentStatus: string; paymentMode: string; date: string;
 }
 
-function downloadPaymentsCSV(payments: PaymentRow[], formatPrice: (n: number) => string) {
-  const headers = ["Client", "Service", "Amount", "Date", "Mode", "Status"];
-  const lines = [
-    headers.join(","),
-    ...payments.map(p => [
-      `"${p.clientName}"`, `"${p.serviceName}"`, formatPrice(p.price),
-      p.date, p.paymentMode, p.paymentStatus,
-    ].join(",")),
-  ];
-  const blob = new Blob([lines.join("\n")], { type: "text/csv" });
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = `payments-${new Date().toISOString().split("T")[0]}.csv`;
-  a.click();
-  URL.revokeObjectURL(a.href);
-}
-
-export function PaymentsClient({ payments, totalPaid, totalPending, paidCount, csvExport = false }: {
-  payments: PaymentRow[]; totalPaid: number; totalPending: number; paidCount: number; csvExport?: boolean;
+export function PaymentsClient({ payments, totalPaid, totalPending, paidCount, csvExport = false, upgradeHref = null }: {
+  payments: PaymentRow[]; totalPaid: number; totalPending: number; paidCount: number; csvExport?: boolean; upgradeHref?: string | null;
 }) {
   const { formatPrice } = useCurrency();
   const router = useRouter();
@@ -66,7 +50,9 @@ export function PaymentsClient({ payments, totalPaid, totalPending, paidCount, c
       <Card>
         <CardHeader>
           <CardTitle>Payment history</CardTitle>
-          {csvExport && <button onClick={() => downloadPaymentsCSV(payments, formatPrice)} className="text-xs text-accent font-medium hover:underline">Export CSV</button>}
+          {csvExport
+            ? <a href="/api/payments/export" download className="text-xs text-accent font-medium hover:underline">Export CSV</a>
+            : <LockedExport upgradeHref={upgradeHref} />}
         </CardHeader>
         <div className="overflow-x-auto">
           <table className="w-full">

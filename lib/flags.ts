@@ -48,6 +48,19 @@ export function getFlags(env?: Env): Record<FeatureFlag, boolean> {
   return out;
 }
 
+/**
+ * PLAN_ENFORCEMENT: are plan limits and feature gates applied? OFF unless the variable is "1" or
+ * "true" (same parsing as the feature flags, off in every environment by default). While off,
+ * every business is treated as having every feature and no limits. This is not one of the
+ * FEATURE_FLAGS: it guards no API path and no UI entry point, it switches the limits themselves.
+ */
+export function isPlanEnforcementOn(env?: Env): boolean {
+  const raw = (env ?? process.env).PLAN_ENFORCEMENT;
+  if (typeof raw !== "string") return false;
+  const v = raw.trim().toLowerCase();
+  return v === "1" || v === "true";
+}
+
 function matchesPrefix(pathname: string, prefix: string): boolean {
   return pathname === prefix || pathname.startsWith(prefix + "/");
 }

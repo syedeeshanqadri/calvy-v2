@@ -8,7 +8,7 @@ import { isActivePlan, type PlanLimits } from "@/lib/plans";
 import { getEffectiveLimits } from "@/lib/getFeatures";
 import { safeTimeZone, utcToZoned, zonedToUtc } from "@/lib/time";
 
-export type LimitKind = "staff" | "services" | "monthlyAppointments" | "upload" | "csv" | "group";
+export type LimitKind = "staff" | "services" | "monthlyAppointments" | "upload" | "csv" | "group" | "slotInterval" | "expenses";
 
 export interface LimitDenial {
   kind: LimitKind;
@@ -18,7 +18,9 @@ export interface LimitDenial {
   limit?: number;
 }
 
-const LOCKED: Record<"upload" | "csv" | "group", string> = {
+const LOCKED: Record<"upload" | "csv" | "group" | "slotInterval" | "expenses", string> = {
+  slotInterval: "Custom slot lengths are not available on your plan. Upgrade to change them.",
+  expenses: "Expense tracking is not available on your plan. Upgrade to use it.",
   upload: "Image upload is not available on your plan. Upgrade to add images.",
   csv: "CSV export is not available on your plan. Upgrade to download your data.",
   group: "Group bookings are not available on your plan. Upgrade to use services with more than one spot.",
@@ -45,6 +47,10 @@ export function evaluateLimit(limits: PlanLimits, kind: LimitKind, used = 0): Li
       return limits.csvExport ? null : { kind, status: 402, code: "FEATURE_LOCKED", error: LOCKED.csv };
     case "group":
       return limits.groupBooking ? null : { kind, status: 402, code: "FEATURE_LOCKED", error: LOCKED.group };
+    case "slotInterval":
+      return limits.customSlotInterval ? null : { kind, status: 402, code: "FEATURE_LOCKED", error: LOCKED.slotInterval };
+    case "expenses":
+      return limits.expenseTracking ? null : { kind, status: 402, code: "FEATURE_LOCKED", error: LOCKED.expenses };
   }
 }
 

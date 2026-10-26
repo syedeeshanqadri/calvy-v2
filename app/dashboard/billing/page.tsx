@@ -1,7 +1,7 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { trialDaysLeft, PLAN_LIMITS, PLAN_META } from "@/lib/plans";
+import { trialDaysLeft, limitsFromConfig, PLAN_LIMITS, PLAN_META } from "@/lib/plans";
 import { redirect, notFound } from "next/navigation";
 import { getFlags } from "@/lib/flags";
 import { displayPlan } from "@/lib/pricingDisplay";
@@ -86,34 +86,19 @@ async function loadPlans(): Promise<PlanData[]> {
     return ORDER.map((planId) => {
       const db = dbPlans.find(p => p.planId === planId) ?? null;
       const meta = PLAN_META[planId];
-      const limits = PLAN_LIMITS[planId];
+      // The database row is the truth; the code defaults only stand in for a row that does not exist yet.
+      const limits = db ? limitsFromConfig(db) : PLAN_LIMITS[planId];
       let customFeatures: string[] = [];
       if (db?.features) { try { customFeatures = JSON.parse(db.features); } catch {} }
       return {
         id: planId,
         name: db?.name ?? meta.name,
         price: db?.price ?? meta.price,
-        annualPrice: (db as (typeof db & { annualPrice?: number }) | null)?.annualPrice ?? meta.annualPrice,
+        annualPrice: db?.annualPrice ?? meta.annualPrice,
         description: db?.description ?? meta.description,
         features: customFeatures,
         highlight: planId === "professional",
-        maxStaff: db?.maxStaff ?? limits.maxStaff,
-        maxServices: db?.maxServices ?? limits.maxServices,
-        maxMonthlyAppointments: db?.maxMonthlyAppointments ?? limits.maxMonthlyAppointments,
-        analytics: db?.analytics ?? limits.analytics,
-        customBranding: db?.customBranding ?? limits.customBranding,
-        chatbotWidget: db?.chatbotWidget ?? limits.chatbotWidget,
-        groupBooking: db?.groupBooking ?? limits.groupBooking,
-        stripePayments: db?.stripePayments ?? limits.stripePayments,
-        emailReminders: db?.emailReminders ?? limits.emailReminders,
-        whatsappReminders: db?.smsReminders ?? limits.whatsappReminders,
-        broadcasts: db?.broadcasts ?? limits.broadcasts,
-        csvExport: db?.csvExport ?? limits.csvExport,
-        expenseTracking: db?.expenseTracking ?? limits.expenseTracking,
-        wallet: db?.wallet ?? limits.wallet,
-        customSlotInterval: db?.customSlotInterval ?? limits.customSlotInterval,
-        removeBranding: db?.removeBranding ?? limits.removeBranding,
-        prioritySupport: db?.prioritySupport ?? limits.prioritySupport,
+        ...limits,
       };
     });
   } catch {

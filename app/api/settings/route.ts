@@ -5,6 +5,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { syncBusinessHours } from "@/lib/schedule";
 import { settingsPatchSchema } from "@/lib/validation/settings";
+import { checkLimit, denialResponse } from "@/lib/limits";
 
 export const dynamic = 'force-dynamic';
 
@@ -58,6 +59,15 @@ async function PATCH_handler(request: NextRequest) {
   }
 
   const businessId = session.user.businessId;
+  // Changing the slot length needs the plan's custom-slot flag (the page already hides it; this is the enforcement).
+  // Keeping the current value, or going back to the 30-minute default, is always allowed.
+  if (typeof data.slotInterval === "number" && data.slotInterval !== 30) {
+    const current = await prisma.business.findUnique({ where: { id: businessId }, select: { slotInterval: true } });
+    if (current && current.slotInterval !== data.slotInterval) {
+      const denied = await checkLimit(businessId, "slotInterval", { owner: true });
+      if (denied) return denialResponse(denied);
+    }
+  }
   // The booking engine reads WorkingHours, so a changed week is written there too.
   const business = await prisma.$transaction(async (tx) => {
     const updated = await tx.business.update({ where: { id: businessId }, data });

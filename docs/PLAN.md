@@ -375,6 +375,7 @@ Complete every item before the first real customer (see also S1-01, S9-02, S9-10
 - [ ] Change demo and test passwords; no default passwords in production.
 - [ ] Cashfree, R2 and Resend live keys exist only in the production environment, never in the repo.
 - [ ] Confirm the old calvy.io production database password was rotated by Aamir.
+- [ ] Turn `PLAN_ENFORCEMENT` on in production (`PLAN_ENFORCEMENT=1`). It is off by default, which gives every business every feature and no limits; see `docs/feature-flags.md`.
 
 ---
 

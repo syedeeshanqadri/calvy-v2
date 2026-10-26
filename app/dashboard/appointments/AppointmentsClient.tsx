@@ -1,4 +1,5 @@
 "use client";
+import { LockedExport } from "@/components/dashboard/LockedExport";
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
@@ -28,7 +29,7 @@ const PAYMENT_STATUS_STYLES: Record<string, string> = {
 
 type Row = ApptDetail;
 
-export function AppointmentsClient({ appointments, services, staff, csvExport = false }: { appointments: Row[]; services: ServiceOption[]; staff: StaffOption[]; csvExport?: boolean }) {
+export function AppointmentsClient({ appointments, services, staff, csvExport = false, upgradeHref = null }: { appointments: Row[]; services: ServiceOption[]; staff: StaffOption[]; csvExport?: boolean; upgradeHref?: string | null }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { t } = useTerms();
@@ -132,6 +133,7 @@ export function AppointmentsClient({ appointments, services, staff, csvExport = 
                 </div>
               )}
             </div>
+            {!csvExport && <LockedExport compact upgradeHref={upgradeHref} />}
             {csvExport && (
               <a
                 href={exportHref}

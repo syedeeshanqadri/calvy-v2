@@ -12,6 +12,24 @@ Server-side flags in `lib/flags.ts`. **Every flag is OFF by default in every env
 | `removeBranding` | `FEATURE_REMOVE_BRANDING` | UI only; no API guard |
 | `onlinePayments` | `FEATURE_ONLINE_PAYMENTS` | Cashfree online booking payments (Rs 10 fee on India Free, full online when chosen). Off: bookings behave as before (legacy Razorpay prepaid path). On: Cashfree decides for every business. Webhooks are never guarded. |
 
+## PLAN_ENFORCEMENT (plan limits and feature gates)
+
+`PLAN_ENFORCEMENT` is a separate switch in `lib/flags.ts` (`isPlanEnforcementOn()`), not one of the table's flags: it guards no API path, it switches the plan limits themselves. **Default OFF in every environment**; it is ON only when the variable is `1` or `true`.
+
+| Mode | What happens |
+|---|---|
+| **OFF** (default) | Every business is treated as having **every feature and no limits**: counts are unlimited (-1), every flag is true, an expired or past-due plan counts as active, and reminders go out on every channel. Calvy's own online-booking fee (`platformFeeMinorIN`) is **not** a gate and is kept. The plan screens (`/admin/plans`, the billing comparison) still show each plan's real values. |
+| **ON** | Limits and flags are the plan's own, read from the `PlanConfig` table, enforced in the page (upgrade screens) and in the API (`lib/limits.ts` checks, settings slot length, expenses, reminder cron, broadcasts, support priority). A lapsed paid plan falls back to Free limits for public bookings. |
+
+How it works: every gate reads its limits through `getLimits` / `getLimitsFromDB` / `getEffectiveLimits` / `isActivePlan` in `lib/plans.ts`, which pass them through `applyEnforcement()`. No enforcement code is removed, so turning the variable on restores today's behaviour exactly.
+
+```powershell
+$env:PLAN_ENFORCEMENT="1"; npm run dev      # enforcement on
+Remove-Item Env:PLAN_ENFORCEMENT; npm run dev   # off (default)
+```
+
+Vercel: add `PLAN_ENFORCEMENT=1` for the target environment and redeploy. **It must be turned on before launch** (see the pre-launch checklist in `docs/PLAN.md`). Tests: `vitest.config.ts` runs the suite with it ON; `tests/plan-enforcement-flag.test.ts` covers both modes.
+
 ## Enforcement
 
 `proxy.ts` (renamed from `middleware.ts` in the Next 16 migration) checks `/api/*` paths first, before auth or subdomain logic. If `featureForApiPath(pathname)` returns a flag that is off, the response is `404 {"error":"Not found"}`. Matching is by whole path segment (`/api/walletx` is not guarded). No route handler is changed.

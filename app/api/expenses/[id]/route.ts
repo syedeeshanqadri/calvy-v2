@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { checkLimit, denialResponse } from "@/lib/limits";
 
 import { parseBody } from "@/lib/validation/common";
 import { expensePatchSchema } from "@/lib/validation/dashboard";
@@ -13,6 +14,8 @@ async function PATCH_handler(req: NextRequest, props: { params: Promise<{ id: st
   const params = await props.params;
   const session = await getServerSession(authOptions);
   if (!session?.user?.businessId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const denied = await checkLimit(session.user.businessId, "expenses", { owner: true });
+  if (denied) return denialResponse(denied);
 
   const expense = await prisma.expense.findFirst({
     where: { id: params.id, businessId: session.user.businessId },
@@ -40,6 +43,8 @@ async function DELETE_handler(_req: NextRequest, props: { params: Promise<{ id: 
   const params = await props.params;
   const session = await getServerSession(authOptions);
   if (!session?.user?.businessId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const denied = await checkLimit(session.user.businessId, "expenses", { owner: true });
+  if (denied) return denialResponse(denied);
 
   const expense = await prisma.expense.findFirst({
     where: { id: params.id, businessId: session.user.businessId },

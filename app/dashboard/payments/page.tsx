@@ -1,7 +1,6 @@
-import { safeTimeZone, utcToZoned } from "@/lib/time";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { loadPaymentRows } from "@/lib/paymentRows";
 import { redirect, notFound } from "next/navigation";
 import { getFlags } from "@/lib/flags";
 import { PaymentsClient } from "./PaymentsClient";
@@ -13,37 +12,14 @@ export default async function PaymentsPage() {
   if (!getFlags().payments) notFound();
   const session = await getServerSession(authOptions);
   if (!session?.user?.businessId) redirect("/login");
-  const tz = safeTimeZone((await prisma.business.findUnique({ where: { id: session.user.businessId }, select: { timezone: true } }))?.timezone);
-
-  const [appointments, features] = await Promise.all([
-    prisma.appointment.findMany({
-      where: { businessId: session.user.businessId },
-      include: { client: true, service: true },
-      orderBy: { date: "desc" },
-    }),
+  const [{ rows }, features] = await Promise.all([
+    loadPaymentRows(session.user.businessId),
     getBusinessFeatures(session.user.businessId),
   ]);
-
-  const rows = appointments.map(a => {
-    let serviceName = a.service.name;
-    if (a.notes?.startsWith("__services__:")) {
-      const extra = a.notes.split("\n")[0].replace("__services__:", "").split("|").filter(Boolean);
-      serviceName = [a.service.name, ...extra].join(" & ");
-    }
-    return {
-      id: a.id,
-      clientName: a.client.name,
-      serviceName,
-      price: a.price,
-      paymentStatus: a.paymentStatus,
-      paymentMode: (a as { paymentMode?: string }).paymentMode ?? "prepaid",
-      date: utcToZoned(a.date, tz).date,
-    };
-  });
 
   const prepaidPaid = rows.filter(p => p.paymentStatus === "paid" && p.paymentMode === "prepaid").reduce((s, p) => s + p.price, 0);
   const totalPending = rows.filter(p => p.paymentStatus === "unpaid").reduce((s, p) => s + p.price, 0);
   const paidCount = rows.filter(p => p.paymentStatus === "paid").length;
 
-  return <PaymentsClient payments={rows} totalPaid={prepaidPaid} totalPending={totalPending} paidCount={paidCount} csvExport={features.csvExport} />;
+  return <PaymentsClient payments={rows} totalPaid={prepaidPaid} totalPending={totalPending} paidCount={paidCount} csvExport={features.csvExport} upgradeHref="/dashboard/billing" />;
 }

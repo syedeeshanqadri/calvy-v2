@@ -19,11 +19,6 @@ async function GET_handler() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const features = await getBusinessFeatures(businessId);
-  if (!features.prioritySupport) {
-    return NextResponse.json({ error: "Support is not available on your current plan" }, { status: 403 });
-  }
-
   const tickets = await prisma.supportTicket.findMany({
     where: { businessId },
     orderBy: { updatedAt: "desc" },
@@ -42,11 +37,6 @@ async function POST_handler(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const features = await getBusinessFeatures(businessId);
-  if (!features.prioritySupport) {
-    return NextResponse.json({ error: "Support is not available on your current plan" }, { status: 403 });
-  }
-
   const rl = await rateLimit(`support:${businessId}`, 20, 60_000);
   if (!rl.ok) {
     return NextResponse.json(
@@ -57,7 +47,10 @@ async function POST_handler(req: NextRequest) {
 
   const parsed = await parseBody(req, ticketCreateSchema);
   if (!parsed.ok) return parsed.res;
-  const { subject, body: messageBody, priority } = parsed.data;
+  const { subject, body: messageBody, priority: asked } = parsed.data;
+  // Priority support is a speed, not access: those plans' tickets are never ranked below "high".
+  const features = await getBusinessFeatures(businessId);
+  const priority = features.prioritySupport && (asked === "low" || asked === "normal") ? "high" : asked;
 
   const ticket = await prisma.supportTicket.create({
     data: {

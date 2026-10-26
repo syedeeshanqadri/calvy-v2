@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { NextRequest } from "next/server";
 
-const { findMany, update, sendBookingReminder, sendReminderWhatsApp } = vi.hoisted(() => ({
+const { findMany, update, sendBookingReminder, sendReminderWhatsApp, effectiveLimits } = vi.hoisted(() => ({
+  effectiveLimits: vi.fn(),
   findMany: vi.fn(),
   update: vi.fn(),
   sendBookingReminder: vi.fn(),
@@ -11,6 +12,7 @@ const { findMany, update, sendBookingReminder, sendReminderWhatsApp } = vi.hoist
 vi.mock("@/lib/prisma", () => ({ prisma: { appointment: { findMany, update } } }));
 vi.mock("@/lib/email", () => ({ sendBookingReminder }));
 vi.mock("@/lib/whatsapp", () => ({ sendReminderWhatsApp }));
+vi.mock("@/lib/getFeatures", () => ({ getEffectiveLimits: effectiveLimits }));
 vi.mock("@/lib/push", () => ({ sendPushToBusiness: vi.fn().mockResolvedValue(undefined) }));
 
 function appt(client: { email: string; phone: string | null }) {
@@ -41,6 +43,8 @@ describe("cron reminders", () => {
     update.mockReset().mockResolvedValue({});
     sendBookingReminder.mockReset();
     sendReminderWhatsApp.mockReset().mockResolvedValue(undefined);
+    // A plan with both reminder channels, unless a test says otherwise.
+    effectiveLimits.mockReset().mockResolvedValue({ emailReminders: true, whatsappReminders: true });
   });
   afterEach(() => { vi.unstubAllEnvs(); vi.useRealTimers(); });
 
@@ -70,6 +74,41 @@ describe("cron reminders", () => {
       vi.stubEnv("NODE_ENV", "development");
       vi.stubEnv("CRON_SECRET", "");
       expect((await call()).status).toBe(200);
+    });
+  });
+
+  describe("reminders follow the plan flags", () => {
+    beforeEach(() => {
+      vi.stubEnv("NODE_ENV", "development");
+      vi.stubEnv("CRON_SECRET", "");
+      sendBookingReminder.mockResolvedValue({ ok: true, id: "1" });
+    });
+    it("a plan without reminders sends nothing and does not retry forever", async () => {
+      effectiveLimits.mockResolvedValue({ emailReminders: false, whatsappReminders: false });
+      findMany.mockResolvedValue([appt({ email: "a@b.c", phone: "+15550001" })]);
+      await call();
+      expect(sendBookingReminder).not.toHaveBeenCalled();
+      expect(sendReminderWhatsApp).not.toHaveBeenCalled();
+      expect(update).toHaveBeenCalledWith({ where: { id: "a1" }, data: { reminderSent: true } });
+    });
+    it("email-only plan: email goes, WhatsApp does not", async () => {
+      effectiveLimits.mockResolvedValue({ emailReminders: true, whatsappReminders: false });
+      findMany.mockResolvedValue([appt({ email: "a@b.c", phone: "+15550001" })]);
+      await call();
+      expect(sendBookingReminder).toHaveBeenCalledTimes(1);
+      expect(sendReminderWhatsApp).not.toHaveBeenCalled();
+    });
+    it("WhatsApp-only plan: WhatsApp goes, email does not", async () => {
+      effectiveLimits.mockResolvedValue({ emailReminders: false, whatsappReminders: true });
+      findMany.mockResolvedValue([appt({ email: "a@b.c", phone: "+15550001" })]);
+      await call();
+      expect(sendBookingReminder).not.toHaveBeenCalled();
+      expect(sendReminderWhatsApp).toHaveBeenCalledTimes(1);
+    });
+    it("the plan is looked up per business (a lapsed plan is resolved as Free there)", async () => {
+      findMany.mockResolvedValue([appt({ email: "a@b.c", phone: null })]);
+      await call();
+      expect(effectiveLimits).toHaveBeenCalledWith(expect.objectContaining({ name: "B" }));
     });
   });
 
