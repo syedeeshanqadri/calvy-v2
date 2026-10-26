@@ -12,9 +12,6 @@ import { Pricing } from "@/components/landing/Pricing";
 import { LeadCapture } from "@/components/landing/LeadCapture";
 import { CTA } from "@/components/landing/CTA";
 import { Footer } from "@/components/landing/Footer";
-import { ExitIntentPopup } from "@/components/landing/ExitIntentPopup";
-import { FloatingLeadCTA } from "@/components/landing/FloatingLeadCTA";
-import { StickySidebarCTA } from "@/components/landing/StickySidebarCTA";
 import type { Metadata } from "next";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://calvy.io";
@@ -67,10 +64,11 @@ export default function HomePage() {
       <CTA />
       <Footer />
 
-      {/* Overlay lead-gen forms */}
+      {/* Paused 2026-10-27 (owner): the overlay lead-gen forms below pop up on their own to collect emails.
+          Components are kept; mount them again to bring them back.
       <ExitIntentPopup />
       <FloatingLeadCTA />
-      <StickySidebarCTA />
+      <StickySidebarCTA /> */}
     </main>
   );
 }
