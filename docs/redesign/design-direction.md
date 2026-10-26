@@ -16,7 +16,7 @@ One component, three looks by pack: **split** (clinic, consultant, other: framed
 6. **About**: image + 2 short paragraphs.
 7. **Visit**: hours table (today highlighted, split shifts on two lines), phone / WhatsApp / email as 48px rows, map with address card and "Directions" link (Google Maps embed in the app).
 8. **Review + social**: "Review us on Google" button (only if `googleReviewUrl` is set; never a star rating) and social icon buttons (only those set).
-9. **Footer**: name + address, "Online booking by Calvy". **Mobile:** sticky bottom bar with the primary CTA; hidden ≥ 900px.
+9. **Footer**: name + address, "Want a site like this? Grab it on Calvy" (links to calvy.io). **Mobile:** sticky bottom bar with the primary CTA; hidden ≥ 900px.
 
 ## Tokens
 - **Type scale:** 1.25 ratio on mobile (14 / 16 / 20 / 25 / 36, hero 40), 1.333 from 900px (14 / 17 / 22 / 32 / 48, hero 60). Body is always Figtree 400-700, line-height 1.55, max ~70 characters per line.

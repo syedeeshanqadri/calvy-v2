@@ -434,7 +434,7 @@ export default async function TenantWebsitePage(props: { params: Promise<{ slug:
         <div className="st-foot-base">
           <div className="st-wrap">
             <span>&copy; {new Date().getFullYear()} {business.name}</span>
-            <span>Online booking by <a href="https://calvy.io">Calvy</a></span>
+            <span>Want a site like this? <a href="https://calvy.io">Grab it on Calvy</a></span>
           </div>
         </div>
       </footer>
