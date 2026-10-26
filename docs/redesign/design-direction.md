@@ -17,6 +17,7 @@ Scope: tenant site `{slug}` and booking page `/b/{slug}`. Mobile-first at 375px,
 
 ## Tokens
 - **Type scale:** 1.25 ratio on mobile (14 / 16 / 20 / 25 / 36, hero 40), 1.333 from 900px (14 / 17 / 22 / 32 / 48, hero 60). Body is always Figtree 400-700, line-height 1.55, max ~70 characters per line.
+- **Fonts:** loaded with `next/font/google`, `subsets: ["latin"]`, `display: "swap"`, only the weights used. Each tenant page loads Figtree plus **its own pack's** display font, never the other five (the mockups' Google links stand in for this).
 - **Spacing:** 4px base (4, 8, 12, 16, 20, 24, 32, 48, 56, 96). Section padding 56px mobile / 96px desktop. Gutter 20px, container 1160px.
 - **Neutrals:** ink `#16181d`, muted `#586070` (6.3:1 on white), line `#e3e6eb`, page white, per-pack surface tint.
 - **Touch targets:** every button, chip, slot and contact row is ≥ 48px tall.
@@ -38,11 +39,12 @@ Scope: tenant site `{slug}` and booking page `/b/{slug}`. Mobile-first at 375px,
 | Other | Onest 600 | split | 12px | Next free times |
 
 ## Booking flow
-- **Slot:** service (multi-select, category tabs, live total) → staff ("Any available" first, each with next free time) → date & time (date strip, closed days struck through, slots grouped by part of day, "India Standard Time" stated) → who is this for (Myself / Someone else + name) → details (name, phone +91, optional email and notes, WhatsApp reminders) → pay → confirmation.
+- **Slot:** service (multi-select, category tabs, live total) → staff ("Any available" first, each with next free time) → date & time (date strip, closed days struck through, slots grouped by part of day, "India Standard Time" stated) → who is this for (Myself / Someone else + name) → details (name, email, phone, optional notes; WhatsApp reminders box only when WhatsApp is enabled for the business) → pay → confirmation.
 - **Token:** service → date & session (doctor, hours, places left, the patient's estimated time; sessions not open yet are disabled with the time booking opens) → who → details → pay → confirmation with a large queue number, estimated time, "Track your place in line". No staff step: the session belongs to a doctor.
 - **Copy rule:** "token" is an internal setting name only. Customers never see it: buttons say "Get appointment" / "Get another appointment", the number is "your number in the queue", capacity is "places left".
+- **Contact rules (as shipped):** India: phone and email both required. Other countries: email required, phone optional.
 - **Pay** is shown only when online payment is on; options follow PayConfig (full now / booking fee now / pay at venue). Otherwise skipped, and the last button reads "Confirm booking" / "Get appointment".
-- **Confirmation:** outcome headline, ticket (what, who for, when, with whom, where, payment), "Add to calendar", **"Book another"** (keeps contact details), change/cancel link, then Google review + socials.
+- **Confirmation:** outcome headline, ticket (what, who for, when, with whom, where, payment), "Add to calendar", two buttons, **"For me, on another date"** and **"For someone else"** (both keep contact details), change/cancel link, then Google review + socials.
 - **Chrome:** back button, "Step n of N" + progress bar (real sequence), summary panel on the right on desktop; on mobile the summary collapses into a bottom bar with total + Continue.
 - **Online badge:** dashed outline pill with video icon on services and in the facts strip. Placeholder until online consultations ship; hide when no service is online.
 
