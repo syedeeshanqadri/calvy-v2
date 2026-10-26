@@ -30,10 +30,10 @@
   --fs-h2: 1.5625rem;
   --fs-h1: 2.25rem;
   --fs-hero: 2.5rem;
-  --sec: 56px;
+  --sec: 40px;
 }
 @media (min-width: 900px) {
-  :root { --fs-base: 1.0625rem; --fs-h3: 1.375rem; --fs-h2: 2rem; --fs-h1: 3rem; --fs-hero: 3.75rem; --sec: 96px; }
+  :root { --fs-base: 1.0625rem; --fs-h3: 1.375rem; --fs-h2: 2rem; --fs-h1: 3rem; --fs-hero: 3.75rem; --sec: 64px; }
 }
 
 /* Pack personalities: type, corner radius, surface tint. Colour always comes from the tenant. */
@@ -97,7 +97,7 @@ p { margin: 0; }
 .avail .foot a { color: var(--brand); font-weight: 600; }
 
 /* Hero variants */
-.hero { padding: 32px 0 var(--sec); }
+.hero { padding: 20px 0 var(--sec); }
 .hero-copy p.lede { margin-top: 16px; font-size: 1.0625rem; color: var(--muted); max-width: 34em; }
 .hero h1 { font-size: var(--fs-hero); }
 .hero-ctas { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 24px; }
@@ -106,7 +106,7 @@ p { margin: 0; }
 .hero-split .media img { width: 100%; aspect-ratio: 4/3; object-fit: cover; border-radius: var(--radius); }
 .hero-split .avail { margin-top: -48px; position: relative; margin-inline: 12px; }
 @media (min-width: 900px) {
-  .hero { padding-top: 64px; }
+  .hero { padding-top: 40px; }
   .hero-split .grid { grid-template-columns: 1.05fr .95fr; align-items: center; gap: 56px; }
   .hero-split .media img { aspect-ratio: 4/5; max-height: 620px; }
   .hero-split .avail { position: absolute; left: -48px; bottom: 32px; margin: 0; width: 340px; }
@@ -115,14 +115,14 @@ p { margin: 0; }
 .hero-full .bg { position: absolute; inset: 0; }
 .hero-full .bg img { width: 100%; height: 100%; object-fit: cover; }
 .hero-full .bg::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(10,12,16,.25) 0%, rgba(10,12,16,.55) 45%, rgba(10,12,16,.88) 100%); }
-.hero-full .wrap { position: relative; padding-top: 160px; padding-bottom: 32px; display: grid; gap: 28px; }
+.hero-full .wrap { position: relative; padding-top: 112px; padding-bottom: 24px; display: grid; gap: 28px; }
 .hero-full .lede { color: rgba(255,255,255,.86) !important; }
 .hero-full .btn-ghost { color: #fff; border-color: rgba(255,255,255,.55); }
-@media (min-width: 900px) { .hero-full .wrap { min-height: 640px; padding-top: 0; padding-bottom: 64px; grid-template-columns: 1fr 360px; align-items: end; gap: 64px; } }
+@media (min-width: 900px) { .hero-full .wrap { min-height: 560px; padding-top: 0; padding-bottom: 48px; grid-template-columns: 1fr 360px; align-items: end; gap: 64px; } }
 .hero-text .grid { display: grid; gap: 32px; }
 .hero-text h1 { font-size: calc(var(--fs-hero) * 1.05); max-width: 14em; }
 .hero-text .rule { height: 3px; width: 56px; background: var(--brand); margin-bottom: 24px; }
-@media (min-width: 900px) { .hero-text .grid { grid-template-columns: 1fr 360px; align-items: end; gap: 72px; } .hero-text { padding-top: 96px; } }
+@media (min-width: 900px) { .hero-text .grid { grid-template-columns: 1fr 360px; align-items: end; gap: 72px; } .hero-text { padding-top: 48px; } }
 
 /* Quick facts strip */
 .facts { border-block: 1px solid var(--line); background: var(--surface); }
@@ -138,7 +138,7 @@ p { margin: 0; }
 /* Sections */
 .section { padding: var(--sec) 0; }
 .section.tint { background: var(--surface); }
-.sec-head { margin-bottom: 28px; max-width: 40em; }
+.sec-head { margin-bottom: 20px; max-width: 40em; }
 .sec-head p { margin-top: 10px; color: var(--muted); }
 
 /* Services: a price list, not a card grid */

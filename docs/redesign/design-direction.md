@@ -18,7 +18,7 @@ Scope: tenant site `{slug}` and booking page `/b/{slug}`. Mobile-first at 375px,
 ## Tokens
 - **Type scale:** 1.25 ratio on mobile (14 / 16 / 20 / 25 / 36, hero 40), 1.333 from 900px (14 / 17 / 22 / 32 / 48, hero 60). Body is always Figtree 400-700, line-height 1.55, max ~70 characters per line.
 - **Fonts:** loaded with `next/font/google`, `subsets: ["latin"]`, `display: "swap"`, only the weights used. Each tenant page loads Figtree plus **its own pack's** display font, never the other five (the mockups' Google links stand in for this).
-- **Spacing:** 4px base (4, 8, 12, 16, 20, 24, 32, 48, 56, 96). Section padding 56px mobile / 96px desktop. Gutter 20px, container 1160px.
+- **Spacing:** 4px base (4, 8, 12, 16, 20, 24, 32, 40, 48, 64). Section padding 40px mobile / 64px desktop; hero top padding 20px / 40px (tight under the header). Gutter 20px, container 1160px.
 - **Neutrals:** ink `#16181d`, muted `#586070` (6.3:1 on white), line `#e3e6eb`, page white, per-pack surface tint.
 - **Touch targets:** every button, chip, slot and contact row is ≥ 48px tall.
 
