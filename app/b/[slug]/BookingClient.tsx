@@ -324,7 +324,7 @@ export function BookingClient({ business, fontClasses }: { business: Business; f
         return;
       }
       // Remember this booking in the tab, so the next one can grey out the date. A paid one counts once paid.
-      const kept = { date: bookingDateIso, patient: patientLabel, label: data.token ? `Token #${data.token.number}` : `${selectedTime}`, tokenSessionId: tokenMode ? tokenPick?.id : undefined, serviceIds: selectedServices, staffId: selectedStaff && selectedStaff !== "any" ? selectedStaff : null };
+      const kept = { date: bookingDateIso, patient: patientLabel, label: data.token ? `Queue no. #${data.token.number}` : `${selectedTime}`, tokenSessionId: tokenMode ? tokenPick?.id : undefined, serviceIds: selectedServices, staffId: selectedStaff && selectedStaff !== "any" ? selectedStaff : null };
       if (data.checkout) {
         addMyBooking(business.slug, { ...kept, orderId: data.checkout.orderId, confirmed: false });
         await launchCheckout(data.checkout);

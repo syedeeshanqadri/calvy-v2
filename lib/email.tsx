@@ -146,10 +146,10 @@ async function tenantBrand(businessId: string | undefined, name: string): Promis
   if (!businessId) return undefined;
   try {
     const { prisma } = await import("@/lib/prisma");
-    const b = await prisma.business.findUnique({ where: { id: businessId }, select: { logoUrl: true, primaryColor: true } });
+    const b = await prisma.business.findUnique({ where: { id: businessId }, select: { logoUrl: true, primaryColor: true, address: true, phone: true } });
     if (!b) return undefined;
     const color = safeThemeColor(b.primaryColor);
-    return { name, logoUrl: absoluteAssetUrl(b.logoUrl), color, fg: readableForeground(color) };
+    return { name, logoUrl: absoluteAssetUrl(b.logoUrl), color, fg: readableForeground(color), address: b.address, phone: b.phone };
   } catch (e) {
     logger.error("[Email] tenant brand lookup failed:", { err: e });
     return undefined;
@@ -160,7 +160,7 @@ export async function sendBookingConfirmation(d: BookingDetails) {
   const tenant = await tenantBrand(d.ctx?.businessId, d.businessName);
   return dispatch({
     to: d.to, type: "confirmation", ctx: d.ctx,
-    subject: d.token ? `Token #${d.token.number} confirmed — ${d.businessName}` : `Booking confirmed — ${d.serviceName} at ${d.businessName}`,
+    subject: d.token ? `Queue number #${d.token.number} confirmed — ${d.businessName}` : `Booking confirmed — ${d.serviceName} at ${d.businessName}`,
     react: <BookingConfirmationEmail {...bookingProps(d)} tenant={tenant} />,
     attachments: d.appointmentDate
       ? [icsAttachment({ serviceName: d.serviceName, businessName: d.businessName, staffName: d.staffName, durationMinutes: d.duration, start: d.appointmentDate })]
@@ -180,43 +180,48 @@ export async function sendBookingReminder(d: {
   });
 }
 
-export function sendBookingCancellation(d: BookingDetails & { rebookUrl?: string }) {
+export async function sendBookingCancellation(d: BookingDetails & { rebookUrl?: string }) {
+  const tenant = await tenantBrand(d.ctx?.businessId, d.businessName);
   return dispatch({
     to: d.to, type: "cancellation", ctx: d.ctx,
     subject: `Your ${apptWord(d.terms)} at ${d.businessName} was cancelled`,
-    react: <BookingCancellationEmail {...bookingProps(d)} rebookUrl={d.rebookUrl} />,
+    react: <BookingCancellationEmail {...bookingProps(d)} tenant={tenant} rebookUrl={d.rebookUrl} />,
   });
 }
 
-export function sendBookingReschedule(d: BookingDetails & { oldDate: string; oldTime: string }) {
+export async function sendBookingReschedule(d: BookingDetails & { oldDate: string; oldTime: string }) {
+  const tenant = await tenantBrand(d.ctx?.businessId, d.businessName);
   return dispatch({
     to: d.to, type: "reschedule", ctx: d.ctx,
     subject: `Your ${apptWord(d.terms)} was moved to ${d.date} at ${d.time}`,
-    react: <BookingRescheduleEmail {...bookingProps(d)} oldDate={d.oldDate} oldTime={d.oldTime} />,
+    react: <BookingRescheduleEmail {...bookingProps(d)} tenant={tenant} oldDate={d.oldDate} oldTime={d.oldTime} />,
   });
 }
 
-export function sendQueueMovedBack(d: BookingDetails & { place: number }) {
+export async function sendQueueMovedBack(d: BookingDetails & { place: number }) {
+  const tenant = await tenantBrand(d.ctx?.businessId, d.businessName);
   return dispatch({
     to: d.to, type: "queue_moved_back", ctx: d.ctx,
     subject: `You are now #${d.place} in line at ${d.businessName}`,
-    react: <QueueMovedBackEmail {...bookingProps(d)} place={d.place} />,
+    react: <QueueMovedBackEmail {...bookingProps(d)} tenant={tenant} place={d.place} />,
   });
 }
 
-export function sendQueueClosed(d: BookingDetails & { reason: "missed" | "cancelled"; creditLabel?: string; loginUrl?: string }) {
+export async function sendQueueClosed(d: BookingDetails & { reason: "missed" | "cancelled"; creditLabel?: string; loginUrl?: string }) {
+  const tenant = await tenantBrand(d.ctx?.businessId, d.businessName);
   return dispatch({
     to: d.to, type: d.reason === "missed" ? "queue_missed" : "queue_cancelled", ctx: d.ctx,
     subject: d.reason === "missed" ? `You missed your ${apptWord(d.terms)} at ${d.businessName}` : `Your ${apptWord(d.terms)} at ${d.businessName} was cancelled`,
-    react: <QueueClosedEmail {...bookingProps(d)} reason={d.reason} creditLabel={d.creditLabel} loginUrl={d.loginUrl} />,
+    react: <QueueClosedEmail {...bookingProps(d)} tenant={tenant} reason={d.reason} creditLabel={d.creditLabel} loginUrl={d.loginUrl} />,
   });
 }
 
-export function sendInvoice(d: BookingDetails & { invoiceNumber: string; clientEmail: string; paymentRef?: string }) {
+export async function sendInvoice(d: BookingDetails & { invoiceNumber: string; clientEmail: string; paymentRef?: string }) {
+  const tenant = await tenantBrand(d.ctx?.businessId, d.businessName);
   return dispatch({
     to: d.to, type: "invoice", ctx: d.ctx,
     subject: `Receipt from ${d.businessName} — ${formatCurrencyAmount(d.price, d.currency ?? DEFAULT_CURRENCY)}`,
-    react: <InvoiceEmail {...bookingProps(d)} invoiceNumber={d.invoiceNumber} clientEmail={d.clientEmail} paymentRef={d.paymentRef} />,
+    react: <InvoiceEmail {...bookingProps(d)} tenant={tenant} invoiceNumber={d.invoiceNumber} clientEmail={d.clientEmail} paymentRef={d.paymentRef} />,
   });
 }
 
