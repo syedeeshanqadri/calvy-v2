@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { ChevronLeft, ChevronRight, Check, Clock, Loader2, MapPin, Globe, Phone, Minus, Users, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -17,6 +17,7 @@ import { AnotherBooking } from "@/components/booking/AnotherBooking";
 import { CreateAccountOffer } from "@/components/booking/CreateAccountOffer";
 import { PATIENT_GENDERS, PATIENT_RELATIONS, PATIENT_RELATION_LABELS, type PatientRelation } from "@/lib/patients";
 import type { PayConfig } from "@/lib/onlinePayment";
+import { parseBookingDeepLink } from "@/lib/deepLink";
 import "@/app/[slug]/site.css";
 import "@/app/[slug]/booking.css";
 
@@ -68,14 +69,24 @@ export function BookingClient({ business, fontClasses }: { business: Business; f
   const searchParams = useSearchParams();
   // Hide services nobody on the team is linked to (they could never be booked).
   const services = bookableServices(business.services, business.staff);
-  const [step, setStep] = useState<Step>("service");
+  // A "next available" link from the website (?service=&date=&time=) opens straight on the date step with
+  // those chosen. Queue (token) businesses and bad links just start at the first step.
+  const [deep] = useState(() => {
+    if (tokenMode) return null;
+    const n = new Date();
+    const today = `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}-${String(n.getDate()).padStart(2, "0")}`;
+    const d = parseBookingDeepLink(searchParams, today);
+    return d && d.date && services.some(s => s.id === d.serviceId) ? d : null;
+  });
+  const pendingTime = useRef<string | null>(deep?.time ?? null);
+  const [step, setStep] = useState<Step>(deep ? "datetime" : "service");
   const [serviceSearch, setServiceSearch] = useState("");
   const [selectedServices, setSelectedServices] = useState<string[]>(() => {
     const preselect = searchParams?.get("service");
     return preselect && services.some(s => s.id === preselect) ? [preselect] : [];
   });
-  const [selectedStaff, setSelectedStaff] = useState<string | null>(null);
-  const [selectedDate, setSelectedDate] = useState<number | null>(null);
+  const [selectedStaff, setSelectedStaff] = useState<string | null>(deep ? "any" : null);
+  const [selectedDate, setSelectedDate] = useState<number | null>(deep?.date ? Number(deep.date.slice(8)) : null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [form, setForm] = useState({ name: "", email: "", phone: "", notes: "" });
   // "Who is this appointment for?" Someone else: the booker's email/phone stay, the patient is who it is for.
@@ -107,8 +118,8 @@ export function BookingClient({ business, fontClasses }: { business: Business; f
   const isValidEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
   const now = new Date();
-  const [viewMonth, setViewMonth] = useState(now.getMonth());
-  const [viewYear, setViewYear] = useState(now.getFullYear());
+  const [viewMonth, setViewMonth] = useState(deep?.date ? Number(deep.date.slice(5, 7)) - 1 : now.getMonth());
+  const [viewYear, setViewYear] = useState(deep?.date ? Number(deep.date.slice(0, 4)) : now.getFullYear());
 
   const firstDay = new Date(viewYear, viewMonth, 1).getDay();
   const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
@@ -232,6 +243,10 @@ export function BookingClient({ business, fontClasses }: { business: Business; f
     fetch(`/api/availability?slug=${business.slug}&date=${dateStr}&duration=${totalDuration}&serviceId=${firstServiceId}&serviceIds=${selectedServices.join(",")}${staffParam}`)
       .then(r => r.json())
       .then(data => {
+        // Apply the time from a deep link once, if that slot is still free.
+        const wanted = pendingTime.current;
+        pendingTime.current = null;
+        if (wanted && (data.slots ?? []).includes(wanted)) setSelectedTime(wanted);
         setAvailableSlots(data.slots ?? []);
         setBookedSlots(data.bookedSlots ?? []);
         setSpotsMap(data.spotsMap ?? {});

@@ -49,6 +49,7 @@ One component, three looks by pack: **split** (clinic, consultant, other: framed
 - **Pay** is shown only when online payment is on; options follow PayConfig (full now / booking fee now / pay at venue). Otherwise skipped, and the last button reads "Confirm booking" / "Get appointment".
 - **Confirmation:** outcome headline, ticket (what, who for, when, with whom, where, payment), "Add to calendar", two buttons, **"For me, on another date"** and **"For someone else"** (both keep contact details), change/cancel link, then Google review + socials.
 - **Chrome:** back button, "Step n of N" + progress bar (real sequence), summary panel on the right on desktop; on mobile the summary collapses into a bottom bar with total + Continue.
+- **Next available card (built):** real start times from the booking engine, streamed in after the page so a slow lookup never delays it; each time opens booking with the service, date and time already chosen (`?service=&date=&time=`). Queue clinics show today's sessions and places left instead.
 - **Online badge:** dashed outline pill with video icon on services and in the facts strip. Placeholder until online consultations ship; hide when no service is online.
 
 ## Accessibility (WCAG 2.2 AA)
