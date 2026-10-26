@@ -441,6 +441,18 @@ Items from the old Steps 3 and 4 that the 2026-10-24 re-plan deferred. Each gets
 
 ---
 
+## Parked (decided 2026-10-27, do not build yet)
+
+| Item | What it is | Why parked | Condition to restart |
+|---|---|---|---|
+| Pay-links | "Send payment link" per unpaid appointment: editable amount (deposit/balance) and note stored on the `Payment` row, email plus Copy link and WhatsApp share, `/pay/<signed code>` valid 7 days, one active link per appointment, refused when already paid, same fee rules as FULL_ONLINE (India Free ₹10 per paid link by the payer setting, paid plans 0, international never). Needs `settlePaidPayment` to mark an already-confirmed appointment paid. Branch `step-7/pay-links` | Collects the full price, so it needs the payout account | Chunk 12 done |
+| S5-03 / chunk 11 `step-5/online-payment-settings` | Country, online payment mode and fee-payer settings, GST receipt | Only matters once FULL_ONLINE can exist | Owner asks |
+| S5-04 / chunk 12 `step-5/cashfree-split` | `PayoutAccount`, vendor onboarding with KYC states, split at order creation | Not built; today `businessShareMinor` is recorded but never paid out | Owner asks |
+
+**FULL_ONLINE stays unreachable until chunk 12.** `lib/fees.ts` `FULL_ONLINE_ENABLED = false` makes any stored FULL_ONLINE behave as booking-fee-only, no screen or route sets `onlinePayMode`, and `tests/full-online-parked.test.ts` guards both. Flip the constant only together with chunk 12.
+
+---
+
 ## Dependencies across steps
 
 - `S1-19` (migrations) blocks every schema change in Steps 2 to 9.
