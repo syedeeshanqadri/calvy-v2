@@ -28,3 +28,25 @@ export function formatOpeningHours(rows: HoursRow[]): HoursLine[] {
 export function mapsEmbedUrl(address: string): string {
   return `https://www.google.com/maps?q=${encodeURIComponent(address.trim().slice(0, 300))}&output=embed`;
 }
+
+export interface OpenStatus { weekday: number; open: boolean; label: string }
+
+/** Local weekday (0 = Sunday) and minutes since midnight in an IANA timezone. */
+function localNow(timeZone: string, now: Date): { weekday: number; minutes: number } {
+  const parts = new Intl.DateTimeFormat("en-US", { timeZone, weekday: "short", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(now);
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
+  const weekday = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(get("weekday"));
+  return { weekday, minutes: Number(get("hour")) * 60 + Number(get("minute")) };
+}
+
+/** "Open now, until 6:00 PM" / "Closed now, opens 5:00 PM" / "Closed today", in the business timezone. */
+export function openStatus(rows: HoursRow[], timeZone: string, now: Date = new Date()): OpenStatus {
+  let local: { weekday: number; minutes: number };
+  try { local = localNow(timeZone, now); } catch { local = localNow("UTC", now); }
+  const today = rows.filter((r) => r.weekday === local.weekday && r.endMin > r.startMin).sort((a, b) => a.startMin - b.startMin);
+  const current = today.find((r) => local.minutes >= r.startMin && local.minutes < r.endMin);
+  if (current) return { weekday: local.weekday, open: true, label: `Open now, until ${formatMinutes(current.endMin)}` };
+  const later = today.find((r) => r.startMin > local.minutes);
+  if (later) return { weekday: local.weekday, open: false, label: `Closed now, opens ${formatMinutes(later.startMin)}` };
+  return { weekday: local.weekday, open: false, label: today.length ? "Closed for today" : "Closed today" };
+}

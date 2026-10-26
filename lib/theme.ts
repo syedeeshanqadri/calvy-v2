@@ -60,10 +60,26 @@ export function textOnWhiteWarning(hex: string): string | null {
     : null;
 }
 
+/**
+ * The brand colour as text or a link on white: the colour itself when it already reads
+ * (4.5:1, WCAG AA), otherwise darkened step by step until it does. Fills keep the original.
+ */
+export function brandInk(hex: unknown): string {
+  const brand = safeThemeColor(hex);
+  if (contrastRatio(brand, "#ffffff") >= 4.5) return brand;
+  const h = brand.slice(1);
+  const rgb = [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16));
+  for (let keep = 0.95; keep > 0; keep -= 0.05) {
+    const out = `#${rgb.map((c) => Math.round(c * keep).toString(16).padStart(2, "0")).join("")}`;
+    if (contrastRatio(out, "#ffffff") >= 4.5) return out;
+  }
+  return "#000000";
+}
+
 /** CSS custom properties for the brand colour; safe to spread into a style prop. */
 export function themeVars(hex: unknown): Record<string, string> {
   const brand = safeThemeColor(hex);
-  return { "--brand": brand, "--brand-fg": readableForeground(brand), "--brand-soft": `${brand}1a` };
+  return { "--brand": brand, "--brand-fg": readableForeground(brand), "--brand-soft": `${brand}1a`, "--brand-ink": brandInk(brand) };
 }
 
 /** Quick-pick colours per business pack (any pack id not listed gets the default set). */

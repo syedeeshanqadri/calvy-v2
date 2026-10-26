@@ -3,7 +3,7 @@ import sharp from "sharp";
 import { checkLogoBytes, MAX_LOGO_BYTES } from "@/lib/validation/logo";
 import { processLogo } from "@/lib/logo";
 import { normalizeSocial, normalizeSocialLinks, parseSocialLinks, normalizeReviewLink, safeReviewLink } from "@/lib/brandLinks";
-import { formatOpeningHours, mapsEmbedUrl } from "@/lib/hours";
+import { formatOpeningHours, mapsEmbedUrl, openStatus } from "@/lib/hours";
 import { assertSafeKey, localStorageAdapter } from "@/lib/storage";
 
 const enc = (s: string) => new TextEncoder().encode(s);
@@ -158,5 +158,28 @@ describe("step-3/website-extras: storage adapter", () => {
   it("maps local urls back to keys", () => {
     expect(localStorageAdapter.keyFromUrl("/uploads/logos/b/1.png")).toBe("logos/b/1.png");
     expect(localStorageAdapter.keyFromUrl("https://other.test/uploads/x.png")).toBeNull();
+  });
+});
+
+describe("step-6/redesign-site-foundation: open-now status", () => {
+  // Monday 09:00-13:00 and 17:00-20:30 local time (Asia/Kolkata, UTC+5:30)
+  const rows = [{ weekday: 1, startMin: 540, endMin: 780 }, { weekday: 1, startMin: 1020, endMin: 1230 }];
+  const at = (utc: string) => new Date(`${utc}Z`);
+  it("is open inside a range and says when it closes", () => {
+    const s = openStatus(rows, "Asia/Kolkata", at("2026-10-26T05:30:00")); // 11:00 IST Monday
+    expect(s).toEqual({ weekday: 1, open: true, label: "Open now, until 1:00 PM" });
+  });
+  it("between ranges, says when it reopens", () => {
+    expect(openStatus(rows, "Asia/Kolkata", at("2026-10-26T08:30:00")).label).toBe("Closed now, opens 5:00 PM"); // 14:00 IST
+  });
+  it("after the last range, is closed for the day", () => {
+    expect(openStatus(rows, "Asia/Kolkata", at("2026-10-26T16:00:00")).label).toBe("Closed for today"); // 21:30 IST
+  });
+  it("a day with no rows is closed today, using the business timezone for the day", () => {
+    expect(openStatus(rows, "Asia/Kolkata", at("2026-10-27T05:30:00")).label).toBe("Closed today"); // Tuesday
+    expect(openStatus(rows, "Asia/Kolkata", at("2026-10-25T20:00:00")).weekday).toBe(1); // 01:30 IST Monday while UTC is still Sunday
+  });
+  it("falls back to UTC for a bad timezone instead of throwing", () => {
+    expect(() => openStatus(rows, "Not/AZone", at("2026-10-26T05:30:00"))).not.toThrow();
   });
 });
