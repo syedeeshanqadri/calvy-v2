@@ -4,6 +4,7 @@ import { getPayConfig } from "@/lib/onlinePayment";
 import { contactRequirements } from "@/lib/patients";
 import { parseSocialLinks, safeReviewLink } from "@/lib/brandLinks";
 import { BookingClient } from "./BookingClient";
+import { siteFontClasses } from "@/app/[slug]/fonts";
 
 export const dynamic = 'force-dynamic';
 
@@ -49,5 +50,5 @@ export default async function BusinessBookingPage(props: { params: Promise<{ slu
     })),
   };
 
-  return <BookingClient business={data} />;
+  return <BookingClient business={data} fontClasses={await siteFontClasses(business.packId)} />;
 }

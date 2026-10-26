@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
-import { ChevronLeft, ChevronRight, Check, Clock, Loader2, MapPin, Globe, Phone, Plus, Minus, Users, ArrowLeft } from "lucide-react";
+import { ChevronLeft, ChevronRight, Check, Clock, Loader2, MapPin, Globe, Phone, Minus, Users, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatCurrencyAmount } from "@/lib/currency";
 import { bookableServices, providerOptions } from "@/lib/staffMatch";
@@ -17,6 +17,8 @@ import { AnotherBooking } from "@/components/booking/AnotherBooking";
 import { CreateAccountOffer } from "@/components/booking/CreateAccountOffer";
 import { PATIENT_GENDERS, PATIENT_RELATIONS, PATIENT_RELATION_LABELS, type PatientRelation } from "@/lib/patients";
 import type { PayConfig } from "@/lib/onlinePayment";
+import "@/app/[slug]/site.css";
+import "@/app/[slug]/booking.css";
 
 type Step = "service" | "staff" | "datetime" | "details" | "confirm";
 const SLOT_STEPS: Step[] = ["service", "staff", "datetime", "details", "confirm"];
@@ -50,7 +52,8 @@ interface Business {
   services: Service[]; staff: StaffMember[];
 }
 
-export function BookingClient({ business }: { business: Business }) {
+/** `fontClasses` carries the pack fonts (see app/[slug]/fonts); without it the page falls back to system fonts. */
+export function BookingClient({ business, fontClasses }: { business: Business; fontClasses?: string }) {
   const word = (key: TermKey, opts?: TermOpts) => t(business, key, opts);
   const svc1 = word("service"), svcN = word("service", { plural: true });
   const Svc1 = word("service", { cap: true });
@@ -318,539 +321,491 @@ export function BookingClient({ business }: { business: Business }) {
     finally { setLoading(false); }
   }
 
+  const markRadius = business.packId === "SALON_SPA" || business.packId === "CONSULTANT" ? "rounded-full" : "rounded-[10px]";
+  const rootCls = `st bk ${fontClasses ?? ""}`;
+  const rootStyle = themeVars(color) as React.CSSProperties;
+  const hasSocial = Object.keys(social).length > 0;
+  const filteredServices = services.filter(svc => !serviceSearch || svc.name.toLowerCase().includes(serviceSearch.toLowerCase()) || svc.description.toLowerCase().includes(serviceSearch.toLowerCase()));
+  const providerName = tokenMode ? tokenPick?.staffName : selectedStaff === "any" ? "No preference" : staff?.name;
+  const whenLabel = tokenMode
+    ? (tokenPick ? `${dateStr}, ${tokenPick.name}` : "")
+    : (selectedDate && selectedTime ? `${dateStr}, ${selectedTime}` : "");
+
+  const top = (
+    <header className="bk-top">
+      <div className="st-wrap">
+        <span className="st-brand">
+          <BrandMark name={business.name} logoUrl={business.logoUrl} color={color} fg={fg} size={40} rounded={markRadius} />
+          <span className="min-w-0"><b>{business.name}</b><small>{typeLabel}</small></span>
+        </span>
+        <a href="/" className="bk-back" aria-label="Back to website"><ArrowLeft size={16} aria-hidden /><span className="bk-back-text">Back to website</span></a>
+      </div>
+    </header>
+  );
+
   if (booked) {
     return (
-      <div className="min-h-screen bg-[#f8f7f4] flex items-center justify-center p-4">
-        <div className="bg-white rounded-3xl p-10 max-w-md w-full text-center shadow-xl border border-[#e8e6e0]">
-          <div className="w-16 h-16 rounded-full bg-green-50 flex items-center justify-center mx-auto mb-6">
-            <Check size={28} className="text-green-600" />
-          </div>
-          <h1 className="font-syne font-bold text-2xl mb-2">You&apos;re booked! 🎉</h1>
+      <div className={rootCls} data-pack={business.packId} style={rootStyle}>
+        {top}
+        <main className="bk-done">
+          <div className="bk-ok"><Check size={32} aria-hidden /></div>
+          <h1>You&apos;re booked</h1>
           {confirmationWithheld ? (
-            <p className="text-amber-900 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm mb-6">
+            <p className="bk-note warn" style={{ marginTop: 14, textAlign: "left" }}>
               Your {appt1} is booked, but we could not send a confirmation message because of the number of bookings made with these contact details today. Please keep the details below, or contact {business.name} if you need a copy.
             </p>
           ) : (
-            <p className="text-[#6b6b80] mb-6">A confirmation has been sent to <strong>{form.email}</strong>.</p>
+            <p className="st-muted" style={{ marginTop: 10 }}>A confirmation has been sent to <strong>{form.email}</strong>.</p>
           )}
-          <div className="bg-[#f8f7f4] rounded-2xl p-5 text-left mb-6 space-y-2.5">
-            <div className="flex justify-between text-sm"><span className="text-[#6b6b80]">Business</span><span className="font-medium">{business.name}</span></div>
-            <div className="flex justify-between text-sm"><span className="text-[#6b6b80]">For</span><span className="font-medium text-right max-w-[60%]">{patientLabel}</span></div>
-            <div className="flex justify-between text-sm">
-              <span className="text-[#6b6b80]">{word("service", { cap: true, plural: selectedServiceObjs.length > 1 })}</span>
-              <span className="font-medium text-right max-w-[60%]">{serviceNamesLabel}</span>
+          {tokenResult && (
+            <div style={{ marginTop: 24 }}>
+              <p className="st-muted">Your number in the queue</p>
+              <div className="bk-token">#{tokenResult.number}</div>
+              <p style={{ marginTop: 10, fontWeight: 600 }}>Estimated time: {tokenResult.estimatedTime}</p>
             </div>
-            <div className="flex justify-between text-sm"><span className="text-[#6b6b80]">Date</span><span className="font-medium">{dateStr}</span></div>
-            {tokenResult ? (
-              <>
-                <div className="flex justify-between text-sm"><span className="text-[#6b6b80]">Token</span><span className="font-bold text-lg" style={{ color }}>#{tokenResult.number}</span></div>
-                <div className="flex justify-between text-sm"><span className="text-[#6b6b80]">Estimated time</span><span className="font-medium">{tokenResult.estimatedTime}</span></div>
-                <div className="flex justify-between text-sm"><span className="text-[#6b6b80]">Session</span><span className="font-medium">{tokenResult.sessionName}</span></div>
-                {tokenResult.staffName && <div className="flex justify-between text-sm"><span className="text-[#6b6b80]">{Stf1}</span><span className="font-medium">{tokenResult.staffName}</span></div>}
-                {tokenResult.trackUrl && (
-                  <a href={tokenResult.trackUrl} className="block text-center font-semibold rounded-xl px-4 py-3 mt-2" style={{ background: color, color: fg }}>Track your place in line</a>
-                )}
-              </>
-            ) : (
-              <>
-                <div className="flex justify-between text-sm"><span className="text-[#6b6b80]">Time</span><span className="font-medium">{selectedTime}</span></div>
-                <div className="flex justify-between text-sm"><span className="text-[#6b6b80]">Duration</span><span className="font-medium">{totalDuration} min</span></div>
-              </>
-            )}
-            <div className="flex justify-between text-sm border-t border-[#f0ede8] pt-2 mt-2">
-              <span className="font-semibold">Total</span>
-              <span className="font-bold" style={{ color }}>{formatCurrencyAmount(totalPrice, business.currency)}</span>
+          )}
+          <div className="bk-ticket">
+            <div className="bk-ticket-top">
+              <b>{serviceNamesLabel}</b>
+              <div className="st-muted" style={{ fontSize: "0.9375rem" }}>for {patientLabel}</div>
             </div>
-            <div className="flex justify-between text-sm pt-1">
-              <span className="text-[#6b6b80]">Payment</span>
-              <span className="font-medium">{payAtVenue ? `Pay at ${appt1}` : "Paid online"}</span>
+            <div className="bk-ticket-body">
+              <div className="bk-row"><span>Business</span><span>{business.name}</span></div>
+              <div className="bk-row"><span>Date</span><span>{dateStr}</span></div>
+              {tokenResult ? (
+                <>
+                  <div className="bk-row"><span>Session</span><span>{tokenResult.sessionName}</span></div>
+                  {tokenResult.staffName && <div className="bk-row"><span>{Stf1}</span><span>{tokenResult.staffName}</span></div>}
+                </>
+              ) : (
+                <>
+                  <div className="bk-row"><span>Time</span><span>{selectedTime}</span></div>
+                  <div className="bk-row"><span>Duration</span><span>{totalDuration} min</span></div>
+                </>
+              )}
+              <div className="bk-row"><span>Total</span><span>{formatCurrencyAmount(totalPrice, business.currency)}</span></div>
+              <div className="bk-row"><span>Payment</span><span>{payAtVenue ? `Pay at ${appt1}` : "Paid online"}</span></div>
             </div>
           </div>
+          {tokenResult?.trackUrl && (
+            <a href={tokenResult.trackUrl} className="st-btn st-btn-primary st-btn-block" style={{ marginBottom: 20 }}>Track your place in line</a>
+          )}
           <AnotherBooking slug={business.slug} bookPath={typeof window !== "undefined" ? window.location.pathname : `/${business.slug}/book-now`}
             serviceIds={selectedServices} staffId={selectedStaff && selectedStaff !== "any" ? selectedStaff : null} date={bookingDateIso} appointmentWord={appt1} />
           <CreateAccountOffer email={form.email} />
-          {reviewUrl && (
-            <div className="mb-2">
-              <p className="text-xs text-[#6b6b80] mb-3">Enjoyed booking with us? We&apos;d love a quick review.</p>
-              <ReviewButton href={reviewUrl} color={color} fg={fg} />
+          {(reviewUrl || hasSocial) && (
+            <div className="bk-card" style={{ textAlign: "left", marginTop: 8 }}>
+              {reviewUrl && (
+                <>
+                  <p style={{ fontWeight: 700, marginBottom: 4 }}>Enjoyed booking with us?</p>
+                  <p className="st-muted" style={{ fontSize: "0.9375rem", marginBottom: 14 }}>A quick Google review helps others find us.</p>
+                  <ReviewButton href={reviewUrl} color={color} fg={fg} />
+                </>
+              )}
+              {hasSocial && <SocialIcons links={social} tone="dark" className={reviewUrl ? "mt-4" : ""} />}
             </div>
           )}
-        </div>
+        </main>
       </div>
     );
   }
 
+  const continueDisabled =
+    (step === "service" && selectedServices.length === 0) ||
+    (step === "staff" && (provider.kind === "none" || (provider.kind === "choose" && !selectedStaff))) ||
+    (step === "datetime" && (tokenMode ? !tokenPick : (!selectedDate || !selectedTime))) ||
+    (step === "details" && (!form.name || !form.email || !isValidEmail(form.email) || (phoneNeeded && !form.phone.trim()) || (forSomeone && !patientName.trim())));
+  const confirmDisabled = !!refusal || loading || !form.name || !form.email || !isValidEmail(form.email) || (phoneNeeded && !form.phone.trim()) || (forSomeone && !patientName.trim());
+
   return (
-    <div className="min-h-screen bg-[#f8f7f4]" style={themeVars(color) as React.CSSProperties}>
-      {/* Tenant branding header */}
-      <div style={{ background: color, color: fg }}>
-        <div className="max-w-2xl mx-auto px-4 pt-4 pb-8">
-          <a href="/" className="inline-flex items-center gap-1.5 opacity-70 hover:opacity-100 text-xs font-medium transition-colors mb-6">
-            <ArrowLeft size={13} /> Back to website
-          </a>
-          <div className="text-center">
-          <div className="flex justify-center mb-4">
-            {business.logoUrl ? (
-              <span className="w-16 h-16 rounded-2xl bg-white/90 p-1.5 inline-flex"><BrandMark name={business.name} logoUrl={business.logoUrl} color={color} fg={fg} size={52} /></span>
-            ) : (
-              <span style={{ background: fg + "26" }} className="w-16 h-16 rounded-2xl flex items-center justify-center font-syne font-bold text-2xl">{initialsOf(business.name)}</span>
-            )}
-          </div>
-          <h1 className="font-syne font-bold text-2xl mb-1">{business.name}</h1>
-          <p className="opacity-80 text-sm mb-2">{typeLabel}</p>
-          {business.description && <p className="opacity-70 text-sm max-w-md mx-auto">{business.description}</p>}
-          <div className="flex items-center justify-center gap-4 mt-3 flex-wrap">
-            {business.address && <span className="flex items-center gap-1 opacity-70 text-xs"><MapPin size={11} />{business.address}</span>}
-            {business.phone && <span className="flex items-center gap-1 opacity-70 text-xs"><Phone size={11} />{business.phone}</span>}
-            {business.website && <a href={business.website} target="_blank" rel="noreferrer" className="flex items-center gap-1 opacity-70 text-xs hover:opacity-100 transition-colors"><Globe size={11} />{business.website.replace(/^https?:\/\//, "")}</a>}
-          </div>
-          {Object.keys(social).length > 0 && <SocialIcons links={social} tone="light" className="justify-center mt-3" />}
+    <div className={rootCls} data-pack={business.packId} style={rootStyle}>
+      {top}
+
+      {/* Progress */}
+      <div className="bk-progress">
+        <div className="st-wrap">
+          <div className="bk-progress-row"><span>Step {stepIndex + 1} of {STEPS.length}</span><b>{STEP_LABELS[stepIndex]}</b></div>
+          <div className="bk-bar" role="progressbar" aria-label="Booking progress" aria-valuemin={1} aria-valuemax={STEPS.length} aria-valuenow={stepIndex + 1}>
+            <i style={{ width: `${((stepIndex + 1) / STEPS.length) * 100}%` }} />
           </div>
         </div>
       </div>
 
-      {/* Progress bar */}
-      <div className="bg-white border-b border-[#e8e6e0]">
-        <div className="max-w-2xl mx-auto px-4 py-4">
-          <div className="flex items-center gap-2">
-            {STEPS.map((s, i) => (
-              <div key={s} className="flex items-center gap-2 flex-1 last:flex-none">
-                <div className={cn("w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 transition-all",
-                  i < stepIndex ? "text-white" : i === stepIndex ? "bg-[#0f0f1a] text-white" : "bg-[#f0ede8] text-[#6b6b80]")}
-                  style={i < stepIndex ? { background: color, color: fg } : {}}>
-                  {i < stepIndex ? <Check size={12} /> : i + 1}
-                </div>
-                <span className={cn("text-xs font-medium hidden sm:block", i === stepIndex ? "text-[#0f0f1a]" : "text-[#6b6b80]")}>{STEP_LABELS[i]}</span>
-                {i < STEPS.length - 1 && <div className={cn("flex-1 h-px hidden sm:block", i < stepIndex ? "" : "bg-[#e8e6e0]")} style={i < stepIndex ? { background: color, color: fg } : {}} />}
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
+      <div className="st-wrap bk-layout">
+        <main className="bk-main">
 
-      <div className="max-w-2xl mx-auto px-4 py-8">
-
-        {/* Step: Service */}
-        {step === "service" && (
-          <div>
-            <h2 className="font-syne font-bold text-2xl mb-1">Choose {svcN}</h2>
-            <p className="text-[#6b6b80] mb-4 text-sm">Select one or more {svcN} you&apos;d like to book.</p>
-            {services.length > 4 && (
-              <div className="relative mb-4">
+          {/* Step: Service */}
+          {step === "service" && (
+            <section className="bk-step">
+              <h2>Choose {svcN}</h2>
+              <p className="bk-sub">Select one or more {svcN} you&apos;d like to book.</p>
+              {services.length > 4 && (
                 <input
                   type="text"
                   aria-label={`Search ${svcN}`}
                   placeholder={`Search ${svcN}...`}
                   value={serviceSearch}
                   onChange={e => setServiceSearch(e.target.value)}
-                  className="w-full rounded-xl border border-[#e8e6e0] px-4 py-3 pl-10 text-sm focus:outline-none focus:ring-2 focus:border-accent transition-all bg-white"
+                  className="bk-input bk-search"
                 />
-                <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-[#6b6b80]" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-              </div>
-            )}
-            <div className="space-y-3">
-              {services
-                .filter(svc => !serviceSearch || svc.name.toLowerCase().includes(serviceSearch.toLowerCase()) || svc.description.toLowerCase().includes(serviceSearch.toLowerCase()))
-                .map(svc => {
+              )}
+              <div role="group" aria-label={Svc1}>
+                {filteredServices.map(svc => {
                   const isSelected = selectedServices.includes(svc.id);
                   return (
-                    <button key={svc.id} onClick={() => toggleService(svc.id)}
-                      className={cn("w-full bg-white rounded-2xl p-5 border-2 text-left transition-all hover:shadow-md flex items-center gap-4",
-                        isSelected ? "shadow-md" : "border-[#e8e6e0]")}
-                      style={isSelected ? { borderColor: color } : {}}>
-                      <div className="w-10 h-10 rounded-xl flex-shrink-0 flex items-center justify-center" style={{ background: svc.color + "20" }}>
-                        <div className="w-4 h-4 rounded-full" style={{ background: svc.color }} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="font-semibold">{svc.name}</span>
-                          {svc.capacity > 1 && (
-                            <span className="text-[10px] font-semibold text-purple-700 bg-purple-50 px-1.5 py-0.5 rounded-full flex items-center gap-1">
-                              <Users size={9} /> Group · {svc.capacity} spots
-                            </span>
-                          )}
-                        </div>
-                        {svc.description && <div className="text-sm text-[#6b6b80] mt-0.5 line-clamp-1">{svc.description}</div>}
-                        <div className="flex items-center gap-1 mt-1.5 text-xs text-[#6b6b80]"><Clock size={11} /> {svc.duration} min</div>
-                      </div>
-                      <div className="font-syne font-bold text-lg" style={{ color }}>{formatCurrencyAmount(svc.price, business.currency)}</div>
-                      <div className={cn("w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 border-2 transition-all",
-                        isSelected ? "border-transparent" : "border-[#d1d1d8]")}
-                        style={isSelected ? { background: color, color: fg } : {}}>
-                        {isSelected ? <Check size={12} className="text-white" /> : <Plus size={12} className="text-[#d1d1d8]" />}
-                      </div>
+                    <button key={svc.id} type="button" role="checkbox" aria-checked={isSelected} onClick={() => toggleService(svc.id)}
+                      className={cn("bk-opt", isSelected && "sel")}>
+                      <span className="bk-tick" aria-hidden><Check size={14} strokeWidth={3} /></span>
+                      <span className="bk-opt-title">
+                        {svc.name}
+                        {svc.capacity > 1 && <span className="st-tag"><Users size={11} aria-hidden /> Group · {svc.capacity} spots</span>}
+                      </span>
+                      <span className="bk-opt-right">{formatCurrencyAmount(svc.price, business.currency)}</span>
+                      <span className="bk-opt-sub">
+                        {svc.description && <span>{svc.description}</span>}
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><Clock aria-hidden /> {svc.duration} min</span>
+                      </span>
                     </button>
                   );
                 })}
-              {services.filter(svc => !serviceSearch || svc.name.toLowerCase().includes(serviceSearch.toLowerCase()) || svc.description.toLowerCase().includes(serviceSearch.toLowerCase())).length === 0 && (
-                <p className="text-sm text-[#6b6b80] text-center py-6">No {svcN} match your search.</p>
-              )}
-            </div>
-
-            {/* Selection summary bar */}
-            {selectedServices.length > 0 && (
-              <div className="mt-5 bg-white border border-[#e8e6e0] rounded-2xl p-4 flex items-center justify-between gap-4">
-                <div className="text-sm">
-                  <span className="font-semibold">{selectedServices.length} {word("service", { plural: selectedServices.length > 1 })} selected</span>
-                  <span className="text-[#6b6b80] ml-2">· {totalDuration} min · {formatCurrencyAmount(totalPrice, business.currency)}</span>
-                </div>
-                {selectedServices.length > 1 && (
-                  <button onClick={() => { setSelectedServices([]); resetAfterServices(); }}
-                    className="text-xs text-[#6b6b80] hover:text-red-500 transition-colors flex items-center gap-1">
-                    <Minus size={11} /> Clear
-                  </button>
-                )}
+                {filteredServices.length === 0 && <p className="bk-center">No {svcN} match your search.</p>}
               </div>
-            )}
-          </div>
-        )}
 
-        {/* Step: Staff */}
-        {step === "staff" && (
-          <div>
-            <h2 className="font-syne font-bold text-2xl mb-2">Choose your {stf1}</h2>
-            <p className="text-[#6b6b80] mb-6">Select who you&apos;d like your {appt1} with.</p>
-            {provider.kind === "none" && (
-              <div className="bg-white rounded-2xl border border-[#e8e6e0] p-6 text-center" role="alert">
-                <p className="font-semibold mb-1">No single {stf1} offers all of these together.</p>
-                <p className="text-sm text-[#6b6b80] mb-4">Please book them separately.</p>
-                <button onClick={() => setStep("service")}
-                  className="inline-flex items-center gap-2 text-sm font-semibold px-5 py-2.5 rounded-xl border border-[#e8e6e0] hover:bg-[#f8f7f4] transition-colors">
-                  <ChevronLeft size={16} /> Back to {svcN}
-                </button>
-              </div>
-            )}
-            {provider.kind === "shared" && (
-              <p className="text-sm text-[#6b6b80]">No {stf1} choice is needed. Continue to pick a time.</p>
-            )}
-            {provider.kind === "choose" && [
-              { id: "any", name: "No preference", role: `We'll assign the best available ${stf1}`, color: "#6b6b80" },
-              ...provider.staff,
-            ].map(member => (
-              <button key={member.id} onClick={() => setSelectedStaff(member.id)}
-                className={cn("w-full bg-white rounded-2xl p-5 border-2 text-left transition-all mb-3 flex items-center gap-4 hover:shadow-md",
-                  selectedStaff === member.id ? "shadow-md" : "border-[#e8e6e0]")}
-                style={selectedStaff === member.id ? { borderColor: color } : {}}>
-                <div className="w-11 h-11 rounded-full flex items-center justify-center text-white font-syne font-bold flex-shrink-0"
-                  style={{ background: member.id === "any" ? "#f0ede8" : member.color }}>
-                  <span style={{ color: member.id === "any" ? "#6b6b80" : "white" }}>
-                    {member.id === "any" ? "?" : member.name.split(" ").map(n => n[0]).join("")}
+              {/* Selection summary bar */}
+              {selectedServices.length > 0 && (
+                <div className="bk-selbar">
+                  <span>
+                    <strong>{selectedServices.length} {word("service", { plural: selectedServices.length > 1 })} selected</strong>
+                    <span className="st-muted"> · {totalDuration} min · {formatCurrencyAmount(totalPrice, business.currency)}</span>
                   </span>
-                </div>
-                <div className="flex-1">
-                  <div className="font-semibold">{member.name}</div>
-                  <div className="text-sm text-[#6b6b80]">{member.role}</div>
-                </div>
-                {selectedStaff === member.id && <div className="w-5 h-5 rounded-full flex items-center justify-center" style={{ background: color, color: fg }}><Check size={11} className="text-white" /></div>}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/* Step: Date & Time */}
-        {step === "datetime" && tokenMode && (
-          <TokenPicker
-            slug={business.slug} serviceIds={selectedServices} date={tokenDate} selectedId={tokenPick?.id ?? null}
-            onPick={(d, option) => { setTokenDate(d); setTokenPick(option); }}
-            heldSessions={heldSessions}
-            staffWord={stf1} appointmentWord={appt1} color={color} fg={fg}
-          />
-        )}
-        {step === "datetime" && !tokenMode && (
-          <div>
-            <h2 className="font-syne font-bold text-2xl mb-2">Pick a date & time</h2>
-            <p className="text-[#6b6b80] mb-6">Slots shown for your total booking duration ({totalDuration} min).</p>
-            <div className="bg-white rounded-2xl border border-[#e8e6e0] p-5 mb-4">
-              <div className="flex items-center justify-between mb-4">
-                <button onClick={prevMonth} className="w-8 h-8 rounded-lg border border-[#e8e6e0] flex items-center justify-center text-[#6b6b80] hover:bg-[#f8f7f4] transition-colors"><ChevronLeft size={16} /></button>
-                <span className="font-syne font-bold">{MONTHS[viewMonth]} {viewYear}</span>
-                <button onClick={nextMonth} className="w-8 h-8 rounded-lg border border-[#e8e6e0] flex items-center justify-center text-[#6b6b80] hover:bg-[#f8f7f4] transition-colors"><ChevronRight size={16} /></button>
-              </div>
-              <div className="grid grid-cols-7 gap-1 mb-2">
-                {DAYS_SHORT.map(d => <div key={d} className="text-center text-[11px] font-bold text-[#6b6b80] py-1">{d}</div>)}
-              </div>
-              <div className="grid grid-cols-7 gap-1">
-                {calCells.map((day, i) => {
-                  const past = day ? isPastDay(day) : false;
-                  const heldLabel = day ? heldDates[`${monthKey}-${String(day).padStart(2, "0")}`] : undefined;
-                  const held = !!heldLabel;
-                  const full = !!day && !past && !held && !dayHasSlots(day);
-                  const isSelected = day === selectedDate;
-                  return (
-                    <button key={i} disabled={!day || past || full || held} onClick={() => day && setSelectedDate(day)}
-                      title={held ? `You already have ${heldLabel} on this day` : undefined}
-                      aria-label={day && full ? `${MONTHS[viewMonth]} ${day}, no availability` : held ? `${MONTHS[viewMonth]} ${day}, you already have ${heldLabel} on this day` : undefined}
-                      className={cn("aspect-square rounded-xl text-sm transition-all font-medium",
-                        !day && "invisible",
-                        past && "text-[#d0cec8] cursor-not-allowed",
-                        full && "text-[#d0cec8] cursor-not-allowed line-through",
-                        held && "bg-amber-50 text-amber-800 cursor-not-allowed ring-1 ring-amber-200",
-                        !past && !full && day && !isSelected && "hover:bg-[#f8f7f4] cursor-pointer",
-                        isSelected && "text-white")}
-                      style={isSelected ? { background: color, color: fg } : {}}>
-                      {day}
+                  {selectedServices.length > 1 && (
+                    <button type="button" onClick={() => { setSelectedServices([]); resetAfterServices(); }}>
+                      <Minus size={11} aria-hidden /> Clear
                     </button>
-                  );
-                })}
-              </div>
-            </div>
-            {Object.keys(heldDates).some(d => d.startsWith(monthKey)) && (
-              <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 mb-4">
-                Highlighted days are ones where you already have a {appt1} ({Object.entries(heldDates).filter(([d]) => d.startsWith(monthKey)).map(([d, l]) => `${Number(d.slice(8))}: ${l}`).join(", ")}). Booking for someone else? Choose &quot;Someone else&quot; on the next step.
-              </p>
-            )}
-            {monthHasNone && !monthLoading && (
-              <div className="bg-white rounded-2xl border border-[#e8e6e0] p-4 mb-4 text-sm flex items-center justify-between gap-3">
-                <span className="text-[#6b6b80]">
-                  {nextAvailable
-                    ? <>No availability in {MONTHS[viewMonth]}. <strong className="text-[#0f0f1a]">Next available: {formatNextAvailable(nextAvailable)}</strong></>
-                    : <>No availability in {MONTHS[viewMonth]} or the following months.</>}
-                </span>
-                {nextAvailable && (
-                  <button onClick={() => jumpTo(nextAvailable)} className="font-semibold text-xs px-3 py-2 rounded-lg text-white flex-shrink-0" style={{ background: color, color: fg }}>
-                    Go to date
-                  </button>
-                )}
-              </div>
-            )}
-            {selectedDate && (
-              <div className="bg-white rounded-2xl border border-[#e8e6e0] p-5">
-                <p className="font-semibold text-sm mb-3">Available times — {MONTHS[viewMonth]} {selectedDate}</p>
-                {slotsLoading ? (
-                  <div className="flex items-center justify-center py-8"><Loader2 size={20} className="animate-spin text-[#6b6b80]" /></div>
-                ) : availableSlots.length === 0 && bookedSlots.length === 0 ? (
-                  <p className="text-sm text-[#6b6b80] text-center py-6">No availability on this day. Please pick another date.</p>
-                ) : (
-                  <div className="grid grid-cols-4 gap-2">
-                    {[...availableSlots, ...bookedSlots].sort().map(slot => {
-                      const isAvailable = availableSlots.includes(slot);
-                      const isSelected = slot === selectedTime;
-                      const spotsLeft = isGroupService ? (spotsMap[slot] ?? 0) : null;
-                      return (
-                        <button key={slot} disabled={!isAvailable} onClick={() => isAvailable && setSelectedTime(slot)}
-                          className={cn("py-2 rounded-xl text-sm border transition-all font-medium relative flex flex-col items-center justify-center gap-0.5",
-                            !isAvailable && "opacity-40 cursor-not-allowed bg-[#f8f7f4] border-[#f0ede8] text-[#6b6b80] line-through",
-                            isAvailable && !isSelected && "border-[#e8e6e0] hover:bg-[#f8f7f4] hover:text-[#0f0f1a] transition-all",
-                            isSelected && "text-white border-transparent")}
-                          style={isSelected ? { background: color, color: fg } : isAvailable ? { borderColor: "#e8e6e0" } : {}}>
-                          {slot}
-                          {isGroupService && isAvailable && spotsLeft !== null && (
-                            <span className={cn("text-[9px] font-semibold", isSelected ? "text-white/80" : "text-purple-600")}>
-                              {spotsLeft} left
-                            </span>
-                          )}
-                          {!isAvailable && !isGroupService && <span className="absolute -top-1 -right-1 text-[8px] bg-red-400 text-white px-1 rounded-full">Taken</span>}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        )}
+                  )}
+                </div>
+              )}
+            </section>
+          )}
 
-        {/* Step: Details */}
-        {step === "details" && (
-          <div>
-            <h2 className="font-syne font-bold text-2xl mb-2">{forSomeone ? "Who is this for, and who is booking?" : "Your details"}</h2>
-            <p className="text-[#6b6b80] mb-6">We&apos;ll send the confirmation and reminders to the person booking.</p>
-            <div className="bg-white rounded-2xl border border-[#e8e6e0] p-6 space-y-4">
-              <fieldset className="space-y-2">
-                <legend className="text-sm font-semibold text-[#0f0f1a] mb-2">Who is this {appt1} for?</legend>
-                <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label={`Who is this ${appt1} for?`}>
-                  {[{ v: false, label: "Myself" }, { v: true, label: "Someone else" }].map(o => (
-                    <button key={o.label} type="button" role="radio" aria-checked={forSomeone === o.v} onClick={() => setForSomeone(o.v)}
-                      className={cn("min-h-11 rounded-xl border px-4 text-sm font-semibold transition-colors", forSomeone === o.v ? "border-transparent" : "border-[#e8e6e0] hover:bg-[#f8f7f4]")}
-                      style={forSomeone === o.v ? { background: color, color: fg } : undefined}>{o.label}</button>
+          {/* Step: Staff */}
+          {step === "staff" && (
+            <section className="bk-step">
+              <h2>Choose your {stf1}</h2>
+              <p className="bk-sub">Select who you&apos;d like your {appt1} with.</p>
+              {provider.kind === "none" && (
+                <div className="bk-card" style={{ textAlign: "center" }} role="alert">
+                  <p style={{ fontWeight: 700, marginBottom: 4 }}>No single {stf1} offers all of these together.</p>
+                  <p className="st-muted" style={{ fontSize: "0.9375rem", marginBottom: 16 }}>Please book them separately.</p>
+                  <button type="button" onClick={() => setStep("service")} className="st-btn st-btn-ghost st-btn-sm">
+                    <ChevronLeft size={16} aria-hidden /> Back to {svcN}
+                  </button>
+                </div>
+              )}
+              {provider.kind === "shared" && (
+                <p className="st-muted">No {stf1} choice is needed. Continue to pick a time.</p>
+              )}
+              {provider.kind === "choose" && (
+                <div role="radiogroup" aria-label={Stf1}>
+                  {[
+                    { id: "any", name: "No preference", role: `We'll assign the best available ${stf1}`, color: "#6b6b80" },
+                    ...provider.staff,
+                  ].map(member => (
+                    <button key={member.id} type="button" role="radio" aria-checked={selectedStaff === member.id} onClick={() => setSelectedStaff(member.id)}
+                      className={cn("bk-opt", selectedStaff === member.id && "sel")}>
+                      <span className="bk-avatar" aria-hidden>{member.id === "any" ? "?" : initialsOf(member.name)}</span>
+                      <span className="bk-opt-title">{member.name}</span>
+                      <span className="bk-tick round" aria-hidden><Check size={14} strokeWidth={3} /></span>
+                      <span className="bk-opt-sub">{member.role}</span>
+                    </button>
                   ))}
                 </div>
-              </fieldset>
-              {forSomeone && (
-                <div className="rounded-xl bg-[#f8f7f4] p-4 space-y-3">
-                  <div>
-                    <label htmlFor="booking-patient-name" className="text-sm font-medium text-[#0f0f1a] block mb-1.5">Patient&apos;s full name *</label>
-                    <input id="booking-patient-name" value={patientName} maxLength={120} onChange={e => setPatientName(e.target.value)} placeholder="Who is this for?"
-                      className="w-full rounded-xl border border-[#e8e6e0] px-4 py-3 text-sm bg-white focus:outline-none focus:ring-2 focus:border-accent/40" />
-                  </div>
-                  <div>
-                    <label htmlFor="booking-relation" className="text-sm font-medium text-[#0f0f1a] block mb-1.5">Relation to you (optional)</label>
-                    <select id="booking-relation" value={relation} onChange={e => setRelation(e.target.value as PatientRelation | "")}
-                      className="w-full rounded-xl border border-[#e8e6e0] px-4 py-3 text-sm bg-white">
-                      <option value="">Choose…</option>
-                      {PATIENT_RELATIONS.map(r => <option key={r} value={r}>{PATIENT_RELATION_LABELS[r]}</option>)}
-                    </select>
-                  </div>
-                  {business.packId === "CLINIC" && (
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label htmlFor="booking-age" className="text-sm font-medium text-[#0f0f1a] block mb-1.5">Age (optional)</label>
-                        <input id="booking-age" type="number" inputMode="numeric" min={0} max={120} value={patientAge} onChange={e => setPatientAge(e.target.value)}
-                          className="w-full rounded-xl border border-[#e8e6e0] px-4 py-3 text-sm bg-white" />
-                      </div>
-                      <div>
-                        <label htmlFor="booking-gender" className="text-sm font-medium text-[#0f0f1a] block mb-1.5">Gender (optional)</label>
-                        <select id="booking-gender" value={patientGender} onChange={e => setPatientGender(e.target.value)} className="w-full rounded-xl border border-[#e8e6e0] px-4 py-3 text-sm bg-white">
-                          <option value="">Choose…</option>
-                          {PATIENT_GENDERS.map(g => <option key={g} value={g}>{g[0].toUpperCase() + g.slice(1)}</option>)}
-                        </select>
-                      </div>
+              )}
+            </section>
+          )}
+
+          {/* Step: Date & Time */}
+          {step === "datetime" && tokenMode && (
+            <TokenPicker
+              slug={business.slug} serviceIds={selectedServices} date={tokenDate} selectedId={tokenPick?.id ?? null}
+              onPick={(d, option) => { setTokenDate(d); setTokenPick(option); }}
+              heldSessions={heldSessions}
+              staffWord={stf1} appointmentWord={appt1} color={color} fg={fg}
+            />
+          )}
+          {step === "datetime" && !tokenMode && (
+            <section className="bk-step">
+              <h2>Pick a date &amp; time</h2>
+              <p className="bk-sub">Slots shown for your total booking duration ({totalDuration} min).</p>
+              <div className="bk-card">
+                <div className="bk-cal-head">
+                  <button type="button" onClick={prevMonth} className="bk-cal-nav" aria-label="Previous month"><ChevronLeft size={18} /></button>
+                  <span>{MONTHS[viewMonth]} {viewYear}</span>
+                  <button type="button" onClick={nextMonth} className="bk-cal-nav" aria-label="Next month"><ChevronRight size={18} /></button>
+                </div>
+                <div className="bk-cal-grid" style={{ marginBottom: 4 }}>
+                  {DAYS_SHORT.map(d => <div key={d} className="bk-dow">{d}</div>)}
+                </div>
+                <div className="bk-cal-grid">
+                  {calCells.map((day, i) => {
+                    const past = day ? isPastDay(day) : false;
+                    const heldLabel = day ? heldDates[`${monthKey}-${String(day).padStart(2, "0")}`] : undefined;
+                    const held = !!heldLabel;
+                    const full = !!day && !past && !held && !dayHasSlots(day);
+                    const isSelected = day === selectedDate;
+                    return (
+                      <button key={i} type="button" disabled={!day || past || full || held} onClick={() => day && setSelectedDate(day)}
+                        title={held ? `You already have ${heldLabel} on this day` : undefined}
+                        aria-label={day && full ? `${MONTHS[viewMonth]} ${day}, no availability` : held ? `${MONTHS[viewMonth]} ${day}, you already have ${heldLabel} on this day` : undefined}
+                        aria-pressed={day ? isSelected : undefined}
+                        className={cn("bk-day", !day && "blank", full && "full", held && "held", isSelected && "sel")}>
+                        {day}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              {Object.keys(heldDates).some(d => d.startsWith(monthKey)) && (
+                <p className="bk-note warn">
+                  Highlighted days are ones where you already have a {appt1} ({Object.entries(heldDates).filter(([d]) => d.startsWith(monthKey)).map(([d, l]) => `${Number(d.slice(8))}: ${l}`).join(", ")}). Booking for someone else? Choose &quot;Someone else&quot; on the next step.
+                </p>
+              )}
+              {monthHasNone && !monthLoading && (
+                <div className="bk-card" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                  <span className="st-muted" style={{ fontSize: "0.9375rem" }}>
+                    {nextAvailable
+                      ? <>No availability in {MONTHS[viewMonth]}. <strong style={{ color: "var(--ink)" }}>Next available: {formatNextAvailable(nextAvailable)}</strong></>
+                      : <>No availability in {MONTHS[viewMonth]} or the following months.</>}
+                  </span>
+                  {nextAvailable && (
+                    <button type="button" onClick={() => jumpTo(nextAvailable)} className="st-btn st-btn-primary st-btn-sm">Go to date</button>
+                  )}
+                </div>
+              )}
+              {selectedDate && (
+                <div className="bk-card">
+                  <p className="bk-times-title">Available times — {MONTHS[viewMonth]} {selectedDate}</p>
+                  {slotsLoading ? (
+                    <div className="bk-center"><Loader2 size={20} className="animate-spin" style={{ display: "inline" }} aria-label="Loading times" /></div>
+                  ) : availableSlots.length === 0 && bookedSlots.length === 0 ? (
+                    <p className="bk-center">No availability on this day. Please pick another date.</p>
+                  ) : (
+                    <div className="bk-slots">
+                      {[...availableSlots, ...bookedSlots].sort().map(slot => {
+                        const isAvailable = availableSlots.includes(slot);
+                        const isSelected = slot === selectedTime;
+                        const spotsLeft = isGroupService ? (spotsMap[slot] ?? 0) : null;
+                        return (
+                          <button key={slot} type="button" disabled={!isAvailable} aria-pressed={isSelected} onClick={() => isAvailable && setSelectedTime(slot)}
+                            className={cn("bk-slot", isSelected && "sel")}>
+                            {slot}
+                            {isGroupService && isAvailable && spotsLeft !== null && <small>{spotsLeft} left</small>}
+                          </button>
+                        );
+                      })}
                     </div>
                   )}
-                  <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">This is a separate {appt1} with its own payment, even if you already have one.</p>
                 </div>
               )}
-              {forSomeone && <p className="text-sm font-semibold text-[#0f0f1a] pt-1">Your details (the person booking)</p>}
-              <div className="grid sm:grid-cols-2 gap-4">
-                {[{ label: "Full name", key: "name", type: "text", placeholder: "Jane Smith" }, { label: phoneNeeded ? "Phone number *" : "Phone number (optional)", key: "phone", type: "tel", placeholder: "+91 98765 43210" }].map(f => (
-                  <div key={f.key}>
-                    <label htmlFor={`booking-${f.key}`} className="text-sm font-medium text-[#0f0f1a] block mb-1.5">{f.label}</label>
-                    <input id={`booking-${f.key}`} type={f.type} placeholder={f.placeholder} value={form[f.key as keyof typeof form]} onChange={e => setForm({ ...form, [f.key]: e.target.value })}
-                      className="w-full rounded-xl border border-[#e8e6e0] px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:border-accent transition-all" style={{"--tw-ring-color": color + "33"} as React.CSSProperties} />
+            </section>
+          )}
+
+          {/* Step: Details */}
+          {step === "details" && (
+            <section className="bk-step">
+              <h2>{forSomeone ? "Who is this for, and who is booking?" : "Your details"}</h2>
+              <p className="bk-sub">We&apos;ll send the confirmation and reminders to the person booking.</p>
+              <div className="bk-form">
+                <fieldset>
+                  <legend>Who is this {appt1} for?</legend>
+                  <div className="bk-pair" role="radiogroup" aria-label={`Who is this ${appt1} for?`}>
+                    {[{ v: false, label: "Myself" }, { v: true, label: "Someone else" }].map(o => (
+                      <button key={o.label} type="button" role="radio" aria-checked={forSomeone === o.v} onClick={() => setForSomeone(o.v)}
+                        className={cn("bk-opt", forSomeone === o.v && "sel")}>
+                        <span className="bk-tick round" aria-hidden><Check size={14} strokeWidth={3} /></span>
+                        <span className="bk-opt-title">{o.label}</span>
+                      </button>
+                    ))}
                   </div>
-                ))}
-              </div>
-              <div>
-                <label htmlFor="booking-email-address" className="text-sm font-medium text-[#0f0f1a] block mb-1.5">Email address</label>
-                <input id="booking-email-address" type="email" required placeholder="jane@email.com" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })}
-                  className="w-full rounded-xl border border-[#e8e6e0] px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:border-accent transition-all" />
-              </div>
-              <div>
-                <label htmlFor="booking-notes-optional" className="text-sm font-medium text-[#0f0f1a] block mb-1.5">Notes (optional)</label>
-                <textarea id="booking-notes-optional" rows={3} placeholder="Anything we should know?" value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })}
-                  className="w-full rounded-xl border border-[#e8e6e0] px-4 py-3 text-sm resize-none focus:outline-none focus:ring-2 focus:border-accent transition-all" />
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Step: Confirm */}
-        {step === "confirm" && (
-          <div>
-            <h2 className="font-syne font-bold text-2xl mb-2">Confirm booking</h2>
-            <p className="text-[#6b6b80] mb-6">Review your {appt1} details before confirming.</p>
-            <div className="rounded-2xl border border-[#e8e6e0] bg-white p-5 mb-4" data-testid="booking-summary">
-              <p className="text-sm"><span className="text-[#6b6b80]">Booking for:</span> <strong>{patientLabel}</strong>
-                <span className="text-[#6b6b80]"> · Booked by:</span> <strong>{form.name}</strong>
-                <span className="text-[#6b6b80]"> · </span><strong style={{ color }}>{payNowMinor > 0 ? payNowLabel : formatCurrencyAmount(totalPrice, business.currency)}</strong></p>
-              {forSomeone && <p className="text-xs text-[#6b6b80] mt-2">This is a separate {appt1} with its own {payNowMinor > 0 ? "payment" : "fee"} of {payNowMinor > 0 ? payNowLabel : formatCurrencyAmount(totalPrice, business.currency)}.</p>}
-            </div>
-            <div className="bg-white rounded-2xl border border-[#e8e6e0] p-6 mb-4">
-              <div className="flex justify-between text-sm py-2.5 border-b border-[#f5f3ef]">
-                <span className="text-[#6b6b80]">Business</span>
-                <span className="font-medium">{business.name}</span>
-              </div>
-
-              {/* Services list */}
-              <div className="py-2.5 border-b border-[#f5f3ef]">
-                <div className="flex justify-between text-sm mb-2">
-                  <span className="text-[#6b6b80]">{word("service", { cap: true, plural: selectedServiceObjs.length > 1 })}</span>
-                  <span className="font-medium">{selectedServiceObjs.length} selected</span>
-                </div>
-                <div className="space-y-1.5 mt-1">
-                  {selectedServiceObjs.map(svc => (
-                    <div key={svc.id} className="flex items-center justify-between text-sm bg-[#f8f7f4] rounded-lg px-3 py-2">
-                      <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: svc.color }} />
-                        <span className="font-medium">{svc.name}</span>
-                        <span className="text-[#6b6b80] text-xs">{svc.duration} min</span>
+                </fieldset>
+                {forSomeone && (
+                  <div className="bk-inset">
+                    <div className="bk-field">
+                      <label htmlFor="booking-patient-name">Patient&apos;s full name *</label>
+                      <input id="booking-patient-name" className="bk-input" value={patientName} maxLength={120} onChange={e => setPatientName(e.target.value)} placeholder="Who is this for?" />
+                    </div>
+                    <div className="bk-field">
+                      <label htmlFor="booking-relation">Relation to you (optional)</label>
+                      <select id="booking-relation" className="bk-input" value={relation} onChange={e => setRelation(e.target.value as PatientRelation | "")}>
+                        <option value="">Choose…</option>
+                        {PATIENT_RELATIONS.map(r => <option key={r} value={r}>{PATIENT_RELATION_LABELS[r]}</option>)}
+                      </select>
+                    </div>
+                    {business.packId === "CLINIC" && (
+                      <div className="bk-cols">
+                        <div className="bk-field">
+                          <label htmlFor="booking-age">Age (optional)</label>
+                          <input id="booking-age" className="bk-input" type="number" inputMode="numeric" min={0} max={120} value={patientAge} onChange={e => setPatientAge(e.target.value)} />
+                        </div>
+                        <div className="bk-field">
+                          <label htmlFor="booking-gender">Gender (optional)</label>
+                          <select id="booking-gender" className="bk-input" value={patientGender} onChange={e => setPatientGender(e.target.value)}>
+                            <option value="">Choose…</option>
+                            {PATIENT_GENDERS.map(g => <option key={g} value={g}>{g[0].toUpperCase() + g.slice(1)}</option>)}
+                          </select>
+                        </div>
                       </div>
-                      <span className="font-semibold text-xs" style={{ color }}>{formatCurrencyAmount(svc.price, business.currency)}</span>
+                    )}
+                    <p className="bk-note warn" style={{ margin: 0 }}>This is a separate {appt1} with its own payment, even if you already have one.</p>
+                  </div>
+                )}
+                {forSomeone && <p className="bk-subhead">Your details (the person booking)</p>}
+                <div className="bk-cols">
+                  {[{ label: "Full name", key: "name", type: "text", placeholder: "Jane Smith" }, { label: phoneNeeded ? "Phone number *" : "Phone number (optional)", key: "phone", type: "tel", placeholder: "+91 98765 43210" }].map(f => (
+                    <div key={f.key} className="bk-field">
+                      <label htmlFor={`booking-${f.key}`}>{f.label}</label>
+                      <input id={`booking-${f.key}`} className="bk-input" type={f.type} placeholder={f.placeholder} value={form[f.key as keyof typeof form]} onChange={e => setForm({ ...form, [f.key]: e.target.value })} />
                     </div>
                   ))}
                 </div>
-              </div>
-
-              {[
-                { label: Stf1, value: tokenMode ? tokenPick?.staffName : selectedStaff === "any" ? "No preference" : staff?.name },
-                { label: "Date", value: dateStr },
-                ...(tokenMode
-                  ? [{ label: "Session", value: tokenPick ? `${tokenPick.name} (${tokenPick.startTime} – ${tokenPick.endTime})` : "—" }, { label: "Token", value: "Number and estimated time are shown once confirmed" }]
-                  : [{ label: "Time", value: selectedTime }, { label: "Total duration", value: `${totalDuration} min` }]),
-                { label: forSomeone ? "Booked by" : "Name", value: form.name },
-                ...(forSomeone && patientName.trim() ? [{ label: `${Svc1} for`, value: `${patientName.trim()}${relation ? ` (${PATIENT_RELATION_LABELS[relation]})` : ""}` }] : []),
-                { label: "Email", value: form.email },
-              ].map(row => (
-                <div key={row.label} className="flex justify-between text-sm py-2.5 border-b border-[#f5f3ef] last:border-0">
-                  <span className="text-[#6b6b80]">{row.label}</span>
-                  <span className="font-medium">{row.value || "—"}</span>
+                <div className="bk-field">
+                  <label htmlFor="booking-email-address">Email address</label>
+                  <input id="booking-email-address" className="bk-input" type="email" required placeholder="jane@email.com" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} />
                 </div>
-              ))}
-              <div className="flex justify-between pt-3 mt-1 border-t border-[#f5f3ef]">
-                <span className="font-bold">Total</span>
-                <span className="font-bold text-lg" style={{ color }}>{formatCurrencyAmount(totalPrice, business.currency)}</span>
+                <div className="bk-field">
+                  <label htmlFor="booking-notes-optional">Notes (optional)</label>
+                  <textarea id="booking-notes-optional" className="bk-input" rows={3} placeholder="Anything we should know?" value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} />
+                </div>
               </div>
-              <div className="flex justify-between text-sm pt-2">
-                <span className="text-[#6b6b80]">Payment</span>
-                <span className={`font-semibold text-right ${payAtVenue ? "text-amber-600" : "text-green-600"}`}>{paymentLabel}</span>
-              </div>
-            </div>
-            {payNowMinor > 0 && (
-              <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-3 text-sm text-green-800 mb-4">
-                You&apos;ll pay {payNowLabel} securely online (UPI recommended). Your {appt1} is held for {HOLD_MINUTES} minutes while you pay.
-              </div>
-            )}
-            {payAtVenue && payNowMinor === 0 && (
-              <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-700 mb-4">
-                💵 Payment will be collected at the time of your appointment.
-              </div>
-            )}
-            <div className="bg-blue-50 rounded-xl px-4 py-3 text-sm text-blue-700 mb-4">
-              📧 A confirmation will be sent to <strong>{form.email}</strong> along with a reminder 24h before.
-            </div>
-            {error && <p className="text-sm text-red-600 bg-red-50 rounded-xl px-4 py-3 mb-4">{error}</p>}
-            {refusal && (
-              <div role="alert" className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-4 mb-4 text-sm text-amber-900 space-y-3">
-                {refusal.code === "PEOPLE_CAP" ? (
-                  <>
-                    <p className="font-semibold">That is the most people we can book for you in one day.</p>
-                    <p>{refusal.message}</p>
-                  </>
-                ) : (
-                  <>
-                    <p className="font-semibold">That {appt1} is already booked.</p>
-                    <p>{refusal.message.replace(/ To book for someone else, enter their name\.$/, "")}</p>
-                    <p className="font-medium">Book another {appt1}:</p>
-                    <div className="grid sm:grid-cols-2 gap-2">
-                      <button type="button" onClick={() => { setRefusal(null); setForSomeone(false); setSelectedDate(null); setSelectedTime(null); setTokenPick(null); setStep("datetime"); }}
-                        className="min-h-14 rounded-xl border border-amber-400 bg-white px-4 font-semibold">For me, on another date</button>
-                      <button type="button" onClick={() => { setRefusal(null); setForSomeone(true); setPatientName(""); setStep("details"); }}
-                        className="min-h-14 rounded-xl bg-[#0f0f1a] px-4 text-white font-semibold">For someone else</button>
-                    </div>
-                  </>
-                )}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Navigation */}
-        <div className="flex items-center justify-between mt-8">
-          {stepIndex > 0 ? (
-            <button onClick={back} className="flex items-center gap-2 text-[#6b6b80] hover:text-[#0f0f1a] transition-colors text-sm font-medium">
-              <ChevronLeft size={16} /> Back
-            </button>
-          ) : <div />}
-
-          {step === "confirm" ? (
-            <button onClick={handleConfirm} disabled={!!refusal || loading || !form.name || !form.email || !isValidEmail(form.email) || (phoneNeeded && !form.phone.trim()) || (forSomeone && !patientName.trim())}
-              className="flex items-center gap-2 text-white font-semibold px-6 py-3 rounded-xl text-sm transition-colors disabled:opacity-60 disabled:cursor-not-allowed hover:opacity-90"
-              style={{ background: color, color: fg }}>
-              {loading ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
-              {loading ? "Processing…" : payNowMinor > 0 ? `Pay ${payNowLabel} & book` : "Confirm booking"}
-            </button>
-          ) : (
-            <button onClick={next} disabled={
-              (step === "service" && selectedServices.length === 0) ||
-              (step === "staff" && (provider.kind === "none" || (provider.kind === "choose" && !selectedStaff))) ||
-              (step === "datetime" && (tokenMode ? !tokenPick : (!selectedDate || !selectedTime))) ||
-              (step === "details" && (!form.name || !form.email || !isValidEmail(form.email) || (phoneNeeded && !form.phone.trim()) || (forSomeone && !patientName.trim())))
-            }
-              className="flex items-center gap-2 bg-[#0f0f1a] text-white font-semibold px-6 py-3 rounded-xl text-sm hover:bg-[#1a1a2e] transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-              Continue <ChevronRight size={16} />
-            </button>
+            </section>
           )}
-        </div>
+
+          {/* Step: Confirm */}
+          {step === "confirm" && (
+            <section className="bk-step">
+              <h2>Confirm booking</h2>
+              <p className="bk-sub">Review your {appt1} details before confirming.</p>
+              <div className="bk-card" data-testid="booking-summary">
+                <p><span className="st-muted">Booking for:</span> <strong>{patientLabel}</strong>
+                  <span className="st-muted"> · Booked by:</span> <strong>{form.name}</strong>
+                  <span className="st-muted"> · </span><strong style={{ color: "var(--brand-ink)" }}>{payNowMinor > 0 ? payNowLabel : formatCurrencyAmount(totalPrice, business.currency)}</strong></p>
+                {forSomeone && <p className="st-muted" style={{ fontSize: "0.8125rem", marginTop: 8 }}>This is a separate {appt1} with its own {payNowMinor > 0 ? "payment" : "fee"} of {payNowMinor > 0 ? payNowLabel : formatCurrencyAmount(totalPrice, business.currency)}.</p>}
+              </div>
+              <div className="bk-rows">
+                <div className="bk-row"><span>Business</span><span>{business.name}</span></div>
+                <div className="bk-lines">
+                  <div className="bk-row" style={{ padding: 0, border: 0 }}>
+                    <span>{word("service", { cap: true, plural: selectedServiceObjs.length > 1 })}</span>
+                    <span>{selectedServiceObjs.length} selected</span>
+                  </div>
+                  {selectedServiceObjs.map(svc => (
+                    <div key={svc.id} className="bk-line">
+                      <span><strong>{svc.name}</strong><small>{svc.duration} min</small></span>
+                      <strong>{formatCurrencyAmount(svc.price, business.currency)}</strong>
+                    </div>
+                  ))}
+                </div>
+                {[
+                  { label: Stf1, value: providerName },
+                  { label: "Date", value: dateStr },
+                  ...(tokenMode
+                    ? [{ label: "Session", value: tokenPick ? `${tokenPick.name} (${tokenPick.startTime} – ${tokenPick.endTime})` : "—" }, { label: "Queue number", value: "Shown once confirmed, with your estimated time" }]
+                    : [{ label: "Time", value: selectedTime }, { label: "Total duration", value: `${totalDuration} min` }]),
+                  { label: forSomeone ? "Booked by" : "Name", value: form.name },
+                  ...(forSomeone && patientName.trim() ? [{ label: `${Svc1} for`, value: `${patientName.trim()}${relation ? ` (${PATIENT_RELATION_LABELS[relation]})` : ""}` }] : []),
+                  { label: "Email", value: form.email },
+                ].map(row => (
+                  <div key={row.label} className="bk-row">
+                    <span>{row.label}</span>
+                    <span>{row.value || "—"}</span>
+                  </div>
+                ))}
+                <div className="bk-total"><span>Total</span><span>{formatCurrencyAmount(totalPrice, business.currency)}</span></div>
+                <div className="bk-row" style={{ borderBottom: 0, paddingBottom: 14 }}>
+                  <span>Payment</span>
+                  <span style={{ color: payAtVenue ? "#92400e" : "#166534" }}>{paymentLabel}</span>
+                </div>
+              </div>
+              {payNowMinor > 0 && (
+                <p className="bk-note ok">You&apos;ll pay {payNowLabel} securely online (UPI recommended). Your {appt1} is held for {HOLD_MINUTES} minutes while you pay.</p>
+              )}
+              {payAtVenue && payNowMinor === 0 && (
+                <p className="bk-note warn">Payment will be collected at the time of your appointment.</p>
+              )}
+              <p className="bk-note">A confirmation will be sent to <strong>{form.email}</strong> along with a reminder 24h before.</p>
+              {error && <p className="bk-note err" role="alert">{error}</p>}
+              {refusal && (
+                <div role="alert" className="bk-alert">
+                  {refusal.code === "PEOPLE_CAP" ? (
+                    <>
+                      <p style={{ fontWeight: 700 }}>That is the most people we can book for you in one day.</p>
+                      <p>{refusal.message}</p>
+                    </>
+                  ) : (
+                    <>
+                      <p style={{ fontWeight: 700 }}>That {appt1} is already booked.</p>
+                      <p>{refusal.message.replace(/ To book for someone else, enter their name\.$/, "")}</p>
+                      <p style={{ fontWeight: 600 }}>Book another {appt1}:</p>
+                      <div className="bk-cols">
+                        <button type="button" onClick={() => { setRefusal(null); setForSomeone(false); setSelectedDate(null); setSelectedTime(null); setTokenPick(null); setStep("datetime"); }}
+                          style={{ border: "1px solid #f59e0b", background: "#fff" }}>For me, on another date</button>
+                        <button type="button" onClick={() => { setRefusal(null); setForSomeone(true); setPatientName(""); setStep("details"); }}
+                          style={{ border: 0, background: "#16181d", color: "#fff" }}>For someone else</button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+            </section>
+          )}
+
+          {/* Navigation */}
+          <nav className="bk-nav" aria-label="Booking steps">
+            {stepIndex > 0 ? (
+              <button type="button" onClick={back} className="bk-link"><ChevronLeft size={16} aria-hidden /> Back</button>
+            ) : <span className="bk-spacer" />}
+            {selectedServiceObjs.length > 0 && (
+              <span className="bk-nav-total"><b>{formatCurrencyAmount(totalPrice, business.currency)}</b>{totalDuration} min</span>
+            )}
+            {step === "confirm" ? (
+              <button type="button" onClick={handleConfirm} disabled={confirmDisabled} className="st-btn st-btn-primary">
+                {loading ? <Loader2 size={16} className="animate-spin" aria-hidden /> : <Check size={16} aria-hidden />}
+                {loading ? "Processing…" : payNowMinor > 0 ? `Pay ${payNowLabel} & book` : "Confirm booking"}
+              </button>
+            ) : (
+              <button type="button" onClick={next} disabled={continueDisabled} className="st-btn st-btn-primary">
+                Continue <ChevronRight size={16} aria-hidden />
+              </button>
+            )}
+          </nav>
+        </main>
+
+        <aside className="bk-side">
+          {selectedServiceObjs.length > 0 && (
+            <div className="bk-summary" aria-label="Booking summary">
+              <h3>Your booking</h3>
+              <ul>
+                {selectedServiceObjs.map(svc => (
+                  <li key={svc.id}><span>{svc.name}</span><strong>{formatCurrencyAmount(svc.price, business.currency)}</strong></li>
+                ))}
+              </ul>
+              <dl>
+                <dt>Duration</dt><dd>{totalDuration} min</dd>
+                {providerName && <><dt>{Stf1}</dt><dd>{providerName}</dd></>}
+                {whenLabel && <><dt>When</dt><dd>{whenLabel}</dd></>}
+              </dl>
+              <div className="bk-total"><span>Total</span><span>{formatCurrencyAmount(totalPrice, business.currency)}</span></div>
+            </div>
+          )}
+          <div className="bk-biz">
+            <b>{business.name}</b>
+            {business.description && <p>{business.description}</p>}
+            {business.address && <span className="line"><MapPin aria-hidden />{business.address}</span>}
+            {business.phone && <a href={`tel:${business.phone}`}><Phone aria-hidden />{business.phone}</a>}
+            {business.website && <a href={business.website} target="_blank" rel="noreferrer"><Globe aria-hidden />{business.website.replace(/^https?:\/\//, "")}</a>}
+            {hasSocial && <SocialIcons links={social} tone="dark" />}
+          </div>
+        </aside>
       </div>
     </div>
   );

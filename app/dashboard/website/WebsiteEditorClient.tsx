@@ -70,7 +70,7 @@ function ImagePreview({ label, url, onChangePic }: { label: string; url: string;
 }
 
 // ── Image Picker Modal ────────────────────────────────────────────────────────
-function ImagePickerModal({ isOpen, current, onSelect, onClose, showUpload = true }: { isOpen: boolean; current: string; onSelect: (url: string) => void; onClose: () => void; showUpload?: boolean }) {
+function ImagePickerModal({ isOpen, current, onSelect, onClose, showUpload = true, purpose = "about" }: { isOpen: boolean; current: string; onSelect: (url: string) => void; onClose: () => void; showUpload?: boolean; purpose?: "hero" | "about" }) {
   const [tab, setTab] = useState<"library" | "url" | "upload">("library");
   const [customUrl, setCustomUrl] = useState(current.startsWith("http") && !current.includes("unsplash") ? current : "");
   const [uploading, setUploading] = useState(false);
@@ -84,6 +84,7 @@ function ImagePickerModal({ isOpen, current, onSelect, onClose, showUpload = tru
     try {
       const fd = new FormData();
       fd.append("file", file);
+      fd.append("purpose", purpose);
       const res = await fetch("/api/upload", { method: "POST", body: fd });
       const text = await res.text();
       let data: { url?: string; error?: string } = {};
@@ -155,7 +156,7 @@ function ImagePickerModal({ isOpen, current, onSelect, onClose, showUpload = tru
               <>
                 <Upload size={28} className="text-[#c5c3bf] mb-3" />
                 <span className="text-sm font-medium text-[#3d3d4d]">Click to upload an image</span>
-                <span className="text-xs text-[#6b6b80] mt-1">JPG, PNG, WebP — max 5 MB</span>
+                <span className="text-xs text-[#6b6b80] mt-1">JPG, PNG, WebP — max 5 MB. We crop it to fit automatically.</span>
               </>
             )}
             <input type="file" accept="image/*" className="sr-only" disabled={uploading} onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
@@ -360,6 +361,7 @@ export function WebsiteEditorClient({ terms, slug, businessName, businessType, w
         onSelect={url => { if (pickerTarget === "hero") setConfig({ ...config, hero: { ...config.hero, image: url } }); else if (pickerTarget === "about") setConfig({ ...config, about: { ...config.about, image: url } }); }}
         onClose={() => setPickerTarget(null)}
         showUpload={imageUpload}
+        purpose={pickerTarget === "hero" ? "hero" : "about"}
       />
     </DashboardLayout>
   );

@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { Check, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export interface TokenOption {
@@ -13,13 +13,19 @@ const localToday = () => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 };
 
-/** Public booking step for token businesses: pick a date, then a session ("~N left"). */
-export function TokenPicker({ slug, serviceIds, date, selectedId, onPick, heldSessions, staffWord, appointmentWord, color, fg }: {
+/**
+ * Public booking step for queue (token) businesses: pick a date, then a session. Styled by the
+ * booking page's `bk-*` classes, so it is only used inside that page. Customers never see the word
+ * "token": it is a number in the queue with an estimated time.
+ */
+export function TokenPicker({ slug, serviceIds, date, selectedId, onPick, heldSessions, staffWord, appointmentWord }: {
   slug: string; serviceIds: string[]; date: string; selectedId: string | null;
   onPick: (date: string, option: TokenOption | null) => void;
   /** Session id -> "Token #5": sessions in which the booker already holds a token for themselves. */
   heldSessions?: Record<string, string>;
-  staffWord: string; appointmentWord: string; color: string; fg: string;
+  staffWord: string; appointmentWord: string;
+  /** Kept so callers need not change; colours now come from the page's brand variables. */
+  color?: string; fg?: string;
 }) {
   const [state, setState] = useState<{ key: string; sessions: TokenOption[]; next: { date: string; sessionName: string } | null; error: string } | null>(null);
   const key = `${slug}|${date}|${serviceIds.join(",")}`;
@@ -41,30 +47,28 @@ export function TokenPicker({ slug, serviceIds, date, selectedId, onPick, heldSe
   const multiQueue = new Set(ready?.sessions.map((s) => s.staffId)).size > 1 || !!ready?.sessions.some((s) => s.staffId);
 
   return (
-    <div>
-      <h2 className="font-syne font-bold text-2xl mb-2">Pick a date & session</h2>
-      <p className="text-[#6b6b80] mb-6">You will get a token number and an estimated time for your {appointmentWord}.</p>
-      <div className="bg-white rounded-2xl border border-[#e8e6e0] p-5 mb-4">
-        <label htmlFor="token-date" className="text-sm font-medium block mb-1.5">Date</label>
-        <input
-          id="token-date" type="date" min={localToday()} value={date}
-          onChange={(e) => onPick(e.target.value, null)}
-          className="w-full sm:w-60 rounded-xl border border-[#e8e6e0] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/20"
-        />
+    <section className="bk-step">
+      <h2>Pick a date &amp; session</h2>
+      <p className="bk-sub">You will get a number in the queue and an estimated time for your {appointmentWord}.</p>
+      <div className="bk-card">
+        <div className="bk-field">
+          <label htmlFor="token-date">Date</label>
+          <input id="token-date" type="date" min={localToday()} value={date} onChange={(e) => onPick(e.target.value, null)} className="bk-input" style={{ maxWidth: 260 }} />
+        </div>
       </div>
 
-      {date && !ready && <div className="flex items-center gap-2 text-sm text-[#6b6b80]"><Loader2 size={16} className="animate-spin" /> Loading sessions…</div>}
-      {ready?.error && <p role="alert" className="text-sm text-red-600 bg-red-50 rounded-xl px-4 py-3">{ready.error}</p>}
+      {date && !ready && <div className="bk-center"><Loader2 size={18} className="animate-spin" style={{ display: "inline", marginRight: 8 }} aria-hidden /> Loading sessions…</div>}
+      {ready?.error && <p role="alert" className="bk-note err">{ready.error}</p>}
 
       {ready && !ready.error && ready.sessions.length === 0 && (
-        <div className="text-sm text-[#6b6b80] bg-white rounded-2xl border border-[#e8e6e0] p-5">
+        <div className="bk-card st-muted" style={{ fontSize: "0.9375rem" }}>
           No sessions on this date.
-          {ready.next && <> Next available: <button type="button" className="font-semibold underline" onClick={() => onPick(ready.next!.date, null)}>{ready.next.date}, {ready.next.sessionName}</button>.</>}
+          {ready.next && <> Next available: <button type="button" style={{ fontWeight: 600, textDecoration: "underline", background: "none", border: 0, cursor: "pointer", color: "var(--ink)", font: "inherit" }} onClick={() => onPick(ready.next!.date, null)}>{ready.next.date}, {ready.next.sessionName}</button>.</>}
         </div>
       )}
 
       {ready && ready.sessions.length > 0 && (
-        <div className="space-y-2" role="radiogroup" aria-label="Sessions">
+        <div role="radiogroup" aria-label="Sessions">
           {ready.sessions.map((s) => {
             const held = heldSessions?.[s.id];
             const full = s.left <= 0 || !!held;
@@ -73,27 +77,22 @@ export function TokenPicker({ slug, serviceIds, date, selectedId, onPick, heldSe
               <button
                 key={s.id} type="button" role="radio" aria-checked={on} disabled={full}
                 onClick={() => onPick(date, s)}
-                className={cn(
-                  "w-full text-left rounded-2xl border p-4 transition-colors flex items-center justify-between gap-3",
-                  full ? "opacity-50 cursor-not-allowed border-[#e8e6e0] bg-white" : on ? "border-transparent" : "border-[#e8e6e0] bg-white hover:border-[#0f0f1a]/40",
-                )}
-                style={on ? { background: color, color: fg } : undefined}
+                className={cn("bk-opt", on && "sel")}
               >
-                <div>
-                  <div className="font-semibold">{s.name}</div>
-                  <div className={cn("text-xs", on ? "opacity-80" : "text-[#6b6b80]")}>
-                    {s.startTime} – {s.endTime}{multiQueue && s.staffName ? ` · ${s.staffName}` : ""}
-                  </div>
-                </div>
-                <div className={cn("text-sm font-medium whitespace-nowrap", !on && (full ? "text-red-600" : "text-green-700"))}>
-                  {held ? `You already have ${held}` : full ? "Full" : `~${s.left} left`}
-                </div>
+                <span className="bk-tick round" aria-hidden><Check size={14} strokeWidth={3} /></span>
+                <span className="bk-opt-title">{s.name}</span>
+                <span className="bk-opt-right" style={{ fontSize: "0.875rem", color: full ? "#b91c1c" : "#166534" }}>
+                  {held ? `You already have ${held}` : full ? "Full" : `${s.left} places left`}
+                </span>
+                <span className="bk-opt-sub">
+                  {s.startTime} – {s.endTime}{multiQueue && s.staffName ? ` · ${s.staffName}` : ""}
+                </span>
               </button>
             );
           })}
-          {multiQueue && <p className="text-xs text-[#6b6b80] pt-1">Each {staffWord} has their own queue and token numbers.</p>}
+          {multiQueue && <p className="st-muted" style={{ fontSize: "0.8125rem", paddingTop: 4 }}>Each {staffWord} has their own queue and numbers.</p>}
         </div>
       )}
-    </div>
+    </section>
   );
 }

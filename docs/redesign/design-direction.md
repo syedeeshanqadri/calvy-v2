@@ -26,7 +26,7 @@ Scope: tenant site `{slug}` and booking page `/b/{slug}`. Mobile-first at 375px,
 - `--brand` = `Business.themeColor` via `themeVars()`: primary buttons, chips, selected states, links, map pin, avatar tint. `--brand-soft` (8% mix) for selected backgrounds; `--brand-fg` from `readableForeground()`.
 - Text in brand colour needs 4.5:1 on white. If `contrastRatio(brand, #fff) < 4.5`, darken it for text and keep the original for fills (new helper `brandInk()`). Pack presets should all pass.
 - Logo replaces the monogram in the header, booking header and favicon. Pack icon (lucide, `pack.icons`) is used only where there is no logo or photo, never as decoration.
-- Hero/about photos: owner upload first, then the pack default. **Bug found:** `HERO_IMAGES.salon` (`photo-1560472354…`) in `lib/website.ts` shows an analytics dashboard, not a salon; the clinic "Healthcare" photo is a surgery shot. Replace both.
+- Hero/about photos: owner upload first, then the pack default. The hero photo always fills the full height of the hero panel (`object-fit: cover`). Uploads are smart-cropped server-side to 4:3 (1600x1200 hero, 1200x900 about) and saved as WebP, so any dimensions look right; the library and URL options rely on the same cover crop. **Bug found:** `HERO_IMAGES.salon` (`photo-1560472354…`) in `lib/website.ts` shows an analytics dashboard, not a salon; the clinic "Healthcare" photo is a surgery shot. Replace both.
 
 ## Per-pack differences (colour always comes from the tenant)
 | Pack | Display face | Hero | Corners | Availability card |

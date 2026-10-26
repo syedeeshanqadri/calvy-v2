@@ -3,7 +3,8 @@ import sharp from "sharp";
 import { checkLogoBytes, MAX_LOGO_BYTES } from "@/lib/validation/logo";
 import { processLogo } from "@/lib/logo";
 import { normalizeSocial, normalizeSocialLinks, parseSocialLinks, normalizeReviewLink, safeReviewLink } from "@/lib/brandLinks";
-import { formatOpeningHours, mapsEmbedUrl, openStatus } from "@/lib/hours";
+import { formatOpeningHours, mapsEmbedUrl, openStatus, summarizeHours } from "@/lib/hours";
+import { currentPhoto, defaultWebsiteConfig } from "@/lib/website";
 import { assertSafeKey, localStorageAdapter } from "@/lib/storage";
 
 const enc = (s: string) => new TextEncoder().encode(s);
@@ -181,5 +182,38 @@ describe("step-6/redesign-site-foundation: open-now status", () => {
   });
   it("falls back to UTC for a bad timezone instead of throwing", () => {
     expect(() => openStatus(rows, "Not/AZone", at("2026-10-26T05:30:00"))).not.toThrow();
+  });
+});
+
+describe("step-6/redesign-site-foundation: footer hours summary", () => {
+  it("groups consecutive days with the same hours", () => {
+    const rows = [1, 2, 3, 4, 5].map((weekday) => ({ weekday, startMin: 540, endMin: 1080 })).concat([{ weekday: 6, startMin: 600, endMin: 780 }]);
+    expect(summarizeHours(formatOpeningHours(rows))).toEqual([
+      { days: "Mon – Fri", label: "9:00 AM – 6:00 PM", closed: false },
+      { days: "Sat", label: "10:00 AM – 1:00 PM", closed: false },
+      { days: "Sun", label: "Closed", closed: true },
+    ]);
+  });
+  it("no rows at all is one Closed run for the whole week", () => {
+    expect(summarizeHours(formatOpeningHours([]))).toEqual([{ days: "Mon – Sun", label: "Closed", closed: true }]);
+  });
+});
+
+describe("step-6/redesign-site-foundation: default photos", () => {
+  it("swaps a retired default for the current one by business type, in the right slot", () => {
+    const old = "https://images.unsplash.com/photo-1579684385127-1ef15d508118?auto=format&fit=crop&w=1920&q=80";
+    expect(currentPhoto(old, "clinic", "hero")).toContain("photo-1631217868264-e5b90bb7e133");
+    expect(currentPhoto(old, "clinic", "about")).toContain("photo-1519494026892-80bbd2d6fd0d");
+    expect(currentPhoto(old, "lawyer", "hero")).toContain("photo-1589829545856-d10d557cf95f");
+  });
+  it("leaves an owner-chosen or uploaded photo alone", () => {
+    const own = "https://example.com/uploads/me.jpg";
+    expect(currentPhoto(own, "clinic", "hero")).toBe(own);
+    expect(currentPhoto("", "clinic", "hero")).toBe("");
+  });
+  it("new websites get a hero for every pack's business type", () => {
+    for (const type of ["clinic", "salon", "lawyer", "fitness", "consultant", "general"]) {
+      expect(defaultWebsiteConfig("X", type).hero.image).toMatch(/^https:\/\/images\.unsplash\.com\/photo-/);
+    }
   });
 });

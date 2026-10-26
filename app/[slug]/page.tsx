@@ -4,17 +4,17 @@ import Link from "next/link";
 import Image from "next/image";
 import { prisma } from "@/lib/prisma";
 import { t } from "@/lib/terms";
-import { parseWebsiteConfig, defaultWebsiteConfig, WebsiteConfig } from "@/lib/website";
-import { MapPin, Phone, Mail, Clock, ArrowRight } from "lucide-react";
+import { parseWebsiteConfig, defaultWebsiteConfig, WebsiteConfig, currentPhoto } from "@/lib/website";
+import { MapPin, Phone, Mail, Clock, ArrowRight, Check } from "lucide-react";
 import { formatCurrencyAmount } from "@/lib/currency";
 import { getFlags } from "@/lib/flags";
 import { ChatWidget } from "@/components/chatbot/ChatWidget";
 import { getBusinessFeatures } from "@/lib/getFeatures";
 import { contactRequirements } from "@/lib/patients";
-import { safeThemeColor, readableForeground, themeVars } from "@/lib/theme";
+import { safeThemeColor, readableForeground, themeVars, brandInk } from "@/lib/theme";
 import { BrandMark, SocialIcons, ReviewButton, initialsOf } from "@/components/site/Brand";
 import { parseSocialLinks, safeReviewLink } from "@/lib/brandLinks";
-import { formatOpeningHours, mapsEmbedUrl, openStatus } from "@/lib/hours";
+import { formatOpeningHours, mapsEmbedUrl, openStatus, summarizeHours } from "@/lib/hours";
 import { siteFontClasses } from "./fonts";
 import "./site.css";
 
@@ -136,10 +136,18 @@ export default async function TenantWebsitePage(props: { params: Promise<{ slug:
   const showPhone = cfg.contact.showPhone && !!business.phone;
   const showEmail = cfg.contact.showEmail && !!business.email;
   const hasContactRows = showPhone || showEmail || showAddress;
+  const heroImage = currentPhoto(cfg.hero.image, business.businessType, "hero");
+  const aboutImage = currentPhoto(cfg.about.image, business.businessType, "about");
+  // The open-now card sits on the hero photo; without a photo it moves into the facts strip.
+  const heroShowsStatus = cfg.hero.enabled && !!heroImage && !!status && showHours;
+  // Text on the booking card button: brand colour on white, or the light brand colour on a dark button.
+  const onInvert = primaryFg === "#ffffff" ? brandInk(primary) : primary;
+  const footerHours = summarizeHours(hours);
   const factItems = [
-    status && showHours && { key: "hours", icon: <Clock className="st-ico" aria-hidden />, text: <span className={status.open ? "st-open" : "st-shut"}>{status.label}</span> },
+    status && showHours && !heroShowsStatus && { key: "hours", icon: <Clock className="st-ico" aria-hidden />, text: <span className={status.open ? "st-open" : "st-shut"}>{status.label}</span> },
     showAddress && { key: "address", icon: <MapPin className="st-ico" aria-hidden />, text: <span>{business.address}</span> },
     showPhone && { key: "phone", icon: <Phone className="st-ico" aria-hidden />, text: <a href={`tel:${business.phone}`}>{business.phone}</a> },
+    showEmail && { key: "email", icon: <Mail className="st-ico" aria-hidden />, text: <a href={`mailto:${business.email}`}>{business.email}</a> },
   ].filter(Boolean) as { key: string; icon: React.ReactNode; text: React.ReactNode }[];
 
   return (
@@ -168,8 +176,8 @@ export default async function TenantWebsitePage(props: { params: Promise<{ slug:
         {/* ── HERO ── */}
         {cfg.hero.enabled && (
           <section className="st-hero">
-            <div className={`st-wrap st-hero-grid${cfg.hero.image ? " has-image" : ""}`}>
-              <div>
+            <div className={`st-hero-grid${heroImage ? " has-image" : ""}`}>
+              <div className="st-hero-copy">
                 {cfg.hero.badge && <span className="st-badge">{cfg.hero.badge}</span>}
                 <h1>{cfg.hero.headline}</h1>
                 {cfg.hero.subheadline && <p className="st-lede">{cfg.hero.subheadline}</p>}
@@ -179,10 +187,20 @@ export default async function TenantWebsitePage(props: { params: Promise<{ slug:
                     <a href="#services" className="st-btn st-btn-ghost">{cfg.hero.secondaryCtaText}</a>
                   )}
                 </div>
+                {cfg.contact.ctaNote && <p className="st-reassure"><Check className="st-ico" aria-hidden />{cfg.contact.ctaNote}</p>}
               </div>
-              {cfg.hero.image && (
-                <div className="st-media">
-                  <Image src={cfg.hero.image} alt={business.name} fill priority sizes="(max-width: 900px) 100vw, 45vw" unoptimized />
+              {heroImage && (
+                <div className="st-hero-media">
+                  <Image src={heroImage} alt={business.name} fill priority sizes="(max-width: 900px) 100vw, 50vw" unoptimized />
+                  {heroShowsStatus && status && (
+                    <div className="st-hero-card">
+                      <span className="st-ico-wrap"><Clock className="st-ico" aria-hidden /></span>
+                      <div>
+                        <b className={status.open ? "st-open" : ""}>{status.label}</b>
+                        {showAddress && <span className="sub">{business.address}</span>}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -261,9 +279,9 @@ export default async function TenantWebsitePage(props: { params: Promise<{ slug:
         {cfg.about.enabled && (
           <section id="about" className="st-section">
             <div className="st-wrap st-about">
-              {cfg.about.image && (
-                <div className="st-media">
-                  <Image src={cfg.about.image} alt={business.name} fill sizes="(max-width: 900px) 100vw, 50vw" unoptimized />
+              {aboutImage && (
+                <div className="st-about-media">
+                  <Image src={aboutImage} alt={business.name} fill sizes="(max-width: 900px) 100vw, 50vw" unoptimized />
                 </div>
               )}
               <div>
@@ -288,22 +306,24 @@ export default async function TenantWebsitePage(props: { params: Promise<{ slug:
               <div>
                 {cfg.contact.badge && <div className="st-kicker">{cfg.contact.badge}</div>}
                 <h2>{cfg.contact.title}</h2>
-                {cfg.contact.subtext && <p className="st-muted" style={{ marginTop: 10 }}>{cfg.contact.subtext}</p>}
+                {cfg.contact.subtext && <p className="st-muted" style={{ marginTop: 12 }}>{cfg.contact.subtext}</p>}
                 {showHours && status && (
-                  <table className="st-hours">
-                    <caption className="st-sr">Opening hours</caption>
-                    <tbody>
-                      {hours.map((h) => (
-                        <tr key={h.weekday} className={`${h.weekday === status.weekday ? "today" : ""} ${h.closed ? "closed" : ""}`}>
-                          <th scope="row">
-                            {h.day}
-                            {h.weekday === status.weekday && <span className="st-today-tag">Today</span>}
-                          </th>
-                          <td>{h.label.split(", ").map((range, i) => <span key={i}>{i > 0 && <br />}{range}</span>)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                  <div className="st-card">
+                    <table className="st-hours">
+                      <caption className="st-sr">Opening hours</caption>
+                      <tbody>
+                        {hours.map((h) => (
+                          <tr key={h.weekday} className={`${h.weekday === status.weekday ? "today" : ""} ${h.closed ? "closed" : ""}`}>
+                            <th scope="row">
+                              {h.day}
+                              {h.weekday === status.weekday && <span className="st-today-tag">Today</span>}
+                            </th>
+                            <td>{h.label.split(", ").map((range, i) => <span key={i}>{i > 0 && <br />}{range}</span>)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 )}
                 {hasContactRows && (
                   <ul className="st-contact">
@@ -313,43 +333,34 @@ export default async function TenantWebsitePage(props: { params: Promise<{ slug:
                   </ul>
                 )}
               </div>
-              {showMap && (
-                <div className="st-map">
-                  <iframe title={`Map of ${business.name}`} src={mapsEmbedUrl(business.address!)} loading="lazy" referrerPolicy="no-referrer-when-downgrade" />
-                </div>
-              )}
-              <div className="st-cta">
-                <div>
+              <div className="st-visit-side">
+                <div className="st-cta-card">
                   <h3>{cfg.contact.ctaHeading}</h3>
                   {cfg.contact.ctaSubtext && <p>{cfg.contact.ctaSubtext}</p>}
-                </div>
-                <div>
-                  <Link href={bookingUrl} className="st-btn st-btn-primary">{cfg.hero.ctaText}</Link>
+                  <Link href={bookingUrl} className="st-btn st-btn-invert" style={{ "--on-invert": onInvert } as React.CSSProperties}>{cfg.hero.ctaText}</Link>
                   {cfg.contact.ctaNote && <small>{cfg.contact.ctaNote}</small>}
                 </div>
+                {showMap && (
+                  <div className="st-map">
+                    <iframe title={`Map of ${business.name}`} src={mapsEmbedUrl(business.address!)} loading="lazy" referrerPolicy="no-referrer-when-downgrade" />
+                  </div>
+                )}
               </div>
             </div>
           </section>
         )}
 
-        {/* ── REVIEW + SOCIAL ── */}
-        {(reviewUrl || hasSocial) && (
+        {/* ── REVIEW ── */}
+        {reviewUrl && (
           <section className="st-section">
-            <div className={`st-wrap st-connect${reviewUrl && hasSocial ? " two" : ""}`}>
-              {reviewUrl && (
-                <div className="st-panel">
+            <div className="st-wrap">
+              <div className="st-review">
+                <div>
                   <h3>Happy with your visit?</h3>
                   <p>A quick Google review helps others find us.</p>
-                  <ReviewButton href={reviewUrl} color={primary} fg={primaryFg} />
                 </div>
-              )}
-              {hasSocial && (
-                <div className="st-panel">
-                  <h3>Follow {business.name}</h3>
-                  <p>Updates and news.</p>
-                  <SocialIcons links={social} tone="dark" />
-                </div>
-              )}
+                <ReviewButton href={reviewUrl} color={primary} fg={primaryFg} />
+              </div>
             </div>
           </section>
         )}
@@ -357,14 +368,51 @@ export default async function TenantWebsitePage(props: { params: Promise<{ slug:
 
       {/* ── FOOTER ── */}
       <footer className="st-foot">
-        <div className="st-wrap">
-          <span>{business.name}{business.address ? `, ${business.address}` : ""}</span>
+        <div className="st-wrap st-foot-grid">
+          <div>
+            <div className="st-foot-name">
+              <BrandMark name={business.name} logoUrl={business.logoUrl} color={primary} fg={primaryFg} size={40} rounded={logoRadius} />
+              {business.name}
+            </div>
+            {business.description && <p className="st-foot-desc">{business.description}</p>}
+            {hasSocial && <SocialIcons links={social} tone="light" className="st-foot-social" />}
+          </div>
           <nav aria-label="Footer">
-            {cfg.about.enabled && <a href="#about">{cfg.about.title}</a>}
-            {cfg.services.enabled && business.services.length > 0 && <a href="#services">{cfg.services.title}</a>}
-            {hasTeam && <a href="#team">{cfg.team.title}</a>}
-            {cfg.contact.enabled && <a href="#contact">{cfg.contact.title}</a>}
+            <h3>Explore</h3>
+            <ul>
+              {cfg.about.enabled && <li><a href="#about">{cfg.about.title}</a></li>}
+              {cfg.services.enabled && business.services.length > 0 && <li><a href="#services">{cfg.services.title}</a></li>}
+              {hasTeam && <li><a href="#team">{cfg.team.title}</a></li>}
+              {cfg.contact.enabled && <li><a href="#contact">{cfg.contact.title}</a></li>}
+              <li><Link href={bookingUrl}>{cfg.hero.ctaText}</Link></li>
+            </ul>
           </nav>
+          {hasContactRows && (
+            <div>
+              <h3>Contact</h3>
+              <ul>
+                {showPhone && <li><a href={`tel:${business.phone}`}><Phone className="st-ico" aria-hidden />{business.phone}</a></li>}
+                {showEmail && <li><a href={`mailto:${business.email}`}><Mail className="st-ico" aria-hidden />{business.email}</a></li>}
+                {showAddress && <li><span><MapPin className="st-ico" aria-hidden />{business.address}</span></li>}
+              </ul>
+            </div>
+          )}
+          {showHours && (
+            <div>
+              <h3>Opening hours</h3>
+              <dl className="st-foot-hours">
+                {footerHours.map((h) => (
+                  <div key={h.days}><dt>{h.days}</dt><dd>{h.label}</dd></div>
+                ))}
+              </dl>
+            </div>
+          )}
+        </div>
+        <div className="st-foot-base">
+          <div className="st-wrap">
+            <span>&copy; {new Date().getFullYear()} {business.name}</span>
+            <span>Online booking by <a href="https://calvy.io">Calvy</a></span>
+          </div>
         </div>
       </footer>
 

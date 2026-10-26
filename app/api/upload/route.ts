@@ -11,6 +11,7 @@ import {
   TENANT_UPLOAD_MAX_FILES,
 } from "@/lib/validation/upload";
 import { rateLimit } from "@/lib/ratelimit";
+import { parsePhotoPurpose, processSitePhoto } from "@/lib/photo";
 import { logger, getRequestId } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
@@ -51,16 +52,20 @@ async function POST_handler(req: NextRequest) {
     const check = await checkImageUpload(file instanceof File ? file : null);
     if (!check.ok) return NextResponse.json({ error: check.error }, { status: 400 });
 
+    // Crop to the fixed hero/about size and re-encode, so any upload looks right on the site.
+    const photo = await processSitePhoto(new Uint8Array(await (file as File).arrayBuffer()), parsePhotoPurpose(formData.get("purpose")));
+    if (!photo.ok) return NextResponse.json({ error: photo.error }, { status: 400 });
+
     // Per-tenant quota (files and total bytes).
     const prefix = `website/${businessId}/`;
     const existing = await list({ prefix, limit: TENANT_UPLOAD_MAX_FILES + 1 });
     const usedBytes = existing.blobs.reduce((n, b) => n + b.size, 0);
-    if (existing.blobs.length >= TENANT_UPLOAD_MAX_FILES || usedBytes + (file as File).size > TENANT_UPLOAD_MAX_BYTES) {
+    if (existing.blobs.length >= TENANT_UPLOAD_MAX_FILES || usedBytes + photo.webp.length > TENANT_UPLOAD_MAX_BYTES) {
       return NextResponse.json({ error: "Upload limit reached. Delete unused images or contact support." }, { status: 403 });
     }
 
-    const pathname = `${prefix}${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${check.ext}`;
-    const blob = await put(pathname, file as File, { access: "public", contentType: check.contentType });
+    const pathname = `${prefix}${Date.now()}-${Math.random().toString(36).slice(2, 8)}.webp`;
+    const blob = await put(pathname, photo.webp, { access: "public", contentType: "image/webp" });
 
     return NextResponse.json({ url: blob.url });
   } catch (err) {

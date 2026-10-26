@@ -50,3 +50,15 @@ export function openStatus(rows: HoursRow[], timeZone: string, now: Date = new D
   if (later) return { weekday: local.weekday, open: false, label: `Closed now, opens ${formatMinutes(later.startMin)}` };
   return { weekday: local.weekday, open: false, label: today.length ? "Closed for today" : "Closed today" };
 }
+
+/** Compact hours for tight spaces: runs of consecutive days with the same hours become "Mon – Fri". */
+export function summarizeHours(lines: HoursLine[]): { days: string; label: string; closed: boolean }[] {
+  const out: { first: string; last: string; label: string; closed: boolean }[] = [];
+  for (const l of lines) {
+    const prev = out[out.length - 1];
+    if (prev && prev.label === l.label) prev.last = l.day;
+    else out.push({ first: l.day, last: l.day, label: l.label, closed: l.closed });
+  }
+  const short = (d: string) => d.slice(0, 3);
+  return out.map((r) => ({ days: r.first === r.last ? short(r.first) : `${short(r.first)} – ${short(r.last)}`, label: r.label, closed: r.closed }));
+}
