@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
 import type { TermsSource } from "@/lib/terms";
-import { parseWebsiteConfig, defaultWebsiteConfig, WebsiteConfig, PHOTO_LIBRARY, photoUrl } from "@/lib/website";
+import { parseWebsiteConfig, defaultWebsiteConfig, WebsiteConfig, PHOTO_LIBRARY, photoUrl, focusPosition, type ImageFocus } from "@/lib/website";
 import { Globe, Eye, ToggleLeft, ToggleRight, Check, Copy, ImageIcon, Link2, ChevronDown, Upload } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { BrandLinksCard } from "./BrandLinksCard";
@@ -48,21 +48,44 @@ function ToggleField({ label, value, onChange }: { label: string; value: boolean
 }
 
 // ── Image preview + change button ────────────────────────────────────────────
-function ImagePreview({ label, url, onChangePic }: { label: string; url: string; onChangePic: () => void }) {
+const FOCUS_OPTIONS: { v: ImageFocus; label: string }[] = [
+  { v: "top", label: "Top" },
+  { v: "center", label: "Middle" },
+  { v: "bottom", label: "Bottom" },
+];
+
+/** Shows the photo in the same fixed 4:3 frame the public site uses, so what you see is what visitors get. */
+function ImagePreview({ label, url, focus, onFocus, onChangePic, onReset }: {
+  label: string; url: string; focus?: ImageFocus; onFocus: (f: ImageFocus) => void; onChangePic: () => void; onReset: () => void;
+}) {
   return (
     <div>
       <label className="text-sm font-medium text-brand-800 block mb-1.5">{label}</label>
-      <div className="relative w-full h-36 rounded-2xl overflow-hidden border border-[#e8e6e0] group cursor-pointer" onClick={onChangePic}>
+      <button type="button" onClick={onChangePic} aria-label={`Change ${label.toLowerCase()}`}
+        className="relative block w-full max-w-sm aspect-[4/3] rounded-2xl overflow-hidden border border-[#e8e6e0] group text-left">
         {url ? (
-          <Image src={url} alt={label} fill className="object-cover group-hover:scale-105 transition-transform duration-300" sizes="600px" unoptimized />
+          <Image src={url} alt={label} fill className="object-cover" style={{ objectPosition: focusPosition(focus) }} sizes="400px" unoptimized />
         ) : (
-          <div className="w-full h-full bg-[#f8f7f4] flex flex-col items-center justify-center gap-2">
+          <span className="w-full h-full bg-[#f8f7f4] flex flex-col items-center justify-center gap-2">
             <ImageIcon size={24} className="text-[#c5c3bf]" />
             <span className="text-xs text-[#6b6b80]">Click to choose image</span>
-          </div>
+          </span>
         )}
-        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+        <span className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity flex items-center justify-center">
           <span className="px-4 py-2 rounded-xl bg-white text-xs font-bold text-brand-900 shadow-lg">Change Photo</span>
+        </span>
+      </button>
+      <p className="text-xs text-[#6b6b80] mt-1.5">Shown at a fixed size on your site. Any photo is cropped to fit, so pick which part to keep.</p>
+      <div className="flex flex-wrap items-center gap-2 mt-2">
+        <button type="button" onClick={onChangePic} className="px-3 py-1.5 rounded-lg border border-[#e8e6e0] text-xs font-semibold hover:bg-[#f8f7f4]">Change photo</button>
+        <button type="button" onClick={onReset} className="px-3 py-1.5 rounded-lg border border-[#e8e6e0] text-xs font-semibold hover:bg-[#f8f7f4]">Use default photo</button>
+        <div role="group" aria-label="Part of the photo to keep" className="inline-flex rounded-lg border border-[#e8e6e0] overflow-hidden">
+          {FOCUS_OPTIONS.map(o => (
+            <button key={o.v} type="button" aria-pressed={(focus ?? "center") === o.v} onClick={() => onFocus(o.v)}
+              className={cn("px-3 py-1.5 text-xs font-semibold", (focus ?? "center") === o.v ? "bg-brand-900 text-white" : "bg-white hover:bg-[#f8f7f4]")}>
+              Keep {o.label.toLowerCase()}
+            </button>
+          ))}
         </div>
       </div>
     </div>
@@ -120,12 +143,12 @@ function ImagePickerModal({ isOpen, current, onSelect, onClose, showUpload = tru
       {tab === "library" && (
         <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 max-h-[380px] overflow-y-auto pr-1">
           {PHOTO_LIBRARY.map(photo => {
-            const full = photoUrl(photo.id, "full");
+            const full = photoUrl(photo.id, purpose);
             const thumb = photoUrl(photo.id, "thumb");
-            const selected = current === full;
+            const selected = current.includes(photo.id);
             return (
               <button key={photo.id} onClick={() => { onSelect(full); onClose(); }}
-                className={cn("group relative rounded-xl overflow-hidden aspect-[3/2] border-2 transition-all hover:shadow-md", selected ? "border-accent ring-2 ring-accent/20" : "border-transparent hover:border-accent/40")}>
+                className={cn("group relative rounded-xl overflow-hidden aspect-[4/3] border-2 transition-all hover:shadow-md", selected ? "border-accent ring-2 ring-accent/20" : "border-transparent hover:border-accent/40")}>
                 <Image src={thumb} alt={photo.label} fill className="object-cover group-hover:scale-105 transition-transform duration-300" sizes="200px" />
                 {selected && (
                   <div className="absolute inset-0 bg-accent/20 flex items-center justify-center">
@@ -176,7 +199,7 @@ function ImagePickerModal({ isOpen, current, onSelect, onClose, showUpload = tru
             <input className="flex-1 h-10 px-4 rounded-xl border border-[#e8e6e0] text-sm outline-none focus:border-accent/40 bg-white" placeholder="https://..." value={customUrl} onChange={e => setCustomUrl(e.target.value)} onKeyDown={e => e.key === "Enter" && applyUrl()} />
             <Button size="sm" onClick={applyUrl} disabled={!customUrl.trim()}>Apply</Button>
           </div>
-          <p className="text-xs text-[#6b6b80]">Paste any public image URL</p>
+          <p className="text-xs text-[#6b6b80]">Paste any public image URL. It will be cropped to fit; uploading a photo gives the cleanest result.</p>
         </div>
       )}
     </Modal>
@@ -241,6 +264,7 @@ export function WebsiteEditorClient({ terms, slug, businessName, businessType, w
   const set = <K extends keyof WebsiteConfig>(section: K, field: string, value: string | boolean) =>
     setConfig({ ...config, [section]: { ...(config[section] as object), [field]: value } });
 
+  const defaultPhotos = (() => { const d = defaultWebsiteConfig(businessName, businessType, terms); return { hero: d.hero.image, about: d.about.image }; })();
   const pickerImage = pickerTarget === "hero" ? config.hero.image : config.about.image;
 
   return (
@@ -284,7 +308,10 @@ export function WebsiteEditorClient({ terms, slug, businessName, businessType, w
 
         {/* ── HERO ── */}
         <SectionCard title="Hero Section" enabled={config.hero.enabled} onToggle={() => toggle("hero")}>
-          <ImagePreview label="Background Image" url={config.hero.image} onChangePic={() => setPickerTarget("hero")} />
+          <ImagePreview label="Hero Image" url={config.hero.image} focus={config.hero.imageFocus}
+            onFocus={f => setConfig({ ...config, hero: { ...config.hero, imageFocus: f } })}
+            onChangePic={() => setPickerTarget("hero")}
+            onReset={() => setConfig({ ...config, hero: { ...config.hero, image: defaultPhotos.hero, imageFocus: undefined } })} />
           <Input label="Badge text (small pill above headline)" placeholder="e.g. Professional Clinic Services" value={config.hero.badge} onChange={e => set("hero", "badge", e.target.value)} />
           <Input label="Main headline" placeholder="Welcome to..." value={config.hero.headline} onChange={e => set("hero", "headline", e.target.value)} />
           <Textarea label="Subheadline" value={config.hero.subheadline} onChange={v => set("hero", "subheadline", v)} rows={2} placeholder="Describe what you offer in one line..." />
@@ -296,7 +323,10 @@ export function WebsiteEditorClient({ terms, slug, businessName, businessType, w
 
         {/* ── ABOUT ── */}
         <SectionCard title="About Section" enabled={config.about.enabled} onToggle={() => toggle("about")}>
-          <ImagePreview label="Section Image" url={config.about.image} onChangePic={() => setPickerTarget("about")} />
+          <ImagePreview label="About Image" url={config.about.image} focus={config.about.imageFocus}
+            onFocus={f => setConfig({ ...config, about: { ...config.about, imageFocus: f } })}
+            onChangePic={() => setPickerTarget("about")}
+            onReset={() => setConfig({ ...config, about: { ...config.about, image: defaultPhotos.about, imageFocus: undefined } })} />
           <div className="grid grid-cols-2 gap-3">
             <Input label="Pill badge text" placeholder="About Us" value={config.about.badge} onChange={e => set("about", "badge", e.target.value)} />
             <Input label="Section heading" placeholder="About Us" value={config.about.title} onChange={e => set("about", "title", e.target.value)} />

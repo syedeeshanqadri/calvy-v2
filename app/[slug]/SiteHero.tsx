@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { splitHeadline, type HeroLayout } from "@/lib/siteLayout";
+import { focusPosition, type ImageFocus } from "@/lib/website";
 
 export interface HeroChip { icon: ReactNode; label: string; sub?: string; live?: boolean }
 export interface HeroTrust { icon: ReactNode; text: string }
@@ -11,7 +12,7 @@ export interface HeroTrust { icon: ReactNode; text: string }
  * the pack; the photo frame always fills the full height of the section. Chips and trust items carry
  * only facts the business already has (hours, prices, team size), never made-up numbers.
  */
-export function SiteHero({ layout, businessName, badge, headline, subheadline, ctaText, secondaryCtaText, bookingUrl, image, chips, trust, sealIcon }: {
+export function SiteHero({ layout, businessName, badge, headline, subheadline, ctaText, secondaryCtaText, bookingUrl, image, imageFocus, chips, trust, sealIcon }: {
   layout: HeroLayout;
   businessName: string;
   badge?: string;
@@ -21,6 +22,7 @@ export function SiteHero({ layout, businessName, badge, headline, subheadline, c
   secondaryCtaText?: string;
   bookingUrl: string;
   image: string;
+  imageFocus?: ImageFocus;
   chips: HeroChip[];
   trust: HeroTrust[];
   sealIcon?: ReactNode;
@@ -56,7 +58,7 @@ export function SiteHero({ layout, businessName, badge, headline, subheadline, c
         {image && (
           <div className="st-hero-media">
             <div className="st-hero-frame">
-              <Image src={image} alt={businessName} fill priority sizes={layout === "immersive" ? "100vw" : "(max-width: 900px) 100vw, 50vw"} unoptimized />
+              <Image src={image} alt={businessName} fill priority sizes={layout === "immersive" ? "100vw" : "(max-width: 900px) 100vw, 50vw"} style={{ objectPosition: focusPosition(imageFocus) }} unoptimized />
             </div>
             {layout === "arch" && (
               <svg className="st-seal" viewBox="0 0 120 120" role="img" aria-label="Book online">

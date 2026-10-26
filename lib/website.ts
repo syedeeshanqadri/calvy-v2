@@ -1,7 +1,19 @@
 import { t, type TermsSource } from "@/lib/terms";
+/** Which part of a photo the fixed-size frame keeps when it has to crop. */
+export type ImageFocus = "top" | "center" | "bottom";
+
+/** CSS object-position for a focus value. Anything unknown is the middle, so stored junk never reaches a style. */
+export function focusPosition(focus: unknown): string {
+  return focus === "top" ? "50% 12%" : focus === "bottom" ? "50% 88%" : "50% 50%";
+}
+
+/** Library and default photos are requested at the same 4:3 size uploads are cropped to. */
+const PHOTO_SIZE = { hero: { w: 1600, h: 1200 }, about: { w: 1200, h: 900 } } as const;
+
 export interface HeroSection {
   enabled: boolean;
   image: string;
+  imageFocus?: ImageFocus;
   badge: string;
   headline: string;
   subheadline: string;
@@ -12,6 +24,7 @@ export interface HeroSection {
 export interface AboutSection {
   enabled: boolean;
   image: string;
+  imageFocus?: ImageFocus;
   badge: string;
   title: string;
   body: string;
@@ -112,12 +125,12 @@ const RETIRED_PHOTOS = [
  */
 export function currentPhoto(url: string, businessType: string, slot: "hero" | "about"): string {
   if (!url || !RETIRED_PHOTOS.some((id) => url.includes(id))) return url;
-  return pickImage(slot === "hero" ? HERO_IMAGES : ABOUT_IMAGES, businessType);
+  return pickImage(slot === "hero" ? HERO_IMAGES : ABOUT_IMAGES, businessType, slot);
 }
 
-function pickImage(map: Record<string, string>, businessType: string): string {
+function pickImage(map: Record<string, string>, businessType: string, slot: "hero" | "about"): string {
   const key = Object.keys(map).find(k => businessType.toLowerCase().includes(k)) ?? "general";
-  return `https://images.unsplash.com/${map[key]}?auto=format&fit=crop&w=1920&q=80`;
+  return photoUrl(map[key], slot);
 }
 
 export function defaultWebsiteConfig(businessName: string, businessType: string, terms: TermsSource = {}): WebsiteConfig {
@@ -132,7 +145,7 @@ export function defaultWebsiteConfig(businessName: string, businessType: string,
     metaDescription: `Book ${typeLabel} with ${businessName}. Easy online scheduling.`,
     hero: {
       enabled: true,
-      image: pickImage(HERO_IMAGES, businessType),
+      image: pickImage(HERO_IMAGES, businessType, "hero"),
       badge: `Professional ${typeLabel} services`,
       headline: `Welcome to ${businessName}`,
       subheadline: `Book your ${appt} online — fast, simple, and hassle-free.`,
@@ -141,7 +154,7 @@ export function defaultWebsiteConfig(businessName: string, businessType: string,
     },
     about: {
       enabled: true,
-      image: pickImage(ABOUT_IMAGES, businessType),
+      image: pickImage(ABOUT_IMAGES, businessType, "about"),
       badge: "About Us",
       title: "About Us",
       body: `We're passionate about delivering great ${typeLabel}. Book online or give us a call.`,
@@ -215,8 +228,11 @@ export const PHOTO_LIBRARY = [
   { id: "photo-1497215842964-222b430dc094", label: "Creative Studio" },
 ];
 
-export function photoUrl(id: string, size: "thumb" | "full" = "full"): string {
-  return size === "thumb"
-    ? `https://images.unsplash.com/${id}?auto=format&fit=crop&w=400&h=260&q=70`
-    : `https://images.unsplash.com/${id}?auto=format&fit=crop&w=1920&q=80`;
+export function photoUrl(id: string, size: "thumb" | "full" | "hero" | "about" = "full"): string {
+  if (size === "thumb") return `https://images.unsplash.com/${id}?auto=format&fit=crop&w=400&h=300&q=70`;
+  if (size === "hero" || size === "about") {
+    const { w, h } = PHOTO_SIZE[size];
+    return `https://images.unsplash.com/${id}?auto=format&fit=crop&w=${w}&h=${h}&q=80`;
+  }
+  return `https://images.unsplash.com/${id}?auto=format&fit=crop&w=1920&q=80`;
 }

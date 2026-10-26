@@ -4,7 +4,8 @@ import { checkLogoBytes, MAX_LOGO_BYTES } from "@/lib/validation/logo";
 import { processLogo } from "@/lib/logo";
 import { normalizeSocial, normalizeSocialLinks, parseSocialLinks, normalizeReviewLink, safeReviewLink } from "@/lib/brandLinks";
 import { formatOpeningHours, mapsEmbedUrl, openStatus, summarizeHours } from "@/lib/hours";
-import { currentPhoto, defaultWebsiteConfig } from "@/lib/website";
+import { currentPhoto, defaultWebsiteConfig, focusPosition, photoUrl } from "@/lib/website";
+import { websitePatchSchema } from "@/lib/validation/misc";
 import { assertSafeKey, localStorageAdapter } from "@/lib/storage";
 
 const enc = (s: string) => new TextEncoder().encode(s);
@@ -215,5 +216,24 @@ describe("step-6/redesign-site-foundation: default photos", () => {
     for (const type of ["clinic", "salon", "lawyer", "fitness", "consultant", "general"]) {
       expect(defaultWebsiteConfig("X", type).hero.image).toMatch(/^https:\/\/images\.unsplash\.com\/photo-/);
     }
+  });
+});
+
+describe("step-6/redesign-site-foundation: fixed-size website photos", () => {
+  it("library and default photos are requested at the same 4:3 size uploads are cropped to", () => {
+    expect(photoUrl("photo-x", "hero")).toContain("w=1600&h=1200");
+    expect(photoUrl("photo-x", "about")).toContain("w=1200&h=900");
+    expect(defaultWebsiteConfig("A", "clinic").hero.image).toContain("w=1600&h=1200");
+    expect(defaultWebsiteConfig("A", "clinic").about.image).toContain("w=1200&h=900");
+  });
+  it("only top, middle and bottom reach a style; anything else is the middle", () => {
+    expect(focusPosition("top")).toBe("50% 12%");
+    expect(focusPosition("bottom")).toBe("50% 88%");
+    for (const bad of [undefined, "", "center", "left", "50% 0; background:red", 7]) expect(focusPosition(bad)).toBe("50% 50%");
+  });
+  it("saving a website keeps a valid focus and rejects a made-up one", () => {
+    const ok = websitePatchSchema.safeParse({ websiteJson: JSON.stringify({ hero: { image: "https://x.test/a.jpg", imageFocus: "bottom" } }) });
+    expect(ok.success && JSON.parse(ok.data.websiteJson).hero.imageFocus).toBe("bottom");
+    expect(websitePatchSchema.safeParse({ websiteJson: JSON.stringify({ hero: { imageFocus: "left" } }) }).success).toBe(false);
   });
 });

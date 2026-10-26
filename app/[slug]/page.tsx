@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { prisma } from "@/lib/prisma";
 import { t } from "@/lib/terms";
-import { parseWebsiteConfig, defaultWebsiteConfig, WebsiteConfig, currentPhoto } from "@/lib/website";
+import { parseWebsiteConfig, defaultWebsiteConfig, WebsiteConfig, currentPhoto, focusPosition } from "@/lib/website";
 import { MapPin, Phone, Mail, Clock, ArrowRight, Check, Users, Tag, MessageCircle, CalendarClock } from "lucide-react";
 import { formatCurrencyAmount } from "@/lib/currency";
 import { getFlags } from "@/lib/flags";
@@ -212,6 +212,7 @@ export default async function TenantWebsitePage(props: { params: Promise<{ slug:
             secondaryCtaText={cfg.services.enabled && serviceCount > 0 ? cfg.hero.secondaryCtaText : undefined}
             bookingUrl={bookingUrl}
             image={heroImage}
+            imageFocus={cfg.hero.imageFocus}
             chips={heroChips}
             trust={heroTrust}
             sealIcon={<PackIcon name={pack.icons.pack} />}
@@ -304,7 +305,7 @@ export default async function TenantWebsitePage(props: { params: Promise<{ slug:
             <div className="st-wrap st-about">
               {aboutImage && (
                 <div className="st-about-media">
-                  <Image src={aboutImage} alt={business.name} fill sizes="(max-width: 900px) 100vw, 50vw" unoptimized />
+                  <Image src={aboutImage} alt={business.name} fill sizes="(max-width: 900px) 100vw, 50vw" style={{ objectPosition: focusPosition(cfg.about.imageFocus) }} unoptimized />
                 </div>
               )}
               <div>
