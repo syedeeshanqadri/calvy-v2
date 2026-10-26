@@ -23,6 +23,7 @@ export const appointmentCreateSchema = z
     time: timeField,
     notes: z.preprocess(blankToUndef, text(1000).optional()),
     allowOverlap: z.boolean().optional(),
+    mode: z.preprocess(blankToUndef, z.enum(["in_person", "online"]).optional()),
   })
   .refine((b) => (b.serviceIds?.length ?? 0) > 0 || !!b.serviceId, {
     message: "serviceId or serviceIds is required",

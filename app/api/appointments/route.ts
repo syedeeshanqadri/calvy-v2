@@ -10,6 +10,7 @@ import { sendPushToBusiness } from "@/lib/push";
 import { parseBody, parseQuery } from "@/lib/validation/common";
 import { appointmentCreateSchema, appointmentListQuery } from "@/lib/validation/appointments";
 import { logger } from "@/lib/logger";
+import { resolveMeetingUrl } from "@/lib/online";
 import { bookExclusive, SlotConflictError, conflictMessage } from "@/lib/booking";
 import { loadAvailability } from "@/lib/availability";
 import { getEffectiveLimits } from "@/lib/getFeatures";
@@ -98,6 +99,10 @@ async function POST_handler(request: NextRequest) {
   const groupDenied = await checkLimit(businessId, "group", { capacity });
   if (groupDenied) return denialResponse(groupDenied);
 
+  // Staff booking: ONLINE services are online, BOTH follows the chosen mode, IN_PERSON never is.
+  const svcMode = orderedServices[0].mode;
+  const isOnline = svcMode === "ONLINE" || (svcMode === "BOTH" && parsed.data.mode === "online");
+
   const totalPrice = orderedServices.reduce((sum, s) => sum + s.price, 0);
   const totalDuration = orderedServices.reduce((sum, s) => sum + s.duration, 0);
   const serviceNamesLabel = orderedServices.map(s => s.name).join(" & ");
@@ -119,7 +124,7 @@ async function POST_handler(request: NextRequest) {
   }
 
   const staffMember = staffId
-    ? await prisma.staff.findFirst({ where: { id: staffId, businessId }, select: { name: true } })
+    ? await prisma.staff.findFirst({ where: { id: staffId, businessId }, select: { name: true, meetingUrl: true } })
     : null;
   if (staffId && !staffMember) {
     return NextResponse.json({ error: "Staff member not found" }, { status: 404 });
@@ -194,6 +199,7 @@ async function POST_handler(request: NextRequest) {
                 notes: combinedNotes,
                 status: "confirmed",
                 paymentStatus: "unpaid",
+                isOnline,
               },
             });
           },
@@ -219,10 +225,10 @@ async function POST_handler(request: NextRequest) {
   }
 
   const dateLabel = formatDateLabel(apptDate, tz);
-  const assignedName = chosenStaffId
-    ? (staffMember?.name ??
-        (await prisma.staff.findFirst({ where: { id: chosenStaffId, businessId }, select: { name: true } }))?.name)
-    : undefined;
+  const assignedStaff = chosenStaffId
+    ? (staffMember ?? (await prisma.staff.findFirst({ where: { id: chosenStaffId, businessId }, select: { name: true, meetingUrl: true } })))
+    : null;
+  const assignedName = assignedStaff?.name;
 
   sendPushToBusiness(businessId, {
     title: "New appointment booked",
@@ -246,6 +252,7 @@ async function POST_handler(request: NextRequest) {
         price: totalPrice,
         currency: business.currency ?? "USD",
         appointmentDate: apptDate,
+        online: isOnline ? { meetingUrl: resolveMeetingUrl(orderedServices[0], assignedStaff) } : undefined,
       });
     } catch (err) {
       logger.error("[Email] Failed to send confirmation for panel booking:", { err });

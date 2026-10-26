@@ -128,6 +128,7 @@ export interface BookingDetails {
   token?: { number: number; estimatedTime: string; sessionName: string }; // token booking
   trackUrl?: string; // live queue page
   patientName?: string; // who the appointment is for, when not the recipient
+  online?: { meetingUrl: string | null }; // online consultation; the link goes only to the booker
   ctx?: EmailContext;
 }
 
@@ -137,7 +138,7 @@ function bookingProps(d: BookingDetails): BookingProps {
   return {
     clientName: d.clientName, businessName: d.businessName, serviceName: d.serviceName,
     staffName: d.staffName, date: d.date, time: d.time, duration: d.duration,
-    price: d.price, currency: d.currency ?? DEFAULT_CURRENCY, terms: d.terms, token: d.token, trackUrl: d.trackUrl, patientName: d.patientName,
+    price: d.price, currency: d.currency ?? DEFAULT_CURRENCY, terms: d.terms, token: d.token, trackUrl: d.trackUrl, patientName: d.patientName, online: d.online,
   };
 }
 
@@ -170,13 +171,13 @@ export async function sendBookingConfirmation(d: BookingDetails) {
 
 export async function sendBookingReminder(d: {
   to: string; clientName: string; patientName?: string; businessName: string; serviceName: string;
-  date: string; time: string; staffName?: string; duration?: number; price?: number; currency?: string; terms?: TermsSource; ctx?: EmailContext;
+  date: string; time: string; staffName?: string; duration?: number; price?: number; currency?: string; terms?: TermsSource; online?: { meetingUrl: string | null }; ctx?: EmailContext;
 }) {
   const tenant = await tenantBrand(d.ctx?.businessId, d.businessName);
   return dispatch({
     to: d.to, type: "reminder", ctx: d.ctx,
     subject: `Reminder: ${d.serviceName} tomorrow at ${d.time}`,
-    react: <BookingReminderEmail clientName={d.clientName} patientName={d.patientName} businessName={d.businessName} serviceName={d.serviceName} date={d.date} time={d.time} staffName={d.staffName} duration={d.duration} price={d.price} currency={d.currency} terms={d.terms} tenant={tenant} />,
+    react: <BookingReminderEmail clientName={d.clientName} patientName={d.patientName} businessName={d.businessName} serviceName={d.serviceName} date={d.date} time={d.time} staffName={d.staffName} duration={d.duration} price={d.price} currency={d.currency} terms={d.terms} online={d.online} tenant={tenant} />,
   });
 }
 

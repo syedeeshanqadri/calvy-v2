@@ -43,6 +43,7 @@ export default async function BusinessBookingPage(props: { params: Promise<{ slu
       id: s.id, name: s.name, description: s.description,
       duration: s.duration, price: s.price, color: s.color,
       capacity: (s as { capacity?: number }).capacity ?? 1,
+      mode: s.mode,
     })),
     staff: business.staff.map(s => ({
       id: s.id, name: s.name, role: s.role, color: s.color,

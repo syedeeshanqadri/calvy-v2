@@ -43,7 +43,7 @@ async function PATCH_handler(request: NextRequest, props: { params: Promise<{ id
     if (denied) return denialResponse(denied);
   }
 
-  const updated = await prisma.service.update({ where: { id: params.id }, data: body });
+  const updated = await prisma.service.update({ where: { id: params.id }, data: { ...body, ...(body.meetingUrl !== undefined && { meetingUrl: body.meetingUrl || null }) } });
   return NextResponse.json({ service: updated });
 }
 

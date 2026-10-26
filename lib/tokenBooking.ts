@@ -10,6 +10,7 @@ import { trackingUrl } from "@/lib/tracking";
 import { assertNoDuplicatePatient, assertWithinPeopleCap, contactAtDailyCap } from "@/lib/patientsDb";
 import { chargeFor, sendConfirmationFor, startCheckout, type PayConfig } from "@/lib/onlinePayment";
 import { assertMonthlyHeadroom } from "@/lib/limits";
+import { loadMeetingUrl } from "@/lib/onlineDb";
 import { addDays, formatDateLabel, parseYMD, utcToZoned, weekdayOf, zonedToUtc } from "@/lib/time";
 import {
   findNextOpen, issueToken, minToHhmm, sessionCapacity, tokensLeft, type SessionLike, type TokenStore,
@@ -139,6 +140,8 @@ export interface TokenBookingInput {
   patientName: string;
   /** Relation, age and gender of someone else (already limited to what the business collects). */
   patientDetails: { patientRelation: string | null; patientAge: number | null; patientGender: string | null };
+  /** An online consultation: the staff member's / service's meeting link applies. */
+  isOnline?: boolean;
   /** Fair use: most different people one booker contact may take tokens for per session. */
   maxPeoplePerBooker: number;
 }
@@ -198,7 +201,7 @@ export async function bookToken(input: TokenBookingInput): Promise<NextResponse>
       data: {
         businessId: business.id, clientId: client.id, staffId: session.staffId, serviceId: services[0].id,
         date: estimatedAt, endAt: new Date(estimatedAt.getTime() + session.minutesPerToken * 60_000),
-        duration: session.minutesPerToken, price: totalPrice, notes, patientName: input.patientName, ...input.patientDetails,
+        duration: session.minutesPerToken, price: totalPrice, notes, patientName: input.patientName, ...input.patientDetails, isOnline: input.isOnline ?? false,
         status: holdExpiresAt ? PENDING_PAYMENT : "confirmed", holdExpiresAt,
         paymentStatus: "unpaid", paymentMode: business.paymentMode,
         tokenSessionId: session.id, sessionDate: dateOnly(date), tokenNumber: a.number, estimatedAt,
@@ -232,7 +235,7 @@ export async function bookToken(input: TokenBookingInput): Promise<NextResponse>
       note: `Token #${number} ${session.name} ${date}`,
     });
     if (!started.ok) return err(502, started.error, "PAYMENT_START_FAILED");
-    return NextResponse.json({ success: true, appointmentId: appointment.id, pendingPayment: true, checkout: started.checkout, token });
+    return NextResponse.json({ success: true, appointmentId: appointment.id, pendingPayment: true, checkout: started.checkout, token, isOnline: input.isOnline ?? false });
   }
 
   await prisma.client.update({
@@ -241,5 +244,5 @@ export async function bookToken(input: TokenBookingInput): Promise<NextResponse>
   });
   await sendConfirmationFor(appointment.id, { contactMessages: !suppressContactMessages });
 
-  return NextResponse.json({ success: true, appointmentId: appointment.id, paymentMode: business.paymentMode, token, confirmationWithheld: suppressContactMessages });
+  return NextResponse.json({ success: true, appointmentId: appointment.id, paymentMode: business.paymentMode, token, confirmationWithheld: suppressContactMessages, isOnline: input.isOnline ?? false, meetingUrl: input.isOnline ? await loadMeetingUrl(appointment.id) : null });
 }

@@ -1,3 +1,4 @@
+import { meetingUrlFor } from "@/lib/online";
 import { safeTimeZone, utcToZoned } from "@/lib/time";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
@@ -54,6 +55,8 @@ export default async function AppointmentsPage() {
       paymentMode: (a as { paymentMode?: string }).paymentMode ?? "postpaid",
       color: a.service.color,
       tokenNumber: a.tokenNumber,
+      isOnline: a.isOnline,
+      meetingUrl: meetingUrlFor(a),
       notes,
     };
   });
@@ -61,7 +64,7 @@ export default async function AppointmentsPage() {
   return (
     <AppointmentsClient
       appointments={rows}
-      services={services.map(s => ({ id: s.id, name: s.name, duration: s.duration, price: s.price }))}
+      services={services.map(s => ({ id: s.id, name: s.name, duration: s.duration, price: s.price, mode: s.mode }))}
       staff={staff.map(s => ({ id: s.id, name: s.name }))}
       csvExport={features.csvExport}
       upgradeHref={getFlags().payments ? "/dashboard/billing" : null}

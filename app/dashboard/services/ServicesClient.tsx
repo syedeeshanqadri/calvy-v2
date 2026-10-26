@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/Card";
 import { Modal } from "@/components/ui/Modal";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
-import { Clock, Plus, MoreVertical, ToggleLeft, ToggleRight, Trash2, Users } from "lucide-react";
+import { Clock, Plus, MoreVertical, ToggleLeft, ToggleRight, Trash2, Users, Video } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCurrency } from "@/components/providers/CurrencyProvider";
 import { CURRENCIES } from "@/lib/currency";
@@ -15,6 +15,7 @@ import { useTerms } from "@/components/providers/TermsProvider";
 interface ServiceRow {
   id: string; name: string; description: string; duration: number;
   price: number; color: string; category: string; isActive: boolean; capacity: number;
+  mode: "IN_PERSON" | "ONLINE" | "BOTH"; meetingUrl: string;
 }
 
 const PRESET_COLORS = ["#0284c7","#3b82f6","#22c55e","#8b5cf6","#f59e0b","#ec4899","#14b8a6","#f97316"];
@@ -36,7 +37,7 @@ export function ServicesClient({ services: initial, groupBooking = false }: { se
   const [loading, setLoading] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [error, setError] = useState("");
-  const [form, setForm] = useState({ name: "", description: "", duration: "60", price: "0", color: "#0284c7", category: "General", capacity: "1" });
+  const [form, setForm] = useState({ name: "", description: "", duration: "60", price: "0", color: "#0284c7", category: "General", capacity: "1", mode: "IN_PERSON", meetingUrl: "" });
 
   const toggleActive = async (id: string) => {
     const svc = services.find(s => s.id === id);
@@ -52,13 +53,13 @@ export function ServicesClient({ services: initial, groupBooking = false }: { se
 
   const openEdit = (svc: ServiceRow) => {
     setEditService(svc);
-    setForm({ name: svc.name, description: svc.description, duration: String(svc.duration), price: String(svc.price), color: svc.color, category: svc.category, capacity: String(svc.capacity ?? 1) });
+    setForm({ name: svc.name, description: svc.description, duration: String(svc.duration), price: String(svc.price), color: svc.color, category: svc.category, capacity: String(svc.capacity ?? 1), mode: svc.mode ?? "IN_PERSON", meetingUrl: svc.meetingUrl ?? "" });
     setError("");
   };
 
   const openAdd = () => {
     setEditService(null);
-    setForm({ name: "", description: "", duration: "60", price: "0", color: "#0284c7", category: "General", capacity: "1" });
+    setForm({ name: "", description: "", duration: "60", price: "0", color: "#0284c7", category: "General", capacity: "1", mode: "IN_PERSON", meetingUrl: "" });
     setError("");
     setShowAddModal(true);
   };
@@ -71,7 +72,7 @@ export function ServicesClient({ services: initial, groupBooking = false }: { se
     if (dur < 1) { setError("Duration must be at least 1 minute"); setLoading(false); return; }
     if (prc < 0) { setError("Price cannot be negative"); setLoading(false); return; }
     try {
-      const payload = { name: form.name, description: form.description, duration: dur, price: prc, color: form.color, category: form.category, capacity: Math.max(1, Number(form.capacity) || 1) };
+      const payload = { name: form.name, description: form.description, duration: dur, price: prc, color: form.color, category: form.category, capacity: Math.max(1, Number(form.capacity) || 1), mode: form.mode, meetingUrl: form.mode === "IN_PERSON" ? "" : form.meetingUrl.trim() };
       let res: Response;
       if (editService) {
         res = await fetch(`/api/services/${editService.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
@@ -141,6 +142,11 @@ export function ServicesClient({ services: initial, groupBooking = false }: { se
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-1.5 text-sm"><Clock size={14} className="text-[#6b6b80]" /><span className="font-medium">{service.duration}min</span></div>
               <div className="flex items-center text-sm font-bold text-accent">{formatPrice(service.price)}</div>
+              {service.mode !== "IN_PERSON" && (
+                <div className="flex items-center gap-1 text-xs font-semibold text-sky-700 bg-sky-50 px-2 py-0.5 rounded-full">
+                  <Video size={11} />{service.mode === "ONLINE" ? "Online" : "Online or in person"}
+                </div>
+              )}
               {service.capacity > 1 && (
                 <div className="flex items-center gap-1 text-xs font-semibold text-purple-700 bg-purple-50 px-2 py-0.5 rounded-full">
                   <Users size={11} />{service.capacity} spots
@@ -180,6 +186,20 @@ export function ServicesClient({ services: initial, groupBooking = false }: { se
             <div>
               <label className="text-sm font-medium text-brand-800 block mb-1.5">Max participants <span className="text-[#6b6b80] font-normal">(1 = individual, 2+ = group booking)</span></label>
               <Input type="number" min="1" max="100" step="1" value={form.capacity} onChange={e => setForm({ ...form, capacity: e.target.value })} />
+            </div>
+          )}
+          <div>
+            <label className="text-sm font-medium text-brand-800 block mb-1.5" htmlFor="svc-mode">How is it offered?</label>
+            <select id="svc-mode" value={form.mode} onChange={e => setForm({ ...form, mode: e.target.value as typeof form.mode })} className="w-full rounded-xl border border-[#e8e6e0] bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent">
+              <option value="IN_PERSON">In person</option>
+              <option value="ONLINE">Online (video call)</option>
+              <option value="BOTH">Both: the customer chooses</option>
+            </select>
+          </div>
+          {form.mode !== "IN_PERSON" && (
+            <div>
+              <Input label="Meeting link for this service (optional)" type="url" placeholder="https://meet.google.com/…" value={form.meetingUrl} onChange={e => setForm({ ...form, meetingUrl: e.target.value })} />
+              <p className="text-xs text-[#6b6b80] mt-1">Leave empty to use each team member&apos;s own link. Customers only see it after they book.</p>
             </div>
           )}
           <div>

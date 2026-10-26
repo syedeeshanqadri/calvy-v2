@@ -20,6 +20,7 @@ import { t } from "@/lib/terms";
 import { formatDateLabel, formatTimeLabel, safeTimeZone } from "@/lib/time";
 import { trackingUrl } from "@/lib/tracking";
 import { bookingForLabel } from "@/lib/patients";
+import { meetingUrlFor } from "@/lib/online";
 
 const APP_URL = () => process.env.NEXT_PUBLIC_APP_URL ?? `http://localhost:${process.env.PORT ?? 3000}`;
 
@@ -147,6 +148,7 @@ export async function sendConfirmationFor(appointmentId: string, opts: { paid?: 
         staffName: a.staff?.name ?? `Your ${t(a.business, "staff")}`, terms: a.business,
         date: dateLabel, time, duration: a.duration, price: a.price,
         currency: a.business.currency ?? DEFAULT_CURRENCY, appointmentDate: a.date, token,
+        online: a.isOnline ? { meetingUrl: meetingUrlFor(a) } : undefined,
         trackUrl: token ? trackingUrl(a.business.slug, a.id) ?? undefined : undefined,
         ctx: { appointmentId: a.id, businessId: a.businessId },
       });

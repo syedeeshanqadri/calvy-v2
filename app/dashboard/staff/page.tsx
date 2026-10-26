@@ -36,6 +36,7 @@ export default async function StaffPage() {
         email: s.email,
         phone: s.phone ?? "",
         color: s.color,
+        meetingUrl: s.meetingUrl ?? "",
         isActive: s.isActive,
       }))}
       currentPlan={business?.plan ?? "trial"}

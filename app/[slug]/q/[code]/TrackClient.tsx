@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Check, Clock, X } from "lucide-react";
+import { Check, Clock, Video, X } from "lucide-react";
 import { BrandMark } from "@/components/site/Brand";
 import { safeThemeColor, readableForeground, themeVars } from "@/lib/theme";
 import { t } from "@/lib/terms";
@@ -60,6 +60,20 @@ export function TrackClient({ code, initial }: { code: string; initial: Tracking
           <p className="text-xs font-medium text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
             Moved from an earlier day. This is your {appt} now.
           </p>
+        )}
+
+        {page.online && ["waiting", "serving"].includes(view.state) && (
+          <div className="bg-white rounded-2xl border border-[#e8e6e0] p-4">
+            <p className="font-semibold flex items-center gap-2"><Video size={16} aria-hidden />Online consultation</p>
+            {page.online.meetingUrl ? (
+              <>
+                <p className="text-sm text-[#6b6b80] mt-1 mb-3">Join from this link when it is your turn.</p>
+                <a href={page.online.meetingUrl} target="_blank" rel="noopener noreferrer" className="block text-center rounded-xl py-3 font-semibold" style={{ background: color, color: fg }}>Join the consultation</a>
+              </>
+            ) : (
+              <p className="text-sm text-[#6b6b80] mt-1">{business.name} will share the joining link with you before your turn.</p>
+            )}
+          </div>
         )}
 
         {view.state === "waiting" && (

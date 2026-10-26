@@ -20,7 +20,7 @@ import { siteFontClasses } from "./fonts";
 import { SiteHero } from "./SiteHero";
 import { Suspense } from "react";
 import { HeroAvailabilityCard } from "./HeroAvailabilityCard";
-import { isOnlineService } from "@/lib/onlineService";
+import { offersOnline, onlineBadge } from "@/lib/online";
 import { PackIcon } from "@/components/site/PackIcon";
 import { getPack } from "@/lib/packs";
 import { heroLayoutFor } from "@/lib/siteLayout";
@@ -161,7 +161,7 @@ export default async function TenantWebsitePage(props: { params: Promise<{ slug:
       />
     </Suspense>
   ) : null;
-  const anyOnline = business.services.some(isOnlineService);
+  const anyOnline = business.services.some(offersOnline);
   const heroChips: { icon: React.ReactNode; label: string; sub?: string; live?: boolean; pos?: "a" | "b" }[] = [];
   // The availability card sits where the open-now chip would; the open status is also in the top bar.
   if (status && showHours && !wantsAvailability) heroChips.push({ icon: <Clock aria-hidden />, label: status.label, live: status.open, pos: "a" });
@@ -249,7 +249,7 @@ export default async function TenantWebsitePage(props: { params: Promise<{ slug:
                       <span className="st-ico-wrap"><PackIcon name={pack.icons.service} /></span>
                       <span>
                         <b>{svc.name}</b>
-                        <small>{svc.duration} min · {svc.price === 0 ? "Free" : formatCurrencyAmount(svc.price, business.currency)}{isOnlineService(svc) ? " · Online" : ""}</small>
+                        <small>{svc.duration} min · {svc.price === 0 ? "Free" : formatCurrencyAmount(svc.price, business.currency)}{offersOnline(svc) ? ` · ${onlineBadge(svc)}` : ""}</small>
                       </span>
                     </Link>
                   </li>
@@ -277,7 +277,7 @@ export default async function TenantWebsitePage(props: { params: Promise<{ slug:
                         <div className="st-svc-name">
                           {svc.name}
                           {svc.capacity > 1 && <span className="st-tag">Up to {svc.capacity} people</span>}
-                          {isOnlineService(svc) && <span className="st-online"><Video className="st-ico" aria-hidden />Online</span>}
+                          {offersOnline(svc) && <span className="st-online"><Video className="st-ico" aria-hidden />{onlineBadge(svc)}</span>}
                         </div>
                         <div className="st-svc-price">{svc.price === 0 ? "Free" : formatCurrencyAmount(svc.price, business.currency)}</div>
                         {svc.description && <p className="st-svc-desc">{svc.description}</p>}

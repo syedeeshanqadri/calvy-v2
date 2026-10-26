@@ -1,7 +1,8 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "next/navigation";
-import { ChevronLeft, ChevronRight, Check, Clock, Loader2, MapPin, Globe, Phone, Minus, Users, ArrowLeft } from "lucide-react";
+import { telemedicineNote } from "@/lib/online";
+import { ChevronLeft, ChevronRight, Check, Clock, Loader2, MapPin, Globe, Phone, Minus, Users, ArrowLeft, Video } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatCurrencyAmount } from "@/lib/currency";
 import { bookableServices, providerOptions } from "@/lib/staffMatch";
@@ -38,7 +39,7 @@ const BUSINESS_TYPE_LABELS: Record<string, string> = {
   fitness: "Fitness / Personal Training", therapy: "Therapy / Counseling", general: "Service Business",
 };
 
-interface Service { id: string; name: string; description: string; duration: number; price: number; color: string; capacity: number; }
+interface Service { id: string; name: string; description: string; duration: number; price: number; color: string; capacity: number; mode?: "IN_PERSON" | "ONLINE" | "BOTH"; }
 interface StaffMember { id: string; name: string; role: string; color: string; serviceIds: string[]; }
 interface Business {
   slug: string; name: string; primaryColor: string; businessType: string;
@@ -109,6 +110,10 @@ export function BookingClient({ business, fontClasses }: { business: Business; f
   // Month availability, tagged with the request it answers so stale answers are ignored.
   const [monthData, setMonthData] = useState<{ key: string; days: Record<string, boolean> | null; next: string | null } | null>(null);
   const [booked, setBooked] = useState(false);
+  // In person or online, chosen only for a service offered both ways (the first selected one decides, as on the server).
+  const [bookingMode, setBookingMode] = useState<"in_person" | "online" | null>(null);
+  // Online consultation result: shown to the booker on this page (and in their email), never before booking.
+  const [onlineResult, setOnlineResult] = useState<{ meetingUrl: string | null } | null>(null);
   // The server did not email/WhatsApp the confirmation (a contact over its daily quota): say so, never silently.
   const [confirmationWithheld, setConfirmationWithheld] = useState(false);
   const [tokenDate, setTokenDate] = useState("");
@@ -186,10 +191,15 @@ export function BookingClient({ business, fontClasses }: { business: Business; f
     setSelectedTime(null);
     setMonthData(null);
     setTokenPick(null);
+    setBookingMode(null);
   }
 
   // Derived totals from selected services
   const selectedServiceObjs = business.services.filter(s => selectedServices.includes(s.id));
+  const firstSvc = business.services.find(s => s.id === selectedServices[0]);
+  const offeredMode = firstSvc?.mode ?? "IN_PERSON";
+  const needsModeChoice = offeredMode === "BOTH";
+  const isOnline = offeredMode === "ONLINE" || (needsModeChoice && bookingMode === "online");
   const totalDuration = selectedServiceObjs.reduce((s, svc) => s + svc.duration, 0);
   const totalPrice = selectedServiceObjs.reduce((s, svc) => s + svc.price, 0);
 
@@ -314,6 +324,7 @@ export function BookingClient({ business, fontClasses }: { business: Business; f
           clientEmail: form.email,
           clientPhone: form.phone || null,
           notes: form.notes || null,
+          ...(needsModeChoice && bookingMode ? { mode: bookingMode } : {}),
         }),
       });
       const data = await res.json();
@@ -331,7 +342,7 @@ export function BookingClient({ business, fontClasses }: { business: Business; f
         return;
       }
       addMyBooking(business.slug, { ...kept, confirmed: true });
-      if (data.url) { window.location.href = data.url; } else { if (data.token) setTokenResult(data.token); setConfirmationWithheld(!!data.confirmationWithheld); setBooked(true); }
+      if (data.url) { window.location.href = data.url; } else { if (data.token) setTokenResult(data.token); if (data.isOnline) setOnlineResult({ meetingUrl: data.meetingUrl ?? null }); setConfirmationWithheld(!!data.confirmationWithheld); setBooked(true); }
     } catch (e) { setError(e instanceof Error && e.message.startsWith("Could not load") ? e.message : "Network error. Please try again."); }
     finally { setLoading(false); }
   }
@@ -402,6 +413,19 @@ export function BookingClient({ business, fontClasses }: { business: Business; f
               <div className="bk-row"><span>Payment</span><span>{payAtVenue ? `Pay at ${appt1}` : "Paid online"}</span></div>
             </div>
           </div>
+          {onlineResult && (
+            <div className="bk-card" style={{ textAlign: "left", marginBottom: 20 }}>
+              <p style={{ fontWeight: 700, marginBottom: 4 }}><Video size={15} aria-hidden style={{ display: "inline", marginRight: 6 }} />Online consultation</p>
+              {onlineResult.meetingUrl ? (
+                <>
+                  <p className="st-muted" style={{ fontSize: "0.9375rem", marginBottom: 14 }}>Join from this link at your {appt1} time. We have also emailed it to you.</p>
+                  <a href={onlineResult.meetingUrl} target="_blank" rel="noopener noreferrer" className="st-btn st-btn-primary st-btn-block">Join link</a>
+                </>
+              ) : (
+                <p className="st-muted" style={{ fontSize: "0.9375rem" }}>{business.name} will send you the joining link before your {appt1}.</p>
+              )}
+            </div>
+          )}
           {tokenResult?.trackUrl && (
             <a href={tokenResult.trackUrl} className="st-btn st-btn-primary st-btn-block" style={{ marginBottom: 20 }}>Track your place in line</a>
           )}
@@ -426,7 +450,7 @@ export function BookingClient({ business, fontClasses }: { business: Business; f
   }
 
   const continueDisabled =
-    (step === "service" && selectedServices.length === 0) ||
+    (step === "service" && (selectedServices.length === 0 || (needsModeChoice && !bookingMode))) ||
     (step === "staff" && (provider.kind === "none" || (provider.kind === "choose" && !selectedStaff))) ||
     (step === "datetime" && (tokenMode ? !tokenPick : (!selectedDate || !selectedTime))) ||
     (step === "details" && (!form.name || !form.email || !isValidEmail(form.email) || (phoneNeeded && !form.phone.trim()) || (forSomeone && !patientName.trim())));
@@ -474,6 +498,7 @@ export function BookingClient({ business, fontClasses }: { business: Business; f
                       <span className="bk-opt-title">
                         {svc.name}
                         {svc.capacity > 1 && <span className="st-tag"><Users size={11} aria-hidden /> Group · {svc.capacity} spots</span>}
+                        {svc.mode && svc.mode !== "IN_PERSON" && <span className="st-tag"><Video size={11} aria-hidden /> {svc.mode === "ONLINE" ? "Online" : "Online or in person"}</span>}
                       </span>
                       <span className="bk-opt-right">{formatCurrencyAmount(svc.price, business.currency)}</span>
                       <span className="bk-opt-sub">
@@ -485,6 +510,20 @@ export function BookingClient({ business, fontClasses }: { business: Business; f
                 })}
                 {filteredServices.length === 0 && <p className="bk-center">No {svcN} match your search.</p>}
               </div>
+
+              {/* In person or online, for a service offered both ways */}
+              {needsModeChoice && (
+                <div role="radiogroup" aria-label="How would you like to attend?" className="bk-card" style={{ marginTop: 16 }}>
+                  <p style={{ fontWeight: 700, marginBottom: 10 }}>How would you like to attend?</p>
+                  {([["in_person", "In person", MapPin], ["online", "Online (video call)", Video]] as const).map(([value, label, Icon]) => (
+                    <button key={value} type="button" role="radio" aria-checked={bookingMode === value} onClick={() => setBookingMode(value)}
+                      className={cn("bk-opt", bookingMode === value && "sel")}>
+                      <span className="bk-tick" aria-hidden><Check size={14} strokeWidth={3} /></span>
+                      <span className="bk-opt-title"><Icon size={14} aria-hidden style={{ marginRight: 6 }} />{label}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
 
               {/* Selection summary bar */}
               {selectedServices.length > 0 && (
@@ -722,6 +761,7 @@ export function BookingClient({ business, fontClasses }: { business: Business; f
                 </div>
                 {[
                   { label: Stf1, value: providerName },
+                  ...(isOnline ? [{ label: "Format", value: "Online consultation (you get the link once booked)" }] : []),
                   { label: "Date", value: dateStr },
                   ...(tokenMode
                     ? [{ label: "Session", value: tokenPick ? `${tokenPick.name} (${tokenPick.startTime} – ${tokenPick.endTime})` : "—" }, { label: "Queue number", value: "Shown once confirmed, with your estimated time" }]
@@ -748,6 +788,7 @@ export function BookingClient({ business, fontClasses }: { business: Business; f
                 <p className="bk-note warn">Payment will be collected at the time of your appointment.</p>
               )}
               <p className="bk-note">A confirmation will be sent to <strong>{form.email}</strong> along with a reminder 24h before.</p>
+              {isOnline && telemedicineNote(business.packId) && <p className="bk-note warn">{telemedicineNote(business.packId)}</p>}
               {error && <p className="bk-note err" role="alert">{error}</p>}
               {refusal && (
                 <div role="alert" className="bk-alert">

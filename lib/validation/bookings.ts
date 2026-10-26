@@ -22,6 +22,8 @@ export const bookingSchema = z
     clientEmail: emailField,
     clientPhone: z.preprocess(blankToUndef, phoneField.optional()),
     notes: z.preprocess(blankToUndef, text(1000).optional()),
+    /** For services offered both in person and online: the customer's choice. */
+    mode: z.preprocess(blankToUndef, z.enum(["in_person", "online"]).optional()),
   })
   .refine((b) => (b.serviceIds?.length ?? 0) > 0 || !!b.serviceId, {
     message: "serviceId or serviceIds is required",

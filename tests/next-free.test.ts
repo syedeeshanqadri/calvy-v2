@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { dayLabel, timeLabel, withTimeout } from "@/lib/nextFree";
 import { parseBookingDeepLink } from "@/lib/deepLink";
-import { isOnlineService } from "@/lib/onlineService";
 
 const params = (q: Record<string, string>) => ({ get: (k: string) => q[k] ?? null });
 
@@ -47,17 +46,5 @@ describe("step-6/redesign-hero-availability: deep link into the booking page", (
   it("no service means no deep link", () => {
     expect(parseBookingDeepLink(params({ date: "2026-10-28" }), today)).toBeNull();
     expect(parseBookingDeepLink(null, today)).toBeNull();
-  });
-});
-
-describe("step-6/redesign-hero-availability: online badge placeholder", () => {
-  it("spots services that say they are online", () => {
-    expect(isOnlineService({ name: "Video consultation", description: "" })).toBe(true);
-    expect(isOnlineService({ name: "Intro call", description: "A short online call" })).toBe(true);
-    expect(isOnlineService({ name: "Telemedicine visit" })).toBe(true);
-  });
-  it("does not flag ordinary services", () => {
-    expect(isOnlineService({ name: "General Consultation", description: "Doctor consultation and prescription" })).toBe(false);
-    expect(isOnlineService({ name: "Offline massage", description: null })).toBe(false);
   });
 });
