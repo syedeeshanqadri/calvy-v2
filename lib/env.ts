@@ -70,7 +70,7 @@ export const OPTIONAL_SERVICES: Record<string, string[]> = {
   razorpay: ["RAZORPAY_KEY_ID", "RAZORPAY_KEY_SECRET"],
   "razorpay-webhooks": ["RAZORPAY_WEBHOOK_SECRET", "RAZORPAY_BILLING_WEBHOOK_SECRET"],
   "web-push": ["NEXT_PUBLIC_VAPID_PUBLIC_KEY", "VAPID_PRIVATE_KEY", "VAPID_SUBJECT"],
-  "file-uploads": ["BLOB_READ_WRITE_TOKEN"],
+  "blog-image-uploads": ["BLOB_READ_WRITE_TOKEN"],
   "google-login": ["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET"],
   "facebook-login": ["FACEBOOK_CLIENT_ID", "FACEBOOK_CLIENT_SECRET"],
   "cron-reminders": ["CRON_SECRET"],

@@ -6,7 +6,7 @@ import sharp from "sharp";
 // development, S3/R2 in production), keep using Blob where its token is set, and crop to a fixed size.
 
 const mocks = vi.hoisted(() => ({
-  storage: { put: vi.fn(), remove: vi.fn(), keyFromUrl: vi.fn() },
+  storage: { put: vi.fn(), remove: vi.fn(), keyFromUrl: vi.fn(), usage: vi.fn() },
   getStorage: vi.fn(),
   put: vi.fn(),
   list: vi.fn(),
@@ -35,6 +35,7 @@ describe("website photo upload storage", () => {
     vi.clearAllMocks();
     delete process.env.BLOB_READ_WRITE_TOKEN;
     mocks.getStorage.mockReturnValue(mocks.storage);
+    mocks.storage.usage.mockResolvedValue({ files: 0, bytes: 0 });
     mocks.storage.put.mockImplementation(async (key: string) => ({ key, url: `/uploads/${key}` }));
   });
   afterEach(() => {
@@ -75,6 +76,13 @@ describe("website photo upload storage", () => {
     const res = await POST(await request());
     expect(res.status).toBe(403);
     expect(mocks.put).not.toHaveBeenCalled();
+  });
+
+  it("a full quota on the storage adapter (S3/local) is refused too", async () => {
+    mocks.storage.usage.mockResolvedValue({ files: 51, bytes: 1 });
+    const res = await POST(await request());
+    expect(res.status).toBe(403);
+    expect(mocks.storage.put).not.toHaveBeenCalled();
   });
 
   it("when no storage is configured, says so with a 503 instead of crashing", async () => {

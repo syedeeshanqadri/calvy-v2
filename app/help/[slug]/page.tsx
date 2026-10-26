@@ -1,3 +1,4 @@
+import { jsonLdString } from "@/lib/jsonLd";
 import { SUPPORT_EMAIL } from "@/lib/site";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -49,7 +50,7 @@ export default async function HelpArticlePage(props: { params: Promise<{ slug: s
   return (
     <main className="bg-white min-h-screen">
       <Navbar />
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString(jsonLd) }} />
 
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 pt-28 pb-16">
         {/* Breadcrumb */}

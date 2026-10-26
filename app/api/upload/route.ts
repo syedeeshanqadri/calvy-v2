@@ -56,15 +56,17 @@ async function POST_handler(req: NextRequest) {
     const prefix = `website/${businessId}/`;
     const name = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.webp`;
 
+    const overQuota = (files: number, bytes: number) =>
+      files >= TENANT_UPLOAD_MAX_FILES || bytes + photo.webp.length > TENANT_UPLOAD_MAX_BYTES;
+    const quotaResponse = () =>
+      NextResponse.json({ error: "Upload limit reached. Delete unused images or contact support." }, { status: 403 });
+
     // Vercel Blob when its token is set (existing deployments); otherwise the storage adapter,
     // which is local disk in development and S3/R2 in production (same as logo uploads).
+    // Both enforce the same per-tenant quota (files and total bytes).
     if (process.env.BLOB_READ_WRITE_TOKEN) {
-      // Per-tenant quota (files and total bytes).
       const existing = await list({ prefix, limit: TENANT_UPLOAD_MAX_FILES + 1 });
-      const usedBytes = existing.blobs.reduce((n, b) => n + b.size, 0);
-      if (existing.blobs.length >= TENANT_UPLOAD_MAX_FILES || usedBytes + photo.webp.length > TENANT_UPLOAD_MAX_BYTES) {
-        return NextResponse.json({ error: "Upload limit reached. Delete unused images or contact support." }, { status: 403 });
-      }
+      if (overQuota(existing.blobs.length, existing.blobs.reduce((n, b) => n + b.size, 0))) return quotaResponse();
       const blob = await put(`${prefix}${name}`, photo.webp, { access: "public", contentType: "image/webp" });
       return NextResponse.json({ url: blob.url });
     }
@@ -75,6 +77,8 @@ async function POST_handler(req: NextRequest) {
     } catch {
       return NextResponse.json({ error: "Image upload is not available right now." }, { status: 503 });
     }
+    const used = await storage.usage(prefix, TENANT_UPLOAD_MAX_FILES + 1);
+    if (overQuota(used.files, used.bytes)) return quotaResponse();
     const stored = await storage.put(`${prefix}${name}`, Buffer.from(photo.webp), "image/webp");
     return NextResponse.json({ url: stored.url });
   } catch (err) {

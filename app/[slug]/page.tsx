@@ -1,3 +1,4 @@
+import { jsonLdString } from "@/lib/jsonLd";
 import { notFound } from "next/navigation";
 import { Metadata } from "next";
 import Link from "next/link";
@@ -178,7 +179,7 @@ export default async function TenantWebsitePage(props: { params: Promise<{ slug:
 
   return (
     <div className={`st ${fontClasses}`} data-pack={business.packId} style={themeVars(primary) as React.CSSProperties}>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString(jsonLd) }} />
       <a className="st-sr" href="#main">Skip to content</a>
 
       {/* ── TOP INFO BAR ── */}
