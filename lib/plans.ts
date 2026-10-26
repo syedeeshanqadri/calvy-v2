@@ -1,3 +1,5 @@
+import { isPlanEnforcementOn } from "@/lib/flags";
+
 export type PlanId = "free" | "starter" | "professional" | "business";
 
 export interface PlanLimits {
@@ -41,7 +43,7 @@ export const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
     groupBooking: false,
     multiService: true,
     stripePayments: false,
-    emailReminders: false,
+    emailReminders: true, // Free: email confirmations and reminders; only WhatsApp is a paid feature
     whatsappReminders: false,
     broadcasts: false,
     csvExport: false,
@@ -182,8 +184,28 @@ export function defaultPlanStatus(plan: string | null | undefined): "free" | "ac
   return normalizePlanId(plan) === "free" ? "free" : "active";
 }
 
+/**
+ * With PLAN_ENFORCEMENT off, a plan's limits become "no limits and every feature": counts are -1
+ * (unlimited) and every flag is true. platformFeeMinorIN stays as the plan defines it, because it
+ * is what Calvy charges for an online booking, not a gate. All enforcement code stays in place and
+ * behaves as before the moment the flag is on.
+ */
+export function unlimitedLimits(real: PlanLimits): PlanLimits {
+  const out = { ...real } as Record<string, number | boolean>;
+  for (const [k, v] of Object.entries(real)) {
+    if (k === "platformFeeMinorIN") continue;
+    out[k] = typeof v === "number" ? -1 : true;
+  }
+  return out as unknown as PlanLimits;
+}
+
+/** The single choke point: every limit and feature gate reads its limits through here. */
+export function applyEnforcement(limits: PlanLimits, on: boolean = isPlanEnforcementOn()): PlanLimits {
+  return on ? limits : unlimitedLimits(limits);
+}
+
 export function getLimits(plan: string): PlanLimits {
-  return PLAN_LIMITS[normalizePlanId(plan)];
+  return applyEnforcement(PLAN_LIMITS[normalizePlanId(plan)]);
 }
 
 /** The columns of a PlanConfig row that carry limits and flags (the DB calls the WhatsApp flag smsReminders). */
@@ -224,15 +246,15 @@ export async function getLimitsFromDB(plan: string): Promise<PlanLimits> {
   try {
     const { prisma } = await import("@/lib/prisma");
     const config = await prisma.planConfig.findUnique({ where: { planId: normalizePlanId(plan) } });
-    return config ? limitsFromConfig(config) : getLimits(plan);
+    return config ? applyEnforcement(limitsFromConfig(config)) : getLimits(plan);
   } catch {
     return getLimits(plan);
   }
 }
 
 export function isActivePlan(planStatus: string, plan: string, trialEndsAt: Date | null | undefined): boolean {
-  // Free plan always active — lifetime, no expiry
-  if (normalizePlanId(plan) === "free") return true;
+  // Without enforcement nothing expires; the Free plan is always active (lifetime, no expiry)
+  if (!isPlanEnforcementOn() || normalizePlanId(plan) === "free") return true;
   return planStatus === "active";
 }
 
