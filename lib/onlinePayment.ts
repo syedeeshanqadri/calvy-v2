@@ -4,7 +4,7 @@
 import { prisma } from "@/lib/prisma";
 import { isFeatureEnabled } from "@/lib/flags";
 import { getEffectiveLimits } from "@/lib/getFeatures";
-import { computeCharge, countryFromCurrency, toMinor, type Charge, type FeePayer, type OnlinePayMode } from "@/lib/fees";
+import { computeCharge, countryFromCurrency, effectivePayMode, toMinor, type Charge, type FeePayer, type OnlinePayMode } from "@/lib/fees";
 import { EXPIRED, PENDING_PAYMENT, onPaid } from "@/lib/holds";
 import { paymentLockKey, refundBlockedByCredit } from "@/lib/credit";
 import { BOOKING_TX_OPTIONS } from "@/lib/booking";
@@ -45,7 +45,7 @@ export async function getPayConfig(business: {
   return {
     country: countryFromCurrency(business.currency),
     platformFeeMinorIN: limits.platformFeeMinorIN,
-    mode: business.onlinePayMode,
+    mode: effectivePayMode(business.onlinePayMode),
     payer: business.feePayer,
   };
 }

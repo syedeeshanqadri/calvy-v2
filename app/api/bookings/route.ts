@@ -25,6 +25,7 @@ import { assertNoDuplicatePatient, assertWithinPeopleCap, contactAtDailyCap, Dup
 import { isFeatureEnabled } from "@/lib/flags";
 import { PENDING_PAYMENT, holdExpiry } from "@/lib/holds";
 import { chargeFor, getPayConfig, startCheckout } from "@/lib/onlinePayment";
+import { effectivePayMode } from "@/lib/fees";
 import { resolveBookingMode, resolveMeetingUrl } from "@/lib/online";
 import { loadMeetingUrl } from "@/lib/onlineDb";
 
@@ -368,7 +369,7 @@ async function POST_handler(req: NextRequest) {
   if (onlinePayments) {
     client = await getOrCreateClient();
     const hold = charge.chargeMinor > 0 ? holdExpiry() : null;
-    const venueMode = business.onlinePayMode === "FULL_ONLINE" && hold ? "prepaid" : "postpaid";
+    const venueMode = effectivePayMode(business.onlinePayMode) === "FULL_ONLINE" && hold ? "prepaid" : "postpaid";
     let appointment;
     try {
       appointment = await createAppointment(client.id, "unpaid", venueMode, hold);

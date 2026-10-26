@@ -4,6 +4,17 @@
 export type OnlinePayMode = "BOOKING_FEE_ONLY" | "FULL_ONLINE";
 export type FeePayer = "CUSTOMER" | "BUSINESS";
 
+/**
+ * FULL_ONLINE sends the service price through Calvy's gateway account, which needs the payout
+ * account and split (PLAN.md "Parked": chunk 12). Until that exists nothing may collect a business's
+ * money, so every stored FULL_ONLINE is treated as BOOKING_FEE_ONLY. Flip this only with chunk 12.
+ */
+export const FULL_ONLINE_ENABLED = false;
+
+export function effectivePayMode(mode: OnlinePayMode): OnlinePayMode {
+  return mode === "FULL_ONLINE" && !FULL_ONLINE_ENABLED ? "BOOKING_FEE_ONLY" : mode;
+}
+
 export interface ChargeInput {
   /** ISO-2 country of the business. */
   country: string;
