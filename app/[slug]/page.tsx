@@ -4,17 +4,23 @@ import Link from "next/link";
 import Image from "next/image";
 import { prisma } from "@/lib/prisma";
 import { t } from "@/lib/terms";
-import { parseWebsiteConfig, defaultWebsiteConfig, WebsiteConfig } from "@/lib/website";
-import { MapPin, Phone, Mail, Clock, ChevronDown, ArrowRight, Star, CheckCircle2 } from "lucide-react";
+import { parseWebsiteConfig, defaultWebsiteConfig, WebsiteConfig, currentPhoto, focusPosition } from "@/lib/website";
+import { MapPin, Phone, Mail, Clock, ArrowRight, Check, Users, Tag, MessageCircle, CalendarClock } from "lucide-react";
 import { formatCurrencyAmount } from "@/lib/currency";
 import { getFlags } from "@/lib/flags";
 import { ChatWidget } from "@/components/chatbot/ChatWidget";
 import { getBusinessFeatures } from "@/lib/getFeatures";
 import { contactRequirements } from "@/lib/patients";
-import { safeThemeColor, readableForeground, themeVars } from "@/lib/theme";
-import { BrandMark, SocialIcons, ReviewButton } from "@/components/site/Brand";
+import { safeThemeColor, readableForeground, themeVars, brandInk } from "@/lib/theme";
+import { BrandMark, SocialIcons, ReviewButton, initialsOf } from "@/components/site/Brand";
 import { parseSocialLinks, safeReviewLink } from "@/lib/brandLinks";
-import { formatOpeningHours, mapsEmbedUrl } from "@/lib/hours";
+import { formatOpeningHours, mapsEmbedUrl, openStatus, summarizeHours } from "@/lib/hours";
+import { siteFontClasses } from "./fonts";
+import { SiteHero } from "./SiteHero";
+import { PackIcon } from "@/components/site/PackIcon";
+import { getPack } from "@/lib/packs";
+import { heroLayoutFor } from "@/lib/siteLayout";
+import "./site.css";
 
 export const dynamic = "force-dynamic";
 
@@ -58,7 +64,15 @@ export async function generateMetadata(props: { params: Promise<{ slug: string }
   };
 }
 
-const STAFF_COLORS = ["#0284c7","#3b82f6","#22c55e","#8b5cf6","#f59e0b","#ec4899","#14b8a6","#f97316"];
+/** Services grouped by category in first-seen order; the "other" default reads as plain "Other services". */
+function groupByCategory<T extends { category: string }>(services: T[]): { key: string; label: string; items: T[] }[] {
+  const groups = new Map<string, T[]>();
+  for (const s of services) groups.set(s.category, [...(groups.get(s.category) ?? []), s]);
+  return [...groups].map(([key, items]) => {
+    const label = key === "other" ? "Other services" : key.replace(/[-_]+/g, " ").replace(/^./, (c) => c.toUpperCase());
+    return { key, label, items };
+  });
+}
 
 export default async function TenantWebsitePage(props: { params: Promise<{ slug: string }> }) {
   const params = await props.params;
@@ -114,366 +128,336 @@ export default async function TenantWebsitePage(props: { params: Promise<{ slug:
     })),
   };
 
-  return (
-    <div className="min-h-screen bg-white text-gray-900 antialiased" style={themeVars(primary) as React.CSSProperties}>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+  const fontClasses = await siteFontClasses(business.packId);
+  const status = hasHours ? openStatus(business.workingHours, business.timezone) : null;
+  const showHours = cfg.contact.showHours !== false && hasHours;
+  const showAddress = cfg.contact.showAddress && !!business.address;
+  const showMap = cfg.contact.showMap !== false && showAddress;
+  const logoRadius = business.packId === "SALON_SPA" || business.packId === "CONSULTANT" ? "rounded-full" : "rounded-[10px]";
+  const groups = groupByCategory(business.services);
+  const hasTeam = cfg.team.enabled && business.staff.length > 0;
+  const hasSocial = Object.keys(social).length > 0;
+  const showPhone = cfg.contact.showPhone && !!business.phone;
+  const showEmail = cfg.contact.showEmail && !!business.email;
+  const hasContactRows = showPhone || showEmail || showAddress;
+  const heroImage = currentPhoto(cfg.hero.image, business.businessType, "hero");
+  const aboutImage = currentPhoto(cfg.about.image, business.businessType, "about");
+  const onInvert = primaryFg === "#ffffff" ? brandInk(primary) : primary;
+  const footerHours = summarizeHours(hours);
+  const pack = getPack(business.packId);
+  const serviceCount = business.services.length;
+  const staffCount = business.staff.length;
+  const heroChips: { icon: React.ReactNode; label: string; sub?: string; live?: boolean }[] = [];
+  if (status && showHours) heroChips.push({ icon: <Clock aria-hidden />, label: status.label, live: status.open });
+  if (prices.length > 0) heroChips.push({ icon: <Tag aria-hidden />, label: `From ${formatCurrencyAmount(Math.min(...prices), business.currency)}`, sub: `${serviceCount} ${t(business, "service", { plural: serviceCount !== 1 })}` });
+  const heroTrust: { icon: React.ReactNode; text: string }[] = [];
+  if (staffCount > 0) heroTrust.push({ icon: <Users aria-hidden />, text: `${staffCount} ${t(business, "staff", { plural: staffCount !== 1 })}` });
+  if (serviceCount > 0) heroTrust.push({ icon: <PackIcon name={pack.icons.service} />, text: `${serviceCount} ${t(business, "service", { plural: serviceCount !== 1 })}` });
+  heroTrust.push({ icon: <Check aria-hidden />, text: cfg.contact.ctaNote || "Book online in minutes" });
+  const quickServices = cfg.services.enabled ? business.services.slice(0, 5) : [];
+  const railItems = [
+    social.whatsapp && { href: social.whatsapp, label: "WhatsApp", icon: <MessageCircle className="st-ico" aria-hidden />, external: true },
+    { href: bookingUrl, label: "Book now", icon: <CalendarClock className="st-ico" aria-hidden />, external: false },
+    showPhone && { href: `tel:${business.phone}`, label: "Call", icon: <Phone className="st-ico" aria-hidden />, external: false },
+  ].filter(Boolean) as { href: string; label: string; icon: React.ReactNode; external: boolean }[];
 
-      {/* ── NAVBAR ── */}
-      <header className="fixed top-0 left-0 right-0 z-50">
-        <div className="mx-auto max-w-7xl px-6 py-4">
-          <div className="flex items-center justify-between bg-white/80 backdrop-blur-xl rounded-2xl px-6 py-3 shadow-lg shadow-black/5 border border-white/60">
-            <span className="flex items-center gap-3 min-w-0">
-              <BrandMark name={business.name} logoUrl={business.logoUrl} color={primary} fg={primaryFg} size={36} />
-              <span className="text-xl font-black tracking-tight text-gray-900 truncate">{business.name}</span>
-            </span>
-            <nav className="hidden md:flex items-center gap-8">
-              {cfg.about.enabled    && <a href="#about"    className="text-sm font-medium text-gray-500 hover:text-gray-900 transition-colors">{cfg.about.title}</a>}
-              {cfg.services.enabled && <a href="#services" className="text-sm font-medium text-gray-500 hover:text-gray-900 transition-colors">{cfg.services.title}</a>}
-              {cfg.team.enabled && business.staff.length > 0 && <a href="#team" className="text-sm font-medium text-gray-500 hover:text-gray-900 transition-colors">{cfg.team.title}</a>}
-              {cfg.contact.enabled  && <a href="#contact"  className="text-sm font-medium text-gray-500 hover:text-gray-900 transition-colors">{cfg.contact.title}</a>}
-            </nav>
-            <Link
-              href={bookingUrl}
-              className="px-5 py-2.5 rounded-xl text-sm font-bold text-white transition-all hover:scale-105 hover:shadow-lg active:scale-100"
-              style={{ background: primary, color: primaryFg, boxShadow: `0 4px 14px ${primary}55` }}
-            >
-              {cfg.hero.ctaText}
-            </Link>
+  return (
+    <div className={`st ${fontClasses}`} data-pack={business.packId} style={themeVars(primary) as React.CSSProperties}>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <a className="st-sr" href="#main">Skip to content</a>
+
+      {/* ── TOP INFO BAR ── */}
+      {((status && showHours) || showAddress || showPhone || hasSocial) && (
+        <div className="st-util">
+          <div className="st-wrap">
+            <div className="st-util-items">
+              {status && showHours && (
+                <span className="st-util-item"><Clock className="st-ico" aria-hidden /><span className={status.open ? "st-live" : ""}>{status.label}</span></span>
+              )}
+              {showAddress && <span className="st-util-item hide-sm"><MapPin className="st-ico" aria-hidden />{business.address}</span>}
+              {showPhone && <a className="st-util-item" href={`tel:${business.phone}`}><Phone className="st-ico" aria-hidden />{business.phone}</a>}
+            </div>
+            {hasSocial && <SocialIcons links={social} tone="light" className="hide-sm" />}
           </div>
+        </div>
+      )}
+
+      {/* ── HEADER ── */}
+      <header className="st-head">
+        <div className="st-wrap">
+          <span className="st-brand">
+            <BrandMark name={business.name} logoUrl={business.logoUrl} color={primary} fg={primaryFg} size={40} rounded={logoRadius} />
+            <b>{business.name}</b>
+          </span>
+          <nav className="st-nav" aria-label="Sections">
+            {cfg.about.enabled && <a href="#about">{cfg.about.title}</a>}
+            {cfg.services.enabled && business.services.length > 0 && <a href="#services">{cfg.services.title}</a>}
+            {hasTeam && <a href="#team">{cfg.team.title}</a>}
+            {cfg.contact.enabled && <a href="#contact">{cfg.contact.title}</a>}
+          </nav>
+          <Link href={bookingUrl} className="st-btn st-btn-primary st-btn-sm">{cfg.hero.ctaText}</Link>
         </div>
       </header>
 
-      {/* ── HERO ── */}
-      {cfg.hero.enabled && (
-        <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
-          <div className="absolute inset-0">
-            {cfg.hero.image && (
-              <Image src={cfg.hero.image} alt="hero" fill className="object-cover object-center" priority sizes="100vw" unoptimized />
-            )}
-            <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/55 to-black/80" />
-          </div>
+      <main id="main">
+        {/* ── HERO ── */}
+        {cfg.hero.enabled && (
+          <SiteHero
+            layout={heroLayoutFor(business.packId)}
+            businessName={business.name}
+            badge={cfg.hero.badge}
+            headline={cfg.hero.headline}
+            subheadline={cfg.hero.subheadline}
+            ctaText={cfg.hero.ctaText}
+            secondaryCtaText={cfg.services.enabled && serviceCount > 0 ? cfg.hero.secondaryCtaText : undefined}
+            bookingUrl={bookingUrl}
+            image={heroImage}
+            imageFocus={cfg.hero.imageFocus}
+            chips={heroChips}
+            trust={heroTrust}
+            sealIcon={<PackIcon name={pack.icons.pack} />}
+          />
+        )}
 
-          <div className="relative z-10 text-center px-6 max-w-4xl mx-auto pt-24">
-            {cfg.hero.badge && (
-              <div
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold mb-6 backdrop-blur-sm"
-                style={{ background: primary + "33", color: "#fff", border: `1px solid ${primary}55` }}
-              >
-                <Star size={12} fill="currentColor" />
-                {cfg.hero.badge}
-              </div>
-            )}
-            <h1 className="text-5xl md:text-7xl font-black text-white mb-6 leading-[1.05] tracking-tight">
-              {cfg.hero.headline}
-            </h1>
-            <p className="text-lg md:text-xl text-white/75 mb-10 max-w-2xl mx-auto leading-relaxed">
-              {cfg.hero.subheadline}
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link
-                href={bookingUrl}
-                className="inline-flex items-center justify-center gap-2.5 px-8 py-4 rounded-2xl text-base font-bold text-white transition-all hover:scale-105 hover:shadow-2xl active:scale-100"
-                style={{ background: primary, color: primaryFg, boxShadow: `0 8px 30px ${primary}66` }}
-              >
-                {cfg.hero.ctaText} <ArrowRight size={18} />
-              </Link>
-              {cfg.services.enabled && cfg.hero.secondaryCtaText && (
-                <a
-                  href="#services"
-                  className="inline-flex items-center justify-center gap-2.5 px-8 py-4 rounded-2xl text-base font-bold text-white border border-white/25 backdrop-blur-sm hover:bg-white/10 transition-all"
-                >
-                  {cfg.hero.secondaryCtaText}
-                </a>
-              )}
+        {/* ── SERVICE SHORTCUTS ── */}
+        {quickServices.length >= 2 && (
+          <section className="st-quick" aria-label={cfg.services.title}>
+            <div className="st-wrap">
+              <ul className="st-quick-row" style={{ "--cols": quickServices.length } as React.CSSProperties}>
+                {quickServices.map((svc) => (
+                  <li key={svc.id}>
+                    <Link href={`${bookingUrl}?service=${svc.id}`} className="st-quick-tile">
+                      <span className="st-ico-wrap"><PackIcon name={pack.icons.service} /></span>
+                      <span>
+                        <b>{svc.name}</b>
+                        <small>{svc.duration} min · {svc.price === 0 ? "Free" : formatCurrencyAmount(svc.price, business.currency)}</small>
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
             </div>
-          </div>
+          </section>
+        )}
 
-          <a href="#about" className="absolute bottom-10 left-1/2 -translate-x-1/2 text-white/50 hover:text-white transition-colors animate-bounce">
-            <ChevronDown size={28} />
-          </a>
-        </section>
-      )}
-
-      {/* ── ABOUT ── */}
-      {cfg.about.enabled && (
-        <section id="about" className="py-28 px-6 bg-white">
-          <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-16 items-center">
-            <div className="relative">
-              <div className="relative h-[480px] rounded-3xl overflow-hidden shadow-2xl">
-                {cfg.about.image ? (
-                  <Image src={cfg.about.image} alt="About" fill className="object-cover" sizes="(max-width: 768px) 100vw, 50vw" unoptimized />
-                ) : (
-                  <div className="w-full h-full bg-gray-100" />
+        {/* ── SERVICES ── */}
+        {cfg.services.enabled && business.services.length > 0 && (
+          <section id="services" className="st-section">
+            <div className="st-wrap st-svc-layout">
+              <div className="st-head-sec">
+                {cfg.services.badge && <div className="st-kicker">{cfg.services.badge}</div>}
+                <h2>{cfg.services.title}</h2>
+                {cfg.services.subtitle && <p>{cfg.services.subtitle}</p>}
+              </div>
+              <div>
+                {groups.map((g) => (
+                  <div key={g.key} className="st-svc-group">
+                    {groups.length > 1 && <h3>{g.label}</h3>}
+                    {g.items.map((svc) => (
+                      <div key={svc.id} className="st-svc">
+                        <div className="st-svc-name">
+                          {svc.name}
+                          {svc.capacity > 1 && <span className="st-tag">Up to {svc.capacity} people</span>}
+                        </div>
+                        <div className="st-svc-price">{svc.price === 0 ? "Free" : formatCurrencyAmount(svc.price, business.currency)}</div>
+                        {svc.description && <p className="st-svc-desc">{svc.description}</p>}
+                        <div className="st-svc-meta">{svc.duration} min</div>
+                        <Link href={`${bookingUrl}?service=${svc.id}`} className="st-btn st-btn-ghost st-btn-sm" aria-label={`Book ${svc.name}`}>Book</Link>
+                      </div>
+                    ))}
+                  </div>
+                ))}
+                {cfg.services.ctaText && (
+                  <div className="st-more">
+                    <Link href={bookingUrl} className="st-btn st-btn-primary">{cfg.services.ctaText}</Link>
+                  </div>
                 )}
               </div>
-              {cfg.about.trustLabel && (
-                <div className="absolute -bottom-6 -right-6 bg-white rounded-2xl shadow-xl px-6 py-4 flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: primary + "20" }}>
-                    <CheckCircle2 size={20} style={{ color: primary }} />
-                  </div>
-                  <div>
-                    <div className="text-xs text-gray-400 font-medium">{cfg.about.trustLabel}</div>
-                    <div className="text-sm font-bold text-gray-900">{business.services.length}+ {t(business, "service", { plural: true, cap: true })}</div>
-                  </div>
-                </div>
-              )}
             </div>
+          </section>
+        )}
 
-            <div>
-              {cfg.about.badge && (
-                <div className="inline-block text-xs font-bold tracking-widest uppercase mb-4 px-3 py-1.5 rounded-full" style={{ background: primary + "15", color: primary }}>
-                  {cfg.about.badge}
-                </div>
-              )}
-              <h2 className="text-4xl font-black mb-6 leading-tight tracking-tight">{cfg.about.title}</h2>
-              <p className="text-gray-500 text-lg leading-relaxed whitespace-pre-line mb-8">{cfg.about.body}</p>
-              {cfg.about.ctaText && (
-                <Link href={bookingUrl} className="inline-flex items-center gap-2 font-bold text-sm transition-all hover:gap-3" style={{ color: primary }}>
-                  {cfg.about.ctaText} <ArrowRight size={16} />
-                </Link>
-              )}
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* ── SERVICES ── */}
-      {cfg.services.enabled && business.services.length > 0 && (
-        <section id="services" className="py-28 px-6" style={{ background: "#f8f9fb" }}>
-          <div className="max-w-6xl mx-auto">
-            <div className="text-center mb-16">
-              {cfg.services.badge && (
-                <div className="inline-block text-xs font-bold tracking-widest uppercase mb-4 px-3 py-1.5 rounded-full" style={{ background: primary + "15", color: primary }}>
-                  {cfg.services.badge}
-                </div>
-              )}
-              <h2 className="text-4xl font-black mb-4 tracking-tight">{cfg.services.title}</h2>
-              <p className="text-gray-500 text-lg max-w-xl mx-auto">{cfg.services.subtitle}</p>
-            </div>
-
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {business.services.map((svc, i) => (
-                <Link
-                  key={svc.id}
-                  href={`${bookingUrl}?service=${svc.id}`}
-                  className="group bg-white rounded-3xl p-7 shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1.5 border border-gray-100/80 block"
-                >
-                  <div className="flex items-start justify-between mb-5">
-                    <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-xl font-black" style={{ background: svc.color + "20", color: svc.color }}>
-                      {String(i + 1).padStart(2, "0")}
-                    </div>
-                    <div className="text-lg font-black" style={{ color: primary }}>
-                      {svc.price === 0 ? "Free" : formatCurrencyAmount(svc.price, business.currency)}
-                    </div>
-                  </div>
-                  <h3 className="font-black text-lg mb-2 tracking-tight group-hover:text-gray-700 transition-colors">{svc.name}</h3>
-                  {svc.description && <p className="text-gray-400 text-sm mb-5 leading-relaxed line-clamp-2">{svc.description}</p>}
-                  <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-                    <div className="flex items-center gap-1.5 text-xs text-gray-400 font-medium">
-                      <Clock size={13} /><span>{svc.duration} min</span>
-                    </div>
-                    <span className="text-xs font-bold flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: primary }}>
-                      Book now <ArrowRight size={12} />
-                    </span>
-                  </div>
-                </Link>
-              ))}
-            </div>
-
-            {cfg.services.ctaText && (
-              <div className="text-center mt-12">
-                <Link
-                  href={bookingUrl}
-                  className="inline-flex items-center gap-2.5 px-8 py-4 rounded-2xl text-sm font-bold text-white transition-all hover:scale-105 hover:shadow-xl active:scale-100"
-                  style={{ background: primary, color: primaryFg, boxShadow: `0 4px 20px ${primary}44` }}
-                >
-                  {cfg.services.ctaText} <ArrowRight size={16} />
-                </Link>
+        {/* ── TEAM ── */}
+        {hasTeam && (
+          <section id="team" className="st-section tint">
+            <div className="st-wrap">
+              <div className="st-head-sec">
+                {cfg.team.badge && <div className="st-kicker">{cfg.team.badge}</div>}
+                <h2>{cfg.team.title}</h2>
+                {cfg.team.subtitle && <p>{cfg.team.subtitle}</p>}
               </div>
-            )}
-          </div>
-        </section>
-      )}
+              <ul className="st-team">
+                {business.staff.map((member) => (
+                  <li key={member.id} className="st-person">
+                    <div className="st-avatar" aria-hidden>{initialsOf(member.name)}</div>
+                    <b>{member.name}</b>
+                    <span className="st-muted">{member.role}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </section>
+        )}
 
-      {/* ── TEAM ── */}
-      {cfg.team.enabled && business.staff.length > 0 && (
-        <section id="team" className="py-28 px-6 bg-white">
-          <div className="max-w-6xl mx-auto">
-            <div className="text-center mb-16">
-              {cfg.team.badge && (
-                <div className="inline-block text-xs font-bold tracking-widest uppercase mb-4 px-3 py-1.5 rounded-full" style={{ background: primary + "15", color: primary }}>
-                  {cfg.team.badge}
+        {/* ── ABOUT ── */}
+        {cfg.about.enabled && (
+          <section id="about" className="st-section">
+            <div className="st-wrap st-about">
+              {aboutImage && (
+                <div className="st-about-media">
+                  <Image src={aboutImage} alt={business.name} fill sizes="(max-width: 900px) 100vw, 50vw" style={{ objectPosition: focusPosition(cfg.about.imageFocus) }} unoptimized />
                 </div>
               )}
-              <h2 className="text-4xl font-black mb-4 tracking-tight">{cfg.team.title}</h2>
-              <p className="text-gray-500 text-lg max-w-xl mx-auto">{cfg.team.subtitle}</p>
+              <div>
+                {cfg.about.badge && <div className="st-kicker">{cfg.about.badge}</div>}
+                <h2>{cfg.about.title}</h2>
+                <p className="st-about-body">{cfg.about.body}</p>
+                {cfg.about.trustLabel && business.services.length > 0 && (
+                  <p className="st-trust">{cfg.about.trustLabel}: {business.services.length} {t(business, "service", { plural: business.services.length !== 1 })}</p>
+                )}
+                {cfg.about.ctaText && (
+                  <Link href={bookingUrl} className="st-link">{cfg.about.ctaText} <ArrowRight size={16} aria-hidden /></Link>
+                )}
+              </div>
             </div>
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {business.staff.map((member, i) => {
-                const color = STAFF_COLORS[i % STAFF_COLORS.length];
-                const initials = member.name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase();
-                return (
-                  <div key={member.id} className="bg-gray-50 rounded-3xl p-6 text-center hover:shadow-lg transition-all duration-300 hover:-translate-y-1 border border-gray-100">
-                    <div
-                      className="w-20 h-20 rounded-2xl mx-auto mb-4 flex items-center justify-center text-white text-2xl font-black shadow-lg"
-                      style={{ background: `linear-gradient(135deg, ${color}, ${color}cc)` }}
-                    >
-                      {initials}
-                    </div>
-                    <div className="font-black text-base mb-1 tracking-tight">{member.name}</div>
-                    <div className="text-xs font-bold px-3 py-1 rounded-full inline-block" style={{ background: color + "18", color }}>
-                      {member.role}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </section>
-      )}
+          </section>
+        )}
 
-      {/* ── CONTACT ── */}
-      {cfg.contact.enabled && (
-        <section id="contact" className="py-28 px-6 relative overflow-hidden">
-          <div className="absolute inset-0">
-            <div className="absolute inset-0" style={{ background: `linear-gradient(135deg, ${primary}ee 0%, ${primary}cc 100%)` }} />
-            <div className="absolute inset-0 opacity-10" style={{
-              backgroundImage: "radial-gradient(circle at 25% 50%, white 1px, transparent 1px), radial-gradient(circle at 75% 50%, white 1px, transparent 1px)",
-              backgroundSize: "60px 60px",
-            }} />
-          </div>
-
-          <div className="relative z-10 max-w-5xl mx-auto">
-            <div className="bg-white rounded-3xl shadow-2xl overflow-hidden">
-              <div className="grid md:grid-cols-2">
-                {/* Info panel */}
-                <div className="p-10 bg-gray-900 text-white">
-                  {cfg.contact.badge && (
-                    <div className="text-xs font-bold tracking-widest uppercase text-white/40 mb-4">{cfg.contact.badge}</div>
-                  )}
-                  <h2 className="text-3xl font-black mb-3 leading-tight">{cfg.contact.title}</h2>
-                  {cfg.contact.subtext && (
-                    <p className="text-white/50 text-sm mb-10 leading-relaxed">{cfg.contact.subtext}</p>
-                  )}
-                  <div className="space-y-5">
-                    {cfg.contact.showPhone && business.phone && (
-                      <a href={`tel:${business.phone}`} className="flex items-center gap-4 group">
-                        <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-white/10 group-hover:bg-white/20 transition-colors">
-                          <Phone size={16} className="text-white/70" />
-                        </div>
-                        <div>
-                          <div className="text-[10px] text-white/35 font-semibold uppercase tracking-wider">Phone</div>
-                          <div className="text-sm font-semibold text-white">{business.phone}</div>
-                        </div>
-                      </a>
-                    )}
-                    {cfg.contact.showEmail && business.email && (
-                      <a href={`mailto:${business.email}`} className="flex items-center gap-4 group">
-                        <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-white/10 group-hover:bg-white/20 transition-colors">
-                          <Mail size={16} className="text-white/70" />
-                        </div>
-                        <div>
-                          <div className="text-[10px] text-white/35 font-semibold uppercase tracking-wider">Email</div>
-                          <div className="text-sm font-semibold text-white">{business.email}</div>
-                        </div>
-                      </a>
-                    )}
-                    {cfg.contact.showAddress && business.address && (
-                      <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-white/10">
-                          <MapPin size={16} className="text-white/70" />
-                        </div>
-                        <div>
-                          <div className="text-[10px] text-white/35 font-semibold uppercase tracking-wider">Address</div>
-                          <div className="text-sm font-semibold text-white">{business.address}</div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  {cfg.contact.showHours !== false && hasHours && (
-                    <div className="mt-8 pt-6 border-t border-white/10">
-                      <div className="flex items-center gap-2 text-[10px] text-white/35 font-semibold uppercase tracking-wider mb-3">
-                        <Clock size={12} /> Opening hours
-                      </div>
-                      <dl className="space-y-1.5 text-sm">
+        {/* ── VISIT / CONTACT ── */}
+        {cfg.contact.enabled && (
+          <section id="contact" className="st-section tint">
+            <div className="st-wrap st-visit">
+              <div>
+                {cfg.contact.badge && <div className="st-kicker">{cfg.contact.badge}</div>}
+                <h2>{cfg.contact.title}</h2>
+                {cfg.contact.subtext && <p className="st-muted" style={{ marginTop: 12 }}>{cfg.contact.subtext}</p>}
+                {showHours && status && (
+                  <div className="st-card">
+                    <table className="st-hours">
+                      <caption className="st-sr">Opening hours</caption>
+                      <tbody>
                         {hours.map((h) => (
-                          <div key={h.weekday} className="flex justify-between gap-4">
-                            <dt className="text-white/60">{h.day}</dt>
-                            <dd className={h.closed ? "text-white/35" : "text-white font-medium"}>{h.label}</dd>
-                          </div>
+                          <tr key={h.weekday} className={`${h.weekday === status.weekday ? "today" : ""} ${h.closed ? "closed" : ""}`}>
+                            <th scope="row">
+                              {h.day}
+                              {h.weekday === status.weekday && <span className="st-today-tag">Today</span>}
+                            </th>
+                            <td>{h.label.split(", ").map((range, i) => <span key={i}>{i > 0 && <br />}{range}</span>)}</td>
+                          </tr>
                         ))}
-                      </dl>
-                    </div>
-                  )}
-                </div>
-
-                {/* CTA panel */}
-                <div className="p-10 flex flex-col items-center justify-center text-center">
-                  <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-6 shadow-lg" style={{ background: primary + "18" }}>
-                    <ArrowRight size={28} style={{ color: primary }} />
+                      </tbody>
+                    </table>
                   </div>
-                  <h3 className="text-2xl font-black mb-3 tracking-tight">{cfg.contact.ctaHeading}</h3>
-                  <p className="text-gray-400 text-sm mb-8 leading-relaxed max-w-xs">{cfg.contact.ctaSubtext}</p>
-                  <Link
-                    href={bookingUrl}
-                    className="w-full flex items-center justify-center gap-2.5 py-4 rounded-2xl text-base font-bold text-white transition-all hover:scale-[1.02] hover:shadow-xl active:scale-100"
-                    style={{ background: primary, color: primaryFg, boxShadow: `0 4px 20px ${primary}44` }}
-                  >
-                    {cfg.hero.ctaText} <ArrowRight size={18} />
-                  </Link>
-                  {cfg.contact.ctaNote && (
-                    <p className="text-xs text-gray-400 mt-4">{cfg.contact.ctaNote}</p>
-                  )}
-                </div>
+                )}
+                {hasContactRows && (
+                  <ul className="st-contact">
+                    {showPhone && <li><a href={`tel:${business.phone}`}><Phone className="st-ico" aria-hidden />{business.phone}</a></li>}
+                    {showEmail && <li><a href={`mailto:${business.email}`}><Mail className="st-ico" aria-hidden />{business.email}</a></li>}
+                    {showAddress && <li><div><MapPin className="st-ico" aria-hidden />{business.address}</div></li>}
+                  </ul>
+                )}
               </div>
-              {cfg.contact.showMap !== false && cfg.contact.showAddress && business.address && (
-                <iframe
-                  title={`Map of ${business.name}`}
-                  src={mapsEmbedUrl(business.address)}
-                  loading="lazy"
-                  referrerPolicy="no-referrer-when-downgrade"
-                  className="w-full h-72 border-0 border-t border-gray-100"
-                />
-              )}
+              <div className="st-visit-side">
+                <div className="st-cta-card">
+                  <h3>{cfg.contact.ctaHeading}</h3>
+                  {cfg.contact.ctaSubtext && <p>{cfg.contact.ctaSubtext}</p>}
+                  <Link href={bookingUrl} className="st-btn st-btn-invert" style={{ "--on-invert": onInvert } as React.CSSProperties}>{cfg.hero.ctaText}</Link>
+                  {cfg.contact.ctaNote && <small>{cfg.contact.ctaNote}</small>}
+                </div>
+                {showMap && (
+                  <div className="st-map">
+                    <iframe title={`Map of ${business.name}`} src={mapsEmbedUrl(business.address!)} loading="lazy" referrerPolicy="no-referrer-when-downgrade" />
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        </section>
-      )}
+          </section>
+        )}
 
-      {/* ── REVIEW ── */}
-      {reviewUrl && (
-        <section className="py-14 px-6 bg-white text-center">
-          <h2 className="text-2xl font-black tracking-tight mb-2">Happy with your visit?</h2>
-          <p className="text-gray-500 text-sm mb-6">A quick Google review helps others find us.</p>
-          <ReviewButton href={reviewUrl} color={primary} fg={primaryFg} />
-        </section>
-      )}
+        {/* ── REVIEW ── */}
+        {reviewUrl && (
+          <section className="st-section">
+            <div className="st-wrap">
+              <div className="st-review">
+                <div>
+                  <h3>Happy with your visit?</h3>
+                  <p>A quick Google review helps others find us.</p>
+                </div>
+                <ReviewButton href={reviewUrl} color={primary} fg={primaryFg} />
+              </div>
+            </div>
+          </section>
+        )}
+      </main>
 
       {/* ── FOOTER ── */}
-      <footer className="py-10 px-6 bg-gray-950 text-white">
-        <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+      <footer className="st-foot">
+        <div className="st-wrap st-foot-grid">
           <div>
-            <div className="font-black text-lg">{business.name}</div>
-            {business.address && <div className="text-white/35 text-xs mt-0.5">{business.address}</div>}
-            <SocialIcons links={social} className="mt-3" />
+            <div className="st-foot-name">
+              <BrandMark name={business.name} logoUrl={business.logoUrl} color={primary} fg={primaryFg} size={40} rounded={logoRadius} />
+              {business.name}
+            </div>
+            {business.description && <p className="st-foot-desc">{business.description}</p>}
+            {hasSocial && <SocialIcons links={social} tone="light" className="st-foot-social" />}
           </div>
-          <div className="flex items-center gap-6">
-            {cfg.about.enabled    && <a href="#about"    className="text-white/40 hover:text-white text-xs transition-colors">{cfg.about.title}</a>}
-            {cfg.services.enabled && <a href="#services" className="text-white/40 hover:text-white text-xs transition-colors">{cfg.services.title}</a>}
-            {cfg.team.enabled && business.staff.length > 0 && <a href="#team" className="text-white/40 hover:text-white text-xs transition-colors">{cfg.team.title}</a>}
-            {cfg.contact.enabled  && <a href="#contact"  className="text-white/40 hover:text-white text-xs transition-colors">{cfg.contact.title}</a>}
+          <nav aria-label="Footer">
+            <h3>Explore</h3>
+            <ul>
+              {cfg.about.enabled && <li><a href="#about">{cfg.about.title}</a></li>}
+              {cfg.services.enabled && business.services.length > 0 && <li><a href="#services">{cfg.services.title}</a></li>}
+              {hasTeam && <li><a href="#team">{cfg.team.title}</a></li>}
+              {cfg.contact.enabled && <li><a href="#contact">{cfg.contact.title}</a></li>}
+              <li><Link href={bookingUrl}>{cfg.hero.ctaText}</Link></li>
+            </ul>
+          </nav>
+          {hasContactRows && (
+            <div>
+              <h3>Contact</h3>
+              <ul>
+                {showPhone && <li><a href={`tel:${business.phone}`}><Phone className="st-ico" aria-hidden />{business.phone}</a></li>}
+                {showEmail && <li><a href={`mailto:${business.email}`}><Mail className="st-ico" aria-hidden />{business.email}</a></li>}
+                {showAddress && <li><span><MapPin className="st-ico" aria-hidden />{business.address}</span></li>}
+              </ul>
+            </div>
+          )}
+          {showHours && (
+            <div>
+              <h3>Opening hours</h3>
+              <dl className="st-foot-hours">
+                {footerHours.map((h) => (
+                  <div key={h.days}><dt>{h.days}</dt><dd>{h.label}</dd></div>
+                ))}
+              </dl>
+            </div>
+          )}
+        </div>
+        <div className="st-foot-base">
+          <div className="st-wrap">
+            <span>&copy; {new Date().getFullYear()} {business.name}</span>
+            <span>Want a site like this? <a href="https://calvy.io">Grab it on Calvy</a></span>
           </div>
-          <Link
-            href={bookingUrl}
-            className="px-5 py-2.5 rounded-xl text-xs font-bold text-white transition-all hover:opacity-90"
-            style={{ background: primary, color: primaryFg }}
-          >
-            {cfg.hero.ctaText}
-          </Link>
         </div>
       </footer>
 
-      {/* Chat booking widget — plan-gated */}
+      {/* Mobile: the booking button stays in reach */}
+      <div className="st-bar">
+        <Link href={bookingUrl} className="st-btn st-btn-primary st-btn-block">{cfg.hero.ctaText}</Link>
+      </div>
+
+      {/* Desktop: contact shortcuts stay on screen */}
+      {railItems.length >= 2 && (
+        <nav className="st-rail" aria-label="Contact shortcuts">
+          {railItems.map((item) => (
+            <a key={item.label} href={item.href} {...(item.external ? { target: "_blank", rel: "noopener noreferrer" } : {})}>
+              {item.icon}
+              {item.label}
+            </a>
+          ))}
+        </nav>
+      )}
+
+      {/* Chat booking widget, plan-gated */}
       {features.chatbotWidget && getFlags().chatWidget && business.bookingMode !== "TOKEN" && (
         <ChatWidget business={{
           slug: business.slug,

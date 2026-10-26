@@ -3,7 +3,9 @@ import sharp from "sharp";
 import { checkLogoBytes, MAX_LOGO_BYTES } from "@/lib/validation/logo";
 import { processLogo } from "@/lib/logo";
 import { normalizeSocial, normalizeSocialLinks, parseSocialLinks, normalizeReviewLink, safeReviewLink } from "@/lib/brandLinks";
-import { formatOpeningHours, mapsEmbedUrl } from "@/lib/hours";
+import { formatOpeningHours, mapsEmbedUrl, openStatus, summarizeHours } from "@/lib/hours";
+import { currentPhoto, defaultWebsiteConfig, focusPosition, photoUrl, stableJson } from "@/lib/website";
+import { websitePatchSchema } from "@/lib/validation/misc";
 import { assertSafeKey, localStorageAdapter } from "@/lib/storage";
 
 const enc = (s: string) => new TextEncoder().encode(s);
@@ -158,5 +160,94 @@ describe("step-3/website-extras: storage adapter", () => {
   it("maps local urls back to keys", () => {
     expect(localStorageAdapter.keyFromUrl("/uploads/logos/b/1.png")).toBe("logos/b/1.png");
     expect(localStorageAdapter.keyFromUrl("https://other.test/uploads/x.png")).toBeNull();
+  });
+});
+
+describe("step-6/redesign-site-foundation: open-now status", () => {
+  // Monday 09:00-13:00 and 17:00-20:30 local time (Asia/Kolkata, UTC+5:30)
+  const rows = [{ weekday: 1, startMin: 540, endMin: 780 }, { weekday: 1, startMin: 1020, endMin: 1230 }];
+  const at = (utc: string) => new Date(`${utc}Z`);
+  it("is open inside a range and says when it closes", () => {
+    const s = openStatus(rows, "Asia/Kolkata", at("2026-10-26T05:30:00")); // 11:00 IST Monday
+    expect(s).toEqual({ weekday: 1, open: true, label: "Open now, until 1:00 PM" });
+  });
+  it("between ranges, says when it reopens", () => {
+    expect(openStatus(rows, "Asia/Kolkata", at("2026-10-26T08:30:00")).label).toBe("Closed now, opens 5:00 PM"); // 14:00 IST
+  });
+  it("after the last range, is closed for the day", () => {
+    expect(openStatus(rows, "Asia/Kolkata", at("2026-10-26T16:00:00")).label).toBe("Closed for today"); // 21:30 IST
+  });
+  it("a day with no rows is closed today, using the business timezone for the day", () => {
+    expect(openStatus(rows, "Asia/Kolkata", at("2026-10-27T05:30:00")).label).toBe("Closed today"); // Tuesday
+    expect(openStatus(rows, "Asia/Kolkata", at("2026-10-25T20:00:00")).weekday).toBe(1); // 01:30 IST Monday while UTC is still Sunday
+  });
+  it("falls back to UTC for a bad timezone instead of throwing", () => {
+    expect(() => openStatus(rows, "Not/AZone", at("2026-10-26T05:30:00"))).not.toThrow();
+  });
+});
+
+describe("step-6/redesign-site-foundation: footer hours summary", () => {
+  it("groups consecutive days with the same hours", () => {
+    const rows = [1, 2, 3, 4, 5].map((weekday) => ({ weekday, startMin: 540, endMin: 1080 })).concat([{ weekday: 6, startMin: 600, endMin: 780 }]);
+    expect(summarizeHours(formatOpeningHours(rows))).toEqual([
+      { days: "Mon – Fri", label: "9:00 AM – 6:00 PM", closed: false },
+      { days: "Sat", label: "10:00 AM – 1:00 PM", closed: false },
+      { days: "Sun", label: "Closed", closed: true },
+    ]);
+  });
+  it("no rows at all is one Closed run for the whole week", () => {
+    expect(summarizeHours(formatOpeningHours([]))).toEqual([{ days: "Mon – Sun", label: "Closed", closed: true }]);
+  });
+});
+
+describe("step-6/redesign-site-foundation: default photos", () => {
+  it("swaps a retired default for the current one by business type, in the right slot", () => {
+    const old = "https://images.unsplash.com/photo-1579684385127-1ef15d508118?auto=format&fit=crop&w=1920&q=80";
+    expect(currentPhoto(old, "clinic", "hero")).toContain("photo-1631217868264-e5b90bb7e133");
+    expect(currentPhoto(old, "clinic", "about")).toContain("photo-1519494026892-80bbd2d6fd0d");
+    expect(currentPhoto(old, "lawyer", "hero")).toContain("photo-1589829545856-d10d557cf95f");
+  });
+  it("leaves an owner-chosen or uploaded photo alone", () => {
+    const own = "https://example.com/uploads/me.jpg";
+    expect(currentPhoto(own, "clinic", "hero")).toBe(own);
+    expect(currentPhoto("", "clinic", "hero")).toBe("");
+  });
+  it("new websites get a hero for every pack's business type", () => {
+    for (const type of ["clinic", "salon", "lawyer", "fitness", "consultant", "general"]) {
+      expect(defaultWebsiteConfig("X", type).hero.image).toMatch(/^https:\/\/images\.unsplash\.com\/photo-/);
+    }
+  });
+});
+
+describe("step-6/redesign-site-foundation: fixed-size website photos", () => {
+  it("library and default photos are requested at the same 4:3 size uploads are cropped to", () => {
+    expect(photoUrl("photo-x", "hero")).toContain("w=1600&h=1200");
+    expect(photoUrl("photo-x", "about")).toContain("w=1200&h=900");
+    expect(defaultWebsiteConfig("A", "clinic").hero.image).toContain("w=1600&h=1200");
+    expect(defaultWebsiteConfig("A", "clinic").about.image).toContain("w=1200&h=900");
+  });
+  it("only top, middle and bottom reach a style; anything else is the middle", () => {
+    expect(focusPosition("top")).toBe("50% 12%");
+    expect(focusPosition("bottom")).toBe("50% 88%");
+    for (const bad of [undefined, "", "center", "left", "50% 0; background:red", 7]) expect(focusPosition(bad)).toBe("50% 50%");
+  });
+  it("saving a website keeps a valid focus and rejects a made-up one", () => {
+    const ok = websitePatchSchema.safeParse({ websiteJson: JSON.stringify({ hero: { image: "https://x.test/a.jpg", imageFocus: "bottom" } }) });
+    expect(ok.success && JSON.parse(ok.data.websiteJson).hero.imageFocus).toBe("bottom");
+    expect(websitePatchSchema.safeParse({ websiteJson: JSON.stringify({ hero: { imageFocus: "left" } }) }).success).toBe(false);
+  });
+});
+
+describe("step-6/redesign-site-foundation: unsaved-changes check in the website editor", () => {
+  it("same content in a different key order is not a change", () => {
+    expect(stableJson({ hero: { image: "a", imageFocus: "top" }, about: { image: "b" } }))
+      .toBe(stableJson({ about: { image: "b" }, hero: { imageFocus: "top", image: "a" } }));
+  });
+  it("a changed photo is a change, and array order still matters", () => {
+    expect(stableJson({ hero: { image: "a" } })).not.toBe(stableJson({ hero: { image: "b" } }));
+    expect(stableJson({ x: [1, 2] })).not.toBe(stableJson({ x: [2, 1] }));
+  });
+  it("an undefined focus (reset) equals no focus at all", () => {
+    expect(stableJson({ hero: { image: "a", imageFocus: undefined } })).toBe(stableJson({ hero: { image: "a" } }));
   });
 });

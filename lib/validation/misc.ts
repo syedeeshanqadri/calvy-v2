@@ -3,6 +3,7 @@ import { text } from "./common";
 
 const section = (extra: z.ZodRawShape = {}) =>
   z.looseObject({ enabled: z.boolean().optional(), badge: text(120).optional(), ...extra }).optional();
+const imageFocus = z.enum(["top", "center", "bottom"]);
 const httpUrlOrEmpty = z
   .string()
   .max(1000)
@@ -12,8 +13,8 @@ const httpUrlOrEmpty = z
 export const websiteConfigSchema = z.looseObject({
   metaTitle: text(200).optional(),
   metaDescription: text(500).optional(),
-  hero: section({ image: httpUrlOrEmpty.optional(), headline: text(300).optional(), subheadline: text(1000).optional() }),
-  about: section({ image: httpUrlOrEmpty.optional(), title: text(300).optional(), body: text(5000).optional() }),
+  hero: section({ image: httpUrlOrEmpty.optional(), imageFocus: imageFocus.optional(), headline: text(300).optional(), subheadline: text(1000).optional() }),
+  about: section({ image: httpUrlOrEmpty.optional(), imageFocus: imageFocus.optional(), title: text(300).optional(), body: text(5000).optional() }),
   services: section({ title: text(300).optional() }),
   team: section({ title: text(300).optional() }),
   contact: section({ title: text(300).optional() }),

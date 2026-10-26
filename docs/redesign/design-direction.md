@@ -4,6 +4,9 @@ Scope: tenant site `{slug}` and booking page `/b/{slug}`. Mobile-first at 375px,
 
 **Idea:** a booking site's most useful content is *when can I come in*. Every hero carries a live availability card (next free times, today's token sessions, or upcoming classes) pulled from `/api/availability`. That card is the one bold element; everything else stays quiet.
 
+## Hero system (from the five reference designs in etc/)
+One component, three looks by pack: **split** (clinic, consultant, other: framed photo in a soft brand shape), **arch** (salon: arched window plus a round "book online" seal), **immersive** (lawyer, fitness: full-bleed dark photo, white type). Shared: two-tone headline (business name or last two words in the brand colour), trust row, floating chips, a thin top info bar, service shortcut tiles overlapping the hero edge, a desktop contact rail. The photo frame always fills the full height of the hero. Chips and trust items show only real data (open now, price from, team and service counts), never invented ratings, patient counts or years.
+
 ## Page sections (top to bottom)
 1. **Header** (sticky, 64px): logo (or monogram in theme colour), name + area, section links (desktop), one primary button ("Book" / "Get appointment").
 2. **Hero**: headline (owner-editable, ≤ 2 lines on desktop), one-sentence lede, primary + secondary CTA, availability card. Three layouts, chosen by pack: *split* (photo right, card overlapping the photo), *full-bleed* photo with dark gradient, *text-only*.
@@ -13,7 +16,7 @@ Scope: tenant site `{slug}` and booking page `/b/{slug}`. Mobile-first at 375px,
 6. **About**: image + 2 short paragraphs.
 7. **Visit**: hours table (today highlighted, split shifts on two lines), phone / WhatsApp / email as 48px rows, map with address card and "Directions" link (Google Maps embed in the app).
 8. **Review + social**: "Review us on Google" button (only if `googleReviewUrl` is set; never a star rating) and social icon buttons (only those set).
-9. **Footer**: name + address, "Online booking by Calvy". **Mobile:** sticky bottom bar with the primary CTA; hidden ≥ 900px.
+9. **Footer**: name + address, "Want a site like this? Grab it on Calvy" (links to calvy.io). **Mobile:** sticky bottom bar with the primary CTA; hidden ≥ 900px.
 
 ## Tokens
 - **Type scale:** 1.25 ratio on mobile (14 / 16 / 20 / 25 / 36, hero 40), 1.333 from 900px (14 / 17 / 22 / 32 / 48, hero 60). Body is always Figtree 400-700, line-height 1.55, max ~70 characters per line.
@@ -26,7 +29,7 @@ Scope: tenant site `{slug}` and booking page `/b/{slug}`. Mobile-first at 375px,
 - `--brand` = `Business.themeColor` via `themeVars()`: primary buttons, chips, selected states, links, map pin, avatar tint. `--brand-soft` (8% mix) for selected backgrounds; `--brand-fg` from `readableForeground()`.
 - Text in brand colour needs 4.5:1 on white. If `contrastRatio(brand, #fff) < 4.5`, darken it for text and keep the original for fills (new helper `brandInk()`). Pack presets should all pass.
 - Logo replaces the monogram in the header, booking header and favicon. Pack icon (lucide, `pack.icons`) is used only where there is no logo or photo, never as decoration.
-- Hero/about photos: owner upload first, then the pack default. **Bug found:** `HERO_IMAGES.salon` (`photo-1560472354…`) in `lib/website.ts` shows an analytics dashboard, not a salon; the clinic "Healthcare" photo is a surgery shot. Replace both.
+- Hero/about photos: owner upload first, then the pack default. The hero photo always fills the full height of the hero panel (`object-fit: cover`). Uploads are smart-cropped server-side to 4:3 (1600x1200 hero, 1200x900 about) and saved as WebP, so any dimensions look right; the library and URL options rely on the same cover crop. **Bug found:** `HERO_IMAGES.salon` (`photo-1560472354…`) in `lib/website.ts` shows an analytics dashboard, not a salon; the clinic "Healthcare" photo is a surgery shot. Replace both.
 
 ## Per-pack differences (colour always comes from the tenant)
 | Pack | Display face | Hero | Corners | Availability card |

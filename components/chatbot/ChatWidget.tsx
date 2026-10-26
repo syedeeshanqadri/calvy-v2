@@ -202,7 +202,7 @@ export function ChatWidget({ business }: { business: ChatBusiness }) {
     <>
       {/* Chat window */}
       {open && (
-        <div className="fixed bottom-20 right-4 sm:right-6 z-50 w-[min(calc(100vw-2rem),384px)] max-h-[80vh] bg-white rounded-3xl shadow-2xl border border-gray-100 flex flex-col overflow-hidden">
+        <div className="fixed bottom-40 min-[900px]:bottom-20 right-4 sm:right-6 z-50 w-[min(calc(100vw-2rem),384px)] max-h-[80vh] bg-white rounded-3xl shadow-2xl border border-gray-100 flex flex-col overflow-hidden">
 
           {/* Header */}
           <div className="flex items-center gap-3 px-4 py-3.5 flex-shrink-0" style={{ background: color }}>
@@ -398,7 +398,7 @@ export function ChatWidget({ business }: { business: ChatBusiness }) {
 
       {/* Floating button */}
       <button onClick={open ? () => setOpen(false) : start}
-        className="fixed bottom-5 right-4 sm:right-6 z-50 w-14 h-14 rounded-full shadow-xl flex items-center justify-center transition-all hover:scale-110 active:scale-95"
+        className="fixed bottom-24 min-[900px]:bottom-5 right-4 sm:right-6 z-50 w-14 h-14 rounded-full shadow-xl flex items-center justify-center transition-all hover:scale-110 active:scale-95"
         style={{ background: color }}>
         {open
           ? <X size={21} className="text-white" />

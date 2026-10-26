@@ -11,6 +11,8 @@ import {
   TENANT_UPLOAD_MAX_FILES,
 } from "@/lib/validation/upload";
 import { rateLimit } from "@/lib/ratelimit";
+import { getStorage } from "@/lib/storage";
+import { parsePhotoPurpose, processSitePhoto } from "@/lib/photo";
 import { logger, getRequestId } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
@@ -36,10 +38,6 @@ async function POST_handler(req: NextRequest) {
       );
     }
 
-    if (!process.env.BLOB_READ_WRITE_TOKEN) {
-      return NextResponse.json({ error: "Image upload is not available right now." }, { status: 503 });
-    }
-
     // Cheap pre-check before the body is buffered (multipart overhead allowed).
     const declared = Number(req.headers.get("content-length") ?? 0);
     if (declared > MAX_UPLOAD_BYTES + 64 * 1024) {
@@ -51,18 +49,34 @@ async function POST_handler(req: NextRequest) {
     const check = await checkImageUpload(file instanceof File ? file : null);
     if (!check.ok) return NextResponse.json({ error: check.error }, { status: 400 });
 
-    // Per-tenant quota (files and total bytes).
+    // Crop to the fixed hero/about size and re-encode, so any upload looks right on the site.
+    const photo = await processSitePhoto(new Uint8Array(await (file as File).arrayBuffer()), parsePhotoPurpose(formData.get("purpose")));
+    if (!photo.ok) return NextResponse.json({ error: photo.error }, { status: 400 });
+
     const prefix = `website/${businessId}/`;
-    const existing = await list({ prefix, limit: TENANT_UPLOAD_MAX_FILES + 1 });
-    const usedBytes = existing.blobs.reduce((n, b) => n + b.size, 0);
-    if (existing.blobs.length >= TENANT_UPLOAD_MAX_FILES || usedBytes + (file as File).size > TENANT_UPLOAD_MAX_BYTES) {
-      return NextResponse.json({ error: "Upload limit reached. Delete unused images or contact support." }, { status: 403 });
+    const name = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.webp`;
+
+    // Vercel Blob when its token is set (existing deployments); otherwise the storage adapter,
+    // which is local disk in development and S3/R2 in production (same as logo uploads).
+    if (process.env.BLOB_READ_WRITE_TOKEN) {
+      // Per-tenant quota (files and total bytes).
+      const existing = await list({ prefix, limit: TENANT_UPLOAD_MAX_FILES + 1 });
+      const usedBytes = existing.blobs.reduce((n, b) => n + b.size, 0);
+      if (existing.blobs.length >= TENANT_UPLOAD_MAX_FILES || usedBytes + photo.webp.length > TENANT_UPLOAD_MAX_BYTES) {
+        return NextResponse.json({ error: "Upload limit reached. Delete unused images or contact support." }, { status: 403 });
+      }
+      const blob = await put(`${prefix}${name}`, photo.webp, { access: "public", contentType: "image/webp" });
+      return NextResponse.json({ url: blob.url });
     }
 
-    const pathname = `${prefix}${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${check.ext}`;
-    const blob = await put(pathname, file as File, { access: "public", contentType: check.contentType });
-
-    return NextResponse.json({ url: blob.url });
+    let storage;
+    try {
+      storage = getStorage();
+    } catch {
+      return NextResponse.json({ error: "Image upload is not available right now." }, { status: 503 });
+    }
+    const stored = await storage.put(`${prefix}${name}`, Buffer.from(photo.webp), "image/webp");
+    return NextResponse.json({ url: stored.url });
   } catch (err) {
     logger.error("upload failed", { err, requestId });
     return NextResponse.json({ error: "Upload failed. Please try again." }, { status: 500 });

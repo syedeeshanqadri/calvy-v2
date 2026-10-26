@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  DEFAULT_THEME, PACK_THEME_PRESETS, bestContrast, contrastRatio, isValidHex, normalizeHex, readableForeground,
+  DEFAULT_THEME, PACK_THEME_PRESETS, bestContrast, brandInk, contrastRatio, isValidHex, normalizeHex, readableForeground,
   relativeLuminance, safeThemeColor, textOnWhiteWarning, themePresets, themeVars,
 } from "@/lib/theme";
 import { settingsPatchSchema } from "@/lib/validation/settings";
@@ -49,7 +49,7 @@ describe("contrast", () => {
 
 describe("themeVars and presets", () => {
   it("emits only safe values and falls back on bad input", () => {
-    expect(themeVars("#0f172a")).toEqual({ "--brand": "#0f172a", "--brand-fg": "#ffffff", "--brand-soft": "#0f172a1a" });
+    expect(themeVars("#0f172a")).toEqual({ "--brand": "#0f172a", "--brand-fg": "#ffffff", "--brand-soft": "#0f172a1a", "--brand-ink": "#0f172a" });
     const bad = themeVars("red;} body{display:none");
     expect(bad["--brand"]).toBe(DEFAULT_THEME);
     for (const v of Object.values(bad)) expect(v).toMatch(/^#[0-9a-f]{6,8}$/);
@@ -60,6 +60,20 @@ describe("themeVars and presets", () => {
       for (const c of list) expect(isValidHex(c)).toBe(true);
     }
     expect(themePresets("CLINIC")).toEqual(PACK_THEME_PRESETS.CLINIC);
+  });
+});
+
+describe("brandInk", () => {
+  it("keeps a colour that already reads on white", () => {
+    expect(brandInk("#1e3a8a")).toBe("#1e3a8a");
+  });
+  it.each(["#fde047", "#f59e0b", "#22c55e", "#0ea5e9", "#ec4899", "#ffffff"])("darkens %s to AA on white", (c) => {
+    const ink = brandInk(c);
+    expect(contrastRatio(ink, "#ffffff")).toBeGreaterThanOrEqual(4.5);
+    expect(isValidHex(ink)).toBe(true);
+  });
+  it("falls back to the default theme for junk input", () => {
+    expect(brandInk("red;}")).toBe(brandInk(DEFAULT_THEME));
   });
 });
 
