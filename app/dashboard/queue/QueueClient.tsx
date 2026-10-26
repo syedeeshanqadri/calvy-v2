@@ -1,4 +1,5 @@
 "use client";
+import { OnlineBadge, JoinButton } from "@/components/dashboard/OnlineJoin";
 import { useCallback, useEffect, useState } from "react";
 import { Loader2, Phone, UserPlus } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -131,6 +132,7 @@ export function QueueClient({ today, services }: { today: string; services: { id
                   <div className="min-w-0">
                     <div className="text-lg font-semibold truncate">{serving.clientName}</div>
                     <div className="text-sm text-[#6b6b80] truncate">{serving.serviceName}</div>
+                    {serving.isOnline && <div className="flex items-center gap-2 mt-1"><OnlineBadge /><JoinButton url={serving.meetingUrl} size="md" /></div>}
                     {serving.clientPhone && (
                       <a href={`tel:${serving.clientPhone}`} className="inline-flex items-center gap-1 text-sm text-sky-700 min-h-11"><Phone size={14} />{serving.clientPhone}</a>
                     )}
@@ -172,6 +174,7 @@ export function QueueClient({ today, services }: { today: string; services: { id
                     <div className="text-xs text-[#6b6b80] truncate">
                       {r.serviceName}
                       {r.source === "WALK_IN" && " · Walk-in"}
+                      {r.isOnline && <span className="ml-1.5 inline-flex items-center gap-1.5 align-middle"><OnlineBadge /><JoinButton url={r.meetingUrl} /></span>}
                       {r.carried && " · Moved from earlier"}
                       {r.notPresentCount > 0 && ` · Missed ${r.notPresentCount} of 4 calls`}
                     </div>

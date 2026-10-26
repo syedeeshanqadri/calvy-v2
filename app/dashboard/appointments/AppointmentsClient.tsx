@@ -11,6 +11,7 @@ import { Avatar } from "@/components/ui/Avatar";
 import { formatTime } from "@/lib/utils";
 import { useTerms } from "@/components/providers/TermsProvider";
 import { useCurrency } from "@/components/providers/CurrencyProvider";
+import { OnlineBadge, JoinButton } from "@/components/dashboard/OnlineJoin";
 import { Search, Filter, Download, Plus, CalendarX } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -169,7 +170,7 @@ export function AppointmentsClient({ appointments, services, staff, csvExport = 
                       </div>
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-sm">{appt.tokenNumber ? <span className="font-semibold mr-1.5">#{appt.tokenNumber}</span> : null}{appt.serviceName}</td>
+                  <td className="px-4 py-3 text-sm">{appt.tokenNumber ? <span className="font-semibold mr-1.5">#{appt.tokenNumber}</span> : null}{appt.serviceName}{appt.isOnline && <span className="ml-2 inline-flex items-center gap-1.5 align-middle"><OnlineBadge />{appt.status === "confirmed" && <JoinButton url={appt.meetingUrl} />}</span>}</td>
                   <td className="px-4 py-3 text-sm text-[#6b6b80]">{appt.staffName}</td>
                   <td className="px-4 py-3 text-sm">{appt.date} · {formatTime(appt.time)}</td>
                   <td className="px-4 py-3 text-sm text-[#6b6b80]">{appt.duration}min</td>

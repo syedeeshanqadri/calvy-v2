@@ -24,6 +24,8 @@ export interface BookingProps {
   token?: { number: number; estimatedTime: string; sessionName: string };
   /** Signed public link to the live queue page (token bookings). */
   trackUrl?: string;
+  /** Online consultation. meetingUrl is null when the business has not set a link yet. Only confirmation and reminder pass it. */
+  online?: { meetingUrl: string | null };
 }
 
 const appt = (p: BookingProps) => t(p.terms ?? {}, "appointment");
@@ -40,6 +42,7 @@ function BookingDetails({ p }: { p: BookingProps }) {
       <DetailRow label={t(p.terms ?? {}, "service", { cap: true })} value={p.serviceName} strong />
       {p.patientName && normalizeName(p.patientName) !== normalizeName(p.clientName) ? <DetailRow label="For" value={`${p.patientName} (booked by ${p.clientName})`} strong /> : null}
       {p.staffName ? <DetailRow label="With" value={p.staffName} /> : null}
+      {p.online ? <DetailRow label="Format" value="Online consultation" strong /> : null}
       <DetailRow label="Date" value={p.date} />
       {p.token ? (
         <>
@@ -56,6 +59,33 @@ function BookingDetails({ p }: { p: BookingProps }) {
   );
 }
 
+/** Join button for an online consultation (booker-only emails). */
+function OnlineJoin({ p }: { p: BookingProps }) {
+  if (!p.online) return null;
+  return p.online.meetingUrl ? (
+    <>
+      <P>This is an online consultation. Join from the link below at your appointment time; it works on your phone or computer.</P>
+      <CTA color={p.tenant?.color} fg={p.tenant?.fg} href={p.online.meetingUrl} label="Join the consultation" />
+    </>
+  ) : (
+    <P>This is an online consultation. {p.businessName} will send you the joining link before your appointment.</P>
+  );
+}
+
+/** Staff added or changed the joining link of an online appointment. */
+export function MeetingLinkEmail(p: BookingProps & { meetingUrl: string; updated: boolean }) {
+  return (
+    <EmailLayout tenant={p.tenant} preview={`Your joining link for ${p.date} at ${p.time}`}>
+      <Badge text={p.updated ? "Link updated" : "Link added"} color={brand.accent} bg="#e6f2fb" />
+      <H>{p.updated ? "Your joining link has changed" : "Your joining link is ready"}</H>
+      <P>Hi {p.clientName.split(" ")[0]}, {p.updated ? "the link for" : "here is the link to join"} your online {appt(p)} at <strong style={{ color: brand.ink }}>{p.businessName}</strong>{p.updated ? " has changed. Please use this one." : "."}</P>
+      <BookingDetails p={{ ...p, online: { meetingUrl: p.meetingUrl } }} />
+      <CTA color={p.tenant?.color} fg={p.tenant?.fg} href={p.meetingUrl} label="Join the consultation" />
+      <P>It works on your phone or computer. Join at your appointment time.</P>
+    </EmailLayout>
+  );
+}
+
 export function BookingConfirmationEmail(p: BookingProps) {
   return (
     <EmailLayout tenant={p.tenant} preview={`You're booked with ${p.businessName} on ${p.date}`}>
@@ -63,6 +93,7 @@ export function BookingConfirmationEmail(p: BookingProps) {
       <H>You&apos;re booked</H>
       <P>Hi {p.clientName.split(" ")[0]}, your {appt(p)} at <strong style={{ color: brand.ink }}>{p.businessName}</strong> is confirmed. Here are the details:</P>
       <BookingDetails p={p} />
+      <OnlineJoin p={p} />
       {p.token && p.trackUrl ? (
         <>
           <P>Follow the queue live and see how long is left, so you only need to arrive close to your turn.</P>
@@ -81,6 +112,7 @@ export function BookingReminderEmail(p: BookingProps) {
       <H>Your {appt(p)} is tomorrow</H>
       <P>Hi {p.clientName.split(" ")[0]}, a friendly reminder about your upcoming {appt(p)} at <strong style={{ color: brand.ink }}>{p.businessName}</strong>.</P>
       <BookingDetails p={p} />
+      <OnlineJoin p={p} />
       <P>See you there! If you need to make a change, just reply to this email.</P>
     </EmailLayout>
   );

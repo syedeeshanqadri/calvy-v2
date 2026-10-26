@@ -63,7 +63,7 @@ export default async function CalendarPage() {
     <CalendarClient
       appointments={apptRows}
       staff={staff.map(s => ({ id: s.id, name: s.name, color: s.color }))}
-      services={services.map(s => ({ id: s.id, name: s.name, duration: s.duration, price: s.price }))}
+      services={services.map(s => ({ id: s.id, name: s.name, duration: s.duration, price: s.price, mode: s.mode }))}
     />
   );
 }

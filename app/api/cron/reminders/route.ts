@@ -7,6 +7,7 @@ import { sendBookingReminder } from "@/lib/email";
 import { sendReminderWhatsApp } from "@/lib/whatsapp";
 import { sendPushToBusiness } from "@/lib/push";
 import { logger } from "@/lib/logger";
+import { meetingUrlFor } from "@/lib/online";
 import { bookingForLabel } from "@/lib/patients";
 import { releaseExpiredHolds } from "@/lib/onlinePayment";
 import { safeTimeZone, utcToZoned, addDays, formatDateLabel, formatTimeLabel } from "@/lib/time";
@@ -48,7 +49,7 @@ async function GET_handler(req: NextRequest) {
       // Unpaid holds never get reminders; they are confirmed (or expire) first.
       status: { notIn: ["cancelled", "no-show", "pending_payment", "expired"] },
     },
-    include: { client: true, service: true, business: true },
+    include: { client: true, service: true, business: true, staff: { select: { meetingUrl: true } } },
   });
   const appointments = candidates.filter((a) => {
     const tz = safeTimeZone(a.business.timezone);
@@ -83,6 +84,7 @@ async function GET_handler(req: NextRequest) {
           businessName: appt.business.name,
           serviceName: appt.service.name,
           terms: appt.business,
+          online: appt.isOnline ? { meetingUrl: meetingUrlFor(appt) } : undefined,
           date: dateLabel,
           time: timeLabel,
           ctx: { appointmentId: appt.id, businessId: appt.businessId },

@@ -1,6 +1,7 @@
 // Token queue: database side of lib/queue.ts. All writes for one (session, date) run in a
 // transaction under the same advisory lock the booking path uses, so a reception action and an
 // online booking never interleave.
+import { meetingUrlFor } from "@/lib/online";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { findOrCreateClient } from "@/lib/clients";
@@ -43,6 +44,9 @@ export interface QueueRow {
   place: number;
   notPresentCount: number;
   carried: boolean;
+  /** Online consultation: staff see a Join button (queue is session-protected). */
+  isOnline: boolean;
+  meetingUrl: string | null;
 }
 
 export interface QueueSessionInfo {
@@ -71,7 +75,8 @@ export function assertRealDate(date: string): void {
 
 const rowInclude = {
   client: { select: { name: true, email: true, phone: true } },
-  service: { select: { name: true } },
+  service: { select: { name: true, meetingUrl: true } },
+  staff: { select: { meetingUrl: true } },
 } satisfies Prisma.AppointmentInclude;
 
 type RowWithRelations = Prisma.AppointmentGetPayload<{ include: typeof rowInclude }>;
@@ -109,6 +114,7 @@ function toRow(a: RowWithRelations, eta: Date | undefined, place: number, tz: st
     id: a.id, tokenNumber: a.tokenNumber ?? 0, state: stateOf({ state: a.queueState }),
     clientName: bookingForLabel(a), clientPhone: a.client.phone, serviceName: a.service.name, source: a.source,
     etaTime: eta ? utcToZoned(eta, tz).time : "", place, notPresentCount: a.notPresentCount, carried: a.carriedFromId !== null,
+    isOnline: a.isOnline, meetingUrl: meetingUrlFor(a),
   };
 }
 

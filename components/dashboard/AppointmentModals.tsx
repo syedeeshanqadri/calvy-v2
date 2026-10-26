@@ -10,8 +10,9 @@ import { cn, formatTime } from "@/lib/utils";
 import { readJson } from "@/lib/fetchJson";
 import { useTerms } from "@/components/providers/TermsProvider";
 import { Check, Clock, DollarSign, Trash2 } from "lucide-react";
+import { JoinButton, OnlineBadge } from "@/components/dashboard/OnlineJoin";
 
-export interface ServiceOption { id: string; name: string; duration: number; price: number; }
+export interface ServiceOption { id: string; name: string; duration: number; price: number; mode?: "IN_PERSON" | "ONLINE" | "BOTH"; }
 export interface StaffOption { id: string; name: string; }
 
 export interface ApptDetail {
@@ -28,6 +29,9 @@ export interface ApptDetail {
   status: string;
   paymentStatus: string;
   paymentMode: string;
+  /** Online consultation: the staff-side meeting link (null when none is set). */
+  isOnline?: boolean;
+  meetingUrl?: string | null;
   /** Token bookings: the number issued in the session. */
   tokenNumber?: number | null;
   color: string;
@@ -135,6 +139,7 @@ export function NewAppointmentModal({
   const blank = () => ({
     clientName: "", clientPhone: "", clientEmail: "", serviceIds: [] as string[],
     staffId: initial?.staffId ?? "", date: initial?.date ?? today, time: initial?.time ?? "", notes: "",
+    online: false,
   });
   const [form, setForm] = useState(blank);
   const [allowOverlap, setAllowOverlap] = useState(false);
@@ -156,6 +161,8 @@ export function NewAppointmentModal({
   }, [slots.times, slots.loading, allowOverlap, form.time]);
 
   const selected = services.filter((s) => form.serviceIds.includes(s.id));
+  // The first selected service decides online/in person (as on the booking page).
+  const firstMode = services.find((s) => s.id === form.serviceIds[0])?.mode ?? "IN_PERSON";
   const contactOk = !!form.clientPhone.trim() || !!form.clientEmail.trim();
 
   async function submit() {
@@ -165,7 +172,7 @@ export function NewAppointmentModal({
       const res = await fetch("/api/appointments", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, ...(allowOverlap && { allowOverlap: true }) }),
+        body: JSON.stringify({ ...form, online: undefined, ...(firstMode === "BOTH" && { mode: form.online ? "online" : "in_person" }), ...(allowOverlap && { allowOverlap: true }) }),
       });
       const data = await readJson(res);
       if (!res.ok) throw new Error(data.error || `Failed to create ${appt1}`);
@@ -217,6 +224,13 @@ export function NewAppointmentModal({
               <span className="flex items-center gap-1 text-accent font-semibold"><DollarSign size={10} />{formatPrice(selected.reduce((n, s) => n + s.price, 0))}</span>
             </div>
           )}
+          {firstMode === "BOTH" && (
+            <label className="mt-2 flex items-center gap-2 text-sm text-brand-800">
+              <input type="checkbox" checked={form.online} onChange={(e) => setForm({ ...form, online: e.target.checked })} className="h-4 w-4 rounded border-[#e8e6e0]" />
+              Online consultation (video call)
+            </label>
+          )}
+          {firstMode === "ONLINE" && <p className="mt-2 text-xs text-sky-700">This {svc1} is online: the customer gets the meeting link.</p>}
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -279,6 +293,7 @@ export function AppointmentDetailModal({
   const [status, setStatus] = useState("");
   const [paymentStatus, setPaymentStatus] = useState("");
   const [paymentMode, setPaymentMode] = useState("");
+  const [link, setLink] = useState("");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
@@ -294,6 +309,7 @@ export function AppointmentDetailModal({
     setStatus(appt.status);
     setPaymentStatus(appt.paymentStatus);
     setPaymentMode(appt.paymentMode);
+    setLink(appt.meetingUrl ?? "");
     setResDate(appt.date);
     setResStaff(appt.staffId ?? "");
     setResTime("");
@@ -313,7 +329,7 @@ export function AppointmentDetailModal({
   if (!appt) return <Modal isOpen={false} onClose={onClose}>{null}</Modal>;
 
   const movable = !["cancelled", "completed", "no-show"].includes(appt.status);
-  const dirty = status !== appt.status || paymentStatus !== appt.paymentStatus || paymentMode !== appt.paymentMode;
+  const dirty = status !== appt.status || paymentStatus !== appt.paymentStatus || paymentMode !== appt.paymentMode || (!!appt.isOnline && link.trim() !== (appt.meetingUrl ?? ""));
 
   async function patch(body: Record<string, unknown>) {
     const res = await fetch(`/api/appointments/${appt!.id}`, {
@@ -329,7 +345,7 @@ export function AppointmentDetailModal({
     setSaving(true);
     setError("");
     try {
-      await patch({ status, paymentStatus, paymentMode });
+      await patch({ status, paymentStatus, paymentMode, ...(appt!.isOnline && link.trim() !== (appt!.meetingUrl ?? "") && { meetingUrl: link.trim() }) });
       setSaved(true);
       onChanged();
     } catch (e) {
@@ -396,6 +412,19 @@ export function AppointmentDetailModal({
             </div>
           ))}
         </div>
+
+        {appt.isOnline && (
+          <div className="bg-sky-50 border border-sky-200 rounded-xl p-3 space-y-2">
+            <div className="flex items-center justify-between gap-3">
+              <OnlineBadge />
+              {appt.meetingUrl && link.trim() === appt.meetingUrl && <JoinButton url={appt.meetingUrl} size="md" />}
+            </div>
+            <Input label="Meeting link" type="url" placeholder="https://meet.google.com/…" value={link} onChange={(e) => setLink(e.target.value)} />
+            <p className="text-xs text-[#6b6b80]">
+              {appt.meetingUrl ? "Change it and press Save changes; the customer is emailed the new link." : "No link is set yet. Add one and press Save changes; the customer is emailed it."}
+            </p>
+          </div>
+        )}
 
         {appt.notes && (
           <div className="bg-[#f8f7f4] rounded-xl p-3">

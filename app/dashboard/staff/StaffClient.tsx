@@ -19,6 +19,7 @@ interface StaffRow {
   email: string;
   phone: string;
   color: string;
+  meetingUrl: string;
   isActive: boolean;
 }
 
@@ -41,13 +42,13 @@ export function StaffClient({ staff, currentPlan, maxStaff }: Props) {
   const [editStaff, setEditStaff] = useState<StaffRow | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [form, setForm] = useState({ name: "", role: pack.staffRoles[0], email: "", phone: "", color: "#0284c7" });
+  const [form, setForm] = useState({ name: "", role: pack.staffRoles[0], email: "", phone: "", color: "#0284c7", meetingUrl: "" });
 
   const atLimit = maxStaff !== -1 && staff.length >= maxStaff;
 
   function openAdd() {
     setEditStaff(null);
-    setForm({ name: "", role: pack.staffRoles[0], email: "", phone: "", color: "#0284c7" });
+    setForm({ name: "", role: pack.staffRoles[0], email: "", phone: "", color: "#0284c7", meetingUrl: "" });
     setRoleOther(false);
     setError("");
     setShowModal(true);
@@ -55,7 +56,7 @@ export function StaffClient({ staff, currentPlan, maxStaff }: Props) {
 
   function openEdit(s: StaffRow) {
     setEditStaff(s);
-    setForm({ name: s.name, role: s.role, email: s.email, phone: s.phone, color: s.color });
+    setForm({ name: s.name, role: s.role, email: s.email, phone: s.phone, color: s.color, meetingUrl: s.meetingUrl });
     setRoleOther(false);
     setError("");
     setShowModal(true);
@@ -214,6 +215,10 @@ export function StaffClient({ staff, currentPlan, maxStaff }: Props) {
           </div>
           <Input label="Email" type="email" placeholder="jane@example.com" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
           <Input label="Phone (optional)" placeholder="+1 555 000 0000" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+          <div>
+            <Input label="Online meeting link (optional)" type="url" placeholder="https://meet.google.com/… or Zoom, Teams" value={form.meetingUrl} onChange={(e) => setForm({ ...form, meetingUrl: e.target.value })} />
+            <p className="text-xs text-[#6b6b80] mt-1">Used for online consultations with this person. Customers only see it after they book.</p>
+          </div>
           <div>
             <label className="block text-sm font-medium text-brand-700 mb-1.5">Color</label>
             <div className="flex gap-2 flex-wrap">

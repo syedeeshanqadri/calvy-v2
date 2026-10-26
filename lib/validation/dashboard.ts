@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { text, emailField, blankToUndef, money } from "./common";
+import { SERVICE_MODES, meetingUrlOrEmpty } from "@/lib/online";
 
 const hexColor = z.string().trim().regex(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/, "color must be a hex colour like #0284c7");
 const looseEmail = z.string().trim().toLowerCase().max(254).regex(/^[^\s@]+@[^\s@]+\.[^\s@]+$/, "Please enter a valid email address");
@@ -26,6 +27,7 @@ export const staffCreateSchema = z.object({
   email: looseEmail,
   phone: z.preprocess(blankToUndef, text(40).optional()),
   color: z.preprocess(blankToUndef, hexColor.optional()),
+  meetingUrl: z.preprocess(blankToUndef, meetingUrlOrEmpty.optional()),
 });
 
 export const staffPatchSchema = z.object({
@@ -35,6 +37,8 @@ export const staffPatchSchema = z.object({
   phone: text(40).optional(),
   color: hexColor.optional(),
   isActive: z.boolean().optional(),
+  /** Empty string clears the link. */
+  meetingUrl: meetingUrlOrEmpty.optional(),
 });
 
 const serviceCore = {
@@ -58,6 +62,8 @@ export const serviceCreateSchema = z.object({
   capacity: z.preprocess(blankToUndef, serviceCore.capacity.optional()),
   bufferBeforeMin: z.preprocess(blankToUndef, serviceCore.buffer.optional()),
   bufferAfterMin: z.preprocess(blankToUndef, serviceCore.buffer.optional()),
+  mode: z.preprocess(blankToUndef, z.enum(SERVICE_MODES).optional()),
+  meetingUrl: z.preprocess(blankToUndef, meetingUrlOrEmpty.optional()),
 });
 
 /** Allow-list only: businessId, isActive and any other column cannot be mass-assigned. */
@@ -72,6 +78,9 @@ export const servicePatchSchema = z.object({
   bufferBeforeMin: serviceCore.buffer.optional(),
   bufferAfterMin: serviceCore.buffer.optional(),
   isActive: z.boolean().optional(),
+  mode: z.enum(SERVICE_MODES).optional(),
+  /** Empty string clears the override (the staff member's link applies). */
+  meetingUrl: meetingUrlOrEmpty.optional(),
 });
 
 const expenseDate = z

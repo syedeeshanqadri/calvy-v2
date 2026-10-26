@@ -29,6 +29,8 @@ export default async function ServicesPage() {
     category: s.category,
     isActive: s.isActive,
     capacity: (s as { capacity?: number }).capacity ?? 1,
+    mode: s.mode,
+    meetingUrl: s.meetingUrl ?? "",
   }));
 
   return <ServicesClient services={rows} groupBooking={features.groupBooking} />;

@@ -3,6 +3,7 @@ import { buildTrackingView, signTrackingCode, verifyTrackingCode, type TrackingV
 import { safeTimeZone, formatDateLabel, utcToZoned, zonedToUtc } from "@/lib/time";
 import { minToHhmm } from "@/lib/tokens";
 import type { QueueItem } from "@/lib/queue";
+import { meetingUrlFor } from "@/lib/online";
 
 /** Everything the public tracking page needs. Contains no other customer's details. */
 export interface TrackingPage {
@@ -13,6 +14,8 @@ export interface TrackingPage {
   view: TrackingView;
   /** Wallet credit this booking turned into when it was missed or cancelled (the customer's own money). */
   credit: { amountMinor: number; currency: string } | null;
+  /** Online consultation: the signed code is the credential, so the holder of this page may see the link. */
+  online: { meetingUrl: string | null } | null;
 }
 
 /** Load the tracking page for a signed code (and, when given, the slug it must belong to). */
@@ -24,7 +27,8 @@ export async function loadTracking(code: string, slug?: string, now: Date = new 
     where: { id },
     select: {
       id: true, status: true, tokenNumber: true, queuePosition: true, queueState: true, notPresentCount: true, carriedFromId: true,
-      estimatedAt: true, sessionDate: true, tokenSessionId: true,
+      estimatedAt: true, sessionDate: true, tokenSessionId: true, isOnline: true, meetingUrl: true,
+      service: { select: { meetingUrl: true } }, staff: { select: { meetingUrl: true } },
       business: { select: { name: true, slug: true, logoUrl: true, primaryColor: true, packId: true, termsOverride: true, timezone: true } },
       tokenSession: { select: { name: true, startMin: true, endMin: true, minutesPerToken: true, staff: { select: { name: true } } } },
       carriedTo: { select: { id: true, tokenNumber: true, sessionDate: true } },
@@ -73,6 +77,8 @@ export async function loadTracking(code: string, slug?: string, now: Date = new 
 
   return {
     credit,
+    // Only a confirmed booking that is still in the queue: never while payment is pending, or once expired, cancelled, missed or done.
+    online: a.isOnline && a.status === "confirmed" && ["waiting", "serving"].includes(view.state) ? { meetingUrl: meetingUrlFor(a) } : null,
     business: {
       name: a.business.name, slug: a.business.slug, logoUrl: a.business.logoUrl, primaryColor: a.business.primaryColor,
       packId: a.business.packId, termsOverride: a.business.termsOverride,

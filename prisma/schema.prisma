@@ -144,6 +144,8 @@ model Staff {
   phone         String?
   color         String         @default("#e84545")
   isActive      Boolean        @default(true)
+  /// Default video-call link for this person's online consultations (https). Never shown before booking.
+  meetingUrl    String?
   workingHours  String         @default("{}")
   createdAt     DateTime       @default(now())
   appointments  Appointment[]
@@ -164,6 +166,10 @@ model Service {
   category        String         @default("other")
   color           String         @default("#e84545")
   capacity        Int            @default(1)
+  /// In person, online or both. Online bookings get a meeting link (service override, else the staff member's).
+  mode            ServiceMode    @default(IN_PERSON)
+  /// Optional per-service meeting link; overrides the staff member's. Never shown before booking.
+  meetingUrl      String?
   bufferBeforeMin Int            @default(0)
   bufferAfterMin  Int            @default(0)
   isActive        Boolean        @default(true)
@@ -255,6 +261,10 @@ model Appointment {
   paymentStatus      String             @default("unpaid")
   paymentMode        String             @default("prepaid")
   reminderSent       Boolean            @default(false)
+  /// The customer chose (or the service forces) an online consultation for this booking.
+  isOnline           Boolean            @default(false)
+  /// A link set on this booking by staff while editing it; beats the service and staff links.
+  meetingUrl         String?
   /// Set while status = pending_payment: the slot/token is held until then.
   holdExpiresAt      DateTime?          @db.Timestamptz(3)
   // Token queue (reception screen). queuePosition = order in the open queue (null until the first queue action).
@@ -574,6 +584,12 @@ model WebhookEvent {
   receivedAt DateTime    @default(now())
 
   @@unique([provider, eventId])
+}
+
+enum ServiceMode {
+  IN_PERSON
+  ONLINE
+  BOTH
 }
 
 enum BookingSource {

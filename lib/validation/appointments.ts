@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { meetingUrlOrEmpty } from "@/lib/online";
 import { text, id, emailField, dateField, timeField, phoneField, blankToUndef } from "./common";
 
 export const APPOINTMENT_STATUSES = ["confirmed", "pending", "completed", "cancelled", "no-show"] as const;
@@ -23,6 +24,7 @@ export const appointmentCreateSchema = z
     time: timeField,
     notes: z.preprocess(blankToUndef, text(1000).optional()),
     allowOverlap: z.boolean().optional(),
+    mode: z.preprocess(blankToUndef, z.enum(["in_person", "online"]).optional()),
   })
   .refine((b) => (b.serviceIds?.length ?? 0) > 0 || !!b.serviceId, {
     message: "serviceId or serviceIds is required",
@@ -42,6 +44,8 @@ export const appointmentPatchSchema = z
     date: dateField.optional(),
     time: timeField.optional(),
     staffId: z.preprocess(blankToUndef, id.optional()),
+    /** Online appointments: the link for this booking. Empty clears it (the service / staff link applies again). */
+    meetingUrl: meetingUrlOrEmpty.optional(),
   })
   .refine((b) => (b.date === undefined) === (b.time === undefined), {
     message: "date and time must be sent together",

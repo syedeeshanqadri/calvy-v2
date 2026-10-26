@@ -25,6 +25,8 @@ import { assertNoDuplicatePatient, assertWithinPeopleCap, contactAtDailyCap, Dup
 import { isFeatureEnabled } from "@/lib/flags";
 import { PENDING_PAYMENT, holdExpiry } from "@/lib/holds";
 import { chargeFor, getPayConfig, startCheckout } from "@/lib/onlinePayment";
+import { resolveBookingMode, resolveMeetingUrl } from "@/lib/online";
+import { loadMeetingUrl } from "@/lib/onlineDb";
 
 export const dynamic = 'force-dynamic';
 
@@ -145,6 +147,11 @@ async function POST_handler(req: NextRequest) {
     return NextResponse.json({ error: "This service can't be booked online right now. Please contact the business." }, { status: 402 });
   }
 
+  // In person or online: forced by the service, or the customer's choice when it is offered both ways.
+  const modeResult = resolveBookingMode(orderedServices[0], parsed.data.mode);
+  if (!modeResult.ok) return NextResponse.json({ error: modeResult.error, code: "MODE_REQUIRED" }, { status: 400 });
+  const isOnline = modeResult.isOnline;
+
   const totalPrice = orderedServices.reduce((sum, s) => sum + s.price, 0);
   const totalDuration = orderedServices.reduce((sum, s) => sum + s.duration, 0);
   const serviceNamesLabel = orderedServices.map(s => s.name).join(" & ");
@@ -169,7 +176,7 @@ async function POST_handler(req: NextRequest) {
         business, services: orderedServices, tokenSessionId, date, tz: bizTz,
         client: { name: clientName, email: clientEmail, phone: clientPhone },
         notes, maxMonthlyAppointments: limits.maxMonthlyAppointments, monthStart, payConfig, patientName, patientDetails,
-        maxPeoplePerBooker: business.maxPeoplePerBooker,
+        maxPeoplePerBooker: business.maxPeoplePerBooker, isOnline,
       });
     } catch (err) {
       if (err instanceof DuplicatePatientError) return await duplicateResponse(err);
@@ -269,6 +276,7 @@ async function POST_handler(req: NextRequest) {
                 price: totalPrice,
                 status: holdExpiresAt ? PENDING_PAYMENT : "confirmed",
                 holdExpiresAt,
+                isOnline,
                 patientName,
                 ...patientDetails,
                 notes: combinedNotes,
@@ -303,7 +311,7 @@ async function POST_handler(req: NextRequest) {
 
     const dateLabel = formatDateLabel(appointmentStart, tz);
     const staffMember = chosenStaffId
-      ? await prisma.staff.findFirst({ where: { id: chosenStaffId, businessId: business!.id }, select: { name: true } })
+      ? await prisma.staff.findFirst({ where: { id: chosenStaffId, businessId: business!.id }, select: { name: true, meetingUrl: true } })
       : null;
 
     sendPushToBusiness(business!.id, {
@@ -328,6 +336,7 @@ async function POST_handler(req: NextRequest) {
         price: totalPrice,
         currency: business!.currency ?? DEFAULT_CURRENCY,
         appointmentDate: appointmentStart,
+        online: isOnline ? { meetingUrl: resolveMeetingUrl(orderedServices[0], staffMember) } : undefined,
         ctx: { appointmentId, businessId: business!.id },
       });
     } catch (err) {
@@ -371,7 +380,7 @@ async function POST_handler(req: NextRequest) {
     }
     if (!hold) {
       await notify(appointment.id, 0);
-      return NextResponse.json({ success: true, appointmentId: appointment.id, paymentMode: "postpaid", confirmationWithheld: suppressContactMessages });
+      return NextResponse.json({ success: true, appointmentId: appointment.id, paymentMode: "postpaid", confirmationWithheld: suppressContactMessages, isOnline, meetingUrl: isOnline ? await loadMeetingUrl(appointment.id) : null });
     }
     const started = await startCheckout({
       appointmentId: appointment.id, businessId: business.id, businessName: business.name,
@@ -380,7 +389,7 @@ async function POST_handler(req: NextRequest) {
       note: `${serviceNamesLabel} ${date} ${time}`,
     });
     if (!started.ok) return NextResponse.json({ error: started.error, code: "PAYMENT_START_FAILED" }, { status: 502 });
-    return NextResponse.json({ success: true, appointmentId: appointment.id, pendingPayment: true, checkout: started.checkout });
+    return NextResponse.json({ success: true, appointmentId: appointment.id, pendingPayment: true, checkout: started.checkout, isOnline });
   }
 
   // Postpaid path — create appointments directly, client pays at visit
@@ -396,7 +405,7 @@ async function POST_handler(req: NextRequest) {
       throw err;
     }
     await notify(appointment.id, 0);
-    return NextResponse.json({ success: true, appointmentId: appointment.id, paymentMode: "postpaid", confirmationWithheld: suppressContactMessages });
+    return NextResponse.json({ success: true, appointmentId: appointment.id, paymentMode: "postpaid", confirmationWithheld: suppressContactMessages, isOnline, meetingUrl: isOnline ? await loadMeetingUrl(appointment.id) : null });
   }
 
   // Prepaid path — redirect to Razorpay Payment Link
@@ -413,6 +422,10 @@ async function POST_handler(req: NextRequest) {
   }
 
   if (razorpayKey) {
+    // The legacy payment-link flow rebuilds the appointment from link metadata and cannot carry the mode.
+    if (isOnline) {
+      return NextResponse.json({ error: "Online consultations can't be paid in advance yet. Please contact the business." }, { status: 400 });
+    }
     // The slot was checked above (non-binding); it is stored once the payment confirms.
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? `http://localhost:${process.env.PORT ?? 3000}`;
     const currency = (business.currency ?? DEFAULT_CURRENCY).toUpperCase();
@@ -457,7 +470,7 @@ async function POST_handler(req: NextRequest) {
     throw err;
   }
   await notify(appointment.id, totalPrice);
-  return NextResponse.json({ success: true, appointmentId: appointment.id, confirmationWithheld: suppressContactMessages });
+  return NextResponse.json({ success: true, appointmentId: appointment.id, confirmationWithheld: suppressContactMessages, isOnline, meetingUrl: isOnline ? await loadMeetingUrl(appointment.id) : null });
 }
 
 export const POST = safeRoute(POST_handler);
