@@ -4,7 +4,7 @@ import { checkLogoBytes, MAX_LOGO_BYTES } from "@/lib/validation/logo";
 import { processLogo } from "@/lib/logo";
 import { normalizeSocial, normalizeSocialLinks, parseSocialLinks, normalizeReviewLink, safeReviewLink } from "@/lib/brandLinks";
 import { formatOpeningHours, mapsEmbedUrl, openStatus, summarizeHours } from "@/lib/hours";
-import { currentPhoto, defaultWebsiteConfig, focusPosition, photoUrl } from "@/lib/website";
+import { currentPhoto, defaultWebsiteConfig, focusPosition, photoUrl, stableJson } from "@/lib/website";
 import { websitePatchSchema } from "@/lib/validation/misc";
 import { assertSafeKey, localStorageAdapter } from "@/lib/storage";
 
@@ -235,5 +235,19 @@ describe("step-6/redesign-site-foundation: fixed-size website photos", () => {
     const ok = websitePatchSchema.safeParse({ websiteJson: JSON.stringify({ hero: { image: "https://x.test/a.jpg", imageFocus: "bottom" } }) });
     expect(ok.success && JSON.parse(ok.data.websiteJson).hero.imageFocus).toBe("bottom");
     expect(websitePatchSchema.safeParse({ websiteJson: JSON.stringify({ hero: { imageFocus: "left" } }) }).success).toBe(false);
+  });
+});
+
+describe("step-6/redesign-site-foundation: unsaved-changes check in the website editor", () => {
+  it("same content in a different key order is not a change", () => {
+    expect(stableJson({ hero: { image: "a", imageFocus: "top" }, about: { image: "b" } }))
+      .toBe(stableJson({ about: { image: "b" }, hero: { imageFocus: "top", image: "a" } }));
+  });
+  it("a changed photo is a change, and array order still matters", () => {
+    expect(stableJson({ hero: { image: "a" } })).not.toBe(stableJson({ hero: { image: "b" } }));
+    expect(stableJson({ x: [1, 2] })).not.toBe(stableJson({ x: [2, 1] }));
+  });
+  it("an undefined focus (reset) equals no focus at all", () => {
+    expect(stableJson({ hero: { image: "a", imageFocus: undefined } })).toBe(stableJson({ hero: { image: "a" } }));
   });
 });

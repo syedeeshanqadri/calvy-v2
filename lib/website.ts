@@ -236,3 +236,9 @@ export function photoUrl(id: string, size: "thumb" | "full" | "hero" | "about" =
   }
   return `https://images.unsplash.com/${id}?auto=format&fit=crop&w=1920&q=80`;
 }
+
+/** JSON with sorted keys, so two configs with the same content compare equal whatever order they were built in. */
+export function stableJson(value: unknown): string {
+  return JSON.stringify(value, (_k, v) =>
+    v && typeof v === "object" && !Array.isArray(v) ? Object.fromEntries(Object.entries(v as Record<string, unknown>).sort(([a], [b]) => a.localeCompare(b))) : v);
+}

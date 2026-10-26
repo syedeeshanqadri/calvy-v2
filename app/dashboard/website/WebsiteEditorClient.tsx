@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
 import type { TermsSource } from "@/lib/terms";
-import { parseWebsiteConfig, defaultWebsiteConfig, WebsiteConfig, PHOTO_LIBRARY, photoUrl, focusPosition, type ImageFocus } from "@/lib/website";
+import { parseWebsiteConfig, defaultWebsiteConfig, WebsiteConfig, PHOTO_LIBRARY, photoUrl, focusPosition, stableJson, type ImageFocus } from "@/lib/website";
 import { Globe, Eye, ToggleLeft, ToggleRight, Check, Copy, ImageIcon, Link2, ChevronDown, Upload } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { BrandLinksCard } from "./BrandLinksCard";
@@ -237,6 +237,10 @@ export function WebsiteEditorClient({ terms, slug, businessName, businessType, w
   const [config, setConfig] = useState<WebsiteConfig>(initial);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  // What the website currently has. Anything in `config` that differs is unsaved and not yet live.
+  const [savedJson, setSavedJson] = useState(() => stableJson(initial));
+  const [photoNote, setPhotoNote] = useState("");
+  const dirty = stableJson(config) !== savedJson;
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
   const [pickerTarget, setPickerTarget] = useState<"hero" | "about" | null>(null);
@@ -249,10 +253,35 @@ export function WebsiteEditorClient({ terms, slug, businessName, businessType, w
     try {
       const res = await fetch("/api/website", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ websiteJson: JSON.stringify(config) }) });
       if (!res.ok) { const d = await res.json(); throw new Error(d.error || "Failed to save"); }
+      setSavedJson(stableJson(config));
       setSaved(true); setTimeout(() => setSaved(false), 2500);
     } catch (e) { setError((e as Error).message); }
     finally { setSaving(false); }
   };
+
+  // A photo choice goes live straight away (it is a deliberate pick in its own dialog). Only the photo is
+  // published, on top of what is already saved; any half-finished text edits stay unsaved until Save.
+  const applyPhoto = async (slot: "hero" | "about", patch: { image?: string; imageFocus?: ImageFocus }) => {
+    setConfig(c => ({ ...c, [slot]: { ...c[slot], ...patch } }));
+    setError(""); setPhotoNote("");
+    try {
+      const base = JSON.parse(savedJson) as WebsiteConfig;
+      const merged = { ...base, [slot]: { ...base[slot], ...patch } };
+      const res = await fetch("/api/website", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ websiteJson: JSON.stringify(merged) }) });
+      if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || "Could not save the photo"); }
+      setSavedJson(stableJson(merged));
+      setPhotoNote("Photo saved. It is live on your website now.");
+      setTimeout(() => setPhotoNote(""), 4000);
+    } catch (e) { setError(`${(e as Error).message}. The photo is selected here but is not on your website yet; click Save Changes to try again.`); }
+  };
+
+  // Leaving the page with unsaved edits would silently lose them.
+  useEffect(() => {
+    if (!dirty) return;
+    const warn = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ""; };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [dirty]);
 
   const copyLink = () => { navigator.clipboard.writeText(siteUrl); setCopied(true); setTimeout(() => setCopied(false), 2000); };
 
@@ -288,6 +317,13 @@ export function WebsiteEditorClient({ terms, slug, businessName, businessType, w
         </div>
       </div>
 
+      {photoNote && <p role="status" className="mb-4 text-sm text-green-700 bg-green-50 border border-green-200 rounded-xl px-4 py-2.5">{photoNote}</p>}
+      {dirty && (
+        <div role="status" className="sticky top-2 z-20 mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-300 bg-amber-50 px-4 py-2.5 text-sm text-amber-900 shadow-sm">
+          <span>You have unsaved changes. They are not on your website until you save.</span>
+          <Button size="sm" onClick={save} disabled={saving}>{saving ? "Saving..." : "Save Changes"}</Button>
+        </div>
+      )}
       {error && <p className="mb-4 text-sm text-red-500">{error}</p>}
 
       <div className="space-y-4">
@@ -309,9 +345,9 @@ export function WebsiteEditorClient({ terms, slug, businessName, businessType, w
         {/* ── HERO ── */}
         <SectionCard title="Hero Section" enabled={config.hero.enabled} onToggle={() => toggle("hero")}>
           <ImagePreview label="Hero Image" url={config.hero.image} focus={config.hero.imageFocus}
-            onFocus={f => setConfig({ ...config, hero: { ...config.hero, imageFocus: f } })}
+            onFocus={f => applyPhoto("hero", { imageFocus: f })}
             onChangePic={() => setPickerTarget("hero")}
-            onReset={() => setConfig({ ...config, hero: { ...config.hero, image: defaultPhotos.hero, imageFocus: undefined } })} />
+            onReset={() => applyPhoto("hero", { image: defaultPhotos.hero, imageFocus: undefined })} />
           <Input label="Badge text (small pill above headline)" placeholder="e.g. Professional Clinic Services" value={config.hero.badge} onChange={e => set("hero", "badge", e.target.value)} />
           <Input label="Main headline" placeholder="Welcome to..." value={config.hero.headline} onChange={e => set("hero", "headline", e.target.value)} />
           <Textarea label="Subheadline" value={config.hero.subheadline} onChange={v => set("hero", "subheadline", v)} rows={2} placeholder="Describe what you offer in one line..." />
@@ -324,9 +360,9 @@ export function WebsiteEditorClient({ terms, slug, businessName, businessType, w
         {/* ── ABOUT ── */}
         <SectionCard title="About Section" enabled={config.about.enabled} onToggle={() => toggle("about")}>
           <ImagePreview label="About Image" url={config.about.image} focus={config.about.imageFocus}
-            onFocus={f => setConfig({ ...config, about: { ...config.about, imageFocus: f } })}
+            onFocus={f => applyPhoto("about", { imageFocus: f })}
             onChangePic={() => setPickerTarget("about")}
-            onReset={() => setConfig({ ...config, about: { ...config.about, image: defaultPhotos.about, imageFocus: undefined } })} />
+            onReset={() => applyPhoto("about", { image: defaultPhotos.about, imageFocus: undefined })} />
           <div className="grid grid-cols-2 gap-3">
             <Input label="Pill badge text" placeholder="About Us" value={config.about.badge} onChange={e => set("about", "badge", e.target.value)} />
             <Input label="Section heading" placeholder="About Us" value={config.about.title} onChange={e => set("about", "title", e.target.value)} />
@@ -388,7 +424,7 @@ export function WebsiteEditorClient({ terms, slug, businessName, businessType, w
       <ImagePickerModal
         isOpen={pickerTarget !== null}
         current={pickerImage ?? ""}
-        onSelect={url => { if (pickerTarget === "hero") setConfig({ ...config, hero: { ...config.hero, image: url } }); else if (pickerTarget === "about") setConfig({ ...config, about: { ...config.about, image: url } }); }}
+        onSelect={url => { if (pickerTarget) applyPhoto(pickerTarget, { image: url }); }}
         onClose={() => setPickerTarget(null)}
         showUpload={imageUpload}
         purpose={pickerTarget === "hero" ? "hero" : "about"}
