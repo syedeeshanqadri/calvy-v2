@@ -1,3 +1,5 @@
+import { isIP } from "net";
+
 const TZ_CURRENCY: Record<string, string> = {
   "Asia/Kolkata": "INR", "Asia/Calcutta": "INR",
   "Asia/Karachi": "PKR",
@@ -70,7 +72,7 @@ export function getCurrencySymbol(currency: string): string {
 }
 
 export async function getCurrencyFromIp(ip: string): Promise<string> {
-  if (!ip || ip === "127.0.0.1" || ip === "::1" || ip === "localhost") return "USD";
+  if (!ip || !isIP(ip) || ip === "127.0.0.1" || ip === "::1") return "USD"; // only a real IP address ever goes into the lookup URL
   try {
     const res = await fetch(`https://ipapi.co/${ip}/currency/`, {
       next: { revalidate: 3600 },
@@ -86,7 +88,7 @@ export async function getCurrencyFromIp(ip: string): Promise<string> {
 
 /** Two-letter country code for an IP, or null. Short timeout: this runs on a page request. */
 export async function getCountryFromIp(ip: string, timeoutMs = 1500): Promise<string | null> {
-  if (!ip || ip === "unknown" || ip === "127.0.0.1" || ip === "::1" || ip === "localhost") return null;
+  if (!ip || !isIP(ip) || ip === "127.0.0.1" || ip === "::1") return null; // only a real IP address ever goes into the lookup URL
   try {
     const res = await fetch(`https://ipapi.co/${ip}/country/`, {
       signal: AbortSignal.timeout(timeoutMs),

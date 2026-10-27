@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import crypto from "crypto";
+import { hmacSha256Matches } from "@/lib/hmac";
 
 export const dynamic = 'force-dynamic';
 
 function verifySignature(rawBody: string, signature: string, secret: string): boolean {
-  const expected = crypto.createHmac("sha256", secret).update(rawBody).digest("hex");
-  return expected === signature;
+  return hmacSha256Matches(rawBody, signature, secret); // constant time
 }
 
 function getSubscriptionEntity(payload: any) {

@@ -98,9 +98,11 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     // For OAuth sign-ins, ensure a matching User exists (linked by verified
     // email). The business is created later in the onboarding step.
-    async signIn({ user, account }) {
+    async signIn({ user, account, profile }) {
       if (!account || account.provider === "credentials" || account.provider === "customer") return true;
       if (!user.email) return false; // provider didn't share an email — can't proceed
+      // Accounts are linked by email, so an unverified Google address must never log into an existing account.
+      if (account.provider === "google" && (profile as { email_verified?: boolean } | undefined)?.email_verified !== true) return false;
 
       const oauthEmail = tryNormalizeEmail(user.email);
       if (!oauthEmail) return false;

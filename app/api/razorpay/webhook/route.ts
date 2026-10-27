@@ -7,12 +7,12 @@ import { sendBookingConfirmationWhatsApp } from "@/lib/whatsapp";
 import { sendPushToBusiness } from "@/lib/push";
 import { DEFAULT_CURRENCY } from "@/lib/currency";
 import crypto from "crypto";
+import { hmacSha256Matches } from "@/lib/hmac";
 
 export const dynamic = 'force-dynamic';
 
 function verifySignature(rawBody: string, signature: string, secret: string): boolean {
-  const expected = crypto.createHmac("sha256", secret).update(rawBody).digest("hex");
-  return expected === signature;
+  return hmacSha256Matches(rawBody, signature, secret); // constant time
 }
 
 export async function POST(req: NextRequest) {
