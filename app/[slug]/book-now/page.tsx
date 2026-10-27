@@ -5,6 +5,8 @@ import { getPayConfig } from "@/lib/onlinePayment";
 import { contactRequirements } from "@/lib/patients";
 import { parseSocialLinks, safeReviewLink } from "@/lib/brandLinks";
 import { BookingClient } from "@/app/b/[slug]/BookingClient";
+import { headers } from "next/headers";
+import { siteBase } from "@/lib/siteBase";
 import { siteFontClasses } from "@/app/[slug]/fonts";
 
 export const dynamic = "force-dynamic";
@@ -32,6 +34,7 @@ export async function generateMetadata(props: { params: Promise<{ slug: string }
 
 export default async function BookNowPage(props: { params: Promise<{ slug: string }> }) {
   const params = await props.params;
+  const host = (await headers()).get("host");
   const business = await getBusiness(params.slug);
   if (!business) notFound();
 
@@ -66,5 +69,6 @@ export default async function BookNowPage(props: { params: Promise<{ slug: strin
     })),
   };
 
-  return <BookingClient business={data} fontClasses={await siteFontClasses(business.packId)} />;
+  const homeHref = siteBase(host, business.slug, process.env.NEXT_PUBLIC_ROOT_DOMAIN ?? "calvy.io") || "/";
+  return <BookingClient business={data} fontClasses={await siteFontClasses(business.packId)} homeHref={homeHref} />;
 }

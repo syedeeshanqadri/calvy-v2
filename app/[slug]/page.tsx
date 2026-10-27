@@ -25,6 +25,8 @@ import { PackIcon } from "@/components/site/PackIcon";
 import { getPack } from "@/lib/packs";
 import { heroLayoutFor } from "@/lib/siteLayout";
 import "./site.css";
+import { headers } from "next/headers";
+import { siteBase } from "@/lib/siteBase";
 
 export const dynamic = "force-dynamic";
 
@@ -93,7 +95,7 @@ export default async function TenantWebsitePage(props: { params: Promise<{ slug:
   const reviewUrl = safeReviewLink(business.googleReviewUrl);
   const hours = formatOpeningHours(business.workingHours);
   const hasHours = business.workingHours.length > 0;
-  const bookingUrl = `/book-now`;
+  const bookingUrl = `${siteBase((await headers()).get("host"), business.slug, ROOT_DOMAIN)}/book-now`;
   const features = await getBusinessFeatures(business.id);
 
   // ── SEO: schema.org structured data (LocalBusiness + service offers) ──

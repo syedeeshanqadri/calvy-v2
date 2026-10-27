@@ -203,7 +203,7 @@ export default function SignupPage() {
   return (
     <AuthShell>
       <h1 className="font-syne font-bold text-2xl text-[#0f0f1a] mb-1">Create your account</h1>
-      <p className="text-[#6b6b80] text-sm mb-7">Set up your booking page in under 10 minutes.</p>
+      <p className="text-[#6b6b80] text-sm mb-7">Get your website in under 10 minutes.</p>
 
       <form onSubmit={handleContinue} className="space-y-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
