@@ -55,7 +55,7 @@ interface Business {
 }
 
 /** `fontClasses` carries the pack fonts (see app/[slug]/fonts); without it the page falls back to system fonts. */
-export function BookingClient({ business, fontClasses }: { business: Business; fontClasses?: string }) {
+export function BookingClient({ business, fontClasses, homeHref = "/" }: { business: Business; fontClasses?: string; homeHref?: string }) {
   const word = (key: TermKey, opts?: TermOpts) => t(business, key, opts);
   const svc1 = word("service"), svcN = word("service", { plural: true });
   const Svc1 = word("service", { cap: true });
@@ -364,7 +364,7 @@ export function BookingClient({ business, fontClasses }: { business: Business; f
           <BrandMark name={business.name} logoUrl={business.logoUrl} color={color} fg={fg} size={40} rounded={markRadius} />
           <span className="min-w-0"><b>{business.name}</b><small>{typeLabel}</small></span>
         </span>
-        <a href="/" className="bk-back" aria-label="Back to website"><ArrowLeft size={16} aria-hidden /><span className="bk-back-text">Back to website</span></a>
+        <a href={homeHref} className="bk-back" aria-label="Back to website"><ArrowLeft size={16} aria-hidden /><span className="bk-back-text">Back to website</span></a>
       </div>
     </header>
   );
