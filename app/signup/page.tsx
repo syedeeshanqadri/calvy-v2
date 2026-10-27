@@ -7,29 +7,14 @@ import PasswordInput from "@/components/auth/PasswordInput";
 import { postAuth } from "@/components/auth/authApi";
 import { PRICING_NOTE, formatMoney, getRegionPricing, isFeatureHeading, yearlySaveBadge } from "@/lib/pricing";
 import { useRegion } from "@/components/landing/useRegion";
+import { REGIONS } from "@/lib/regions";
 import { PackPicker } from "@/components/packs/PackPicker";
 import type { PackId } from "@/lib/packs/types";
 
-const REGIONS = [
-  { currency: "USD", label: "United States — US Dollar (USD $)" },
-  { currency: "EUR", label: "Europe — Euro (EUR €)" },
-  { currency: "GBP", label: "United Kingdom — British Pound (GBP £)" },
-  { currency: "CAD", label: "Canada — Canadian Dollar (CAD C$)" },
-  { currency: "AUD", label: "Australia / NZ — Australian Dollar (AUD A$)" },
-  { currency: "AED", label: "UAE — Dirham (AED)" },
-  { currency: "SAR", label: "Saudi Arabia — Riyal (SAR)" },
-  { currency: "INR", label: "India — Indian Rupee (INR ₹)" },
-  { currency: "PKR", label: "Pakistan — Rupee (PKR Rs)" },
-  { currency: "BDT", label: "Bangladesh — Taka (BDT ৳)" },
-  { currency: "MYR", label: "Malaysia — Ringgit (MYR RM)" },
-  { currency: "SGD", label: "Singapore — Dollar (SGD S$)" },
-  { currency: "NGN", label: "Nigeria — Naira (NGN ₦)" },
-  { currency: "ZAR", label: "South Africa — Rand (ZAR R)" },
-];
 
 export default function SignupPage() {
   const [packId, setPackId] = useState<PackId>("OTHER");
-  const [form, setForm] = useState({ name: "", businessName: "", email: "", password: "", currency: "" });
+  const [form, setForm] = useState({ name: "", businessName: "", email: "", password: "", region: "" });
   const [step, setStep] = useState<1 | 2>(1);
   const [plan, setPlan] = useState<"free" | "professional" | "business">("free");
   const [yearly, setYearly] = useState(true);
@@ -43,10 +28,10 @@ export default function SignupPage() {
   const detectedRegion = useRegion();
 
   // Pre-selected from the visitor's detected country until they pick one themselves.
-  const currency = form.currency || (detectedRegion === "IN" ? "INR" : "");
+  const region = form.region || (detectedRegion === "IN" ? "IN" : "");
 
   // Step 2 shows the price list that matches the region chosen in step 1.
-  const pricing = getRegionPricing(currency === "INR" ? "IN" : "INTL");
+  const pricing = getRegionPricing(region === "IN" ? "IN" : "INTL");
   const money = (n: number) => formatMoney(n, pricing);
 
   useEffect(() => {
@@ -76,7 +61,7 @@ export default function SignupPage() {
   // Step 1 only validates and moves on; the account is created on the final click in step 2.
   function handleContinue(e: React.FormEvent) {
     e.preventDefault();
-    if (!currency) { setError("Please select your region."); return; }
+    if (!region) { setError("Please select your country or region."); return; }
     setError("");
     setStep(2);
   }
@@ -91,7 +76,7 @@ export default function SignupPage() {
       res = await fetch("/api/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, currency, plan, packId, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone }),
+        body: JSON.stringify({ ...form, region, plan, packId, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone }),
       });
       data = await res.json().catch(() => ({}));
     } catch {
@@ -275,21 +260,19 @@ export default function SignupPage() {
         />
 
         <div>
-          <label htmlFor="signup-region" className="text-sm font-medium text-[#0f0f1a] block mb-1.5">Region & currency</label>
+          <label htmlFor="signup-region" className="text-sm font-medium text-[#0f0f1a] block mb-1.5">Country / region</label>
           <select
             id="signup-region"
             required
-            value={currency}
-            onChange={e => set("currency", e.target.value)}
-            aria-describedby="signup-region-hint"
+            value={region}
+            onChange={e => set("region", e.target.value)}
             className={`${inputClass} bg-white`}
           >
-            <option value="" disabled>Select your region…</option>
+            <option value="" disabled>Select your country…</option>
             {REGIONS.map(r => (
-              <option key={r.currency} value={r.currency}>{r.label}</option>
+              <option key={r.code} value={r.code}>{r.name}</option>
             ))}
           </select>
-          <p id="signup-region-hint" className="text-xs text-[#6b6b80] mt-1.5">All prices and payments will use this currency.</p>
         </div>
 
         <PackPicker value={packId} onChange={setPackId} name="signup-pack" />

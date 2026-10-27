@@ -402,7 +402,7 @@ test.describe("signup + verify-email", () => {
     await page.getByLabel("Business name").fill("Salon");
     await page.getByLabel("Email").fill("alex@example.com");
     await pw.fill("longenough1");
-    await page.getByLabel("Region & currency").selectOption("USD");
+    await page.getByLabel("Country / region").selectOption("US");
     await page.getByRole("button", { name: "Create free account" }).click();
     await expect(page.getByRole("heading", { level: 1, name: "Check your email" })).toBeVisible();
     const resend = page.getByRole("button", { name: /Resend email/ });
@@ -433,7 +433,7 @@ test.describe("signup + verify-email", () => {
     await page.getByLabel("Business name").fill("Salon");
     await page.getByLabel("Email").fill("alex@example.com");
     await page.getByLabel("Password", { exact: true }).fill("longenough1");
-    await page.getByLabel("Region & currency").selectOption("INR");
+    await page.getByLabel("Country / region").selectOption("IN");
     await page.getByRole("button", { name: "Create free account" }).click();
     const resend = page.getByRole("button", { name: /Resend email/ });
     await expect(resend).toBeDisabled();

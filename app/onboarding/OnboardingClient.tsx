@@ -5,29 +5,14 @@ import { useSession, signOut } from "next-auth/react";
 import { Logo } from "@/components/ui/Logo";
 import { PackPicker } from "@/components/packs/PackPicker";
 import type { PackId } from "@/lib/packs/types";
+import { REGIONS } from "@/lib/regions";
 
-const REGIONS = [
-  { currency: "USD", label: "United States — US Dollar (USD $)" },
-  { currency: "EUR", label: "Europe — Euro (EUR €)" },
-  { currency: "GBP", label: "United Kingdom — British Pound (GBP £)" },
-  { currency: "CAD", label: "Canada — Canadian Dollar (CAD C$)" },
-  { currency: "AUD", label: "Australia / NZ — Australian Dollar (AUD A$)" },
-  { currency: "AED", label: "UAE — Dirham (AED)" },
-  { currency: "SAR", label: "Saudi Arabia — Riyal (SAR)" },
-  { currency: "INR", label: "India — Indian Rupee (INR ₹)" },
-  { currency: "PKR", label: "Pakistan — Rupee (PKR Rs)" },
-  { currency: "BDT", label: "Bangladesh — Taka (BDT ৳)" },
-  { currency: "MYR", label: "Malaysia — Ringgit (MYR RM)" },
-  { currency: "SGD", label: "Singapore — Dollar (SGD S$)" },
-  { currency: "NGN", label: "Nigeria — Naira (NGN ₦)" },
-  { currency: "ZAR", label: "South Africa — Rand (ZAR R)" },
-];
 
 export default function OnboardingClient({ name }: { name: string }) {
   const router = useRouter();
   const { update } = useSession();
   const [businessName, setBusinessName] = useState("");
-  const [currency, setCurrency] = useState("");
+  const [region, setRegion] = useState("");
   const [packId, setPackId] = useState<PackId>("OTHER");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -35,14 +20,14 @@ export default function OnboardingClient({ name }: { name: string }) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!businessName.trim()) { setError("Please enter your business name."); return; }
-    if (!currency) { setError("Please select your region."); return; }
+    if (!region) { setError("Please select your country or region."); return; }
     setError("");
     setLoading(true);
 
     const res = await fetch("/api/onboarding", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ businessName, currency, packId, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone }),
+      body: JSON.stringify({ businessName, region, packId, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone }),
     });
     const data = await res.json().catch(() => ({}));
 
@@ -84,15 +69,15 @@ export default function OnboardingClient({ name }: { name: string }) {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-[#374151] mb-1.5">Region & currency</label>
+              <label className="block text-sm font-medium text-[#374151] mb-1.5">Country / region</label>
               <select
-                value={currency}
-                onChange={e => setCurrency(e.target.value)}
+                value={region}
+                onChange={e => setRegion(e.target.value)}
                 className="w-full h-11 rounded-xl border border-[#e8e6e0] bg-white px-4 text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent"
               >
-                <option value="">Select your region…</option>
+                <option value="">Select your country…</option>
                 {REGIONS.map(r => (
-                  <option key={r.currency} value={r.currency}>{r.label}</option>
+                  <option key={r.code} value={r.code}>{r.name}</option>
                 ))}
               </select>
             </div>
