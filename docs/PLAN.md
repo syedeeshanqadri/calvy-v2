@@ -453,6 +453,18 @@ Items from the old Steps 3 and 4 that the 2026-10-24 re-plan deferred. Each gets
 
 ---
 
+## Security audit 2026-10-27 (not fixed in code, for the owner)
+
+| ID | Item | Severity |
+|---|---|---|
+| SA-01 | Rate limits are per server instance on Vercel until `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` are set; login, signup and booking throttles are advisory without them. Set both on the Vercel project | Medium |
+| SA-02 | Content-Security-Policy is report-only and allows `unsafe-inline` and `unsafe-eval`; switch to enforcing with nonces once the console is clean | Medium |
+| SA-03 | Blog and help articles render `marked` output without sanitising. Only the super admin writes posts and help is static, so low risk; add a sanitiser if posts ever come from anyone else | Low |
+| SA-04 | Signup answers "An account with this email already exists" (account enumeration, rate limited). Accept or switch to a generic message plus email | Low |
+| SA-05 | The Neon database credentials and test password in the local `.claude/settings.json` should be rotated and removed (the file is untracked and the repo is private, but it sits on disk); the dev database is also used by the test server | Low |
+
+---
+
 ## Dependencies across steps
 
 - `S1-19` (migrations) blocks every schema change in Steps 2 to 9.
