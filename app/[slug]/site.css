@@ -164,6 +164,20 @@
   .st-hero[data-layout="immersive"] .st-hero-frame::after { background: linear-gradient(90deg, rgba(8,10,14,.88) 0%, rgba(8,10,14,.64) 46%, rgba(8,10,14,.18) 100%); }
 }
 
+/* Phones: keep the whole photo visible (laptop layouts are untouched).
+   - arch: a wide, softly arched window instead of a narrow 4:5 slot, which cut the sides off the photo;
+   - immersive: the photo is its own block under the copy, not a full-bleed backdrop hidden by the dark overlay. */
+@media (max-width: 899px) {
+  .st-hero[data-layout="arch"] { --hero-radius: 160px 160px 28px 28px; }
+  .st-hero[data-layout="arch"] .st-hero-media { aspect-ratio: 1 / 1; max-width: 520px; }
+  .st-hero[data-layout="immersive"] .st-hero-media { position: relative; inset: auto; margin: 0 20px 36px; aspect-ratio: 4 / 3; }
+  .st-hero[data-layout="immersive"] .st-hero-frame { border-radius: 24px; }
+  .st-hero[data-layout="immersive"] .st-hero-frame::after { display: none; }
+  /* a smaller "book online" seal, so it covers less of the photo */
+  .st-seal { width: 76px; height: 76px; left: -8px; bottom: 20px; }
+  .st-seal-icon { left: 10px; bottom: 38px; width: 36px; height: 36px; }
+}
+
 /* Next available card in the hero (real start times) */
 .st-avail { color: var(--ink); background: #fff; border-radius: var(--radius); padding: 18px; box-shadow: 0 18px 40px -20px rgba(16,19,25,.5); border: 1px solid var(--line); }
 .st-avail h2 { font-family: var(--font-st-body), system-ui, sans-serif; font-size: 0.9375rem; font-weight: 700; letter-spacing: 0; text-transform: none; font-stretch: 100%; display: flex; align-items: center; gap: 8px; margin: 0; }
