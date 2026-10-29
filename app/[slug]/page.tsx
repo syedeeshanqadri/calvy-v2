@@ -26,7 +26,7 @@ import { getPack } from "@/lib/packs";
 import { heroLayoutFor } from "@/lib/siteLayout";
 import "./site.css";
 import { headers } from "next/headers";
-import { siteBase } from "@/lib/siteBase";
+import { siteBase, publicSiteUrl } from "@/lib/siteBase";
 
 export const dynamic = "force-dynamic";
 
@@ -42,7 +42,7 @@ async function getBusiness(slug: string) {
 }
 
 const ROOT_DOMAIN = process.env.NEXT_PUBLIC_ROOT_DOMAIN ?? "calvy.io";
-const publicUrlFor = (slug: string) => `https://${slug}.${ROOT_DOMAIN}`;
+const publicUrlFor = (slug: string) => publicSiteUrl(slug, ROOT_DOMAIN);
 
 export async function generateMetadata(props: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const params = await props.params;

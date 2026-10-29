@@ -10,3 +10,21 @@ export function siteBase(host: string | null | undefined, slug: string, rootDoma
   const isSubdomain = hostname !== root && hostname !== `www.${root}` && hostname.endsWith(`.${root}`);
   return isSubdomain ? "" : `/${slug}`;
 }
+
+/**
+ * Do business sites live on their own subdomain (slug.root)? Only on a real domain with a wildcard DNS
+ * record. Hosts that cannot do that (*.vercel.app, localhost, an IP) serve a site by path: root/slug.
+ */
+export function usesTenantSubdomains(rootDomain: string): boolean {
+  const root = rootDomain.replace(/^https?:\/\//, "").replace(/\/.*$/, "").replace(/:\d+$/, "").toLowerCase();
+  if (!root || root === "localhost" || root.endsWith(".localhost") || root.endsWith(".vercel.app") || /^\d{1,3}(\.\d{1,3}){3}$/.test(root)) return false;
+  return true;
+}
+
+/** The public address of a business's website, right for this deployment: https://slug.calvy.io, or https://host/slug. */
+export function publicSiteUrl(slug: string, rootDomain: string): string {
+  const root = rootDomain.replace(/^https?:\/\//, "").replace(/\/+$/, "");
+  if (usesTenantSubdomains(root)) return `https://${slug}.${root}`;
+  const local = /^(localhost|127\.|\d{1,3}(\.\d{1,3}){3})/.test(root);
+  return `${local ? "http" : "https"}://${root}/${slug}`;
+}

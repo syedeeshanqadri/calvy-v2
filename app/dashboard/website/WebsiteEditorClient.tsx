@@ -1,4 +1,5 @@
 "use client";
+import { publicSiteUrl } from "@/lib/siteBase";
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
@@ -246,7 +247,7 @@ export function WebsiteEditorClient({ terms, slug, businessName, businessType, w
   const [pickerTarget, setPickerTarget] = useState<"hero" | "about" | null>(null);
 
   const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "calvy.io";
-  const siteUrl = `https://${slug}.${rootDomain}`;
+  const siteUrl = publicSiteUrl(slug, rootDomain);
 
   const save = async () => {
     setSaving(true); setError("");
