@@ -100,3 +100,18 @@ describe("every API route is protected or on the reviewed public list", () => {
     expect(src).toContain('getPaymentProvider()?.name !== "MOCK"');
   });
 });
+
+import { emailSenderWarning } from "@/lib/env";
+
+describe("email sender", () => {
+  const env = (o: Record<string, string>) => o as unknown as NodeJS.ProcessEnv;
+  it("warns when email is on but the sender is Resend's test address or unset", () => {
+    expect(emailSenderWarning(env({ RESEND_API_KEY: "re_live" }))).toContain("EMAIL_FROM");
+    expect(emailSenderWarning(env({ RESEND_API_KEY: "re_live", EMAIL_FROM: "Calvy <onboarding@resend.dev>" }))).toContain("EMAIL_FROM");
+  });
+  it("is quiet with a real sender, or when email is off", () => {
+    expect(emailSenderWarning(env({ RESEND_API_KEY: "re_live", EMAIL_FROM: "Calvy <noreply@calvy.io>" }))).toBeNull();
+    expect(emailSenderWarning(env({}))).toBeNull();
+    expect(emailSenderWarning(env({ RESEND_API_KEY: "re_REPLACE_ME" }))).toBeNull();
+  });
+});

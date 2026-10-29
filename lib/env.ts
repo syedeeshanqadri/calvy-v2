@@ -101,6 +101,16 @@ export function missingStorageEnv(env: NodeJS.ProcessEnv = process.env): string[
   return driver === "s3" ? S3_ENV.filter((n) => !isSet(env, n)) : [];
 }
 
+/**
+ * Resend's default sender (onboarding@resend.dev) only delivers to the Resend account owner, so mail to
+ * real customers silently fails. Returns a warning when email is on but no sender of our own is set.
+ */
+export function emailSenderWarning(env: NodeJS.ProcessEnv = process.env): string | null {
+  if (!isSet(env, "RESEND_API_KEY") || env.RESEND_API_KEY === "re_REPLACE_ME") return null;
+  if (isSet(env, "EMAIL_FROM") && !/@resend\.dev>?\s*$/i.test(env.EMAIL_FROM!.trim())) return null;
+  return "[env] EMAIL_FROM is not set to an address on a verified domain: Resend's test sender only delivers to the account owner, so customer emails will fail. Set EMAIL_FROM, e.g. \"Calvy <noreply@calvy.io>\".";
+}
+
 /** Names of optional services that are disabled because a variable is missing. */
 export function disabledServices(env: NodeJS.ProcessEnv = process.env): string[] {
   return Object.entries(OPTIONAL_SERVICES)
