@@ -48,8 +48,10 @@ export async function loadCustomerOverview(verifiedEmail: string, now: Date = ne
       take: 300,
       select: {
         id: true, date: true, estimatedAt: true, status: true, holdExpiresAt: true, patientName: true, tokenNumber: true, price: true, paymentStatus: true,
-        service: { select: { name: true } }, tokenSession: { select: { name: true } }, client: { select: { name: true } },
-        business: { select: { name: true, slug: true, timezone: true, currency: true } },
+        duration: true, isOnline: true, meetingUrl: true, serviceId: true,
+        service: { select: { name: true, meetingUrl: true } }, staff: { select: { name: true, meetingUrl: true } },
+        tokenSession: { select: { name: true } }, client: { select: { name: true } },
+        business: { select: { name: true, slug: true, timezone: true, currency: true, phone: true, cancellationCutoffHours: true } },
       },
     }),
     prisma.customerCredit.findMany({
