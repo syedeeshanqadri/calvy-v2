@@ -1,5 +1,6 @@
 // What /my shows (pure): bookings split into upcoming and past, and wallet balances per business.
 import { creditBalance } from "@/lib/credit";
+import { beforeCancellationCutoff } from "@/lib/holds";
 
 export interface BookingRow {
   id: string;
@@ -36,4 +37,70 @@ export function walletsByBusiness(rows: CreditRow[]): Wallet[] {
       currency: group[0].currency, balanceMinor: creditBalance(group),
     }))
     .sort((a, b) => a.businessName.localeCompare(b.businessName));
+}
+
+/* ── Self-service changes (cancel, reschedule) ───────────────────────────── */
+
+export type ManageCode = "STATUS" | "PAST" | "TOKEN" | "CUTOFF";
+export type ManageCheck = { ok: true } | { ok: false; code: ManageCode; reason: string };
+
+/**
+ * May the customer cancel or move this booking themselves? Only a live, future, time-slot booking,
+ * and only before the business's cutoff (cancellationCutoffHours before the start; 0 = until it starts).
+ * Queue tokens are handled at reception, not here.
+ */
+export function manageability(
+  a: { status: string; date: Date; tokenNumber?: number | null; business: { cancellationCutoffHours: number; name?: string } },
+  now: Date = new Date(),
+): ManageCheck {
+  if (!["confirmed", "pending"].includes(a.status)) return { ok: false, code: "STATUS", reason: "This booking can no longer be changed." };
+  if (a.date.getTime() <= now.getTime()) return { ok: false, code: "PAST", reason: "This appointment has already started." };
+  if (a.tokenNumber) return { ok: false, code: "TOKEN", reason: "Queue bookings are changed at the front desk. Please contact the business." };
+  const hours = a.business.cancellationCutoffHours ?? 0;
+  if (!beforeCancellationCutoff(a.date, hours, now)) {
+    return { ok: false, code: "CUTOFF", reason: `Changes close ${hours} hour${hours === 1 ? "" : "s"} before the appointment. Please contact ${a.business.name ?? "the business"}.` };
+  }
+  return { ok: true };
+}
+
+/* ── Overview: numbers and updates ───────────────────────────────────────── */
+
+export interface UpdateItem { id: string; tone: "info" | "good" | "warn" | "muted"; title: string; detail: string; at: Date }
+
+interface UpdateRow { id: string; date: Date; status: string; businessName: string; serviceName: string; isOnline?: boolean }
+const DAY = 24 * 3_600_000;
+
+/**
+ * A short feed of what changed or is coming, built from the bookings themselves (there is no separate
+ * notification store): appointments in the next 24 hours, recent cancellations and completed visits,
+ * and wallet credit. Newest and most urgent first, at most `limit`.
+ */
+export function buildUpdates(rows: UpdateRow[], wallets: Wallet[], now: Date = new Date(), limit = 6): UpdateItem[] {
+  const out: UpdateItem[] = [];
+  for (const r of rows) {
+    const dt = r.date.getTime() - now.getTime();
+    if (["confirmed", "pending"].includes(r.status) && dt >= 0 && dt <= DAY) {
+      out.push({ id: `soon-${r.id}`, tone: "info", at: r.date, title: `${r.serviceName} is coming up`, detail: `${r.businessName}${r.isOnline ? " · online" : ""}` });
+    } else if (r.status === "cancelled" && Math.abs(dt) <= 30 * DAY) {
+      out.push({ id: `cx-${r.id}`, tone: "warn", at: r.date, title: `${r.serviceName} was cancelled`, detail: r.businessName });
+    } else if (r.status === "completed" && dt < 0 && dt >= -14 * DAY) {
+      out.push({ id: `done-${r.id}`, tone: "good", at: r.date, title: `${r.serviceName} completed`, detail: `Thanks for visiting ${r.businessName}` });
+    }
+  }
+  for (const w of wallets) {
+    if (w.balanceMinor > 0) out.push({ id: `wal-${w.businessId}`, tone: "good", at: now, title: "Credit in your wallet", detail: `Available at ${w.businessName}` });
+  }
+  const rank = (u: UpdateItem) => (u.tone === "info" ? 0 : u.tone === "warn" ? 1 : 2);
+  return out.sort((a, b) => rank(a) - rank(b) || b.at.getTime() - a.at.getTime()).slice(0, limit);
+}
+
+export interface OverviewStats { upcoming: number; completed: number; businesses: number; next: Date | null }
+
+export function buildStats(upcoming: { date: Date }[], past: { status: string; business?: { slug: string } }[], allBusinessSlugs: string[]): OverviewStats {
+  return {
+    upcoming: upcoming.length,
+    completed: past.filter((p) => p.status === "completed").length,
+    businesses: new Set(allBusinessSlugs).size,
+    next: upcoming[0]?.date ?? null,
+  };
 }

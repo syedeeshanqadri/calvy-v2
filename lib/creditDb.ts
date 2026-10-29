@@ -11,7 +11,7 @@ type Db = Prisma.TransactionClient | typeof prisma;
  */
 export async function creditClosedBooking(
   tx: Prisma.TransactionClient,
-  p: { businessId: string; clientId: string; appointmentId: string; kind: Extract<CreditKind, "MISSED" | "CANCELLED"> },
+  p: { businessId: string; clientId: string; appointmentId: string; kind: Extract<CreditKind, "MISSED" | "CANCELLED">; note?: string },
 ): Promise<{ amountMinor: number; currency: string } | null> {
   const existing = await tx.customerCredit.findUnique({ where: { appointmentId_kind: { appointmentId: p.appointmentId, kind: p.kind } } });
   if (existing) return { amountMinor: existing.amountMinor, currency: existing.currency };
@@ -31,7 +31,7 @@ export async function creditClosedBooking(
     data: {
       businessId: p.businessId, clientId: p.clientId, kind: p.kind, amountMinor, currency: payment.currency,
       appointmentId: p.appointmentId, paymentId: payment.id,
-      note: p.kind === "MISSED" ? "Missed appointment" : "Cancelled at reception",
+      note: p.note ?? (p.kind === "MISSED" ? "Missed appointment" : "Cancelled at reception"),
     },
   });
   return { amountMinor, currency: payment.currency };
