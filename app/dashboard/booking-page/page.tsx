@@ -1,3 +1,4 @@
+import { publicSiteUrl } from "@/lib/siteBase";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -24,7 +25,7 @@ export default async function BookingPagePage() {
 
   const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "calvy.io";
   const slug = business?.slug ?? session.user.businessSlug ?? "";
-  const bookingUrl = `https://${slug}.${rootDomain}/book-now`;
+  const bookingUrl = `${publicSiteUrl(slug, rootDomain)}/book-now`;
 
   return (
     <BookingPageClient

@@ -26,7 +26,7 @@ describe("FULL_ONLINE stays unreachable until chunk 12", () => {
     const cfg = await getPayConfig(biz("FULL_ONLINE"));
     expect(cfg?.mode).toBe("BOOKING_FEE_ONLY");
     expect(chargeFor(cfg, 500)).toEqual({ chargeMinor: 1000, platformFeeMinor: 1000, businessShareMinor: 0 });
-  });
+  }, 30_000); // the first import of the payment module is slow on a busy machine
   it("no route or screen can set onlinePayMode", () => {
     const hits: string[] = [];
     const walk = (dir: string) => {

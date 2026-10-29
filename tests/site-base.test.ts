@@ -24,3 +24,23 @@ describe("siteBase", () => {
     expect(`${siteBase("glow.calvy.io", "glow", ROOT)}/book-now`).toBe("/book-now");
   });
 });
+
+import { publicSiteUrl, usesTenantSubdomains } from "@/lib/siteBase";
+
+describe("publicSiteUrl: the address shown to the owner is one that exists", () => {
+  it("a real domain gets the business's own subdomain", () => {
+    expect(publicSiteUrl("glow", "calvy.io")).toBe("https://glow.calvy.io");
+    expect(publicSiteUrl("glow", "https://calvy.io/")).toBe("https://glow.calvy.io");
+    expect(usesTenantSubdomains("calvy.io")).toBe(true);
+  });
+  it("hosts that cannot do wildcard subdomains serve the site by path", () => {
+    expect(publicSiteUrl("alex-johnson-studio", "calvy-v2.vercel.app")).toBe("https://calvy-v2.vercel.app/alex-johnson-studio");
+    expect(publicSiteUrl("glow", "localhost:3000")).toBe("http://localhost:3000/glow");
+    expect(publicSiteUrl("glow", "127.0.0.1:3000")).toBe("http://127.0.0.1:3000/glow");
+    expect(usesTenantSubdomains("something.vercel.app")).toBe(false);
+  });
+  it("matches how links are built on the page (siteBase)", () => {
+    expect(`${siteBase("calvy-v2.vercel.app", "glow", "calvy-v2.vercel.app")}/book-now`).toBe("/glow/book-now");
+    expect(publicSiteUrl("glow", "calvy-v2.vercel.app").endsWith(siteBase("calvy-v2.vercel.app", "glow", "calvy-v2.vercel.app"))).toBe(true);
+  });
+});

@@ -1,3 +1,4 @@
+import { publicSiteUrl } from "@/lib/siteBase";
 import type { MetadataRoute } from "next";
 import { prisma } from "@/lib/prisma";
 import { HELP_ARTICLES } from "@/lib/helpArticles";
@@ -54,7 +55,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // DB unavailable at build — skip
   }
   const businessRoutes: MetadataRoute.Sitemap = businesses.map(b => ({
-    url: `https://${b.slug}.${ROOT_DOMAIN}`,
+    url: publicSiteUrl(b.slug, ROOT_DOMAIN),
     lastModified: b.updatedAt,
     changeFrequency: "weekly",
     priority: 0.6,
