@@ -183,8 +183,8 @@ describe("reschedule", () => {
     mocks.bookExclusive.mockImplementation(async (_db: unknown, _opts: unknown, write: (tx: unknown) => unknown) => write(mocks.db));
     const res = await reschedulePost(req(when), params());
     expect(res.status).toBe(200);
-    const data = mocks.db.appointment.update.mock.calls[0][0];
-    expect(data.where).toEqual({ id: "a1" });
+    const data = mocks.db.appointment.updateMany.mock.calls[0][0];
+    expect(data.where).toMatchObject({ id: "a1" });
     expect(data.data).toMatchObject({ staffId: "st1", reminderSent: false });
     expect(mocks.push.mock.calls[0][1]).toMatchObject({ title: expect.stringContaining("rescheduled by the customer") });
     expect(mocks.email.sendBookingReschedule).toHaveBeenCalledTimes(1);
@@ -215,5 +215,29 @@ describe("reschedule", () => {
     expect(res.status).toBe(200);
     expect((await res.json()).times).toEqual([{ time: "09:00" }, { time: "10:00" }]);
     expect(mocks.loadAvailability.mock.calls[0][1]).toMatchObject({ staffId: "st1", excludeAppointmentId: "a1", businessId: "biz1" });
+  });
+});
+
+describe("review follow-ups", () => {
+  const avail = (times: string[]) => ({ ok: true, available: new Map(times.map((t) => [t, { resourceIds: ["st1"], spots: 1 }])) });
+  it("a reschedule that loses a race with a cancel changes nothing and says so", async () => {
+    const when = future();
+    mocks.db.appointment.findFirst.mockResolvedValue(row());
+    mocks.loadAvailability.mockResolvedValue(avail([when.time]));
+    mocks.db.appointment.updateMany.mockResolvedValue({ count: 0 });
+    mocks.bookExclusive.mockImplementation(async (_db: unknown, _opts: unknown, write: (tx: unknown) => unknown) => write(mocks.db));
+    const res = await reschedulePost(req(when), params());
+    expect(res.status).toBe(409);
+    expect(mocks.db.appointment.updateMany.mock.calls[0][0].where).toMatchObject({ id: "a1", status: { in: ["confirmed", "pending"] } });
+    expect(mocks.email.sendBookingReschedule).not.toHaveBeenCalled();
+    expect(mocks.push).not.toHaveBeenCalled();
+  });
+  it("the new time must also be outside the business cutoff", async () => {
+    mocks.db.appointment.findFirst.mockResolvedValue(row({ date: new Date(Date.now() + 200 * HOUR), business: { ...row().business, cancellationCutoffHours: 100 } }));
+    mocks.loadAvailability.mockResolvedValue(avail(["10:00"]));
+    const soon = new Date(Date.now() + 26 * HOUR);
+    const res = await reschedulePost(req({ date: soon.toISOString().slice(0, 10), time: "10:00" }), params());
+    expect(res.status).toBe(409);
+    expect(mocks.bookExclusive).not.toHaveBeenCalled();
   });
 });

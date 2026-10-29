@@ -9,6 +9,7 @@ import { loadAvailability, type AvailabilityQuery } from "@/lib/availability";
 import { creditClosedBooking } from "@/lib/creditDb";
 import { formatDateLabel, formatTimeLabel, safeTimeZone, zonedTimeToUtc } from "@/lib/time";
 import { manageability } from "@/lib/customerView";
+import { beforeCancellationCutoff } from "@/lib/holds";
 import { meetingUrlFor } from "@/lib/online";
 
 /**
@@ -18,6 +19,9 @@ import { meetingUrlFor } from "@/lib/online";
 
 export type Fail = { ok: false; status: number; error: string; code?: string };
 const fail = (status: number, error: string, code?: string): Fail => ({ ok: false, status, error, code });
+
+/** The booking was cancelled or moved by someone else between our check and our write. */
+class StaleBookingError extends Error {}
 
 const include = {
   client: { select: { id: true, name: true, email: true } },
@@ -79,6 +83,11 @@ export async function rescheduleByCustomer(verifiedEmail: string, id: string, da
   if (Number.isNaN(start.getTime())) return fail(400, "Invalid date or time.");
   if (isPastBooking(start.getTime())) return fail(400, "That time has already passed. Please pick a later one.");
   if (start.getTime() === a.date.getTime()) return fail(400, "That is the time you already have.");
+  // The new time must also be outside the business's cutoff, not just the old one.
+  const hours = a.business.cancellationCutoffHours ?? 0;
+  if (!beforeCancellationCutoff(start, hours, new Date())) {
+    return fail(409, `Appointments can be booked at least ${hours} hour${hours === 1 ? "" : "s"} ahead. Please pick a later time or contact ${a.business.name}.`, "CUTOFF");
+  }
 
   const capacityRow = await prisma.service.findUnique({ where: { id: a.serviceId }, select: { capacity: true } });
   const capacity = Math.max(1, capacityRow?.capacity ?? 1);
@@ -105,16 +114,22 @@ export async function rescheduleByCustomer(verifiedEmail: string, id: string, da
             return r.ok && (r.available.get(time)?.resourceIds.includes(cand) ?? false);
           },
         },
-        (tx) =>
-          tx.appointment.update({
-            where: { id: a.id },
+        async (tx) => {
+          // Guarded on the state we checked (still live, still at the old time), so a cancel or a business
+          // edit that lands in between makes this a no-op instead of resurrecting or double-moving the booking.
+          const moved = await tx.appointment.updateMany({
+            where: { id: a.id, status: { in: ["confirmed", "pending"] }, date: oldDate },
             // The reminder goes out again for the new time.
             data: { staffId: cand, date: start, endAt: new Date(start.getTime() + a.duration * 60_000), reminderSent: false },
-          }),
+          });
+          if (moved.count !== 1) throw new StaleBookingError();
+          return moved;
+        },
       );
       saved = true;
       break;
     } catch (err) {
+      if (err instanceof StaleBookingError) return fail(409, "This booking was changed in the meantime. Please refresh and try again.", "STATUS");
       if (!(err instanceof SlotConflictError)) throw err;
     }
   }

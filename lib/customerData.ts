@@ -54,7 +54,9 @@ export const getCustomerData = cache(async () => {
   type Row = (typeof overview.upcoming)[number];
   const view = (a: Row): BookingView => {
     const tz = safeTimeZone(a.business.timezone);
-    const link = a.isOnline ? meetingUrlFor(a) : null;
+    // The joining link only goes out for a confirmed booking that has not ended (same rule as the tracking page).
+    const live = a.status === "confirmed" && a.date.getTime() + a.duration * 60_000 > now.getTime();
+    const link = a.isOnline && live ? meetingUrlFor(a) : null;
     return {
       id: a.id,
       businessName: a.business.name, businessSlug: a.business.slug, businessPhone: a.business.phone ?? null,
