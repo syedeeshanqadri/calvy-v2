@@ -36,6 +36,8 @@ jobs:
     # No repository secrets are used.
     env:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/calvy_ci
+      # schema.prisma has directUrl = env("DIRECT_URL"); on the throwaway database both are the same.
+      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/calvy_ci
       NEXTAUTH_SECRET: ci-dummy-secret-not-for-real-use
       NEXTAUTH_URL: http://localhost:3000
       NEXT_PUBLIC_APP_URL: http://localhost:3000
@@ -116,6 +118,8 @@ jobs:
     # protects nothing real (the seed runs on a database that is destroyed with the job).
     env:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/calvy_ci
+      # schema.prisma has directUrl = env("DIRECT_URL"); on the throwaway database both are the same.
+      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/calvy_ci
       NEXTAUTH_SECRET: ci-dummy-secret-not-for-real-use
       NEXTAUTH_URL: http://localhost:3000
       NEXT_PUBLIC_APP_URL: http://localhost:3000
