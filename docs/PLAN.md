@@ -1,5 +1,7 @@
 # Calvy v2 — Delivery plan (10 steps)
 
+> **Current order of work: see [docs/ROADMAP-v2.md](ROADMAP-v2.md).**
+
 This replaces the earlier phase-based backlog. It keeps every item from the audit (reports `docs/audit/01-frontend-ux.md`, `02-backend.md`, `03-product.md`; the product description is `docs/PRODUCT-SPEC.md`) and regroups them into the approved steps (10 since the 2026-10-24 re-plan; Steps 3 to 5 follow `docs/steps-3-5-design.md` and later steps were renumbered), adds the items the audit did not cover, and says which items can run in parallel and which agent owns each.
 
 **Status:** planning only. No app code has been changed by this document.

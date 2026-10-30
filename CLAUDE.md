@@ -47,6 +47,7 @@ Despite README/docs saying Stripe, the live payment integration is **Razorpay** 
 - `AUDIT.md` is a read-only security/codebase audit (sampled, not exhaustive); read it before touching auth, tenant isolation, or payments.
 - `scripts/update-slugs.ts` is a one-off tenant-slug migration script (run with `npx tsx`); it writes to the DB in `DATABASE_URL`.
 - `docs/PRODUCT-SPEC.md` describes what the product actually does today; `docs/audit/` holds the audit reports (frontend, backend, product) and screenshots; `docs/PLAN.md` is the 9-step delivery plan.
+- `docs/ROADMAP-v2.md` is the source for what to build next (current order of work); `docs/PLAN.md` holds the item IDs.
 
 ## How we work
 
