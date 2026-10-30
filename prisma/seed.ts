@@ -1,5 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { randomBytes } from "crypto";
 import type { PackId } from "@prisma/client";
 
 const prisma = new PrismaClient();
@@ -15,15 +16,23 @@ const WH = JSON.stringify({
 });
 
 // Shared password for all dev-only test accounts (printed at the end of the run).
-const TEST_PASSWORD = process.env.TEST_PASSWORD || "CalvyDev#2026";
+// On Vercel (test/preview deployments share a real database) there is no default: TEST_PASSWORD must be set.
+const ON_VERCEL = !!process.env.VERCEL;
+const TEST_PASSWORD = process.env.TEST_PASSWORD || (ON_VERCEL ? "" : "CalvyDev#2026");
 
-// The test accounts include a super admin with a known password, so they are never created in production.
-const TEST_ACCOUNTS_ENABLED = process.env.NODE_ENV !== "production" || process.env.SEED_TEST_ACCOUNTS === "1";
+// The test accounts include a super admin with a known password, so they are never created in production,
+// and never on Vercel unless TEST_PASSWORD is set (so a published default password can't reach a hosted DB).
+const TEST_ACCOUNTS_ENABLED =
+  (process.env.NODE_ENV !== "production" || process.env.SEED_TEST_ACCOUNTS === "1") && !!TEST_PASSWORD;
 
 // Idempotent: upserts by unique email/slug, safe to run repeatedly. Runs even if demo data exists.
 async function seedTestAccounts() {
   if (!TEST_ACCOUNTS_ENABLED) {
-    console.log("Skipping test accounts (NODE_ENV=production; set SEED_TEST_ACCOUNTS=1 to override).");
+    console.log(
+      ON_VERCEL && !TEST_PASSWORD
+        ? "Skipping test accounts (running on Vercel: set TEST_PASSWORD to create them)."
+        : "Skipping test accounts (NODE_ENV=production; set SEED_TEST_ACCOUNTS=1 to override)."
+    );
     return;
   }
   const password = await bcrypt.hash(TEST_PASSWORD, 12);
@@ -83,7 +92,9 @@ async function main() {
 
   await seedTestAccounts();
 
-  const password = await bcrypt.hash("password123", 12);
+  // The demo owner's published password is only used off Vercel; on Vercel it follows TEST_PASSWORD or is random.
+  const demoPassword = ON_VERCEL ? TEST_PASSWORD || randomBytes(24).toString("hex") : "password123";
+  const password = await bcrypt.hash(demoPassword, 12);
 
   // Demo user + business
   const user = await prisma.user.upsert({
@@ -378,7 +389,11 @@ async function seedPackAppointments(spec: Spec, businessId: string) {
 
 function printSummary() {
   const appUrl = (process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").replace(/\/$/, "");
-  console.log("   Demo owner:  demo@calvy.io / password123  (Alex Johnson Studio, SALON_SPA)");
+  console.log(
+    ON_VERCEL
+      ? "   Demo owner:  demo@calvy.io  (Alex Johnson Studio, SALON_SPA)"
+      : "   Demo owner:  demo@calvy.io / password123  (Alex Johnson Studio, SALON_SPA)"
+  );
   console.log(`   Book:        ${appUrl}/b/alex-johnson-studio`);
   if (!TEST_ACCOUNTS_ENABLED) return;
   console.log("   Test accounts (dev only), shared password: " + TEST_PASSWORD);
