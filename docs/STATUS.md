@@ -1,122 +1,86 @@
-# Calvy v2 status audit, 2026-10-24
+# Calvy v2 status audit, 2026-10-30
 
-Read-only audit of `origin/main` @ 9e0e678 (118 commits), **refreshed 2026-10-24 after the housekeeping branch** (`chore/housekeeping`). The sections below are the original audit; the update block lists what has changed since.
+Read-only audit of `origin/main` @ 96d969e (221 commits). Replaces the 2026-10-24 audit. No code, DB or branch was changed to produce it.
 
-## Update (2026-10-24, after housekeeping)
-
-| Item | Now |
-|---|---|
-| Chunk 3 (`t()` rollout) + CONSULTANT pack | **Merged** (PR #16); CONSULTANT migration applied to dev Neon |
-| Demo appointments seed | **Merged** (PR #17); seed now handles solo businesses |
-| Status audit doc | Merged (PR #15) |
-| Worktrees (`calvy-wt/*`, `calvy-status-wt`) and merged local branches | **Removed**; `docs/product-spec` deleted (already in main) |
-| Build needs a reachable DB (blog prerender) | **Resolved**: blog pages tolerate an unreachable DB at build time; build verified with the DB reachable and unreachable |
-| `S3_*` vars missing from `lib/env.ts` / `.env.example` | **Resolved**: added; startup warns in production when the s3 driver lacks them |
-| PLAN.md ticks, README/Documentation.md (Next 16, Razorpay, Cashfree planned, no Stripe), `docs/feature-flags.md` (proxy.ts) | **Updated**; pre-launch security checklist added under Step 9 |
-| Still open | S1-01 credential rotation, production storage (R2) and env setup, Resend domain, faster reminder cron, in-memory rate limiter, Step 3 design system (S3-05 onward), Steps 4 to 10 |
-
-## 1. Git state
+## 1. Git
 
 | Item | Result |
 |---|---|
-| Current branch / dirty / stashes | `main`, clean, no stashes (report branch: `docs/status-2026-10-24`) |
+| Branch / dirty / stashes | `fix/live-email`; only untracked `.vscode/` and `etc/`; no stashes |
 | Open PRs | none |
-| Remote branches | 14 on origin; `step-3/packs-onboarding`, `step-3/website-extras`, `design/packs-extras` already pruned |
-| `step-3/theme-colour`, `step-3/website-extras` | **merged** (PR #14 contains chunk 4 and 4b) |
+| **Local-only work (backup risk)** | `fix/live-email` (1 commit, a06d792: startup warning when email uses Resend's test sender). Not pushed: push or ship it |
+| Remote branches | 12 old ones, all merged into main, safe to delete: `audit/phase-1`, `chore/team-setup`, `design/steps-3-5`, `docs/plan-s1-28`, `port/legacy-ui`, `step-1/{next-migration,next-upgrade,round-1}`, `step-2/{chunk-1,chunk-2,design,wrap-up}` |
+| Local branches | `main` (= origin/main) and `fix/live-email` |
 
-**Unmerged local work (not on origin, would be lost if the laptop dies):**
+Last 15 merged PRs: #43 business website links right on this host; #42 customer dashboard (reschedule/cancel); #41 security audit fixes; #40 Book now links on path hosting + signup headline; #39 hero photo on phones; #38 signup asks region only; #37 home "Get started" button, popups paused; #36 park pay-links/chunks 11-12, FULL_ONLINE off; #35 online consultations; #34 JSON-LD escape, S3 quota; #33 branded booking emails; #32 hero next-available card; #31 tenant website and booking redesign; #30 design direction; #29 plans from DB, flags enforced, PLAN_ENFORCEMENT.
 
-| Branch | Ahead / behind main | What it holds |
-|---|---|---|
-| `step-3/terms-rollout` | +8 / -3 | **Chunk 3** (`t()` rollout across dashboard, booking page, website defaults, emails), staff-role fixes, and the new **CONSULTANT pack** (enum migration). Merge with main **conflicts in `lib/email.tsx`**. |
-| `step-3/pack-demo-appointments` | +1 / -5 | Seed: clients and appointments per pack demo business |
-
-All other local branches (`audit/phase-1`, `chore/team-setup`, `docs/*`, `step-1/*`, `step-2/*`, `step-3/packs-terms-engine`, `step-3/theme-colour`) are fully merged: safe to delete.
-
-**Worktrees:** 8 leftovers in `C:\Users\qadri\calvy-wt\{b1,b2,b3,b4,c1,c2,c3,ci}` (all clean, all branches merged). Safe to remove with `git worktree remove`. A temp worktree `..\calvy-status-wt` was created for this audit; remove it too.
-
-## 2. Main health (clean checkout of origin/main)
+## 2. Main health (clean worktree of origin/main)
 
 | Check | Result |
 |---|---|
-| `npm ci` | pass (deprecation and allow-scripts warnings only) |
-| `npm run lint` | pass: 0 errors, **17 warnings** (react-hooks, e.g. `static-components`; S1-47 open) |
+| `npm ci` | pass |
+| `npm run lint` | pass: 0 errors, 17 warnings (react-hooks) |
 | `npx tsc --noEmit` | pass |
-| `npm test` | pass: **35 files, 552 tests** |
-| `npm run build` | **FAIL** at static generation of `/blog/[slug]` (`prisma.post.findFirst` in `generateMetadata`, `app/blog/[slug]/page.tsx:25`): "Can't reach database server" (Neon pooler, us-east-2, parallel workers). Compile and TypeScript stages passed. Ran once, not retried. Build depends on a reachable DB, so a flaky or suspended DB breaks deploys |
+| `npm test` | pass: **64 files, 953 tests** |
+| `npx next build` | **pass with `DATABASE_URL` defined** (53 static pages; a dummy unreachable URL is enough). With the variable **missing** the build fails at page-data collection (`/sitemap.xml` constructs Prisma at import): a deploy without `DATABASE_URL` set breaks, as Vercel's first build did |
 
-CI (`.github/workflows/ci.yml`) runs lint, tsc, tests and build against a throwaway Postgres. No Playwright in CI. Its comment says dummy `RAZORPAY_*` and `RESEND_API_KEY` values are "needed until lazy clients merge" but those merged (S1-03); harmless.
+## 3. Database (dev Neon `neondb`, us-east-2; also used by the live test server)
 
-## 3. Database (dev Neon, `neondb`, us-east-2)
+- `npm run db:status` could **not connect from this laptop** (P1001, three tries; TCP to Neon works; a SELECT fallback failed the same way). The live site's `/api/health` says `db: up`, so it is a local engine/network problem. Not re-verified today.
+- Inferred: main has 22 migrations, the last is `20261026040000_appointment_meeting_link`. `db:migrate` after PR #43 reported nothing pending, and no migration has merged since. No local-only migration exists, so nothing applied is missing from main.
 
-- `npm run db:status`: **9 migrations found, database schema is up to date.** All 9 on main are applied.
-- No migration is applied in the DB that is missing from main.
-- **Pending risk:** `step-3/terms-rollout` adds a CONSULTANT enum migration that is not applied. Merging it needs `npm run db:migrate` afterwards.
-- Seed: idempotent upserts, test accounts skipped when `NODE_ENV=production` unless `SEED_TEST_ACCOUNTS=1`. Not executed (it writes). It compiles under tsc. A true dry run needs a Neon branch.
+## 4. Progress vs roadmap
 
-## 4. Progress vs plan
-
-Note: `docs/PLAN.md` ticks lag reality (e.g. S1-28 Next 16 is done, `proxy.ts` replaced middleware, but S1-28 is not ticked).
-
-| Step | Status |
+| Area | Status |
 |---|---|
-| 1 Foundation and security | Done and merged (all step-1 branches in main, Next 16.4.1). Open: round-3 Medium/Low items S1-33 to S1-47, S1-10/11/16/24/25/30/31 unticked, S1-01 credential rotation (owner) |
-| 2 Booking engine | Done and merged (timezone, locked booking, per-staff, time off, plan limits, manage link, reschedule/delete, walk-ins). Open: S2-08..S2-10 unticked, S9-18 narrow re-check |
-| 3 chunk 1 packs/terms engine | Done and merged |
-| 3 chunk 2 pack picker, defaults | Done and merged (PR #12) |
-| 3 chunk 3 `t()` rollout | **Done but NOT merged** (`step-3/terms-rollout`, conflicts) |
-| 3 chunk 4 theme colour | Done and merged |
-| 3 chunk 4b logo/social/map/hours | Done and merged (PR #14) |
-| 3 rest (design system S3-05..S3-09, S3-10..S3-15) | Not started |
-| 4 Token mode (chunks 5 to 8) | Not started |
-| 5 Payments / Cashfree (chunks 9 to 13) | Not started |
-| 6 Messaging, 7 Intl payments, 8 Team and mobile | Not started |
-| 9 Deployment and ops | Partial: CI (S9-01), storage adapter (S9-07 in `lib/storage.ts`); rest not started |
-| 10 Launch prep | Not started (marketing claims untouched by design) |
+| Steps 1-3: foundation/security, booking engine, packs/terms/theme/logo | **Done & merged.** Open: round-3 Medium/Low items (S1-34..47, partly closed since), design system S3-05..S3-15 for the dashboard |
+| Token mode: sessions, atomic booking, queue screen, live tracking, queue credit | **Done & merged** (S4-06 security review not recorded) |
+| Payments core + holds/checkout (chunks 9-10), booking-people | **Done & merged**, behind `FEATURE_ONLINE_PAYMENTS` (off); Cashfree adapter exists, no split |
+| Plan enforcement flag | **Done & merged** (PR #29); **OFF** on live |
+| Redesign (site + booking), final check, JSON-LD fix | **Done & merged** (#30-#34, #39, #40, #43) |
+| Online consultations v1 | **Done & merged** (#35 plus per-appointment link and email) |
+| Website editor: hero photo/focus, text sections | Done & merged |
+| Website editor: gallery, offers, team photos, service images, FAQ | **Not started** (no code) |
+| Customer accounts and dashboard (reschedule, cancel) | **Done & merged** (#42) |
+| Google sign-in (verified email) | Code merged; **inactive** (no `GOOGLE_*` vars) |
+| Onboarding wizard | Partial: country and business-type step only |
+| Managers/staff logins and roles (S8-01..04), phone OTP | **Not started** |
+| Admin panel | **Partly done**: tenants, plans, revenue, support, withdrawals, blog, notifications; S5-10 not ticked |
+| Messaging: Resend email | Done; live sender fixed 2026-10-29 (`EMAIL_FROM` set on Vercel); warning commit unmerged |
+| Messaging: WhatsApp, reminders scheduler | WhatsApp Cloud API basic, **off**; reminders **daily cron only**; outbox/retries (S6-01/02) **not started** |
+| Follow-ups, credit applied at booking, clinic records | **Not started** (credit ledger and wallet screen exist; `applyCredit` unused at booking) |
+| Refunds on cancel | Code merged, never exercised (payments off) |
+| Parked: pay-links, chunk 11, chunk 12 (Cashfree split), chunk 13 | **Parked** (PLAN.md "Parked"). Razorpay, wallet and withdrawals still in code |
+| Pre-launch: security pass | Audit done (#41); Mediums open (section 5) |
+| Pre-launch: plan enforcement ON, production deploy, marketing | **Not started**: no production env; test server only; landing claims untouched (S10) |
+
+**FULL_ONLINE is unreachable (confirmed):** `FULL_ONLINE_ENABLED = false` in `lib/fees.ts`, no route or screen sets `onlinePayMode`, and `tests/full-online-parked.test.ts` guards both.
 
 ## 5. Risks
 
-**Open findings and TODOs.** `grep TODO/FIXME` in code: none. Open in PLAN.md: S1-33 to S1-47 (OAuth auto-link, session invalidation after password change, token hashing, push ownership, CSP enforcement, etc.), S1-01 secrets rotation (`.claude/settings.json` still holds a Neon URL and test password per CLAUDE.md).
-
-**Feature flags** (all OFF by default, `docs/feature-flags.md`): `FEATURE_PAYMENTS`, `FEATURE_WALLET`, `FEATURE_BROADCASTS`, `FEATURE_CHAT_WIDGET`, `FEATURE_DEMO_BOOKING`, `FEATURE_REMOVE_BRANDING`. Reason: payments stay off until the Step 5 security review. Doc still says `middleware.ts` (now `proxy.ts`) and "Prepaid is handled in Step 8".
-
-**Payments.** Still Razorpay: `lib/razorpay.ts`, `app/api/{razorpay,billing,wallet}`, `bookings/confirm`, `settings/payout`, `/dashboard/{billing,wallet,payments}`, admin withdrawals. Wallet and withdrawals still present. Retirement is Step 5 chunk 13.
-
-**Works only on this laptop / needs setup for production.** Required: `DATABASE_URL`, `NEXTAUTH_SECRET` (both set). Names unset in `.env.local` (checked with the app's own names-only `checkEnv`; values never read):
-
-| Group | Unset vars | Effect |
+| Risk | Severity | Note |
 |---|---|---|
-| Email | `RESEND_API_KEY`, `EMAIL_FROM`, `NOTIFY_EMAIL` | No emails: verification, reset, booking confirmations all silent. Sandbox sender must be replaced (S6-03) |
-| Cron | `CRON_SECRET` | `/api/cron/reminders` returns 401 in prod (fail closed). Only a **daily** 06:00 UTC cron in `vercel.json` |
-| WhatsApp | `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_ACCESS_TOKEN` | Disabled; not template-based yet (S6-04) |
-| Uploads | `BLOB_READ_WRITE_TOKEN`, **and** `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_PUBLIC_URL` | `lib/storage.ts` defaults to **s3 in production**; logos are on local disk (`public/uploads`) now. The S3 vars are not listed in `lib/env.ts`, so startup never warns |
-| Rate limit | `UPSTASH_REDIS_REST_URL/TOKEN` | In-memory limiter: ineffective across Vercel instances |
-| Login | `GOOGLE_*`, `FACEBOOK_*` | Google and Facebook login unavailable |
-| Push | `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` | No web push |
-| Razorpay | `RAZORPAY_*` (9 vars) | Fine while payments are off |
-| Ops | `SENTRY_DSN`, `NEXT_PUBLIC_SENTRY_DSN`, `ADMIN_SETUP_SECRET` | No error tracking |
-| Also check in Vercel | `NEXTAUTH_URL`, `NEXT_PUBLIC_ROOT_DOMAIN`, `NEXT_PUBLIC_APP_URL`, `SUPER_ADMIN_EMAIL`, `DIRECT_URL` | Needed for subdomain routing, admin, migrations |
+| Rate limits are per instance on Vercel (no Upstash vars) | Medium | SA-01: login/booking throttles advisory |
+| CSP report-only, allows unsafe-inline/eval | Medium | SA-02 |
+| Dev DB credentials in untracked `.claude/settings.json`; test server uses the dev DB | Low | SA-05, S1-01 |
+| Markdown unsanitised (admin-only), signup enumeration | Low | SA-03, SA-04 |
+| No Critical or High findings open; `npm audit` = 0 | - | after PR #41 |
 
-**Latency.** Dev Neon is us-east-2 from India: each query is slow, which already broke a reschedule at Prisma's 5 s limit. Booking lock now uses `BOOKING_TX_OPTIONS` (maxWait 10 s, **timeout 20 s**, `lib/booking.ts:107`), a workaround. S9-17 (prod DB in an Asia region, no autosuspend) and S9-18 (narrow re-check) are planned, not done.
+**Flags** (all OFF, none set on Vercel): `FEATURE_PAYMENTS`, `_WALLET`, `_BROADCASTS`, `_CHAT_WIDGET`, `_DEMO_BOOKING`, `_REMOVE_BRANDING`, `_ONLINE_PAYMENTS`, `PLAN_ENFORCEMENT` (off = every business has every feature, no limits).
 
-**Would break or mislead a production deploy today:**
-1. `next build` needs a reachable database (blog pages prerender from the DB and failed in this audit); give the build a DB or make blog prerender tolerant. 2. No S3/R2 config: uploads (logos) fail in production because the driver defaults to s3.
-2. No Resend key and sandbox sender: no emails at all, so signup verification and password reset never arrive.
-3. Reminders only run once a day, and need `CRON_SECRET`.
-4. Chunk 3 (`t()`) is unmerged: dashboard, booking page and emails still use hard-coded customer/staff words while the website uses pack terms.
-5. In-memory rate limiting on serverless.
-6. The credentials in `.claude/settings.json` are still unrotated (S1-01).
-7. README and Documentation.md still say Stripe, Next 14.
-8. Landing-page claims are untouched (S10-01), so a public launch would show fabricated numbers.
-9. No production environment exists yet (no prod Neon project, Vercel env set or domain documented; S9-02, S9-16).
+**Vercel production env present (names):** `DATABASE_URL`, `DIRECT_URL`, `SHADOW_DATABASE_URL`, `NEXTAUTH_SECRET`, `NEXTAUTH_URL`, `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_ROOT_DOMAIN`, `SUPER_ADMIN_EMAIL`, `CRON_SECRET`, `TRACKING_SECRET`, `RESEND_API_KEY`, `EMAIL_FROM`, `CASHFREE_APP_ID/SECRET_KEY/ENV`. **Missing:** `S3_*` (uploads fail), `UPSTASH_*`, `GOOGLE_*`/`FACEBOOK_*`, `VAPID_*` (no web push), `WHATSAPP_*`, `SENTRY_DSN`, `ADMIN_SETUP_SECRET`, `NOTIFY_EMAIL`, `RAZORPAY_*` (fine while payments are off).
+
+**Known issues:** Playwright (26 Oct) had failures never investigated: several auth-screen specs, the clinic booking specs in `redesign.spec.ts`, smoke "public booking then cancel"; not in CI. Test server serves sites by path (no wildcard subdomain): the queue "moved" link assumes that. The legacy Razorpay payment-link path cannot carry the online mode (refuses online bookings). Locally, a running dev server locks Prisma's engine (`prisma generate` EPERM) and stale `.next/dev/types` can fail `next build` until cleared. Neon is us-east-2, slow from India; Vercel functions default to US East (fine live).
+
+**Would break or mislead a production deploy today:** no production Neon/env/domain (test server runs on the dev DB with test accounts and a shared password); no `S3_*` storage; in-memory rate limits; `PLAN_ENFORCEMENT` off; landing page claims and testimonials still fabricated (S10-01); Razorpay code and wallet still present.
 
 ## 6. Next actions
 
-1. **Push both unmerged branches** to origin now (`step-3/terms-rollout`, `step-3/pack-demo-appointments`) so the work is backed up.
-2. Resolve the `lib/email.tsx` conflict, rebase `step-3/terms-rollout` on main, run lint, tsc and tests, click-test, then ship chunk 3 (+ CONSULTANT pack). Run `npm run db:migrate` after merge.
-3. Rotate the Neon password and test password; remove the entries from `.claude/settings.json` (S1-01).
-4. Clean up: remove the 8 `calvy-wt` worktrees and the temp `calvy-status-wt`, delete the merged local branches, tick PLAN.md items that are done.
-5. Add the six `S3_*` vars to `lib/env.ts` and `.env.example`, and decide the production storage (R2) before deploy.
-6. Create the production Neon project in an Asia region with autosuspend off and one Vercel project; set the env table above (S9-02, S9-17).
-7. Start Step 4 chunk 5 (`step-4/token-sessions`) once chunk 3 is merged.
-8. Plan the Resend domain (SPF/DKIM) and a reminder schedule faster than daily before beta (S6-03, S9-06).
+1. Ship `fix/live-email` (local-only), then send one real booking email to confirm delivery in `EmailLog`.
+2. Delete the 12 merged remote branches.
+3. Fix local `db:status` (network/engine) and confirm 22/22 migrations applied.
+4. Add Upstash (SA-01) and `S3_*`/R2 vars to Vercel; decide production storage.
+5. Create the production Neon project (Asia, no autosuspend), new secrets, domain and wildcard TLS (S9-02, S9-16, S9-17).
+6. Investigate the Playwright failures and add the smoke run to CI.
+7. Website editor sections (gallery, offers, team photos, service images, FAQ) and managers/roles (S8-01..04).
+8. Reminders: outbox with retries and a faster scheduler (S6-01/02, S9-06); then landing-page cleanup (S10-01) before any public launch.
