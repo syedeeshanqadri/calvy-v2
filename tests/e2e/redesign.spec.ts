@@ -19,8 +19,8 @@ for (const { name, slug } of SITES) {
   test(`${name}: full-page booking flow reaches the date step`, async ({ page }) => {
     const res = await page.goto(`/${slug}/book-now`);
     expect(res?.status()).toBe(200);
-    await expect(page.getByText("Choose services")).toBeVisible();
-    await page.locator("main button, [role=button]").filter({ hasText: /\d/ }).first().click();
+    await expect(page.getByRole("heading", { name: /^Choose (services|consultations)/ })).toBeVisible();
+    await page.getByRole("checkbox").first().click();
     await page.getByRole("button", { name: /continue/i }).click();
     const noPref = page.getByText("No preference");
     if (await noPref.count()) { await noPref.first().click(); await page.getByRole("button", { name: /continue/i }).click(); }
@@ -30,7 +30,7 @@ for (const { name, slug } of SITES) {
   test(`${name}: chat booking route loads`, async ({ page }) => {
     const res = await page.goto(`/b/${slug}`);
     expect(res?.status()).toBe(200);
-    await expect(page.getByText("Choose services")).toBeVisible();
+    await expect(page.getByRole("heading", { name: /^Choose (services|consultations)/ })).toBeVisible();
     const over = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     expect(over).toBeLessThanOrEqual(0);
   });

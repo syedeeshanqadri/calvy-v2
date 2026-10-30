@@ -91,17 +91,82 @@ jobs:
         run: npm audit --omit=dev --audit-level=high
         continue-on-error: true
 
-  # Placeholder: Playwright smoke tests are not part of CI yet. They need
-  # seeded data and a running server; that is a later item.
-  # smoke:
-  #   needs: checks
-  #   runs-on: ubuntu-latest
-  #   timeout-minutes: 20
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     - uses: actions/setup-node@v4
-  #       with: { node-version: 22, cache: npm }
-  #     - run: npm ci
-  #     - run: npx playwright install --with-deps chromium
-  #     # start Postgres, migrate deploy, seed, build, start server, then:
-  #     - run: npx playwright test
+  # Playwright smoke suite (tests/e2e/ci-smoke.spec.ts) against a production build, a throwaway Postgres,
+  # migrations and the seed. Runs in parallel with `checks`. Chromium only, desktop viewport only.
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: calvy_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d calvy_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    # Dummy values and a throwaway database only; no repository secrets. TEST_PASSWORD exists in CI only and
+    # protects nothing real (the seed runs on a database that is destroyed with the job).
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/calvy_ci
+      NEXTAUTH_SECRET: ci-dummy-secret-not-for-real-use
+      NEXTAUTH_URL: http://localhost:3000
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+      NEXT_PUBLIC_ROOT_DOMAIN: localhost
+      RAZORPAY_KEY_ID: rzp_test_dummy
+      RAZORPAY_KEY_SECRET: dummy
+      RESEND_API_KEY: re_dummy
+      TEST_PASSWORD: CiOnly#Passw0rd
+      CI: "true"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Migrate and seed the throwaway database
+        run: |
+          npx prisma migrate deploy
+          npx tsx prisma/seed.ts
+          npx tsx scripts/e2e-fixtures.ts
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Build
+        run: npm run build
+
+      - name: Start the app
+        run: |
+          npm start > server.log 2>&1 &
+          npx --yes wait-on@8 --timeout 60000 http-get://localhost:3000/login
+
+      - name: Smoke tests
+        run: npm run test:e2e:smoke
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+            server.log
+          retention-days: 7

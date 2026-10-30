@@ -27,7 +27,12 @@ function ResetForm() {
     setLoading(true);
     const r = await postAuth("/api/auth/reset-password", { token, password });
     setLoading(false);
-    if (r.ok) { setState("done"); return; }
+    if (r.ok) {
+      // The token is spent: take it out of the address bar and history entry.
+      window.history.replaceState(null, "", "/reset-password");
+      setState("done");
+      return;
+    }
     if (r.kind === "error" && r.message === INVALID) { setState("invalid"); return; }
     if (r.kind === "error") setPwError(r.message);
     else setFormError(r.message);
