@@ -20,13 +20,16 @@ export async function register() {
   const { isPlanEnforcementOn } = await import("@/lib/flags");
   console.warn(`[plans] PLAN_ENFORCEMENT is ${isPlanEnforcementOn() ? "ON: plan limits and feature gates apply" : "OFF: every business has every feature and no limits"}`);
 
-  const { checkEnv, disabledServices, missingStorageEnv } = await import("@/lib/env");
+  const { checkEnv, disabledServices, missingStorageEnv, emailSenderWarning } = await import("@/lib/env");
   const { missingRequired } = checkEnv();
 
   // Names only, never values.
   for (const service of disabledServices()) {
     console.warn(`[env] ${service} disabled (missing configuration)`);
   }
+
+  const senderWarning = emailSenderWarning();
+  if (senderWarning) console.warn(senderWarning);
 
   const missingStorage = missingStorageEnv();
   if (missingStorage.length > 0) {
