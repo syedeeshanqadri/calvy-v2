@@ -34,9 +34,14 @@ async function pickSlot(page: Page) {
   // Days look open until the month's availability has loaded, so a day can turn out empty: try again, and
   // follow "Go to date" when the month has nothing.
   for (let attempt = 0; attempt < 12; attempt++) {
-    if (await goTo.isVisible()) await goTo.click();
-    await expect(days.first()).toBeVisible({ timeout: 30_000 });
-    await days.nth(attempt % (await days.count())).click();
+    await expect(days.first().or(goTo).first()).toBeVisible({ timeout: 30_000 });
+    if (await goTo.isVisible()) {
+      await goTo.click();
+      continue;
+    }
+    const count = await days.count();
+    if (count === 0) continue;
+    await days.nth(attempt % count).click();
     if (await slots.first().waitFor({ timeout: 10_000 }).then(() => true, () => false)) {
       await slots.first().click();
       return;
