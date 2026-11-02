@@ -269,14 +269,14 @@ ADMIN_SETUP_SECRET="..."
 
 All database scripts load `.env.local` (via `dotenv-cli`). Schema changes are migrations, never `db push` (see `docs/migrations.md`).
 
-```powershell
-npm run db:migrate        # apply pending migrations (prisma migrate deploy)
-npm run db:migrate:dev    # create + apply a new migration while developing (prisma migrate dev)
-npm run db:generate       # regenerate the Prisma client
-npm run db:status         # which migrations are applied
-npm run db:seed           # demo data and dev-only test accounts
-npm run db:studio         # visual explorer at localhost:5555
-```
+| Command | What it does |
+|---|---|
+| `npm run db:migrate` | Apply pending migrations (`prisma migrate deploy`) |
+| `npm run db:migrate:dev` | Create and apply a new migration while developing (`prisma migrate dev`) |
+| `npm run db:generate` | Regenerate the Prisma client |
+| `npm run db:status` | Show which migrations are applied |
+| `npm run db:seed` | Demo data and dev-only test accounts |
+| `npm run db:studio` | Visual explorer at localhost:5555 |
 
 `db:deploy` (plain `prisma migrate deploy`, no `.env.local`) is for CI and hosting, where the variables are set for real.
 

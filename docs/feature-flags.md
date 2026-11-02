@@ -23,10 +23,11 @@ Server-side flags in `lib/flags.ts`. **Every flag is OFF by default in every env
 
 How it works: every gate reads its limits through `getLimits` / `getLimitsFromDB` / `getEffectiveLimits` / `isActivePlan` in `lib/plans.ts`, which pass them through `applyEnforcement()`. No enforcement code is removed, so turning the variable on restores today's behaviour exactly.
 
-```powershell
-$env:PLAN_ENFORCEMENT="1"; npm run dev      # enforcement on
-Remove-Item Env:PLAN_ENFORCEMENT; npm run dev   # off (default)
+```zsh
+PLAN_ENFORCEMENT=1 npm run dev
 ```
+
+That turns enforcement on for that one run. Plain `npm run dev` leaves it off (the default).
 
 Vercel: add `PLAN_ENFORCEMENT=1` for the target environment and redeploy. **It must be turned on before launch** (see the pre-launch checklist in `docs/PLAN.md`). Tests: `vitest.config.ts` runs the suite with it ON; `tests/plan-enforcement-flag.test.ts` covers both modes.
 
@@ -36,10 +37,10 @@ Vercel: add `PLAN_ENFORCEMENT=1` for the target environment and redeploy. **It m
 
 ## Enabling
 
-Local (PowerShell):
+Local (zsh):
 
-```powershell
-$env:FEATURE_WALLET="1"; npm run dev
+```zsh
+FEATURE_WALLET=1 npm run dev
 ```
 
 Vercel: Project Settings > Environment Variables, add e.g. `FEATURE_PAYMENTS=1` for the target environment (Production/Preview/Development), then redeploy (env changes apply to new deployments only).

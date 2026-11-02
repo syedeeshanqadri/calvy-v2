@@ -66,4 +66,4 @@ Lean mode: one session, sequential work, small outputs.
 - **Do not touch payment gateway code** (`lib/razorpay.ts`, `app/api/razorpay/**`, `app/api/billing/**`, wallet and withdrawal code, `app/booking/success`) unless the task says so.
 - **Landing-page marketing claims are out of scope until Step 9** (customer counts, ratings, testimonials, prices shown on the marketing site). Do not add, remove or reword them in earlier steps, and never invent any.
 - **`docs/PLAN.md` is not rewritten**; only tick off finished items. Reference item IDs in branch names, commits and tests.
-- **The owner is on Windows: give every command the owner has to run in PowerShell syntax** (for example `$env:NAME="value"; npm run dev`, `Remove-Item Env:NAME`, `cd C:\path`).
+- **The owner is on macOS (Apple Silicon, zsh): give every command the owner has to run in zsh syntax** (for example `NAME=value npm run dev`, `unset NAME`, `cd ~/Projects/calvy-v2`). Interactive zsh does not treat `#` as a comment by default, so do not put comments in commands meant for pasting.

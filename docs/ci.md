@@ -18,23 +18,23 @@ Workflow: `.github/workflows/ci.yml`. Runs on every pull request and on every pu
 
 Playwright smoke tests are not in CI yet (they need seeded data and a running server). A commented-out placeholder job is in the workflow.
 
-## Reproduce locally (PowerShell)
+## Reproduce locally (zsh)
 
-```powershell
-cd C:\Users\qadri\calvy-v2
+```zsh
+cd ~/Projects/calvy-v2
 npm ci
 npx prisma generate
 npm run lint
 npx tsc --noEmit
 npm test
-$env:DATABASE_URL="postgresql://postgres:postgres@localhost:5432/calvy_ci"
-$env:NEXTAUTH_SECRET="ci-dummy-secret-not-for-real-use"
-$env:NEXTAUTH_URL="http://localhost:3000"
-$env:NEXT_PUBLIC_APP_URL="http://localhost:3000"
-$env:NEXT_PUBLIC_ROOT_DOMAIN="localhost"
-$env:RAZORPAY_KEY_ID="rzp_test_dummy"
-$env:RAZORPAY_KEY_SECRET="dummy"
-$env:RESEND_API_KEY="re_dummy"
+export DATABASE_URL="postgresql://postgres:postgres@localhost:5432/calvy_ci"
+export NEXTAUTH_SECRET="ci-dummy-secret-not-for-real-use"
+export NEXTAUTH_URL="http://localhost:3000"
+export NEXT_PUBLIC_APP_URL="http://localhost:3000"
+export NEXT_PUBLIC_ROOT_DOMAIN="localhost"
+export RAZORPAY_KEY_ID="rzp_test_dummy"
+export RAZORPAY_KEY_SECRET="dummy"
+export RESEND_API_KEY="re_dummy"
 npm run build
 ```
 
