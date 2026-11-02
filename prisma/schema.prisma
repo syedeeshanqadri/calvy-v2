@@ -429,6 +429,49 @@ model Lead {
   @@index([status, createdAt])
 }
 
+enum NotifStatus {
+  PENDING
+  SENDING
+  SENT
+  FAILED
+  SKIPPED
+}
+
+enum NotifChannel {
+  EMAIL
+  WHATSAPP
+}
+
+/// One message to one recipient on one channel; also the delivery log (docs/notifications-design.md).
+/// No foreign keys: the log outlives hard-deleted appointments. A null businessId is platform mail.
+model NotificationOutbox {
+  id             String       @id @default(cuid())
+  idempotencyKey String       @unique
+  businessId     String?
+  appointmentId  String?
+  event          String
+  audience       String // BUSINESS | CUSTOMER | PLATFORM
+  channel        NotifChannel
+  recipient      String
+  template       String
+  payload        Json
+  /// Encrypted auth link (lib/notifications/secret.ts), cleared once the row is final. Never raw in payload.
+  secret         String?
+  status         NotifStatus  @default(PENDING)
+  attempts       Int          @default(0)
+  error          String?
+  providerId     String?
+  nextAttemptAt  DateTime     @default(now()) @db.Timestamptz(3)
+  lockedUntil    DateTime?    @db.Timestamptz(3)
+  expiresAt      DateTime?    @db.Timestamptz(3)
+  sentAt         DateTime?    @db.Timestamptz(3)
+  createdAt      DateTime     @default(now()) @db.Timestamptz(3)
+
+  @@index([status, nextAttemptAt])
+  @@index([businessId, createdAt])
+  @@index([appointmentId])
+}
+
 model EmailLog {
   id            String   @id @default(cuid())
   type          String // confirmation | reminder | cancellation | reschedule | invoice | verification | lead
