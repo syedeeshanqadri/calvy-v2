@@ -13,8 +13,11 @@ export interface IcsDetails {
 export interface Attachment { filename: string; content: string; contentType: string }
 
 const stamp = (d: Date) => d.toISOString().replace(/[-:.]/g, "").slice(0, 15) + "Z";
+const CONTROL = /[\x00-\x1f\x7f]/g;
 /** RFC 5545 text: a business-entered name must not break the line or add a field. */
-const esc = (s: string) => s.replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\r?\n/g, "\\n");
+const esc = (s: string) => s.replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\r\n|\r|\n/g, "\\n").replace(CONTROL, "");
+/** A parameter value is not text: it ends at an unquoted `:` or `;`, so it is always quoted, and `"` cannot appear inside. */
+const param = (s: string) => `"${s.replace(CONTROL, "").replace(/"/g, "")}"`;
 
 /** Same details = same bytes: a retry must send an identical message, or Resend rejects its idempotency key. */
 export function icsAttachment(d: IcsDetails): Attachment {
@@ -28,7 +31,7 @@ export function icsAttachment(d: IcsDetails): Attachment {
     "BEGIN:VEVENT", `UID:${id}@calvy.io`, `DTSTART:${stamp(d.start)}`, `DTEND:${stamp(end)}`,
     `SUMMARY:${summary}`,
     `DESCRIPTION:${description}`,
-    `ORGANIZER;CN=${esc(d.businessName)}:mailto:${fromEmail}`,
+    `ORGANIZER;CN=${param(d.businessName)}:mailto:${fromEmail}`,
     "STATUS:CONFIRMED", "SEQUENCE:0",
     "BEGIN:VALARM", "TRIGGER:-PT60M", "ACTION:DISPLAY", "DESCRIPTION:Reminder: Your appointment is in 1 hour", "END:VALARM",
     "END:VEVENT", "END:VCALENDAR",

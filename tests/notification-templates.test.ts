@@ -146,6 +146,17 @@ describe("calendar invite", () => {
     expect(text).toContain("Acme\\, Inc\\;\\nATTENDEE:evil@x.test");
     expect(text.split("\r\n").some((l) => l.startsWith("ATTENDEE"))).toBe(false);
   });
+  it("a name cannot change the organizer's address or close the quoted value", () => {
+    const organizer = (businessName: string) => decode({ ...details, businessName }).split("\r\n").find((l) => l.startsWith("ORGANIZER"));
+    expect(organizer("Acme:mailto:evil@x.test;X=1")).toBe('ORGANIZER;CN="Acme:mailto:evil@x.test;X=1":mailto:noreply@calvy.io');
+    expect(organizer('Acme":mailto:evil@x.test')).toBe('ORGANIZER;CN="Acme:mailto:evil@x.test":mailto:noreply@calvy.io');
+  });
+  it("a bare carriage return or other control character cannot start a new line", () => {
+    const text = decode({ ...details, businessName: "Acme\rATTENDEE:evil@x.test\u0007" });
+    expect(text).toContain("SUMMARY:Checkup at Acme\\nATTENDEE:evil@x.test\r\n");
+    expect(text).toContain('CN="AcmeATTENDEE:evil@x.test":mailto:');
+    expect(text.replace(/\r\n/g, "")).not.toMatch(/[\r\n\u0007]/);
+  });
   it("the confirmation attaches it; other templates do not", async () => {
     const r = await renderTemplate("confirmation", FIXTURES.confirmation);
     expect(r.attachments?.[0].filename).toBe("appointment.ics");
