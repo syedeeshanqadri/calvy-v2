@@ -21,7 +21,7 @@ const sendEmail: Channel = async (message, to, idempotencyKey) => {
   }
   try {
     const result = await getResend().emails.send(
-      { from: process.env.EMAIL_FROM ?? "Calvy <onboarding@resend.dev>", to, subject: message.subject, html: message.html, text: message.text },
+      { from: process.env.EMAIL_FROM ?? "Calvy <onboarding@resend.dev>", to, subject: message.subject, html: message.html, text: message.text, attachments: message.attachments },
       { idempotencyKey },
     );
     if (result.error) {

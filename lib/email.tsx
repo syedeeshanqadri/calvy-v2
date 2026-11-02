@@ -19,6 +19,7 @@ import {
 import type { TenantBrand } from "@/emails/EmailLayout";
 import { absoluteAssetUrl } from "@/lib/storage";
 import { safeThemeColor, readableForeground } from "@/lib/theme";
+import { icsAttachment, type Attachment } from "@/lib/notifications/ics";
 
 let resendClient: Resend | null = null;
 function getResend() {
@@ -56,8 +57,6 @@ async function logEmail(d: {
   }
 }
 
-interface Attachment { filename: string; content: Buffer; contentType: string }
-
 /** Render → send → log. The single path every email goes through. */
 async function dispatch(opts: {
   to: string; subject: string; react: React.ReactElement; type: string;
@@ -88,27 +87,6 @@ async function dispatch(opts: {
     logger.error(`[Email] ${opts.type} failed:`, { err });
     return { ok: false };
   }
-}
-
-/* ── ICS calendar invite ──────────────────────────────────────────── */
-function formatICSDate(d: Date): string {
-  return d.toISOString().replace(/[-:.]/g, "").slice(0, 15) + "Z";
-}
-function icsAttachment(d: { serviceName: string; businessName: string; staffName?: string; durationMinutes: number; start: Date }): Attachment {
-  const end = new Date(d.start.getTime() + d.durationMinutes * 60_000);
-  const uid = `${d.start.getTime()}-${Math.random().toString(36).slice(2)}@calvy.io`;
-  const fromEmail = FROM.match(/<(.+)>/)?.[1] ?? "noreply@calvy.io";
-  const ics = [
-    "BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Calvy//Booking//EN", "CALSCALE:GREGORIAN", "METHOD:REQUEST",
-    "BEGIN:VEVENT", `UID:${uid}`, `DTSTART:${formatICSDate(d.start)}`, `DTEND:${formatICSDate(end)}`,
-    `SUMMARY:${d.serviceName} at ${d.businessName}`,
-    `DESCRIPTION:Your appointment for ${d.serviceName}${d.staffName ? ` with ${d.staffName}` : ""} at ${d.businessName}.`,
-    `ORGANIZER;CN=${d.businessName}:mailto:${fromEmail}`,
-    "STATUS:CONFIRMED", "SEQUENCE:0",
-    "BEGIN:VALARM", "TRIGGER:-PT60M", "ACTION:DISPLAY", "DESCRIPTION:Reminder: Your appointment is in 1 hour", "END:VALARM",
-    "END:VEVENT", "END:VCALENDAR",
-  ].join("\r\n");
-  return { filename: "appointment.ics", content: Buffer.from(ics, "utf-8"), contentType: "text/calendar; charset=utf-8; method=REQUEST" };
 }
 
 /* ── Public senders ───────────────────────────────────────────────── */
@@ -165,7 +143,7 @@ export async function sendBookingConfirmation(d: BookingDetails) {
     subject: d.token ? `Queue number #${d.token.number} confirmed — ${d.businessName}` : `Booking confirmed — ${d.serviceName} at ${d.businessName}`,
     react: <BookingConfirmationEmail {...bookingProps(d)} tenant={tenant} />,
     attachments: d.appointmentDate
-      ? [icsAttachment({ serviceName: d.serviceName, businessName: d.businessName, staffName: d.staffName, durationMinutes: d.duration, start: d.appointmentDate })]
+      ? [icsAttachment({ appointmentId: d.ctx?.appointmentId, serviceName: d.serviceName, businessName: d.businessName, staffName: d.staffName, durationMinutes: d.duration, start: d.appointmentDate })]
       : undefined,
   });
 }
@@ -177,7 +155,7 @@ export async function sendBookingReminder(d: {
   const tenant = await tenantBrand(d.ctx?.businessId, d.businessName);
   return dispatch({
     to: d.to, type: "reminder", ctx: d.ctx,
-    subject: `Reminder: ${d.serviceName} tomorrow at ${d.time}`,
+    subject: `Reminder: ${d.serviceName} on ${d.date} at ${d.time}`,
     react: <BookingReminderEmail clientName={d.clientName} patientName={d.patientName} businessName={d.businessName} serviceName={d.serviceName} date={d.date} time={d.time} staffName={d.staffName} duration={d.duration} price={d.price} currency={d.currency} terms={d.terms} online={d.online} tenant={tenant} />,
   });
 }
