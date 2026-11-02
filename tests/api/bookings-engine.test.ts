@@ -24,7 +24,7 @@ const db = vi.hoisted(() => {
 const push = vi.hoisted(() => vi.fn(async () => {}));
 
 vi.mock("@/lib/prisma", () => ({ prisma: db }));
-vi.mock("@/lib/email", () => ({ sendBookingConfirmation: vi.fn() }));
+vi.mock("@/lib/notifications/enqueue", () => ({ notify: vi.fn(async () => {}) }));
 vi.mock("@/lib/whatsapp", () => ({ sendBookingConfirmationWhatsApp: vi.fn() }));
 vi.mock("@/lib/push", () => ({ sendPushToBusiness: push }));
 vi.mock("@/lib/razorpay", () => ({ razorpay: {} }));
@@ -35,7 +35,7 @@ vi.mock("@/lib/ratelimit", () => ({
 
 import { POST } from "@/app/api/bookings/route";
 import { rateLimit } from "@/lib/ratelimit";
-import { sendBookingConfirmation } from "@/lib/email";
+import { notify as queueNotification } from "@/lib/notifications/enqueue";
 import { sendBookingConfirmationWhatsApp } from "@/lib/whatsapp";
 
 const req = (body: unknown) =>
@@ -351,7 +351,7 @@ describe("POST /api/bookings: contact details and booking for someone else", () 
     const res = await POST(req(valid));
     expect(res.status).toBe(200);
     expect(db.appointment.create).toHaveBeenCalled();
-    expect(sendBookingConfirmation).not.toHaveBeenCalled();
+    expect(queueNotification).not.toHaveBeenCalled();
     expect(sendBookingConfirmationWhatsApp).not.toHaveBeenCalled();
     expect(push).toHaveBeenCalled(); // the business still hears about it
     expect((await res.json()).confirmationWithheld).toBe(true); // and the booker is told, not left waiting
@@ -360,7 +360,11 @@ describe("POST /api/bookings: contact details and booking for someone else", () 
   it("just under the quota the contact gets their confirmation as normal", async () => {
     db.appointment.count.mockResolvedValue(29);
     expect((await POST(req(valid))).status).toBe(200);
-    expect(sendBookingConfirmation).toHaveBeenCalledTimes(1);
+    expect(queueNotification).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(queueNotification).mock.calls[0][0]).toMatchObject({
+      event: "booking.created", audience: "CUSTOMER", template: "confirmation", subjectId: "appt1", appointmentId: "appt1", businessId: "biz", recipient: "jo@x.com",
+      payload: { businessName: "Salon X", serviceName: "Cut", ics: { appointmentId: "appt1" } },
+    });
   });
 
   it("the cooldown for one requester does not stop the same contact booking from elsewhere", async () => {

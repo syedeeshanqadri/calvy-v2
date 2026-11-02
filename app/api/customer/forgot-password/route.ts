@@ -2,7 +2,8 @@ import { safeRoute } from "@/lib/api";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { rateLimit, clientIp } from "@/lib/ratelimit";
-import { sendCustomerPasswordResetEmail } from "@/lib/email";
+import { notify } from "@/lib/notifications/enqueue";
+import { authEmail } from "@/lib/notifications/events";
 import { customerEmailSchema } from "@/lib/validation/customer";
 import { readJsonBody, parseWith, tooManyRequests, testTokenHookEnabled, appBaseUrl } from "@/lib/auth-http";
 import { issueCustomerToken } from "@/lib/customerDb";
@@ -32,7 +33,7 @@ async function POST_handler(req: NextRequest) {
     if (customer) {
       rawToken = await issueCustomerToken(prisma, customer.id, "reset");
       try {
-        await sendCustomerPasswordResetEmail({ to: customer.email, name: customer.name, token: rawToken, baseUrl: appBaseUrl(req) });
+        await notify(authEmail({ template: "customer_password_reset", userId: customer.id, to: customer.email, name: customer.name, token: rawToken, baseUrl: appBaseUrl(req) }));
       } catch (err) {
         logger.error("[customer] reset email failed", { err });
       }

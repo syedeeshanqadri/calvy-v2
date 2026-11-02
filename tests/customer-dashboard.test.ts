@@ -69,7 +69,7 @@ const mocks = vi.hoisted(() => ({
     service: { findUnique: vi.fn() },
     $transaction: vi.fn(),
   },
-  email: { sendBookingCancellation: vi.fn(async (_d: Record<string, unknown>) => ({ ok: true })), sendBookingReschedule: vi.fn(async (_d: Record<string, unknown>) => ({ ok: true })) },
+  notify: vi.fn(async (..._items: unknown[]) => {}),
   push: vi.fn(async (_id: string, _p: Record<string, unknown>) => {}),
   creditClosedBooking: vi.fn(async () => null as null | { amountMinor: number; currency: string }),
   loadAvailability: vi.fn(),
@@ -79,7 +79,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@/lib/prisma", () => ({ prisma: mocks.db }));
 vi.mock("@/lib/customerSession", () => ({ getCustomer: vi.fn(async () => mocks.customer.current) }));
 vi.mock("@/lib/ratelimit", () => ({ rateLimit: vi.fn(async () => ({ ok: true, retryAfter: 0 })), clientIp: () => "1.1.1.1" }));
-vi.mock("@/lib/email", () => mocks.email);
+vi.mock("@/lib/notifications/enqueue", () => ({ notify: mocks.notify }));
 vi.mock("@/lib/push", () => ({ sendPushToBusiness: mocks.push }));
 vi.mock("@/lib/creditDb", () => ({ creditClosedBooking: mocks.creditClosedBooking }));
 vi.mock("@/lib/availability", () => ({ loadAvailability: mocks.loadAvailability }));
@@ -128,7 +128,7 @@ describe("only a verified customer can use these routes", () => {
     const where = mocks.db.appointment.findFirst.mock.calls[0][0].where;
     expect(where).toMatchObject({ id: "someone-elses", client: { email: { equals: "riya@example.com" } } });
     expect(mocks.db.appointment.updateMany).not.toHaveBeenCalled();
-    expect(mocks.email.sendBookingCancellation).not.toHaveBeenCalled();
+    expect(mocks.notify).not.toHaveBeenCalled();
   });
 });
 
@@ -141,8 +141,8 @@ describe("cancel", () => {
     expect(mocks.push).toHaveBeenCalledTimes(1);
     expect(mocks.push.mock.calls[0][0]).toBe("biz1");
     expect(mocks.push.mock.calls[0][1]).toMatchObject({ title: expect.stringContaining("cancelled by the customer"), url: "/dashboard/appointments" });
-    expect(mocks.email.sendBookingCancellation).toHaveBeenCalledTimes(1);
-    expect(mocks.email.sendBookingCancellation.mock.calls[0][0]).toMatchObject({ to: "riya@example.com", businessName: "Sunrise Clinic" });
+    expect(mocks.notify).toHaveBeenCalledTimes(1);
+    expect(mocks.notify.mock.calls[0][0]).toMatchObject({ event: "booking.cancelled", audience: "CUSTOMER", template: "cancellation", subjectId: "a1", recipient: "riya@example.com", businessId: "biz1", payload: { businessName: "Sunrise Clinic" } });
   });
   it("anything paid online comes back as credit, never as a card refund", async () => {
     mocks.db.appointment.findFirst.mockResolvedValue(row());
@@ -163,13 +163,13 @@ describe("cancel", () => {
     }
     expect(mocks.db.appointment.updateMany).not.toHaveBeenCalled();
     expect(mocks.push).not.toHaveBeenCalled();
-    expect(mocks.email.sendBookingCancellation).not.toHaveBeenCalled();
+    expect(mocks.notify).not.toHaveBeenCalled();
   });
   it("a second click that loses the race cancels once and sends nothing", async () => {
     mocks.db.appointment.findFirst.mockResolvedValue(row());
     mocks.db.appointment.updateMany.mockResolvedValue({ count: 0 });
     expect((await cancelPost(req(), params())).status).toBe(409);
-    expect(mocks.email.sendBookingCancellation).not.toHaveBeenCalled();
+    expect(mocks.notify).not.toHaveBeenCalled();
   });
 });
 
@@ -187,8 +187,8 @@ describe("reschedule", () => {
     expect(data.where).toMatchObject({ id: "a1" });
     expect(data.data).toMatchObject({ staffId: "st1", reminderSent: false });
     expect(mocks.push.mock.calls[0][1]).toMatchObject({ title: expect.stringContaining("rescheduled by the customer") });
-    expect(mocks.email.sendBookingReschedule).toHaveBeenCalledTimes(1);
-    expect(mocks.email.sendBookingReschedule.mock.calls[0][0]).toMatchObject({ to: "riya@example.com", oldDate: expect.any(String), oldTime: expect.any(String) });
+    expect(mocks.notify).toHaveBeenCalledTimes(1);
+    expect(mocks.notify.mock.calls[0][0]).toMatchObject({ event: "booking.rescheduled", template: "reschedule", subjectId: "a1", recipient: "riya@example.com", payload: { oldDate: expect.any(String), oldTime: expect.any(String) } });
   });
   it("a time the engine does not offer is a 409 and nothing changes", async () => {
     const when = future();
@@ -197,7 +197,7 @@ describe("reschedule", () => {
     const res = await reschedulePost(req(when), params());
     expect(res.status).toBe(409);
     expect(mocks.bookExclusive).not.toHaveBeenCalled();
-    expect(mocks.email.sendBookingReschedule).not.toHaveBeenCalled();
+    expect(mocks.notify).not.toHaveBeenCalled();
   });
   it("a time in the past, malformed input and the cutoff are refused", async () => {
     mocks.db.appointment.findFirst.mockResolvedValue(row());
@@ -229,7 +229,7 @@ describe("review follow-ups", () => {
     const res = await reschedulePost(req(when), params());
     expect(res.status).toBe(409);
     expect(mocks.db.appointment.updateMany.mock.calls[0][0].where).toMatchObject({ id: "a1", status: { in: ["confirmed", "pending"] } });
-    expect(mocks.email.sendBookingReschedule).not.toHaveBeenCalled();
+    expect(mocks.notify).not.toHaveBeenCalled();
     expect(mocks.push).not.toHaveBeenCalled();
   });
   it("the new time must also be outside the business cutoff", async () => {

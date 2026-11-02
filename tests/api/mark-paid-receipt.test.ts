@@ -12,9 +12,6 @@ vi.mock("@/lib/prisma", () => ({
   prisma: { appointment: { findFirst: db.findFirst, update: db.update }, client: { update: db.clientUpdate }, $transaction: db.transaction },
 }));
 vi.mock("@/lib/notifications/enqueue", () => ({ notify }));
-vi.mock("@/lib/onlinePayment", () => ({
-  serviceLabel: (first: string, notes: string | null) => (notes?.startsWith("__services__:") ? `${first} & ${notes.replace("__services__:", "")}` : first),
-}));
 
 import { PATCH } from "@/app/api/appointments/[id]/payment/route";
 
@@ -62,7 +59,7 @@ describe("manual mark-paid receipt", () => {
   it("no email on file: still paid, nothing queued", async () => {
     db.findFirst.mockReset().mockResolvedValueOnce(basic).mockResolvedValueOnce({ ...full, client: { name: "R", email: null } });
     expect((await call()).status).toBe(200);
-    expect(notify).not.toHaveBeenCalled();
+    expect(notify).toHaveBeenCalledWith(null); // nothing to send to
   });
   it("a failed enqueue does not undo the payment", async () => {
     notify.mockRejectedValue(new Error("db down"));

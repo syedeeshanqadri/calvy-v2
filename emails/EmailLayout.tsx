@@ -38,7 +38,11 @@ function TenantHeader({ t }: { t: TenantBrand }) {
   );
 }
 
-export function EmailLayout({ preview, children, tenant, calvyFooter }: { preview: string; children: React.ReactNode; tenant?: TenantBrand; calvyFooter?: boolean }) {
+/**
+ * `unsubscribeUrl` adds the "stop these emails" link. Only optional mail passes it. It is a plain prop, not React
+ * context: createContext does not exist in the server React build that route handlers are bundled with.
+ */
+export function EmailLayout({ preview, children, tenant, calvyFooter, unsubscribeUrl }: { preview: string; children: React.ReactNode; tenant?: TenantBrand; calvyFooter?: boolean; unsubscribeUrl?: string }) {
   return (
     <Html>
       <Head />
@@ -67,6 +71,11 @@ export function EmailLayout({ preview, children, tenant, calvyFooter }: { previe
               <Link href="https://calvy.io/help" style={{ color: brand.muted, textDecoration: "underline" }}>Help Center</Link>
             </Text>
           )}
+          {unsubscribeUrl ? (
+            <Text style={footer}>
+              <Link href={unsubscribeUrl} style={{ color: brand.muted, textDecoration: "underline" }}>Stop these emails</Link>
+            </Text>
+          ) : null}
         </Container>
       </Body>
     </Html>

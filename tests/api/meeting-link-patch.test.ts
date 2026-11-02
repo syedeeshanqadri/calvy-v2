@@ -13,12 +13,12 @@ const db = vi.hoisted(() => ({
   appointment: { findFirst: vi.fn(), update: vi.fn() },
   payment: { findFirst: vi.fn() },
 }));
-const email = vi.hoisted(() => ({ sendMeetingLinkAdded: vi.fn(async (_d: Record<string, unknown>) => ({ ok: true })), sendBookingCancellation: vi.fn(), sendBookingReschedule: vi.fn(), sendInvoice: vi.fn() }));
+const notify = vi.hoisted(() => vi.fn(async (..._items: unknown[]) => {}));
 
 vi.mock("@/lib/prisma", () => ({ prisma: db }));
 vi.mock("next-auth", () => ({ getServerSession: vi.fn(async () => ({ user: { businessId: "biz1" } })) }));
 vi.mock("@/lib/auth", () => ({ authOptions: {} }));
-vi.mock("@/lib/email", () => email);
+vi.mock("@/lib/notifications/enqueue", () => ({ notify }));
 vi.mock("@/lib/onlinePayment", () => ({ refundPayment: vi.fn() }));
 
 import { PATCH } from "@/app/api/appointments/[id]/route";
@@ -63,22 +63,22 @@ describe("PATCH /api/appointments/[id] with a meeting link", () => {
     const res = await patch({ meetingUrl: LINK });
     expect(res.status).toBe(200);
     expect(db.appointment.update.mock.calls[0][0].data).toMatchObject({ meetingUrl: LINK });
-    expect(email.sendMeetingLinkAdded).toHaveBeenCalledTimes(1);
-    expect(email.sendMeetingLinkAdded.mock.calls[0][0]).toMatchObject({ to: "riya@example.com", meetingUrl: LINK, updated: false });
+    expect(notify).toHaveBeenCalledTimes(1);
+    expect(notify.mock.calls[0][0]).toMatchObject({ event: "booking.meeting_link", audience: "CUSTOMER", template: "meeting_link", subjectId: "a1", recipient: "riya@example.com", payload: { meetingUrl: LINK, updated: false } });
   });
 
   it("changing an existing link says it was updated", async () => {
     db.appointment.findFirst.mockResolvedValueOnce(row({ meetingUrl: "https://old.example/x" })).mockResolvedValueOnce(row({ meetingUrl: "https://old.example/x" })).mockResolvedValueOnce(row({ meetingUrl: LINK }));
     db.appointment.update.mockResolvedValue(row({ meetingUrl: LINK }));
     await patch({ meetingUrl: LINK });
-    expect(email.sendMeetingLinkAdded.mock.calls[0][0]).toMatchObject({ meetingUrl: LINK, updated: true });
+    expect(notify.mock.calls[0][0]).toMatchObject({ payload: { meetingUrl: LINK, updated: true } });
   });
 
   it("saving the same link again sends nothing", async () => {
     db.appointment.findFirst.mockResolvedValue(row({ meetingUrl: LINK }));
     db.appointment.update.mockResolvedValue(row({ meetingUrl: LINK }));
     await patch({ meetingUrl: LINK });
-    expect(email.sendMeetingLinkAdded).not.toHaveBeenCalled();
+    expect(notify).not.toHaveBeenCalled();
   });
 
   it("clearing the link emails nothing", async () => {
@@ -87,7 +87,7 @@ describe("PATCH /api/appointments/[id] with a meeting link", () => {
     const res = await patch({ meetingUrl: "" });
     expect(res.status).toBe(200);
     expect(db.appointment.update.mock.calls[0][0].data).toMatchObject({ meetingUrl: null });
-    expect(email.sendMeetingLinkAdded).not.toHaveBeenCalled();
+    expect(notify).not.toHaveBeenCalled();
   });
 
   it("refuses a link on an in-person appointment and a non-https link", async () => {
@@ -95,14 +95,14 @@ describe("PATCH /api/appointments/[id] with a meeting link", () => {
     expect((await patch({ meetingUrl: LINK })).status).toBe(400);
     expect((await patch({ meetingUrl: "javascript:alert(1)" })).status).toBe(400);
     expect(db.appointment.update).not.toHaveBeenCalled();
-    expect(email.sendMeetingLinkAdded).not.toHaveBeenCalled();
+    expect(notify).not.toHaveBeenCalled();
   });
 
   it("does not email for a cancelled booking", async () => {
     db.appointment.findFirst.mockResolvedValue(row({ status: "cancelled" }));
     db.appointment.update.mockResolvedValue(row({ status: "cancelled", meetingUrl: LINK }));
     await patch({ meetingUrl: LINK });
-    expect(email.sendMeetingLinkAdded).not.toHaveBeenCalled();
+    expect(notify).not.toHaveBeenCalled();
   });
 });
 

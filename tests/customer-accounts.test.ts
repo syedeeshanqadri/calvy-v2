@@ -20,7 +20,7 @@ const session = vi.hoisted(() => ({ current: null as unknown }));
 vi.mock("@/lib/prisma", () => ({ prisma: db }));
 vi.mock("next-auth", () => ({ getServerSession: vi.fn(async () => session.current) }));
 vi.mock("@/lib/auth", () => ({ authOptions: {} }));
-vi.mock("@/lib/email", () => ({ sendCustomerVerificationEmail: vi.fn(async () => ({ ok: true })), sendCustomerPasswordResetEmail: vi.fn(async () => ({ ok: true })) }));
+vi.mock("@/lib/notifications/enqueue", () => ({ notify: vi.fn(async () => {}) }));
 vi.mock("@/lib/ratelimit", () => ({ rateLimit: vi.fn(async () => ({ ok: true, retryAfter: 0 })), clientIp: () => "1.1.1.1" }));
 
 import bcrypt from "bcryptjs";

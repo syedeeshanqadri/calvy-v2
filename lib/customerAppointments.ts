@@ -2,7 +2,8 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { t } from "@/lib/terms";
 import { logger } from "@/lib/logger";
-import { sendBookingCancellation, sendBookingReschedule, type BookingDetails } from "@/lib/email";
+import { notify } from "@/lib/notifications/enqueue";
+import { cancellation, noticeFrom, reschedule } from "@/lib/notifications/events";
 import { sendPushToBusiness } from "@/lib/push";
 import { bookExclusive, SlotConflictError, conflictMessage, isPastBooking } from "@/lib/booking";
 import { loadAvailability, type AvailabilityQuery } from "@/lib/availability";
@@ -38,18 +39,6 @@ export async function findOwned(verifiedEmail: string, id: string): Promise<Owne
     where: { id, client: { email: { equals: verifiedEmail, mode: "insensitive" } } },
     include,
   });
-}
-
-function details(a: Owned, tz: string): BookingDetails | null {
-  if (!a.client.email) return null;
-  return {
-    to: a.client.email, clientName: a.client.name, patientName: a.patientName ?? undefined, businessName: a.business.name,
-    serviceName: a.service.name, staffName: a.staff?.name ?? `Your ${t(a.business, "staff")}`, terms: a.business,
-    date: formatDateLabel(a.date, tz), time: formatTimeLabel(a.date, tz), duration: a.duration, price: a.price,
-    currency: a.business.currency ?? "INR", appointmentDate: a.date,
-    online: a.isOnline ? { meetingUrl: meetingUrlFor(a) } : undefined,
-    ctx: { appointmentId: a.id, businessId: a.businessId },
-  };
 }
 
 const appUrl = () => process.env.NEXT_PUBLIC_APP_URL ?? "https://calvy.io";
@@ -144,14 +133,11 @@ export async function rescheduleByCustomer(verifiedEmail: string, id: string, da
     body: `${a.client.name} moved ${a.service.name} from ${formatDateLabel(oldDate, tz)} ${formatTimeLabel(oldDate, tz)} to ${dateLabel} ${timeLabel}`,
     url: "/dashboard/appointments", tag: "customer-reschedule",
   }).catch(() => {});
-  // Customer: email with the new time.
-  const d = details({ ...a, date: start }, tz);
-  if (d) {
-    try {
-      await sendBookingReschedule({ ...d, oldDate: formatDateLabel(oldDate, tz), oldTime: formatTimeLabel(oldDate, tz) });
-    } catch (err) {
-      logger.error("[CustomerAppt] reschedule email failed", { err });
-    }
+  // Customer: email with the new time (once per move, so a double click is still one email).
+  try {
+    await notify(reschedule(noticeFrom({ ...a, date: start }), { from: oldDate, to: start, oldDate: formatDateLabel(oldDate, tz), oldTime: formatTimeLabel(oldDate, tz) }));
+  } catch (err) {
+    logger.error("[CustomerAppt] reschedule notification failed", { err });
   }
   return { ok: true, dateLabel, timeLabel };
 }
@@ -177,13 +163,10 @@ export async function cancelByCustomer(verifiedEmail: string, id: string): Promi
     body: `${a.client.name} cancelled ${a.service.name} on ${formatDateLabel(a.date, tz)} at ${formatTimeLabel(a.date, tz)}`,
     url: "/dashboard/appointments", tag: "customer-cancel",
   }).catch(() => {});
-  const d = details(a, tz);
-  if (d) {
-    try {
-      await sendBookingCancellation({ ...d, rebookUrl: `${appUrl()}/${a.business.slug}` });
-    } catch (err) {
-      logger.error("[CustomerAppt] cancellation email failed", { err });
-    }
+  try {
+    await notify(cancellation(noticeFrom(a), `${appUrl()}/${a.business.slug}`));
+  } catch (err) {
+    logger.error("[CustomerAppt] cancellation notification failed", { err });
   }
   return { ok: true, credit };
 }

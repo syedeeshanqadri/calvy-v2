@@ -2,7 +2,8 @@ import { safeRoute } from "@/lib/api";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { razorpay } from "@/lib/razorpay";
-import { sendBookingConfirmation } from "@/lib/email";
+import { notify as queueNotification } from "@/lib/notifications/enqueue";
+import { confirmation } from "@/lib/notifications/events";
 import { t } from "@/lib/terms";
 import { sendBookingConfirmationWhatsApp } from "@/lib/whatsapp";
 import { sendPushToBusiness } from "@/lib/push";
@@ -323,25 +324,28 @@ async function POST_handler(req: NextRequest) {
     }).catch(() => {});
 
     try {
-      if (!suppressContactMessages) await sendBookingConfirmation({
-        to: clientEmail,
-        clientName,
-        patientName,
-        businessName: business!.name,
-        serviceName: serviceNamesLabel,
-        staffName: staffMember?.name ?? `Your ${t(business!, "staff")}`,
-        terms: business!,
-        date: dateLabel,
-        time,
-        duration: totalDuration,
-        price: totalPrice,
-        currency: business!.currency ?? DEFAULT_CURRENCY,
-        appointmentDate: appointmentStart,
-        online: isOnline ? { meetingUrl: resolveMeetingUrl(orderedServices[0], staffMember) } : undefined,
-        ctx: { appointmentId, businessId: business!.id },
-      });
+      if (!suppressContactMessages) {
+        await queueNotification(confirmation({
+          appointmentId,
+          businessId: business!.id,
+          to: clientEmail,
+          payload: {
+            clientName,
+            patientName,
+            businessName: business!.name,
+            serviceName: serviceNamesLabel,
+            staffName: staffMember?.name ?? `Your ${t(business!, "staff")}`,
+            date: dateLabel,
+            time,
+            duration: totalDuration,
+            price: totalPrice,
+            currency: business!.currency ?? DEFAULT_CURRENCY,
+            online: isOnline ? { meetingUrl: resolveMeetingUrl(orderedServices[0], staffMember) } : undefined,
+          },
+        }, appointmentStart));
+      }
     } catch (err) {
-      logger.error("[Email] Failed:", { err });
+      logger.error("[Notifications] confirmation failed:", { err });
     }
 
     if (clientPhone && !suppressContactMessages) {

@@ -7,7 +7,7 @@ export const RESERVED_SLUGS: ReadonlySet<string> = new Set([
   // app routes
   "admin", "api", "app", "b", "blog", "booking", "crm", "dashboard", "fonts", "forgot-password", "help",
   "login", "my", "logout", "onboarding", "privacy", "refund-policy", "reset-password", "signup", "signin",
-  "terms", "verify-email",
+  "terms", "unsubscribe", "verify-email",
   // static / framework
   "_next", "static", "assets", "public", "favicon", "favicon.ico", "icon", "apple-icon", "robots", "robots.txt",
   "sitemap", "sitemap.xml", "calvy", "offline", "blog-covers", "manifest", "sw", "service-worker",

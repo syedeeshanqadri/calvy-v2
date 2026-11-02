@@ -3,7 +3,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { sendBookingConfirmation } from "@/lib/email";
+import { notify } from "@/lib/notifications/enqueue";
+import { confirmation } from "@/lib/notifications/events";
 import { t } from "@/lib/terms";
 import { findOrCreateClient } from "@/lib/clients";
 import { sendPushToBusiness } from "@/lib/push";
@@ -237,26 +238,26 @@ async function POST_handler(request: NextRequest) {
     tag: "new-booking",
   }).catch(() => {});
 
-  if (client.email) {
-    try {
-      await sendBookingConfirmation({
-        to: client.email,
+  try {
+    await notify(confirmation({
+      appointmentId: appointment.id,
+      businessId,
+      to: client.email,
+      payload: {
         clientName,
         businessName: business.name ?? `Your ${t(business, "staff")}`,
         serviceName: serviceNamesLabel,
         staffName: assignedName ?? `Your ${t(business, "staff")}`,
-        terms: business,
         date: dateLabel,
         time,
         duration: totalDuration,
         price: totalPrice,
         currency: business.currency ?? "USD",
-        appointmentDate: apptDate,
         online: isOnline ? { meetingUrl: resolveMeetingUrl(orderedServices[0], assignedStaff) } : undefined,
-      });
-    } catch (err) {
-      logger.error("[Email] Failed to send confirmation for panel booking:", { err });
-    }
+      },
+    }, apptDate));
+  } catch (err) {
+    logger.error("[Notifications] confirmation failed for panel booking:", { err });
   }
 
   return NextResponse.json({ appointment, staffId: chosenStaffId, staffName: assignedName ?? null }, { status: 201 });

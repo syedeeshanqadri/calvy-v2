@@ -20,6 +20,8 @@ export interface BookingProps {
   /** Business pack + termsOverride: the wording (appointment, service) follows the business type. */
   terms?: TermsSource;
   tenant?: TenantBrand;
+  /** Optional mail only (reminder, thank-you): a signed link that stops these emails. Never set on transactional mail. */
+  unsubscribeUrl?: string;
   /** Token bookings show the number and an estimated time instead of a fixed time. */
   token?: { number: number; estimatedTime: string; sessionName: string };
   /** Signed public link to the live queue page (token bookings). */
@@ -107,7 +109,7 @@ export function BookingConfirmationEmail(p: BookingProps) {
 
 export function BookingReminderEmail(p: BookingProps) {
   return (
-    <EmailLayout tenant={p.tenant} preview={`Reminder: ${p.serviceName} on ${p.date} at ${p.time}`}>
+    <EmailLayout tenant={p.tenant} unsubscribeUrl={p.unsubscribeUrl} preview={`Reminder: ${p.serviceName} on ${p.date} at ${p.time}`}>
       <Badge text="Reminder" color={brand.accent} bg="#e6f2fb" />
       <H>Your {appt(p)} is coming up</H>
       <P>Hi {p.clientName.split(" ")[0]}, a friendly reminder about your upcoming {appt(p)} at <strong style={{ color: brand.ink }}>{p.businessName}</strong>.</P>
@@ -227,7 +229,7 @@ export function InvoiceEmail(p: InvoiceProps) {
 export function StatusChangeEmail(p: BookingProps & { status: "completed" | "no_show"; rebookUrl?: string }) {
   const done = p.status === "completed";
   return (
-    <EmailLayout tenant={p.tenant} preview={done ? `Thanks for visiting ${p.businessName}` : `Your ${appt(p)} at ${p.businessName} was marked as missed`}>
+    <EmailLayout tenant={p.tenant} unsubscribeUrl={p.unsubscribeUrl} preview={done ? `Thanks for visiting ${p.businessName}` : `Your ${appt(p)} at ${p.businessName} was marked as missed`}>
       <Badge text={done ? "Completed" : "Missed"} color={done ? brand.green : "#b91c1c"} bg={done ? "#e7f7ec" : "#fdeaea"} />
       <H>{done ? `Thanks for visiting ${p.businessName}` : `We missed you at ${p.businessName}`}</H>
       <P>Hi {p.clientName.split(" ")[0]}, {done ? `your ${appt(p)} is marked as completed.` : `your ${appt(p)} was marked as missed.`}</P>
@@ -238,9 +240,9 @@ export function StatusChangeEmail(p: BookingProps & { status: "completed" | "no_
 }
 
 /** Post-visit link to the business's own Google review page. Calvy never posts a review. */
-export function ReviewRequestEmail(p: { clientName: string; businessName: string; reviewUrl: string; tenant?: TenantBrand }) {
+export function ReviewRequestEmail(p: { clientName: string; businessName: string; reviewUrl: string; tenant?: TenantBrand; unsubscribeUrl?: string }) {
   return (
-    <EmailLayout tenant={p.tenant} preview={`How was your visit to ${p.businessName}?`}>
+    <EmailLayout tenant={p.tenant} unsubscribeUrl={p.unsubscribeUrl} preview={`How was your visit to ${p.businessName}?`}>
       <H>How was your visit?</H>
       <P>Hi {p.clientName.split(" ")[0]}, thanks for choosing <strong style={{ color: brand.ink }}>{p.businessName}</strong>. If you have a minute, a Google review helps others find us.</P>
       <CTA color={p.tenant?.color} fg={p.tenant?.fg} href={p.reviewUrl} label="Review us on Google" />

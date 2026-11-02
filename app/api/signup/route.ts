@@ -4,7 +4,10 @@ import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
 import { createBusinessForUser } from "@/lib/createBusiness";
-import { sendVerificationEmail, sendFormNotification } from "@/lib/email";
+import { sendFormNotification } from "@/lib/email";
+import { notify } from "@/lib/notifications/enqueue";
+import { authEmail } from "@/lib/notifications/events";
+import { logger } from "@/lib/logger";
 import { after } from "next/server";
 import { rateLimit, clientIp } from "@/lib/ratelimit";
 import { parseBody } from "@/lib/validation/common";
@@ -58,8 +61,12 @@ async function POST_handler(req: NextRequest) {
     fields: { Name: name, Business: businessName, Email: email, "Chosen plan": plan ?? "free" },
   }));
 
-  // Send verification email (non-blocking)
-  sendVerificationEmail({ to: email, name, token });
+  // Queue the verification email. A failure here must not fail the signup: the user can ask for another link.
+  try {
+    await notify(authEmail({ template: "verification", userId: user.id, to: email, name, token }));
+  } catch (err) {
+    logger.error("[signup] verification email not queued", { err });
+  }
 
   return NextResponse.json({ message: "Account created. Please check your email to verify." }, { status: 201 });
 }

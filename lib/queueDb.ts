@@ -5,7 +5,9 @@ import { meetingUrlFor } from "@/lib/online";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { findOrCreateClient } from "@/lib/clients";
-import { sendQueueClosed, sendQueueMovedBack, type BookingDetails } from "@/lib/email";
+import { notify } from "@/lib/notifications/enqueue";
+import { queueClosed, queueMovedBack, type Notice } from "@/lib/notifications/events";
+import { DEFAULT_CURRENCY } from "@/lib/currency";
 import { creditLabel } from "@/lib/credit";
 import { creditClosedBooking } from "@/lib/creditDb";
 import { getEffectiveLimits } from "@/lib/getFeatures";
@@ -257,33 +259,38 @@ export async function runQueueAction(
 
   const { plan, subject, etas, credit, session } = done;
 
-  // Customer emails run after the transaction; a failed email never undoes the queue action.
+  // Customer emails are queued after the transaction; a failed one never undoes the queue action.
   if (subject?.client.email && plan.subjectId) {
     const full = await prisma.business.findUnique({ where: { id: biz.id }, select: { name: true, slug: true, packId: true, termsOverride: true, currency: true } });
-    const base: BookingDetails | null = full
-      ? {
-          to: subject.client.email, clientName: subject.client.name, patientName: subject.patientName ?? undefined, businessName: full.name, serviceName: subject.service.name,
-          staffName: session.staffId ? (await prisma.staff.findUnique({ where: { id: session.staffId }, select: { name: true } }))?.name ?? "" : `Your ${t(full, "staff")}`,
-          terms: full, date: formatDateLabel(zonedToUtc(input.date, session.startMin, tz), tz),
-          time: etas[plan.subjectId] ? utcToZoned(etas[plan.subjectId], tz).time : minToHhmm(session.startMin),
-          duration: session.minutesPerToken, price: subject.price, currency: full.currency ?? undefined,
-          token: { number: subject.tokenNumber ?? 0, estimatedTime: etas[plan.subjectId] ? utcToZoned(etas[plan.subjectId], tz).time : "", sessionName: session.name },
-          trackUrl: trackingUrl(full.slug, subject.id) ?? undefined,
-          ctx: { appointmentId: subject.id, businessId: biz.id },
-        }
-      : null;
-    if (base) {
+    if (full) {
       try {
-        if (plan.outcome === "moved_back") await sendQueueMovedBack({ ...base, place: placeInLine(plan.order, plan.subjectId) });
-        else if (plan.outcome === "no_show" || plan.outcome === "cancelled") {
-          await sendQueueClosed({
-            ...base, reason: plan.outcome === "no_show" ? "missed" : "cancelled",
+        const eta = etas[plan.subjectId] ? utcToZoned(etas[plan.subjectId], tz).time : "";
+        const time = eta || minToHhmm(session.startMin);
+        const staffName = session.staffId ? (await prisma.staff.findUnique({ where: { id: session.staffId }, select: { name: true } }))?.name ?? "" : `Your ${t(full, "staff")}`;
+        const notice: Notice = {
+          appointmentId: subject.id,
+          businessId: biz.id,
+          to: subject.client.email,
+          payload: {
+            clientName: subject.client.name, patientName: subject.patientName ?? undefined, businessName: full.name, serviceName: subject.service.name,
+            staffName, date: formatDateLabel(zonedToUtc(input.date, session.startMin, tz), tz), time,
+            duration: session.minutesPerToken, price: subject.price, currency: full.currency ?? DEFAULT_CURRENCY,
+            token: { number: subject.tokenNumber ?? 0, estimatedTime: eta, sessionName: session.name },
+            trackUrl: trackingUrl(full.slug, subject.id) ?? undefined,
+          },
+        };
+        if (plan.outcome === "moved_back") {
+          // The key carries the miss count, so the second and third missed calls are told as well.
+          await notify(queueMovedBack(notice, placeInLine(plan.order, plan.subjectId), plan.updates[subject.id]?.notPresentCount ?? subject.notPresentCount));
+        } else if (plan.outcome === "no_show" || plan.outcome === "cancelled") {
+          await notify(queueClosed(notice, {
+            reason: plan.outcome === "no_show" ? "missed" : "cancelled",
             creditLabel: credit ? creditLabel(credit.amountMinor, credit.currency) : undefined,
             loginUrl: `${(process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000").replace(/\/$/, "")}/my`,
-          });
+          }));
         }
       } catch (e) {
-        logger.error("[Queue] email failed:", { err: e });
+        logger.error("[Queue] notification failed:", { err: e });
       }
     }
   }
