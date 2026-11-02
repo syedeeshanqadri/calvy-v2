@@ -1,0 +1,50 @@
+# Notifications scheduler: setup steps (owner)
+
+Do this once chunk 1 (`/api/cron/notifications`) is merged and deployed. Vercel Hobby only allows a daily cron, so cron-job.org triggers the endpoint every 2 minutes.
+
+## 1. Vercel: bypass secret
+1. Vercel → the Calvy project → **Settings → Deployment Protection → Protection Bypass for Automation**.
+2. Create a secret (name it `cron-job.org`) and copy its value. You paste it into cron-job.org in step 3. Your app does not need it in an env var.
+
+Revoking this secret stops the scheduler until you paste a new one into cron-job.org.
+
+## 2. Vercel: our own secret
+1. Generate a value in PowerShell:
+   ```powershell
+   [Convert]::ToBase64String((1..32 | ForEach-Object { Get-Random -Maximum 256 }))
+   ```
+2. Vercel → **Settings → Environment Variables**: add `CRON_SECRET` with that value for the environment you are scheduling (Production). If `CRON_SECRET` already exists, reuse its value and do not change it: the daily Vercel crons use it too.
+3. **Redeploy**: env vars only reach new deployments.
+
+## 3. cron-job.org: the job
+Create a free account, then **Cronjobs → Create cronjob**:
+
+| Field | Value |
+|---|---|
+| Title | `Calvy notifications` |
+| URL | `https://<your-production-domain>/api/cron/notifications` (the exact domain from Vercel → Settings → Domains; a redirecting domain can break the call) |
+| Schedule | Every 2 minutes (custom: minutes `*/2`, all else every) |
+| Request method (Advanced tab) | `GET` |
+| Header 1 (Advanced tab) | `Authorization` = `Bearer <CRON_SECRET value>` |
+| Header 2 (Advanced tab) | `x-vercel-protection-bypass` = `<bypass secret from step 1>` |
+| Notifications | On, for failed runs |
+
+Save, then use **Test run**. cron-job.org closes the connection at 30 seconds; each run stops itself at 25.
+
+## 4. Check it from PowerShell
+```powershell
+$h = @{ Authorization = "Bearer <CRON_SECRET value>"; "x-vercel-protection-bypass" = "<bypass secret>" }
+Invoke-RestMethod -Uri "https://<your-production-domain>/api/cron/notifications" -Headers $h
+```
+Expected: JSON such as `{"ok":true,"claimed":0,"sent":0,"retried":0,"failed":0,"skipped":0,"reclaimedDead":0,"purged":0}`.
+
+| You get | Meaning |
+|---|---|
+| 401 with a Vercel HTML page | Bypass secret wrong or missing |
+| 401 with `{"error":"Unauthorized"}` | Bypass fine; `CRON_SECRET` wrong, or not redeployed after adding it |
+| 3xx | Use the final domain in the URL |
+| 404 | Chunk 1 is not on this deployment yet |
+
+## Later
+- **Encryption key (before chunk 3 goes live):** add `NOTIFY_SECRET_KEY` the same way as step 2 (Production, then redeploy). It encrypts reset and verify links in the outbox and is separate from `CRON_SECRET`. Do not change it while such emails are pending, or they fail.
+- **Pro plan:** Vercel crons can then run every minute. Set `*/2 * * * *` in `vercel.json` and delete the cron-job.org job.
