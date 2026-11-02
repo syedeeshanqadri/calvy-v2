@@ -257,6 +257,9 @@ export function sendLeadAcknowledgment({ to, name, demoRequested }: { to: string
 import { PasswordResetEmail, CustomerVerifyEmail, CustomerResetEmail } from "@/emails/templates";
 import { logger } from "@/lib/logger";
 import { SUPPORT_EMAIL } from "@/lib/site";
+import { randomUUID } from "crypto";
+import { notify } from "@/lib/notifications/enqueue";
+import type { FormNotificationPayload } from "@/lib/notifications/templates";
 
 export function sendPasswordResetEmail({ to, name, token, baseUrl }: { to: string; name: string; token: string; baseUrl?: string }) {
   const appUrl = baseUrl ?? process.env.NEXT_PUBLIC_APP_URL ?? "https://calvy.io";
@@ -288,45 +291,17 @@ export function sendCustomerPasswordResetEmail({ to, name, token, baseUrl }: { t
 
 /* ── Owner notification for form submissions ───────────────────────── */
 
-export interface FormNotification {
-  title: string;
-  /** Label -> value. Never put passwords or tokens in here. */
-  fields: Record<string, string | number | boolean | null | undefined>;
-}
-
-function FormNotificationEmail({ title, fields, at }: FormNotification & { at: string }) {
-  const rows = Object.entries(fields).filter(([, v]) => v !== undefined && v !== null && v !== "");
-  return (
-    <div style={{ fontFamily: "Arial, sans-serif", fontSize: 14, color: "#111" }}>
-      <h2 style={{ margin: "0 0 12px" }}>{title}</h2>
-      <table cellPadding={6} style={{ borderCollapse: "collapse", border: "1px solid #ddd" }}>
-        <tbody>
-          {rows.map(([k, v]) => (
-            <tr key={k}>
-              <td style={{ border: "1px solid #ddd", fontWeight: 600, background: "#f6f6f6" }}>{k}</td>
-              <td style={{ border: "1px solid #ddd" }}>{typeof v === "boolean" ? (v ? "yes" : "no") : String(v)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      <p style={{ color: "#777", fontSize: 12 }}>Received {at}</p>
-    </div>
-  );
-}
-
 /**
  * Tell the site owner about a form submission (lead, signup, onboarding).
- * Goes to NOTIFY_EMAIL (default: the support address). Never throws: a failed
- * notification must not break the form. Logged in EmailLog like other emails.
+ * Goes to NOTIFY_EMAIL (default: the support address) through the outbox, so it
+ * is retried and logged there. Never throws: a failed notification must not break the form.
  */
-export async function sendFormNotification({ title, fields }: FormNotification): Promise<void> {
+export async function sendFormNotification({ title, fields }: Pick<FormNotificationPayload, "title" | "fields">): Promise<void> {
   try {
-    const to = process.env.NOTIFY_EMAIL || SUPPORT_EMAIL;
-    await dispatch({
-      to,
-      type: "form_notification",
-      subject: title,
-      react: <FormNotificationEmail title={title} fields={fields} at={new Date().toUTCString()} />,
+    await notify({
+      event: "platform.form", audience: "PLATFORM", subjectId: randomUUID(),
+      recipient: process.env.NOTIFY_EMAIL || SUPPORT_EMAIL, template: "form_notification",
+      payload: { title, fields, at: new Date().toUTCString() },
     });
   } catch (err) {
     logger.error("[Email] form notification failed:", { err });

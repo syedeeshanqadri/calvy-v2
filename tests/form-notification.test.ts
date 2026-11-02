@@ -1,13 +1,27 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
+const { create, row } = vi.hoisted(() => ({ create: vi.fn(), row: { current: null as Record<string, unknown> | null } }));
 const send = vi.hoisted(() => vi.fn());
 vi.mock("resend", () => ({ Resend: class { emails = { send }; } }));
-vi.mock("@/lib/prisma", () => ({ prisma: { emailLog: { create: vi.fn(async () => ({})) } } }));
+vi.mock("@/lib/prisma", () => ({
+  prisma: {
+    notificationOutbox: {
+      createMany: create,
+      findMany: vi.fn(async () => [{ id: "n1" }]),
+      updateMany: vi.fn(async () => ({ count: 1 })),
+      findUnique: vi.fn(async () => row.current),
+    },
+  },
+}));
 
 import { sendFormNotification } from "@/lib/email";
 
 beforeEach(() => {
   send.mockReset().mockResolvedValue({ data: { id: "m1" }, error: null });
+  create.mockReset().mockImplementation(async ({ data }: { data: Record<string, unknown>[] }) => {
+    row.current = { id: "n1", attempts: 1, expiresAt: null, secret: null, ...data[0] };
+    return { count: 1 };
+  });
   vi.stubEnv("RESEND_API_KEY", "re_test_key");
 });
 afterEach(() => vi.unstubAllEnvs());
@@ -37,10 +51,20 @@ describe("sendFormNotification", () => {
     expect(send.mock.calls[0][0].html).not.toContain("<script>alert(1)</script>");
   });
 
-  it("never throws, even when the provider fails or email is not configured", async () => {
+  it("two submissions are two messages, and the provider gets a retry-safe key", async () => {
+    await sendFormNotification({ title: "x", fields: { a: 1 } });
+    await sendFormNotification({ title: "x", fields: { a: 1 } });
+    const keys = create.mock.calls.map(([{ data }]) => data[0].idempotencyKey);
+    expect(keys[0]).not.toBe(keys[1]);
+    expect(send.mock.calls[0][1]).toEqual({ idempotencyKey: "n1" });
+  });
+
+  it("never throws, even when the provider or the database fails or email is not configured", async () => {
     send.mockRejectedValue(new Error("boom"));
     await expect(sendFormNotification({ title: "x", fields: { a: 1 } })).resolves.toBeUndefined();
     vi.stubEnv("RESEND_API_KEY", "");
+    await expect(sendFormNotification({ title: "x", fields: { a: 1 } })).resolves.toBeUndefined();
+    create.mockRejectedValue(new Error("db down"));
     await expect(sendFormNotification({ title: "x", fields: { a: 1 } })).resolves.toBeUndefined();
   });
 });

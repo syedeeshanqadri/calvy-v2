@@ -67,7 +67,7 @@ describe("Google sign-in needs a verified email", () => {
 });
 
 describe("every API route is protected or on the reviewed public list", () => {
-  const PROTECTED = /getServerSession|getCustomer\b|queueContext|requireAdmin|isAdminUser|adminAuth|CRON_SECRET|hmacSha256Matches|verifyWebhook|verifySignature|getToken/;
+  const PROTECTED = /getServerSession|getCustomer\b|queueContext|requireAdmin|isAdminUser|adminAuth|isCronAuthorized|hmacSha256Matches|verifyWebhook|verifySignature|getToken/;
   /** Public on purpose. Each one validates its input, is rate limited or signed, and returns no private data. */
   const PUBLIC = new Set([
     "auth/[...nextauth]", "auth/forgot-password", "auth/resend-verification", "auth/reset-password", "auth/verify-email",
