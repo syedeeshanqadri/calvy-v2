@@ -2,7 +2,8 @@ import { safeRoute } from "@/lib/api";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { rateLimit, clientIp } from "@/lib/ratelimit";
-import { sendVerificationEmail } from "@/lib/email";
+import { notify } from "@/lib/notifications/enqueue";
+import { authEmail } from "@/lib/notifications/events";
 import { resendVerificationSchema } from "@/lib/validation/auth";
 import { generateToken, tokenExpiry, VERIFY_TOKEN_TTL_MS } from "@/lib/auth-tokens";
 import { readJsonBody, parseWith, tooManyRequests, testTokenHookEnabled } from "@/lib/auth-http";
@@ -51,7 +52,7 @@ async function POST_handler(req: NextRequest) {
       ]);
       rawToken = token;
       try {
-        await sendVerificationEmail({ to: user.email, name: user.name, token });
+        await notify(authEmail({ template: "verification", userId: user.id, to: user.email, name: user.name, token }));
       } catch (err) {
         logger.error("[auth] verification email failed", { err });
       }

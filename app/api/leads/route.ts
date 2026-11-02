@@ -1,7 +1,10 @@
 import { safeRoute } from "@/lib/api";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { sendLeadAcknowledgment, sendFormNotification } from "@/lib/email";
+import { sendFormNotification } from "@/lib/email";
+import { notify } from "@/lib/notifications/enqueue";
+import { leadAcknowledgment } from "@/lib/notifications/events";
+import { logger } from "@/lib/logger";
 import { after } from "next/server";
 import { rateLimit, clientIp } from "@/lib/ratelimit";
 
@@ -46,9 +49,12 @@ async function POST_handler(req: NextRequest) {
     },
   });
 
-  // First nurture touch — instant acknowledgment to the lead (non-blocking).
-  sendLeadAcknowledgment({ to: lead.email, name: lead.name, demoRequested: lead.demoRequested })
-    .catch(() => {});
+  // First nurture touch: instant acknowledgment to the lead. A failure never fails the form.
+  try {
+    await notify(leadAcknowledgment({ leadId: lead.id, to: lead.email, name: lead.name, demoRequested: lead.demoRequested }));
+  } catch (err) {
+    logger.error("[leads] acknowledgment not queued", { err });
+  }
 
   // Tell the owner (after the response, errors swallowed inside the helper).
   after(() => sendFormNotification({

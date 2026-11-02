@@ -6,7 +6,7 @@ import {
   PasswordResetEmail, QueueClosedEmail, QueueMovedBackEmail, ReviewRequestEmail, StatusChangeEmail, WelcomeEmail, businessAlertHeadline,
   type BookingProps, type BusinessAlertProps, type DailySummaryProps, type InvoiceProps,
 } from "@/emails/templates";
-import type { TenantBrand } from "@/emails/EmailLayout";
+import { UnsubscribeContext, type TenantBrand } from "@/emails/EmailLayout";
 import { formatCurrencyAmount } from "@/lib/currency";
 import { icsAttachment, type Attachment } from "@/lib/notifications/ics";
 import { normalizeName } from "@/lib/patients";
@@ -20,7 +20,10 @@ export interface FormNotificationPayload {
   at: string;
 }
 
-export interface Rendered { subject: string; html: string; text: string; attachments?: Attachment[] }
+export interface Rendered { subject: string; html: string; text: string; attachments?: Attachment[]; headers?: Record<string, string> }
+
+/** Unsubscribe links for optional mail: `page` goes in the footer, `oneClick` in the List-Unsubscribe header. */
+export interface UnsubscribeLinks { page: string; oneClick: string }
 
 /** Read at render, not stored in the payload: the business's look and its pack wording. */
 export interface RenderBrand { tenant?: TenantBrand; terms?: TermsSource }
@@ -215,9 +218,16 @@ export const TEMPLATES = {
 export type TemplateId = keyof typeof TEMPLATES;
 
 /** Pure: everything comes in as arguments, so a retry renders the same message unless the brand changed. */
-export async function renderTemplate(template: string, payload: unknown, brand?: RenderBrand): Promise<Rendered> {
+export async function renderTemplate(template: string, payload: unknown, brand?: RenderBrand, unsubscribe?: UnsubscribeLinks): Promise<Rendered> {
   const entry = Object.hasOwn(TEMPLATES, template) ? TEMPLATES[template as TemplateId] : undefined;
   if (!entry) throw new Error(`Unknown notification template: ${template}`);
   const p = { ...(payload as object), ...brand };
-  return { subject: entry.subject(p), html: await render(entry.Email(p)), text: entry.text(p), attachments: entry.attachments?.(p) };
+  const email = entry.Email(p);
+  return {
+    subject: entry.subject(p),
+    html: await render(unsubscribe ? <UnsubscribeContext.Provider value={unsubscribe.page}>{email}</UnsubscribeContext.Provider> : email),
+    text: unsubscribe ? `${entry.text(p)}\n\nStop these emails: ${unsubscribe.page}` : entry.text(p),
+    attachments: entry.attachments?.(p),
+    ...(unsubscribe ? { headers: { "List-Unsubscribe": `<${unsubscribe.oneClick}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" } } : {}),
+  };
 }

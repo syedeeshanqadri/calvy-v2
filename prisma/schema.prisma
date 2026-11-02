@@ -84,6 +84,8 @@ model Business {
   logoUrl                  String?
   socialLinks              Json?
   googleReviewUrl          String?
+  /// Notification switches (lib/notifications/prefs.ts). Null = every default.
+  notificationPrefs        Json?
   availabilityJson         String              @default("{}")
   currency                 String              @default("USD")
   paymentMode              String              @default("postpaid")
@@ -470,6 +472,16 @@ model NotificationOutbox {
   @@index([status, nextAttemptAt])
   @@index([businessId, createdAt])
   @@index([appointmentId])
+}
+
+/// A recipient who unsubscribed from one business's optional emails. Transactional mail ignores it.
+/// No foreign key, like the outbox.
+model NotificationOptOut {
+  businessId String
+  recipient  String // lowercased email
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+
+  @@id([businessId, recipient])
 }
 
 model EmailLog {

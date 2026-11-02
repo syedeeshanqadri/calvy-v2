@@ -4,6 +4,7 @@ import { logger } from "@/lib/logger";
 import { loadBrand } from "@/lib/notifications/brand";
 import { CHANNELS, type Channel, type SendOutcome } from "@/lib/notifications/channels";
 import { MAX_ATTEMPTS, nextAttemptAt } from "@/lib/notifications/policy";
+import { OPTIONAL_EVENTS, skipReasons, unsubscribeLinks } from "@/lib/notifications/prefs";
 import { decryptSecret } from "@/lib/notifications/secret";
 import { renderTemplate } from "@/lib/notifications/templates";
 
@@ -56,9 +57,13 @@ async function purgeOldPayloads(now: Date): Promise<number> {
 async function attemptSend(row: NotificationOutbox, channels: Record<string, Channel>, now: Date): Promise<SendOutcome> {
   if (row.expiresAt && row.expiresAt <= now) return { kind: "skipped", error: "expired" };
   try {
+    // Checked again here: the recipient may have unsubscribed, or the business switched it off, since it was queued.
+    const skip = (await skipReasons(prisma, [{ businessId: row.businessId, event: row.event, recipient: row.recipient }])).get(0);
+    if (skip) return { kind: "skipped", error: skip };
     const payload = row.secret ? { ...(row.payload as object), secret: decryptSecret(row.secret) } : row.payload;
     const brand = row.businessId ? await loadBrand(row.businessId) : undefined;
-    const message = await renderTemplate(row.template, payload, brand);
+    const links = row.businessId && OPTIONAL_EVENTS.has(row.event) ? unsubscribeLinks(row.businessId, row.recipient) : undefined;
+    const message = await renderTemplate(row.template, payload, brand, links);
     return await channels[row.channel](message, row.recipient, row.id);
   } catch (err) {
     return { kind: "retry", error: err instanceof Error ? err.message : "send error" };

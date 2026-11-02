@@ -3,6 +3,7 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { attemptNow } from "@/lib/notifications/process";
 import { idempotencyKey, normalizeRecipient, type NotifChannelName } from "@/lib/notifications/policy";
+import { skipReasons } from "@/lib/notifications/prefs";
 import { encryptSecret } from "@/lib/notifications/secret";
 
 export interface NotificationInput {
@@ -25,10 +26,17 @@ export interface NotificationInput {
   expiresAt?: Date;
 }
 
-/** Write the rows on `db` (a transaction, to commit with the change they announce). Repeats add nothing. Returns all their ids. */
+/**
+ * Write the rows on `db` (a transaction, to commit with the change they announce). Repeats add nothing.
+ * A message the business switched off, or whose recipient unsubscribed, is still recorded, as SKIPPED with the
+ * reason, so the delivery log explains why nothing arrived. Returns the ids of the rows that are due to send.
+ */
 export async function enqueue(db: Prisma.TransactionClient, items: NotificationInput[]): Promise<string[]> {
-  const rows = items.map((n) => {
+  if (!items.length) return [];
+  const skips = await skipReasons(db, items.map((n) => ({ businessId: n.businessId ?? null, event: n.event, recipient: n.recipient })));
+  const rows = items.map((n, i) => {
     const channel = n.channel ?? "EMAIL";
+    const skip = skips.get(i);
     return {
       idempotencyKey: idempotencyKey({ event: n.event, subjectId: n.subjectId, version: n.version, recipient: n.recipient, channel }),
       businessId: n.businessId ?? null,
@@ -39,14 +47,17 @@ export async function enqueue(db: Prisma.TransactionClient, items: NotificationI
       recipient: normalizeRecipient(channel, n.recipient),
       template: n.template,
       payload: JSON.parse(JSON.stringify(n.payload)) as Prisma.InputJsonObject,
-      secret: n.secret ? encryptSecret(n.secret) : null,
+      secret: !skip && n.secret ? encryptSecret(n.secret) : null,
       expiresAt: n.expiresAt ?? null,
       ...(n.notBefore ? { nextAttemptAt: n.notBefore } : {}),
+      ...(skip ? { status: "SKIPPED" as const, error: skip } : {}),
     };
   });
-  if (!rows.length) return [];
   await db.notificationOutbox.createMany({ data: rows, skipDuplicates: true });
-  const saved = await db.notificationOutbox.findMany({ where: { idempotencyKey: { in: rows.map((r) => r.idempotencyKey) } }, select: { id: true } });
+  const saved = await db.notificationOutbox.findMany({
+    where: { idempotencyKey: { in: rows.map((r) => r.idempotencyKey) }, status: "PENDING" },
+    select: { id: true },
+  });
   return saved.map((r) => r.id);
 }
 
@@ -60,7 +71,9 @@ export async function sendSoon(ids: string[]): Promise<void> {
   }
 }
 
-/** Enqueue and try at once, for callers with no open transaction. */
-export async function notify(...items: NotificationInput[]): Promise<void> {
-  await sendSoon(await enqueue(prisma, items));
+/** Enqueue and try at once, for callers with no open transaction. Items that are null (no recipient) are ignored. */
+export async function notify(...items: (NotificationInput | null | undefined)[]): Promise<void> {
+  const real = items.filter((n): n is NotificationInput => !!n);
+  if (!real.length) return;
+  await sendSoon(await enqueue(prisma, real));
 }

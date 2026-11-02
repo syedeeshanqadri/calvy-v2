@@ -3,7 +3,8 @@ import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { rateLimit, clientIp } from "@/lib/ratelimit";
-import { sendCustomerVerificationEmail } from "@/lib/email";
+import { notify } from "@/lib/notifications/enqueue";
+import { authEmail } from "@/lib/notifications/events";
 import { customerSignupSchema } from "@/lib/validation/customer";
 import { readJsonBody, parseWith, tooManyRequests, testTokenHookEnabled, appBaseUrl } from "@/lib/auth-http";
 import { issueCustomerToken } from "@/lib/customerDb";
@@ -46,7 +47,7 @@ async function POST_handler(req: NextRequest) {
       if (!latest || Date.now() - latest.createdAt.getTime() >= RESEND_COOLDOWN_MS) {
         rawToken = await issueCustomerToken(prisma, target.id, "verify");
         try {
-          await sendCustomerVerificationEmail({ to: target.email, name: target.name, token: rawToken, baseUrl: appBaseUrl(req) });
+          await notify(authEmail({ template: "customer_verification", userId: target.id, to: target.email, name: target.name, token: rawToken, baseUrl: appBaseUrl(req) }));
         } catch (err) {
           logger.error("[customer] verification email failed", { err });
         }

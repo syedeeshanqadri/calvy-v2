@@ -4,7 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { notify } from "@/lib/notifications/enqueue";
-import { receiptNotification } from "@/lib/notifications/receipt";
+import { noticeFrom, receipt } from "@/lib/notifications/events";
 
 export const dynamic = 'force-dynamic';
 
@@ -32,14 +32,13 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
     }),
   ]);
 
-  // The customer gets a receipt. A failed email never undoes the payment.
+  // The customer gets a receipt (once per booking, whatever the clicks). A failed email never undoes the payment.
   try {
     const full = await prisma.appointment.findFirst({
       where: { id: params.id, businessId: session.user.businessId },
       include: { client: true, service: true, staff: true, business: true },
     });
-    const receipt = full && receiptNotification(full);
-    if (receipt) await notify(receipt);
+    if (full) await notify(receipt(noticeFrom(full)));
   } catch (err) {
     logger.error("[Payments] receipt failed:", { err });
   }

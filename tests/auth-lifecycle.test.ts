@@ -94,8 +94,7 @@ describe("zod schemas", () => {
 const mocks = vi.hoisted(() => {
   const m = {
     rateLimit: vi.fn(),
-    sendReset: vi.fn(),
-    sendVerify: vi.fn(),
+    notify: vi.fn(),
     user: { findFirst: vi.fn(), update: vi.fn(), updateMany: vi.fn() },
     prt: { findUnique: vi.fn(), deleteMany: vi.fn(), create: vi.fn(), updateMany: vi.fn() },
     vt: { deleteMany: vi.fn(), create: vi.fn(), findFirst: vi.fn() },
@@ -108,10 +107,7 @@ vi.mock("@/lib/ratelimit", () => ({
   rateLimit: mocks.rateLimit,
   clientIp: () => "1.2.3.4",
 }));
-vi.mock("@/lib/email", () => ({
-  sendPasswordResetEmail: mocks.sendReset,
-  sendVerificationEmail: mocks.sendVerify,
-}));
+vi.mock("@/lib/notifications/enqueue", () => ({ notify: mocks.notify }));
 vi.mock("@/lib/prisma", () => ({
   prisma: {
     user: mocks.user,
@@ -125,6 +121,9 @@ import { POST as forgot } from "@/app/api/auth/forgot-password/route";
 import { POST as reset } from "@/app/api/auth/reset-password/route";
 import { POST as resend } from "@/app/api/auth/resend-verification/route";
 
+/** The raw token travels only inside the emailed link (the encrypted secret), never in the key or payload. */
+const tokenOf = (n: { secret: string }) => new URL(n.secret).searchParams.get("token");
+
 function req(body: unknown, raw = false) {
   return new Request("http://localhost/api/x", {
     method: "POST",
@@ -136,8 +135,7 @@ function req(body: unknown, raw = false) {
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.rateLimit.mockResolvedValue({ ok: true, retryAfter: 0 });
-  mocks.sendReset.mockResolvedValue({ ok: true });
-  mocks.sendVerify.mockResolvedValue({ ok: true });
+  mocks.notify.mockResolvedValue(undefined);
   mocks.$transaction.mockImplementation(async (arg: unknown) =>
     typeof arg === "function"
       ? (arg as (tx: unknown) => unknown)({ user: mocks.user, passwordResetToken: mocks.prt })
@@ -158,15 +156,18 @@ describe("POST /api/auth/forgot-password", () => {
     expect(bodies[0]).toEqual({ ok: true });
     expect(bodies[1]).toEqual(bodies[0]);
     expect(bodies[2]).toEqual(bodies[0]);
-    expect(mocks.sendReset).toHaveBeenCalledTimes(1);
+    expect(mocks.notify).toHaveBeenCalledTimes(1);
   });
 
   it("stores only the hash and emails the raw token with a 1h expiry", async () => {
     mocks.user.findFirst.mockResolvedValueOnce({ id: "u1", email: "a@x.co", name: "A", password: "hash" });
     await forgot(req({ email: "a@x.co" }));
     const created = mocks.prt.create.mock.calls[0][0].data;
-    const sent = mocks.sendReset.mock.calls[0][0];
-    expect(created.tokenHash).toBe(hashToken(sent.token));
+    const queued = mocks.notify.mock.calls[0][0];
+    expect(queued).toMatchObject({ event: "auth.reset", audience: "BUSINESS", template: "password_reset", recipient: "a@x.co", subjectId: "u1" });
+    expect(queued.secret).toMatch(/\/reset-password\?token=/);
+    expect(JSON.stringify({ ...queued, secret: undefined })).not.toContain(tokenOf(queued)!);
+    expect(created.tokenHash).toBe(hashToken(tokenOf(queued)!));
     expect(created).not.toHaveProperty("token");
     expect(created.expiresAt.getTime() - Date.now()).toBeLessThanOrEqual(RESET_TOKEN_TTL_MS);
     expect(created.expiresAt.getTime() - Date.now()).toBeGreaterThan(RESET_TOKEN_TTL_MS - 5000);
@@ -175,7 +176,7 @@ describe("POST /api/auth/forgot-password", () => {
 
   it("still returns 200 when sending fails", async () => {
     mocks.user.findFirst.mockResolvedValueOnce({ id: "u1", email: "a@x.co", name: "A", password: "hash" });
-    mocks.sendReset.mockRejectedValueOnce(new Error("boom"));
+    mocks.notify.mockRejectedValueOnce(new Error("boom"));
     const r = await forgot(req({ email: "a@x.co" }));
     expect(r.status).toBe(200);
     expect(await r.json()).toEqual({ ok: true });
@@ -293,10 +294,11 @@ describe("POST /api/auth/resend-verification", () => {
     expect(bodies[0]).toEqual({ ok: true });
     expect(bodies[1]).toEqual(bodies[0]);
     expect(bodies[2]).toEqual(bodies[0]);
-    expect(mocks.sendVerify).toHaveBeenCalledTimes(1);
+    expect(mocks.notify).toHaveBeenCalledTimes(1);
+    expect(mocks.notify.mock.calls[0][0]).toMatchObject({ event: "auth.verify", template: "verification", recipient: "a@x.co", subjectId: "u1" });
     expect(mocks.vt.deleteMany).toHaveBeenCalledWith({ where: { email: "a@x.co" } });
     const data = mocks.vt.create.mock.calls[0][0].data;
-    expect(data.token).toBe(mocks.sendVerify.mock.calls[0][0].token);
+    expect(data.token).toBe(tokenOf(mocks.notify.mock.calls[0][0]));
     const ttl = data.expiresAt.getTime() - Date.now();
     expect(ttl).toBeGreaterThan(23 * 3600_000);
     expect(ttl).toBeLessThanOrEqual(24 * 3600_000);
@@ -321,18 +323,18 @@ describe("POST /api/auth/resend-verification", () => {
     const r = await resend(req({ email: "a@x.co" }));
     expect(r.status).toBe(200);
     expect(await r.json()).toEqual({ ok: true });
-    expect(mocks.sendVerify).not.toHaveBeenCalled();
+    expect(mocks.notify).not.toHaveBeenCalled();
     expect(mocks.vt.deleteMany).not.toHaveBeenCalled();
     // an older link does not block a resend
     mocks.user.findFirst.mockResolvedValueOnce({ id: "u1", email: "a@x.co", name: "A", emailVerified: null });
     mocks.vt.findFirst.mockResolvedValueOnce({ createdAt: new Date(Date.now() - 120_000) });
     await resend(req({ email: "a@x.co" }));
-    expect(mocks.sendVerify).toHaveBeenCalledTimes(1);
+    expect(mocks.notify).toHaveBeenCalledTimes(1);
   });
 
   it("still 200 when sending fails", async () => {
     mocks.user.findFirst.mockResolvedValueOnce({ id: "u1", email: "a@x.co", name: "A", emailVerified: null });
-    mocks.sendVerify.mockRejectedValueOnce(new Error("down"));
+    mocks.notify.mockRejectedValueOnce(new Error("down"));
     expect((await resend(req({ email: "a@x.co" }))).status).toBe(200);
   });
 });

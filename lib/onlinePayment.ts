@@ -11,7 +11,8 @@ import { BOOKING_TX_OPTIONS } from "@/lib/booking";
 import { getPaymentProvider, type PaymentProvider } from "@/lib/payments";
 import { applyPaymentEvent } from "@/lib/payments/events";
 import { prismaPaymentEventStore } from "@/lib/payments/db";
-import { sendBookingConfirmation } from "@/lib/email";
+import { notify } from "@/lib/notifications/enqueue";
+import { confirmation, noticeFrom, receipt, serviceLabel } from "@/lib/notifications/events";
 import { sendBookingConfirmationWhatsApp } from "@/lib/whatsapp";
 import { sendPushToBusiness } from "@/lib/push";
 import { DEFAULT_CURRENCY } from "@/lib/currency";
@@ -110,15 +111,15 @@ export async function startCheckout(p: {
   }
 }
 
-/** Service names of an appointment (multi-service bookings keep extras in notes). */
-export function serviceLabel(first: string, notes: string | null): string {
-  if (!notes?.startsWith("__services__:")) return first;
-  const extra = notes.split("\n")[0].replace("__services__:", "").split("|").filter(Boolean);
-  return [first, ...extra].join(" & ");
-}
-
-/** Customer confirmation (email + WhatsApp) and owner push for a confirmed appointment. */
-export async function sendConfirmationFor(appointmentId: string, opts: { paid?: boolean; contactMessages?: boolean } = {}): Promise<void> {
+/**
+ * Customer confirmation (email through the outbox, WhatsApp direct) and owner push for a confirmed appointment.
+ * `payment` is set when it was paid online: the customer also gets a receipt for what was actually paid, which
+ * can be less than the price (a booking fee).
+ */
+export async function sendConfirmationFor(
+  appointmentId: string,
+  opts: { paid?: boolean; contactMessages?: boolean; payment?: { id: string; amountMinor: number; ref?: string | null } } = {},
+): Promise<void> {
   const a = await prisma.appointment.findUnique({
     where: { id: appointmentId },
     include: { client: true, service: true, staff: true, business: true, tokenSession: true },
@@ -141,20 +142,20 @@ export async function sendConfirmationFor(appointmentId: string, opts: { paid?: 
 
   if (opts.contactMessages === false) return; // flood protection: the business was told, the contact is not messaged
 
-  if (a.client.email) {
-    try {
-      await sendBookingConfirmation({
-        to: a.client.email, clientName: a.client.name, patientName: a.patientName ?? undefined, businessName: a.business.name, serviceName,
-        staffName: a.staff?.name ?? `Your ${t(a.business, "staff")}`, terms: a.business,
-        date: dateLabel, time, duration: a.duration, price: a.price,
-        currency: a.business.currency ?? DEFAULT_CURRENCY, appointmentDate: a.date, token,
-        online: a.isOnline ? { meetingUrl: meetingUrlFor(a) } : undefined,
-        trackUrl: token ? trackingUrl(a.business.slug, a.id) ?? undefined : undefined,
-        ctx: { appointmentId: a.id, businessId: a.businessId },
-      });
-    } catch (e) {
-      logger.error("[Email] Failed:", { err: e });
-    }
+  try {
+    const notice = noticeFrom(a);
+    const paid = opts.payment;
+    const paidMajor = paid ? paid.amountMinor / 100 : undefined;
+    await notify(
+      confirmation(notice, a.date),
+      paid ? receipt(notice, {
+        price: paidMajor, paymentRef: paid.ref ?? undefined, version: paid.id,
+        // A booking fee is not the price of the service: say so on the receipt.
+        serviceName: paidMajor !== undefined && Math.abs(paidMajor - a.price) > 0.005 ? `${notice.payload.serviceName} (online payment)` : undefined,
+      }) : null,
+    );
+  } catch (e) {
+    logger.error("[Notifications] confirmation failed:", { err: e });
   }
   if (a.client.phone) {
     try {
@@ -228,11 +229,11 @@ export async function settlePaidPayment(paymentId: string): Promise<SettleResult
     } else if (action === "refund" && appt.status === PENDING_PAYMENT) {
       await tx.appointment.update({ where: { id: appt.id }, data: { status: EXPIRED } });
     }
-    return { action, appointmentId: appt.id, amountMinor: payment.amountMinor };
+    return { action, appointmentId: appt.id, amountMinor: payment.amountMinor, paymentRef: payment.paymentRef };
   }, BOOKING_TX_OPTIONS);
 
   if (decision.action === "confirm") {
-    await sendConfirmationFor(decision.appointmentId, { paid: true });
+    await sendConfirmationFor(decision.appointmentId, { paid: true, payment: { id: paymentId, amountMinor: decision.amountMinor, ref: decision.paymentRef } });
     return "confirmed";
   }
   if (decision.action === "refund") {

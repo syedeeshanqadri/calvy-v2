@@ -5,21 +5,19 @@ import { render } from "@react-email/render";
 import { formatCurrencyAmount, DEFAULT_CURRENCY } from "@/lib/currency";
 import {
   BookingConfirmationEmail,
-  MeetingLinkEmail,
   BookingReminderEmail,
-  BookingCancellationEmail,
-  BookingRescheduleEmail,
-  QueueMovedBackEmail,
-  QueueClosedEmail,
   InvoiceEmail,
-  EmailVerificationEmail,
-  LeadAcknowledgmentEmail,
   type BookingProps,
 } from "@/emails/templates";
 import type { TenantBrand } from "@/emails/EmailLayout";
 import { absoluteAssetUrl } from "@/lib/storage";
 import { safeThemeColor, readableForeground } from "@/lib/theme";
 import { icsAttachment, type Attachment } from "@/lib/notifications/ics";
+import { notify } from "@/lib/notifications/enqueue";
+import type { FormNotificationPayload } from "@/lib/notifications/templates";
+import { logger } from "@/lib/logger";
+import { SUPPORT_EMAIL } from "@/lib/site";
+import { randomUUID } from "crypto";
 
 let resendClient: Resend | null = null;
 function getResend() {
@@ -111,8 +109,6 @@ export interface BookingDetails {
   ctx?: EmailContext;
 }
 
-const apptWord = (terms?: TermsSource) => t(terms ?? {}, "appointment");
-
 function bookingProps(d: BookingDetails): BookingProps {
   return {
     clientName: d.clientName, businessName: d.businessName, serviceName: d.serviceName,
@@ -160,110 +156,12 @@ export async function sendBookingReminder(d: {
   });
 }
 
-export async function sendMeetingLinkAdded(d: BookingDetails & { meetingUrl: string; updated: boolean }) {
-  const tenant = await tenantBrand(d.ctx?.businessId, d.businessName);
-  return dispatch({
-    to: d.to, type: "meeting_link", ctx: d.ctx,
-    subject: d.updated ? `Your joining link has changed — ${d.businessName}` : `Your joining link for ${d.date} at ${d.time} — ${d.businessName}`,
-    react: <MeetingLinkEmail {...bookingProps(d)} tenant={tenant} meetingUrl={d.meetingUrl} updated={d.updated} />,
-  });
-}
-
-export async function sendBookingCancellation(d: BookingDetails & { rebookUrl?: string }) {
-  const tenant = await tenantBrand(d.ctx?.businessId, d.businessName);
-  return dispatch({
-    to: d.to, type: "cancellation", ctx: d.ctx,
-    subject: `Your ${apptWord(d.terms)} at ${d.businessName} was cancelled`,
-    react: <BookingCancellationEmail {...bookingProps(d)} tenant={tenant} rebookUrl={d.rebookUrl} />,
-  });
-}
-
-export async function sendBookingReschedule(d: BookingDetails & { oldDate: string; oldTime: string }) {
-  const tenant = await tenantBrand(d.ctx?.businessId, d.businessName);
-  return dispatch({
-    to: d.to, type: "reschedule", ctx: d.ctx,
-    subject: `Your ${apptWord(d.terms)} was moved to ${d.date} at ${d.time}`,
-    react: <BookingRescheduleEmail {...bookingProps(d)} tenant={tenant} oldDate={d.oldDate} oldTime={d.oldTime} />,
-  });
-}
-
-export async function sendQueueMovedBack(d: BookingDetails & { place: number }) {
-  const tenant = await tenantBrand(d.ctx?.businessId, d.businessName);
-  return dispatch({
-    to: d.to, type: "queue_moved_back", ctx: d.ctx,
-    subject: `You are now #${d.place} in line at ${d.businessName}`,
-    react: <QueueMovedBackEmail {...bookingProps(d)} tenant={tenant} place={d.place} />,
-  });
-}
-
-export async function sendQueueClosed(d: BookingDetails & { reason: "missed" | "cancelled"; creditLabel?: string; loginUrl?: string }) {
-  const tenant = await tenantBrand(d.ctx?.businessId, d.businessName);
-  return dispatch({
-    to: d.to, type: d.reason === "missed" ? "queue_missed" : "queue_cancelled", ctx: d.ctx,
-    subject: d.reason === "missed" ? `You missed your ${apptWord(d.terms)} at ${d.businessName}` : `Your ${apptWord(d.terms)} at ${d.businessName} was cancelled`,
-    react: <QueueClosedEmail {...bookingProps(d)} tenant={tenant} reason={d.reason} creditLabel={d.creditLabel} loginUrl={d.loginUrl} />,
-  });
-}
-
 export async function sendInvoice(d: BookingDetails & { invoiceNumber: string; clientEmail: string; paymentRef?: string }) {
   const tenant = await tenantBrand(d.ctx?.businessId, d.businessName);
   return dispatch({
     to: d.to, type: "invoice", ctx: d.ctx,
     subject: `Receipt from ${d.businessName} — ${formatCurrencyAmount(d.price, d.currency ?? DEFAULT_CURRENCY)}`,
     react: <InvoiceEmail {...bookingProps(d)} tenant={tenant} invoiceNumber={d.invoiceNumber} clientEmail={d.clientEmail} paymentRef={d.paymentRef} />,
-  });
-}
-
-export function sendVerificationEmail({ to, name, token }: { to: string; name: string; token: string }) {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://calvy.io";
-  return dispatch({
-    to, type: "verification",
-    subject: "Verify your Calvy account",
-    react: <EmailVerificationEmail name={name} verifyUrl={`${appUrl}/verify-email?token=${token}`} />,
-  });
-}
-
-export function sendLeadAcknowledgment({ to, name, demoRequested }: { to: string; name: string; demoRequested: boolean }) {
-  return dispatch({
-    to, type: "lead",
-    subject: demoRequested ? "Your Calvy demo is booked" : "Thanks for reaching out to Calvy",
-    react: <LeadAcknowledgmentEmail name={name} demoRequested={demoRequested} />,
-  });
-}
-
-// Imported here (not in the header list) to keep this change append-only.
-import { PasswordResetEmail, CustomerVerifyEmail, CustomerResetEmail } from "@/emails/templates";
-import { logger } from "@/lib/logger";
-import { SUPPORT_EMAIL } from "@/lib/site";
-import { randomUUID } from "crypto";
-import { notify } from "@/lib/notifications/enqueue";
-import type { FormNotificationPayload } from "@/lib/notifications/templates";
-
-export function sendPasswordResetEmail({ to, name, token, baseUrl }: { to: string; name: string; token: string; baseUrl?: string }) {
-  const appUrl = baseUrl ?? process.env.NEXT_PUBLIC_APP_URL ?? "https://calvy.io";
-  return dispatch({
-    to, type: "password_reset",
-    subject: "Reset your Calvy password",
-    react: <PasswordResetEmail name={name} resetUrl={`${appUrl}/reset-password?token=${token}`} />,
-  });
-}
-
-/** Customer accounts: links go to /my, never to the owner screens. */
-export function sendCustomerVerificationEmail({ to, name, token, baseUrl }: { to: string; name: string; token: string; baseUrl?: string }) {
-  const appUrl = baseUrl ?? process.env.NEXT_PUBLIC_APP_URL ?? "https://calvy.io";
-  return dispatch({
-    to, type: "customer_verification",
-    subject: "Verify your email",
-    react: <CustomerVerifyEmail name={name} verifyUrl={`${appUrl}/my/verify-email?token=${token}`} />,
-  });
-}
-
-export function sendCustomerPasswordResetEmail({ to, name, token, baseUrl }: { to: string; name: string; token: string; baseUrl?: string }) {
-  const appUrl = baseUrl ?? process.env.NEXT_PUBLIC_APP_URL ?? "https://calvy.io";
-  return dispatch({
-    to, type: "customer_password_reset",
-    subject: "Reset your password",
-    react: <CustomerResetEmail name={name} resetUrl={`${appUrl}/my/reset-password?token=${token}`} />,
   });
 }
 

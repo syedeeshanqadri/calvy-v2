@@ -46,5 +46,5 @@ Expected: JSON such as `{"ok":true,"claimed":0,"sent":0,"retried":0,"failed":0,"
 | 404 | Chunk 1 is not on this deployment yet |
 
 ## Later
-- **Encryption key (before chunk 3 goes live):** add `NOTIFY_SECRET_KEY` the same way as step 2 (Production, then redeploy). It encrypts reset and verify links in the outbox and is separate from `CRON_SECRET`. Do not change it while such emails are pending, or they fail.
+- **Encryption key (optional):** reset and verify links wait in the outbox encrypted, and unsubscribe links are signed, with `NOTIFY_SECRET_KEY` if you set it (same way as step 2: Production, then redeploy) and otherwise with a key derived from `NEXTAUTH_SECRET`, so nothing breaks if you never set it. Changing either secret while such emails are pending makes those few fail; unsubscribe links already sent stop working.
 - **Pro plan:** Vercel crons can then run every minute. Set `*/2 * * * *` in `vercel.json` and delete the cron-job.org job.

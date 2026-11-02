@@ -38,7 +38,11 @@ function TenantHeader({ t }: { t: TenantBrand }) {
   );
 }
 
+/** Set around optional mail so every layout shows the "stop these emails" link without each template passing it down. */
+export const UnsubscribeContext = React.createContext<string | undefined>(undefined);
+
 export function EmailLayout({ preview, children, tenant, calvyFooter }: { preview: string; children: React.ReactNode; tenant?: TenantBrand; calvyFooter?: boolean }) {
+  const unsubscribeUrl = React.useContext(UnsubscribeContext);
   return (
     <Html>
       <Head />
@@ -67,6 +71,11 @@ export function EmailLayout({ preview, children, tenant, calvyFooter }: { previe
               <Link href="https://calvy.io/help" style={{ color: brand.muted, textDecoration: "underline" }}>Help Center</Link>
             </Text>
           )}
+          {unsubscribeUrl ? (
+            <Text style={footer}>
+              <Link href={unsubscribeUrl} style={{ color: brand.muted, textDecoration: "underline" }}>Stop these emails</Link>
+            </Text>
+          ) : null}
         </Container>
       </Body>
     </Html>

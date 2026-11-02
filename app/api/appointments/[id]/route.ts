@@ -5,8 +5,8 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { parseBody } from "@/lib/validation/common";
 import { appointmentPatchSchema } from "@/lib/validation/appointments";
-import { t } from "@/lib/terms";
-import { sendBookingCancellation, sendBookingReschedule, sendInvoice, sendMeetingLinkAdded, type BookingDetails } from "@/lib/email";
+import { notify } from "@/lib/notifications/enqueue";
+import { cancellation, meetingLink, noticeFrom, receipt, reschedule, statusChange } from "@/lib/notifications/events";
 import { logger } from "@/lib/logger";
 import { bookExclusive, SlotConflictError, conflictMessage, isPastBooking } from "@/lib/booking";
 import { loadAvailability, type AvailabilityQuery } from "@/lib/availability";
@@ -46,6 +46,8 @@ async function PATCH_handler(req: NextRequest, props: { params: Promise<{ id: st
   // Detect transitions (before applying the update)
   const willCancel = status === "cancelled" && appointment.status !== "cancelled";
   const willPay = paymentStatus === "paid" && appointment.paymentStatus !== "paid";
+  const willComplete = status === "completed" && appointment.status !== "completed";
+  const willNoShow = status === "no-show" && appointment.status !== "no-show";
 
   // Reschedule: a new date + time and/or another staff member. Cancelling in the
   // same request wins; the move is ignored.
@@ -169,45 +171,28 @@ async function PATCH_handler(req: NextRequest, props: { params: Promise<{ id: st
     }
   }
 
-  // Fire the matching transactional emails (awaited so delivery is logged before we respond)
-  if (willCancel || willReschedule || willPay) {
+  // Queue the matching customer emails. Each event has a key of its own (booking + move/link/payment), so a double
+  // click or a retry is still one email. Whether it is sent (business switches, unsubscribes) is decided in notify().
+  if (willCancel || willReschedule || willPay || willComplete || willNoShow) {
     try {
       const full = await prisma.appointment.findFirst({
         where: { id: params.id, businessId: session.user.businessId },
         include: { client: true, service: true, staff: true, business: true },
       });
-      if (full?.client?.email) {
-        const base: BookingDetails = {
-          to: full.client.email,
-          clientName: full.client.name,
-          businessName: full.business.name,
-          serviceName: full.service.name,
-          staffName: full.staff?.name ?? `Your ${t(full.business, "staff")}`,
-          terms: full.business,
-          date: fmtDate(full.date),
-          time: fmtTime(full.date),
-          duration: full.duration,
-          price: full.price,
-          currency: full.business.currency ?? "INR",
-          ctx: { appointmentId: full.id, businessId: full.businessId },
-        };
-
-        if (willCancel) {
-          await sendBookingCancellation({ ...base, rebookUrl: `${APP_URL}/${full.business.slug}` });
-        } else if (willReschedule) {
-          await sendBookingReschedule({ ...base, oldDate: fmtDate(appointment.date), oldTime: fmtTime(appointment.date) });
-        }
-        if (willPay && !willCancel) {
-          await sendInvoice({
-            ...base,
-            invoiceNumber: `INV-${full.id.slice(-8).toUpperCase()}`,
-            clientEmail: full.client.email,
-            paymentRef: full.razorpayPaymentId ?? undefined,
-          });
-        }
+      if (full) {
+        const n = noticeFrom(full);
+        const rebookUrl = `${APP_URL}/${full.business.slug}`;
+        await notify(
+          willCancel ? cancellation(n, rebookUrl)
+            : willReschedule ? reschedule(n, { from: appointment.date, to: full.date, oldDate: fmtDate(appointment.date), oldTime: fmtTime(appointment.date) })
+            : willComplete ? statusChange(n, "completed", rebookUrl)
+            : willNoShow ? statusChange(n, "no_show", rebookUrl)
+            : null,
+          willPay && !willCancel ? receipt(n) : null,
+        );
       }
     } catch (err) {
-      logger.error("[Appointments] transactional email error:", { err });
+      logger.error("[Appointments] customer notification error:", { err });
     }
   }
 
@@ -219,27 +204,9 @@ async function PATCH_handler(req: NextRequest, props: { params: Promise<{ id: st
         include: { client: true, service: true, staff: true, business: true },
       });
       const linkAfter = full ? meetingUrlFor(full) : null;
-      if (full?.client?.email && linkAfter && linkAfter !== linkBefore) {
-        await sendMeetingLinkAdded({
-          to: full.client.email,
-          clientName: full.client.name,
-          patientName: full.patientName ?? undefined,
-          businessName: full.business.name,
-          serviceName: full.service.name,
-          staffName: full.staff?.name ?? `Your ${t(full.business, "staff")}`,
-          terms: full.business,
-          date: fmtDate(full.date),
-          time: fmtTime(full.date),
-          duration: full.duration,
-          price: full.price,
-          currency: full.business.currency ?? "INR",
-          meetingUrl: linkAfter,
-          updated: !!linkBefore,
-          ctx: { appointmentId: full.id, businessId: full.businessId },
-        });
-      }
+      if (full && linkAfter && linkAfter !== linkBefore) await notify(meetingLink(noticeFrom(full), linkAfter, !!linkBefore));
     } catch (err) {
-      logger.error("[Appointments] meeting link email error:", { err });
+      logger.error("[Appointments] meeting link notification error:", { err });
     }
   }
 
