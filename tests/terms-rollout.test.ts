@@ -29,17 +29,17 @@ describe("emails use the pack wording", () => {
       const { appt, svc } = expected[id];
       expect(await text(createElement(BookingConfirmationEmail, p))).toContain(`your ${appt} at Acme is confirmed`);
       expect(await text(createElement(BookingConfirmationEmail, p))).toContain(`${svc}Thing`);
-      expect(await text(createElement(BookingReminderEmail, p))).toContain(`Your ${appt} is tomorrow`);
+      expect(await text(createElement(BookingReminderEmail, p))).toContain(`Your ${appt} is coming up`);
       expect(await text(createElement(BookingCancellationEmail, p))).toContain(`Your ${appt} was cancelled`);
       expect(await text(createElement(BookingRescheduleEmail, { ...p, oldDate: "Sun", oldTime: "9:00 AM" }))).toContain(`Your ${appt} has moved`);
     });
   }
   it("a termsOverride wins over the pack", async () => {
     const p = { ...base, terms: { packId: "CLINIC", termsOverride: { appointment: { singular: "visit" } } } };
-    expect(await text(createElement(BookingReminderEmail, p))).toContain("Your visit is tomorrow");
+    expect(await text(createElement(BookingReminderEmail, p))).toContain("Your visit is coming up");
   });
   it("no terms falls back to the OTHER pack", async () => {
-    expect(await text(createElement(BookingReminderEmail, base))).toContain("Your appointment is tomorrow");
+    expect(await text(createElement(BookingReminderEmail, base))).toContain("Your appointment is coming up");
   });
 });
 

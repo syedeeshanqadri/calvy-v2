@@ -14,7 +14,8 @@ export interface NotificationInput {
   channel?: NotifChannelName;
   recipient: string;
   template: string;
-  payload: Prisma.InputJsonObject;
+  /** Stored as JSON: undefined fields drop out. */
+  payload: object;
   /** A reset or verify link: stored encrypted, reaches the template as `payload.secret`, cleared once final. */
   secret?: string;
   businessId?: string;
@@ -37,7 +38,7 @@ export async function enqueue(db: Prisma.TransactionClient, items: NotificationI
       channel,
       recipient: normalizeRecipient(channel, n.recipient),
       template: n.template,
-      payload: n.payload,
+      payload: JSON.parse(JSON.stringify(n.payload)) as Prisma.InputJsonObject,
       secret: n.secret ? encryptSecret(n.secret) : null,
       expiresAt: n.expiresAt ?? null,
       ...(n.notBefore ? { nextAttemptAt: n.notBefore } : {}),

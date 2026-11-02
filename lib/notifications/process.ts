@@ -1,6 +1,7 @@
 import type { NotificationOutbox } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
+import { loadBrand } from "@/lib/notifications/brand";
 import { CHANNELS, type Channel, type SendOutcome } from "@/lib/notifications/channels";
 import { MAX_ATTEMPTS, nextAttemptAt } from "@/lib/notifications/policy";
 import { decryptSecret } from "@/lib/notifications/secret";
@@ -56,7 +57,8 @@ async function attemptSend(row: NotificationOutbox, channels: Record<string, Cha
   if (row.expiresAt && row.expiresAt <= now) return { kind: "skipped", error: "expired" };
   try {
     const payload = row.secret ? { ...(row.payload as object), secret: decryptSecret(row.secret) } : row.payload;
-    const message = await renderTemplate(row.template, payload);
+    const brand = row.businessId ? await loadBrand(row.businessId) : undefined;
+    const message = await renderTemplate(row.template, payload, brand);
     return await channels[row.channel](message, row.recipient, row.id);
   } catch (err) {
     return { kind: "retry", error: err instanceof Error ? err.message : "send error" };

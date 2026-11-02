@@ -107,9 +107,9 @@ export function BookingConfirmationEmail(p: BookingProps) {
 
 export function BookingReminderEmail(p: BookingProps) {
   return (
-    <EmailLayout tenant={p.tenant} preview={`Reminder: ${p.serviceName} tomorrow at ${p.time}`}>
+    <EmailLayout tenant={p.tenant} preview={`Reminder: ${p.serviceName} on ${p.date} at ${p.time}`}>
       <Badge text="Reminder" color={brand.accent} bg="#e6f2fb" />
-      <H>Your {appt(p)} is tomorrow</H>
+      <H>Your {appt(p)} is coming up</H>
       <P>Hi {p.clientName.split(" ")[0]}, a friendly reminder about your upcoming {appt(p)} at <strong style={{ color: brand.ink }}>{p.businessName}</strong>.</P>
       <BookingDetails p={p} />
       <OnlineJoin p={p} />
@@ -219,6 +219,145 @@ export function InvoiceEmail(p: InvoiceProps) {
       <Hairline />
       <DetailRow label="Total paid" value={total} strong />
       {p.paymentRef ? <P>Payment reference: {p.paymentRef}</P> : <Section style={{ height: "8px" }} />}
+    </EmailLayout>
+  );
+}
+
+/** A booking was marked completed or missed at the business. */
+export function StatusChangeEmail(p: BookingProps & { status: "completed" | "no_show"; rebookUrl?: string }) {
+  const done = p.status === "completed";
+  return (
+    <EmailLayout tenant={p.tenant} preview={done ? `Thanks for visiting ${p.businessName}` : `Your ${appt(p)} at ${p.businessName} was marked as missed`}>
+      <Badge text={done ? "Completed" : "Missed"} color={done ? brand.green : "#b91c1c"} bg={done ? "#e7f7ec" : "#fdeaea"} />
+      <H>{done ? `Thanks for visiting ${p.businessName}` : `We missed you at ${p.businessName}`}</H>
+      <P>Hi {p.clientName.split(" ")[0]}, {done ? `your ${appt(p)} is marked as completed.` : `your ${appt(p)} was marked as missed.`}</P>
+      <BookingDetails p={p} />
+      {p.rebookUrl ? <CTA color={p.tenant?.color} fg={p.tenant?.fg} href={p.rebookUrl} label="Book again" /> : null}
+    </EmailLayout>
+  );
+}
+
+/** Post-visit link to the business's own Google review page. Calvy never posts a review. */
+export function ReviewRequestEmail(p: { clientName: string; businessName: string; reviewUrl: string; tenant?: TenantBrand }) {
+  return (
+    <EmailLayout tenant={p.tenant} preview={`How was your visit to ${p.businessName}?`}>
+      <H>How was your visit?</H>
+      <P>Hi {p.clientName.split(" ")[0]}, thanks for choosing <strong style={{ color: brand.ink }}>{p.businessName}</strong>. If you have a minute, a Google review helps others find us.</P>
+      <CTA color={p.tenant?.color} fg={p.tenant?.fg} href={p.reviewUrl} label="Review us on Google" />
+    </EmailLayout>
+  );
+}
+
+/* ── Emails to the business owner: the business's look, Calvy's footer ─────────── */
+
+export function WelcomeEmail({ name, dashboardUrl, tenant }: { name: string; dashboardUrl: string; tenant?: TenantBrand }) {
+  return (
+    <EmailLayout tenant={tenant} calvyFooter preview="Your Calvy account is ready">
+      <H>Welcome to Calvy</H>
+      <P>Hi {name.split(" ")[0]}, your account is ready. Add your services and working hours, then share your booking page.</P>
+      <CTA color={tenant?.color} fg={tenant?.fg} href={dashboardUrl} label="Open your dashboard" />
+    </EmailLayout>
+  );
+}
+
+export function BusinessLiveEmail({ name, businessName, websiteUrl, tenant }: { name: string; businessName: string; websiteUrl: string; tenant?: TenantBrand }) {
+  return (
+    <EmailLayout tenant={tenant} calvyFooter preview={`${businessName} is live`}>
+      <H>{businessName} is live</H>
+      <P>Hi {name.split(" ")[0]}, your website is online and ready to take bookings. Share this link with your customers:</P>
+      <P><strong style={{ color: brand.ink }}>{websiteUrl}</strong></P>
+      <CTA color={tenant?.color} fg={tenant?.fg} href={websiteUrl} label="View your website" />
+    </EmailLayout>
+  );
+}
+
+export interface BusinessAlertProps {
+  kind: "created" | "rescheduled" | "cancelled" | "paid" | "status";
+  /** Who did it, when the customer did. */
+  byCustomer?: boolean;
+  /** Set for kind "status": the new status in words. */
+  statusLabel?: string;
+  clientName: string;
+  patientName?: string;
+  serviceName: string;
+  staffName?: string;
+  date: string;
+  time: string;
+  token?: { number: number; sessionName: string };
+  oldDate?: string;
+  oldTime?: string;
+  price?: number;
+  currency?: string;
+  dashboardUrl: string;
+  terms?: TermsSource;
+  tenant?: TenantBrand;
+}
+
+/** One sentence per alert kind. Shared with the subject and the text variant so they cannot disagree. */
+export function businessAlertHeadline(p: BusinessAlertProps): string {
+  const word = t(p.terms ?? {}, "appointment");
+  const Word = t(p.terms ?? {}, "appointment", { cap: true });
+  const by = p.byCustomer ? " by the customer" : "";
+  switch (p.kind) {
+    case "created": return `New ${word}: ${p.clientName}`;
+    case "rescheduled": return `${Word} rescheduled${by}: ${p.clientName}`;
+    case "cancelled": return `${Word} cancelled${by}: ${p.clientName}`;
+    case "paid": return `Payment received: ${p.clientName}`;
+    case "status": return `${Word} ${p.statusLabel ?? "updated"}: ${p.clientName}`;
+  }
+}
+
+export function BusinessAlertEmail(p: BusinessAlertProps) {
+  const headline = businessAlertHeadline(p);
+  return (
+    <EmailLayout tenant={p.tenant} calvyFooter preview={headline}>
+      <H>{headline}</H>
+      <Card>
+        {p.patientName && normalizeName(p.patientName) !== normalizeName(p.clientName) ? <DetailRow label="For" value={p.patientName} strong /> : null}
+        <DetailRow label={t(p.terms ?? {}, "service", { cap: true })} value={p.serviceName} strong />
+        {p.staffName ? <DetailRow label="With" value={p.staffName} /> : null}
+        {p.oldDate && p.oldTime ? <DetailRow label="Was" value={`${p.oldDate}, ${p.oldTime}`} /> : null}
+        <DetailRow label={p.oldDate ? "Now" : "Date"} value={`${p.date}, ${p.time}`} />
+        {p.token ? <DetailRow label="Queue number" value={`#${p.token.number} (${p.token.sessionName})`} /> : null}
+        {typeof p.price === "number" ? <DetailRow label={p.kind === "paid" ? "Paid" : "Price"} value={formatCurrencyAmount(p.price, p.currency ?? "INR")} strong /> : null}
+      </Card>
+      <CTA color={p.tenant?.color} fg={p.tenant?.fg} href={p.dashboardUrl} label="Open your dashboard" />
+    </EmailLayout>
+  );
+}
+
+export interface DailySummaryProps {
+  businessName: string;
+  dateLabel: string;
+  counts: { bookings: number; cancelled: number; noShows: number; completed: number };
+  /** Paid appointments only. */
+  paidTotal?: number;
+  currency?: string;
+  upcoming: { time: string; clientName: string; serviceName: string }[];
+  dashboardUrl: string;
+  terms?: TermsSource;
+  tenant?: TenantBrand;
+}
+
+export function DailySummaryEmail(p: DailySummaryProps) {
+  const word = t(p.terms ?? {}, "appointment", { plural: true });
+  return (
+    <EmailLayout tenant={p.tenant} calvyFooter preview={`${p.businessName}: ${p.dateLabel}`}>
+      <H>Your day: {p.dateLabel}</H>
+      <Card>
+        <DetailRow label={`New ${word}`} value={String(p.counts.bookings)} strong />
+        <DetailRow label="Completed" value={String(p.counts.completed)} />
+        <DetailRow label="Cancelled" value={String(p.counts.cancelled)} />
+        <DetailRow label="Missed" value={String(p.counts.noShows)} />
+        {typeof p.paidTotal === "number" ? <DetailRow label="Paid" value={formatCurrencyAmount(p.paidTotal, p.currency ?? "INR")} strong /> : null}
+      </Card>
+      {p.upcoming.length ? (
+        <>
+          <P>Coming up today:</P>
+          <Card>{p.upcoming.map((u, i) => <DetailRow key={i} label={u.time} value={`${u.clientName}, ${u.serviceName}`} />)}</Card>
+        </>
+      ) : <P>No more {word} today.</P>}
+      <CTA color={p.tenant?.color} fg={p.tenant?.fg} href={p.dashboardUrl} label="Open your dashboard" />
     </EmailLayout>
   );
 }

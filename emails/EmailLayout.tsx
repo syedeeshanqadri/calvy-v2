@@ -38,7 +38,7 @@ function TenantHeader({ t }: { t: TenantBrand }) {
   );
 }
 
-export function EmailLayout({ preview, children, tenant }: { preview: string; children: React.ReactNode; tenant?: TenantBrand }) {
+export function EmailLayout({ preview, children, tenant, calvyFooter }: { preview: string; children: React.ReactNode; tenant?: TenantBrand; calvyFooter?: boolean }) {
   return (
     <Html>
       <Head />
@@ -51,7 +51,7 @@ export function EmailLayout({ preview, children, tenant }: { preview: string; ch
             </Section>
             <Section style={{ padding: "32px 28px" }}>{children}</Section>
           </Section>
-          {tenant ? (
+          {tenant && !calvyFooter ? (
             <Text style={footer}>
               {[tenant.name, tenant.address, tenant.phone].filter(Boolean).join("  ·  ")}
               <br />

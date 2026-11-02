@@ -111,7 +111,7 @@ export async function startCheckout(p: {
 }
 
 /** Service names of an appointment (multi-service bookings keep extras in notes). */
-function serviceLabel(first: string, notes: string | null): string {
+export function serviceLabel(first: string, notes: string | null): string {
   if (!notes?.startsWith("__services__:")) return first;
   const extra = notes.split("\n")[0].replace("__services__:", "").split("|").filter(Boolean);
   return [first, ...extra].join(" & ");

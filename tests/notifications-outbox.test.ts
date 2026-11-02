@@ -3,6 +3,7 @@ import { NextRequest } from "next/server";
 
 const db = vi.hoisted(() => ({
   queryRaw: vi.fn(),
+  findBusiness: vi.fn(),
   createMany: vi.fn(),
   findMany: vi.fn(),
   findUnique: vi.fn(),
@@ -11,6 +12,7 @@ const db = vi.hoisted(() => ({
 vi.mock("@/lib/prisma", () => ({
   prisma: {
     $queryRaw: db.queryRaw,
+    business: { findUnique: db.findBusiness },
     notificationOutbox: { createMany: db.createMany, findMany: db.findMany, findUnique: db.findUnique, updateMany: db.updateMany },
   },
 }));
@@ -162,6 +164,31 @@ describe("runOutbox", () => {
     const send = vi.fn<Channel>().mockRejectedValueOnce(new Error("boom")).mockResolvedValueOnce({ kind: "sent" });
     const res = await runOutbox(channels(send), noPause);
     expect(res).toMatchObject({ claimed: 3, retried: 2, sent: 1 });
+  });
+  const bookingRow = { businessId: "b1", template: "reminder", payload: { clientName: "Riya K", businessName: "Sunrise", serviceName: "Checkup", date: "Mon, 2 Nov", time: "10:00 AM" } };
+  it("a business's message renders with its logo colour and pack wording, read at send time", async () => {
+    once(row(bookingRow));
+    db.findBusiness.mockResolvedValue({ name: "Sunrise", logoUrl: null, primaryColor: "#0f766e", address: null, phone: null, packId: "LAWYER", termsOverride: null });
+    const send = vi.fn<Channel>(async () => ({ kind: "sent" }));
+    await runOutbox(channels(send), noPause);
+    expect(db.findBusiness.mock.calls[0][0].where).toEqual({ id: "b1" });
+    expect(send.mock.calls[0][0].html).toContain("#0f766e");
+    expect(send.mock.calls[0][0].text).toContain("your meeting at Sunrise");
+  });
+  it("a failed brand lookup is retried, not sent unbranded", async () => {
+    once(row(bookingRow));
+    db.findBusiness.mockRejectedValue(new Error("db"));
+    const send = vi.fn<Channel>();
+    expect((await runOutbox(channels(send), noPause)).retried).toBe(1);
+    expect(send).not.toHaveBeenCalled();
+  });
+  it("an auth template gets the decrypted link from the secret column", async () => {
+    vi.stubEnv("NOTIFY_SECRET_KEY", "test-key");
+    once(row({ template: "password_reset", payload: { name: "Riya K" }, secret: encryptSecret("https://x.test/reset?token=abc") }));
+    const send = vi.fn<Channel>(async () => ({ kind: "sent" }));
+    await runOutbox(channels(send), noPause);
+    expect(send.mock.calls[0][0].html).toContain("token=abc");
+    expect(send.mock.calls[0][0].text).toContain("token=abc");
   });
   it("a row whose secret cannot be decrypted is retried, not sent", async () => {
     vi.stubEnv("NOTIFY_SECRET_KEY", "test-key");
