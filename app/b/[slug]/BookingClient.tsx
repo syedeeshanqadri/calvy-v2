@@ -600,7 +600,7 @@ export function BookingClient({ business, fontClasses, homeHref = "/" }: { busin
                 <div className="bk-cal-grid" style={{ marginBottom: 4 }}>
                   {DAYS_SHORT.map(d => <div key={d} className="bk-dow">{d}</div>)}
                 </div>
-                <div className="bk-cal-grid">
+                <div className="bk-cal-grid" aria-busy={monthLoading}>
                   {calCells.map((day, i) => {
                     const past = day ? isPastDay(day) : false;
                     const heldLabel = day ? heldDates[`${monthKey}-${String(day).padStart(2, "0")}`] : undefined;

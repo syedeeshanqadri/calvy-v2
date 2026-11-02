@@ -28,12 +28,16 @@ async function pickService(page: Page, name: string) {
 /** Slot flow: jumps to the first month with availability, then takes the first free slot on the first open day. */
 async function pickSlot(page: Page) {
   await expect(page.getByText("Pick a date & time")).toBeVisible();
+  const loaded = page.locator(".bk-cal-grid[aria-busy='false']");
   const days = page.locator(".bk-cal-grid button:not([disabled])");
   const goTo = page.getByRole("button", { name: "Go to date" });
   const slots = page.locator(".bk-slots button:not([disabled])");
-  // Days look open until the month's availability has loaded, so a day can turn out empty: try again, and
-  // follow "Go to date" when the month has nothing.
-  for (let attempt = 0; attempt < 12; attempt++) {
+  // Days look open until the month's availability has loaded, then the empty ones are disabled. Clicking one
+  // during that change would wait on a disabled button until the test times out, and how often that happens
+  // depends on the time of day (today turns empty once the business has closed). So wait for the month first.
+  // A day can still turn out empty: try the next one, and follow "Go to date" when the month has nothing.
+  for (let attempt = 0; attempt < 8; attempt++) {
+    await expect(loaded).toBeVisible({ timeout: 30_000 });
     await expect(days.first().or(goTo).first()).toBeVisible({ timeout: 30_000 });
     if (await goTo.isVisible()) {
       await goTo.click();
@@ -41,7 +45,7 @@ async function pickSlot(page: Page) {
     }
     const count = await days.count();
     if (count === 0) continue;
-    await days.nth(attempt % count).click();
+    await days.nth(attempt % count).click({ timeout: 5_000 });
     if (await slots.first().waitFor({ timeout: 10_000 }).then(() => true, () => false)) {
       await slots.first().click();
       return;
@@ -92,7 +96,7 @@ test("business website page renders", async ({ page }) => {
 
 test("slot booking (salon)", async ({ page }) => {
   await page.goto(`/${SALON}/book-now`);
-  await expect(page.getByText("Choose services")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Choose services" })).toBeVisible();
   await pickService(page, "Consultation");
   await pickSlot(page);
   await continueBtn(page).click();
@@ -128,7 +132,7 @@ test("queue booking (clinic gets a token)", async ({ page }) => {
 
 test("booking for someone else", async ({ page }) => {
   await page.goto(`/${SALON}/book-now`);
-  await expect(page.getByText("Choose services")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Choose services" })).toBeVisible();
   await pickService(page, "Follow-up");
   await pickSlot(page);
   await continueBtn(page).click();
@@ -140,7 +144,7 @@ test("booking for someone else", async ({ page }) => {
 
 test("online consultation booking shows the join link", async ({ page }) => {
   await page.goto(`/${SALON}/book-now`);
-  await expect(page.getByText("Choose services")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Choose services" })).toBeVisible();
   await pickService(page, "Online Consultation");
   await pickSlot(page);
   await continueBtn(page).click();
