@@ -1,4 +1,7 @@
 // Loaded only for tenant sites (see ./index.ts). Self-hosted variable woff2 (latin subset, OFL; licence in app/fonts/licenses).
 import localFont from "next/font/local";
 
-export const font = localFont({ src: "../../fonts/figtree.woff2", weight: "100 900", display: "swap", variable: "--font-st-body" });
+// A distinct const name matters: next/font derives the CSS family name from it, and tenant pages load two fonts.
+const figtree = localFont({ src: "../../fonts/figtree.woff2", weight: "100 900", display: "swap", variable: "--font-st-body" });
+
+export const font = figtree;
