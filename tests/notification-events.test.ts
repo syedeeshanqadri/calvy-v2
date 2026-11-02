@@ -1,3 +1,4 @@
+import { readdirSync, readFileSync } from "fs";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // step-3/customer-events: every customer event is queued exactly once, respects the business's switches and the
@@ -77,6 +78,7 @@ const noPause = async () => {};
 beforeEach(() => {
   vi.clearAllMocks();
   vi.stubEnv("NOTIFY_SECRET_KEY", "test-key");
+  vi.stubEnv("NEXT_PUBLIC_APP_URL", "https://calvy.io"); // CI sets it to localhost
   fake.state.rows.length = 0;
   fake.state.optouts.length = 0;
   fake.state.prefs = {};
@@ -354,5 +356,19 @@ describe("at send time", () => {
     expect((await runOutbox(channels, noPause)).sent).toBe(1);
     expect(send.mock.calls[0][0].html).not.toContain("Stop these emails");
     expect(send.mock.calls[0][0].headers).toBeUndefined();
+  });
+});
+
+describe("email code is safe in the server bundle", () => {
+  // Route handlers are built against the server React, which has no createContext or hooks. A module-level
+  // createContext in emails/ broke the production build (not the unit tests) once already.
+  const files = [
+    ...readdirSync("emails").map((f) => `emails/${f}`),
+    ...readdirSync("lib/notifications").map((f) => `lib/notifications/${f}`),
+    "lib/email.tsx",
+  ].filter((f) => /\.tsx?$/.test(f));
+  it.each(files)("%s uses no React context or hooks", (file) => {
+    const code = readFileSync(file, "utf8").replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, ""); // comments may name them
+    expect(code).not.toMatch(/createContext|useContext|useState|useEffect|useRef|useMemo|useCallback|"use client"/);
   });
 });

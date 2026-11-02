@@ -38,11 +38,11 @@ function TenantHeader({ t }: { t: TenantBrand }) {
   );
 }
 
-/** Set around optional mail so every layout shows the "stop these emails" link without each template passing it down. */
-export const UnsubscribeContext = React.createContext<string | undefined>(undefined);
-
-export function EmailLayout({ preview, children, tenant, calvyFooter }: { preview: string; children: React.ReactNode; tenant?: TenantBrand; calvyFooter?: boolean }) {
-  const unsubscribeUrl = React.useContext(UnsubscribeContext);
+/**
+ * `unsubscribeUrl` adds the "stop these emails" link. Only optional mail passes it. It is a plain prop, not React
+ * context: createContext does not exist in the server React build that route handlers are bundled with.
+ */
+export function EmailLayout({ preview, children, tenant, calvyFooter, unsubscribeUrl }: { preview: string; children: React.ReactNode; tenant?: TenantBrand; calvyFooter?: boolean; unsubscribeUrl?: string }) {
   return (
     <Html>
       <Head />

@@ -78,6 +78,7 @@ describe("secret", () => {
   });
   it("refuses to run without a key", () => {
     vi.stubEnv("NOTIFY_SECRET_KEY", "");
+    vi.stubEnv("NEXTAUTH_SECRET", ""); // the fallback; CI sets it
     expect(() => encryptSecret("v")).toThrow("NOTIFY_SECRET_KEY");
   });
 });

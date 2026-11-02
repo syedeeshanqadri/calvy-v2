@@ -6,7 +6,7 @@ import {
   PasswordResetEmail, QueueClosedEmail, QueueMovedBackEmail, ReviewRequestEmail, StatusChangeEmail, WelcomeEmail, businessAlertHeadline,
   type BookingProps, type BusinessAlertProps, type DailySummaryProps, type InvoiceProps,
 } from "@/emails/templates";
-import { UnsubscribeContext, type TenantBrand } from "@/emails/EmailLayout";
+import type { TenantBrand } from "@/emails/EmailLayout";
 import { formatCurrencyAmount } from "@/lib/currency";
 import { icsAttachment, type Attachment } from "@/lib/notifications/ics";
 import { normalizeName } from "@/lib/patients";
@@ -28,10 +28,10 @@ export interface UnsubscribeLinks { page: string; oneClick: string }
 /** Read at render, not stored in the payload: the business's look and its pack wording. */
 export interface RenderBrand { tenant?: TenantBrand; terms?: TermsSource }
 
-export type BookingPayload = Omit<BookingProps, "terms" | "tenant">;
+export type BookingPayload = Omit<BookingProps, "terms" | "tenant" | "unsubscribeUrl">;
 /** Attaches a calendar invite; the start is an ISO string because payloads are JSON. */
 export type ConfirmationPayload = BookingPayload & { ics?: { appointmentId: string; start: string; durationMinutes: number } };
-export type InvoicePayload = Omit<InvoiceProps, "terms" | "tenant">;
+export type InvoicePayload = Omit<InvoiceProps, "terms" | "tenant" | "unsubscribeUrl">;
 /** The link comes from the encrypted column, never from the stored payload. */
 type AuthPayload = { name: string; secret: string };
 
@@ -221,11 +221,10 @@ export type TemplateId = keyof typeof TEMPLATES;
 export async function renderTemplate(template: string, payload: unknown, brand?: RenderBrand, unsubscribe?: UnsubscribeLinks): Promise<Rendered> {
   const entry = Object.hasOwn(TEMPLATES, template) ? TEMPLATES[template as TemplateId] : undefined;
   if (!entry) throw new Error(`Unknown notification template: ${template}`);
-  const p = { ...(payload as object), ...brand };
-  const email = entry.Email(p);
+  const p = { ...(payload as object), ...brand, unsubscribeUrl: unsubscribe?.page };
   return {
     subject: entry.subject(p),
-    html: await render(unsubscribe ? <UnsubscribeContext.Provider value={unsubscribe.page}>{email}</UnsubscribeContext.Provider> : email),
+    html: await render(entry.Email(p)),
     text: unsubscribe ? `${entry.text(p)}\n\nStop these emails: ${unsubscribe.page}` : entry.text(p),
     attachments: entry.attachments?.(p),
     ...(unsubscribe ? { headers: { "List-Unsubscribe": `<${unsubscribe.oneClick}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" } } : {}),
