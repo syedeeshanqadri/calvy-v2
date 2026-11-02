@@ -9,9 +9,9 @@ Do this once chunk 1 (`/api/cron/notifications`) is merged and deployed. Vercel 
 Revoking this secret stops the scheduler until you paste a new one into cron-job.org.
 
 ## 2. Vercel: our own secret
-1. Generate a value in PowerShell:
-   ```powershell
-   [Convert]::ToBase64String((1..32 | ForEach-Object { Get-Random -Maximum 256 }))
+1. Generate a value in the terminal:
+   ```zsh
+   openssl rand -base64 32
    ```
 2. Vercel → **Settings → Environment Variables**: add `CRON_SECRET` with that value for the environment you are scheduling (Production). If `CRON_SECRET` already exists, reuse its value and do not change it: the daily Vercel crons use it too.
 3. **Redeploy**: env vars only reach new deployments.
@@ -31,10 +31,9 @@ Create a free account, then **Cronjobs → Create cronjob**:
 
 Save, then use **Test run**. cron-job.org closes the connection at 30 seconds; each run stops itself at 25.
 
-## 4. Check it from PowerShell
-```powershell
-$h = @{ Authorization = "Bearer <CRON_SECRET value>"; "x-vercel-protection-bypass" = "<bypass secret>" }
-Invoke-RestMethod -Uri "https://<your-production-domain>/api/cron/notifications" -Headers $h
+## 4. Check it from the terminal
+```zsh
+curl -sS "https://<your-production-domain>/api/cron/notifications" -H "Authorization: Bearer <CRON_SECRET value>" -H "x-vercel-protection-bypass: <bypass secret>"
 ```
 Expected: JSON such as `{"ok":true,"claimed":0,"sent":0,"retried":0,"failed":0,"skipped":0,"reclaimedDead":0,"purged":0}`.
 

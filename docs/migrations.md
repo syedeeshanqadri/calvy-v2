@@ -8,7 +8,7 @@ The old migration folders (April 2026, five files) did not cover most tables, be
 
 `prisma/migrations/20261015000000_baseline/migration.sql` creates the whole schema as of 15 Oct 2026 (20 tables). It was generated with:
 
-```powershell
+```zsh
 node --env-file=.env.local node_modules/prisma/build/index.js migrate diff --from-empty --to-schema-datamodel prisma/schema.prisma --script
 ```
 
@@ -16,18 +16,18 @@ and verified two ways:
 1. Replaying `prisma/migrations` on an empty shadow database gives exactly the schema in `prisma/schema.prisma` (`migrate diff --from-migrations ... --exit-code` returned 0).
 2. The live dev database already matched `prisma/schema.prisma` (no difference), so the baseline was marked as applied there with `migrate resolve --applied`.
 
-## Everyday commands (PowerShell, from the repo root)
+## Everyday commands (zsh, from the repo root)
 
 Prisma's own CLI reads only `.env`, not `.env.local`. Every `db:*` script except `db:deploy` loads `.env.local` for you (through `dotenv-cli`). `db:deploy` does **not**: it is for CI and hosting, where the variables are set for real, so run it locally only with `DATABASE_URL` set in your shell (see the safety checks below).
 
-```powershell
-npm run db:status          # which migrations are applied
-npm run db:migrate         # apply pending migrations (prisma migrate deploy) using .env.local
-npm run db:migrate:dev     # create and apply a new migration in development (asks for a name)
-npm run db:generate        # regenerate the Prisma client
-npm run db:seed            # seed demo data and the dev-only test accounts
-npm run db:deploy          # apply pending migrations (production, CI, staging); no prompts, no shadow DB
-```
+| Command | What it does |
+|---|---|
+| `npm run db:status` | Show which migrations are applied |
+| `npm run db:migrate` | Apply pending migrations (`prisma migrate deploy`) using `.env.local` |
+| `npm run db:migrate:dev` | Create and apply a new migration in development (asks for a name) |
+| `npm run db:generate` | Regenerate the Prisma client |
+| `npm run db:seed` | Seed demo data and the dev-only test accounts |
+| `npm run db:deploy` | Apply pending migrations (production, CI, staging); no prompts, no shadow DB |
 
 `npm run build` is now `prisma generate && next build`. **It never touches the database schema.**
 
@@ -59,15 +59,14 @@ It is **not** needed for `generate`, `build`, `migrate deploy`, `migrate status`
 
 Production was created with `db push`, so its tables already exist but it has no migration history. **Before the first deploy that uses `migrate deploy`**, tell Prisma the baseline is already there (this changes no tables, it only records the baseline in `_prisma_migrations`):
 
-```powershell
-# PowerShell, with the PRODUCTION connection string in this shell only (do not save it to a file)
-$env:DATABASE_URL = "<production connection string>"
-npx prisma migrate status                                  # expect: 1 migration found, not yet applied
-npx prisma migrate diff --from-schema-datasource prisma/schema.prisma --to-schema-datamodel prisma/schema.prisma --exit-code   # expect: No difference detected
-npx prisma migrate resolve --applied 20261015000000_baseline
-npx prisma migrate status                                  # expect: Database schema is up to date
-Remove-Item Env:\DATABASE_URL
-```
+Run these one at a time in zsh, with the PRODUCTION connection string in this shell only (do not save it to a file):
+
+1. Set the connection string (type or paste it when asked; it is not shown or saved to history): `read -rs "DATABASE_URL?Production URL: "; echo; export DATABASE_URL`
+2. `npx prisma migrate status`. Expect: 1 migration found, not yet applied.
+3. `npx prisma migrate diff --from-schema-datasource prisma/schema.prisma --to-schema-datamodel prisma/schema.prisma --exit-code`. Expect: No difference detected.
+4. `npx prisma migrate resolve --applied 20261015000000_baseline`
+5. `npx prisma migrate status`. Expect: Database schema is up to date.
+6. `unset DATABASE_URL`
 
 **Step 0: take a database backup or create a Neon branch of production first.** If the `migrate diff` step reports differences, stop and compare them with `prisma/schema.prisma` before resolving anything.
 
@@ -91,10 +90,10 @@ If `db:deploy` fails the deploy stops and the previous version keeps serving. St
 
 ## Safety checks before any Prisma command
 
-- Node's `--env-file` does not override variables that are already set in your shell. If you ran the production procedure and left `$env:DATABASE_URL` set, `npm run db:migrate` will target **production**. Always finish that procedure with `Remove-Item Env:\DATABASE_URL`, and run `echo $env:DATABASE_URL` (it should be empty) before `npm run db:migrate`.
+- Node's `--env-file` does not override variables that are already set in your shell. If you ran the production procedure and left `DATABASE_URL` set, `npm run db:migrate` will target **production**. Always finish that procedure with `unset DATABASE_URL`, and run `echo $DATABASE_URL` (it should be empty) before `npm run db:migrate`.
 - `DATABASE_URL` and `SHADOW_DATABASE_URL` must be different databases. If they were the same, `migrate dev` would wipe the main database.
 - Never run `prisma migrate reset` or `prisma db push` against anything but a throwaway local database. The production procedure uses only `migrate status`, `migrate diff` and `migrate resolve`.
-- Typing the production connection string into PowerShell can leave it in the command history. Prefer `$env:DATABASE_URL = Read-Host "Production URL"` (type it when asked) and clear it afterwards.
+- Typing the production connection string directly into a command can leave it in `~/.zsh_history`. Use the `read -rs` line from the production procedure (type it when asked) and clear it afterwards.
 - The `db:*` scripts (except `db:deploy`) use `dotenv-cli`, a dev dependency, so they work on any Node version that runs the project. CI and Vercel do not use them.
 
 ## Troubleshooting
