@@ -6,7 +6,8 @@ export default defineConfig({
   timeout: 120_000,
   workers: 1,
   fullyParallel: false,
-  reporter: [["list"]],
+  reporter: process.env.CI ? [["list"], ["html", { open: "never" }]] : [["list"]],
+  retries: process.env.CI ? 1 : 0,
   outputDir: "test-results",
   use: {
     baseURL: process.env.BASE_URL ?? "http://localhost:3000",
