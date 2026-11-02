@@ -1,4 +1,4 @@
-// Loaded only for tenant sites (see ./index.ts). next/font self-hosts it: latin subset, swap.
-import { Bodoni_Moda } from "next/font/google";
+// Loaded only for tenant sites (see ./index.ts). Self-hosted variable woff2 (latin subset, OFL; licence in app/fonts/licenses).
+import localFont from "next/font/local";
 
-export const font = Bodoni_Moda({ subsets: ["latin"], display: "swap", variable: "--font-st-display" });
+export const font = localFont({ src: "../../fonts/bodoni-moda.woff2", weight: "100 900", display: "swap", variable: "--font-st-display" });
