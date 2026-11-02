@@ -1,20 +1,22 @@
 import type { Metadata } from "next";
 import SentryClient from "@/components/providers/SentryClient";
-import { Plus_Jakarta_Sans, DM_Sans } from "next/font/google";
+import localFont from "next/font/local";
 import { Analytics } from "@vercel/analytics/next";
 import { Providers } from "@/components/Providers";
 import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
 import "./globals.css";
 
-const plusJakartaSans = Plus_Jakarta_Sans({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
+const plusJakartaSans = localFont({
+  src: "./fonts/plus-jakarta-sans.woff2",
+  weight: "200 800",
+  display: "swap",
   variable: "--font-syne",
 });
 
-const dmSans = DM_Sans({
-  subsets: ["latin"],
-  weight: ["300", "400", "500"],
+const dmSans = localFont({
+  src: "./fonts/dm-sans.woff2",
+  weight: "100 1000",
+  display: "swap",
   variable: "--font-dm",
 });
 

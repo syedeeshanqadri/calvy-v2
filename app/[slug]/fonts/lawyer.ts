@@ -1,4 +1,7 @@
-// Loaded only for tenant sites (see ./index.ts). next/font self-hosts it: latin subset, swap.
-import { Newsreader } from "next/font/google";
+// Loaded only for tenant sites (see ./index.ts). Self-hosted variable woff2 (latin subset, OFL; licence in app/fonts/licenses).
+import localFont from "next/font/local";
 
-export const font = Newsreader({ subsets: ["latin"], display: "swap", variable: "--font-st-display" });
+// A distinct const name matters: next/font derives the CSS family name from it, and tenant pages load two fonts.
+const newsreader = localFont({ src: "../../fonts/newsreader.woff2", weight: "100 900", display: "swap", preload: false, variable: "--font-st-display" });
+
+export const font = newsreader;
