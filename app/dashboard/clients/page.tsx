@@ -1,14 +1,16 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { pageAccess } from "@/lib/access";
+import { getBusinessFeatures } from "@/lib/getFeatures";
+import { getFlags } from "@/lib/flags";
+import { can } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
-import { redirect } from "next/navigation";
 import { ClientsClient } from "./ClientsClient";
 
 export const dynamic = 'force-dynamic';
 
 export default async function ClientsPage() {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.businessId) redirect("/login");
+  const session = await pageAccess("customers.view");
+  const perms = session.access.permissions;
+  const features = await getBusinessFeatures(session.user.businessId);
 
   const clients = await prisma.client.findMany({
     where: { businessId: session.user.businessId },
@@ -26,5 +28,13 @@ export default async function ClientsPage() {
     notes: c.notes ?? "",
   }));
 
-  return <ClientsClient clients={rows} />;
+  return (
+    <ClientsClient
+      clients={rows}
+      canEdit={can(perms, "customers.edit")}
+      canExport={can(perms, "customers.export")}
+      csvExport={features.csvExport}
+      upgradeHref={getFlags().payments ? "/dashboard/billing" : null}
+    />
+  );
 }

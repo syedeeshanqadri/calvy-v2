@@ -7,6 +7,7 @@ export interface PlanLimits {
   maxServices: number;
   maxMonthlyAppointments: number;
   maxBroadcastsPerMonth: number; // -1 = unlimited, 0 = disabled
+  maxTeamMembers: number;        // team logins besides the owner; -1 = unlimited, 0 = owner only
   platformFeeMinorIN: number;    // Calvy fee per public online booking in India, paise (0 = none)
   // Feature flags
   analytics: boolean;
@@ -34,6 +35,7 @@ export const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
     maxServices: 3,
     maxMonthlyAppointments: 60,
     maxBroadcastsPerMonth: 0,
+    maxTeamMembers: 0,
     platformFeeMinorIN: 1000,
     analytics: false,
     customBranding: false,
@@ -58,6 +60,7 @@ export const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
     maxServices: 5,
     maxMonthlyAppointments: 100,
     maxBroadcastsPerMonth: 0,
+    maxTeamMembers: 0,
     platformFeeMinorIN: 0,
     analytics: false,
     customBranding: true,
@@ -82,6 +85,7 @@ export const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
     maxServices: -1,
     maxMonthlyAppointments: 1000,
     maxBroadcastsPerMonth: 0,
+    maxTeamMembers: 3,
     platformFeeMinorIN: 0,
     analytics: true,
     customBranding: true,
@@ -106,6 +110,7 @@ export const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
     maxServices: -1,
     maxMonthlyAppointments: -1,
     maxBroadcastsPerMonth: -1,
+    maxTeamMembers: 10,
     platformFeeMinorIN: 0,
     analytics: true,
     customBranding: true,
@@ -210,7 +215,7 @@ export function getLimits(plan: string): PlanLimits {
 
 /** The columns of a PlanConfig row that carry limits and flags (the DB calls the WhatsApp flag smsReminders). */
 export interface PlanConfigRow {
-  maxStaff: number; maxServices: number; maxMonthlyAppointments: number; maxBroadcastsPerMonth: number; platformFeeMinorIN: number;
+  maxStaff: number; maxServices: number; maxMonthlyAppointments: number; maxBroadcastsPerMonth: number; maxTeamMembers: number; platformFeeMinorIN: number;
   analytics: boolean; customBranding: boolean; imageUpload: boolean; seoControls: boolean; chatbotWidget: boolean;
   groupBooking: boolean; multiService: boolean; stripePayments: boolean; emailReminders: boolean; smsReminders: boolean;
   broadcasts: boolean; csvExport: boolean; expenseTracking: boolean; wallet: boolean; customSlotInterval: boolean;

@@ -2,6 +2,7 @@
 // with a readable message and the right status, never an empty 500.
 import { NextResponse } from "next/server";
 import { logger } from "@/lib/logger";
+import { ForbiddenError } from "@/lib/permissions";
 
 interface ErrorLike { code?: unknown; name?: unknown; digest?: unknown }
 
@@ -39,6 +40,7 @@ export function safeRoute<A extends unknown[], R extends Response>(handler: (...
     try {
       return await handler(...args);
     } catch (err) {
+      if (err instanceof ForbiddenError) return NextResponse.json({ error: err.message, code: "FORBIDDEN" }, { status: 403 });
       const digest = (err as ErrorLike)?.digest;
       if (typeof digest === "string" && digest.startsWith("NEXT_")) throw err;
       logger.error("[api] unhandled route error", { err });

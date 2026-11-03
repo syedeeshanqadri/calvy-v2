@@ -1,6 +1,6 @@
+import { safeRoute } from "@/lib/api";
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { accessSession, appointmentWhere } from "@/lib/access";
 import { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { notify } from "@/lib/notifications/enqueue";
@@ -9,13 +9,13 @@ import { ownerAlert } from "@/lib/notifications/business";
 
 export const dynamic = 'force-dynamic';
 
-export async function PATCH(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+async function PATCH_handler(req: NextRequest, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
-  const session = await getServerSession(authOptions);
+  const session = await accessSession("appointments.write");
   if (!session?.user?.businessId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const appointment = await prisma.appointment.findFirst({
-    where: { id: params.id, businessId: session.user.businessId },
+    where: { id: params.id, businessId: session.user.businessId, ...appointmentWhere(session.access) },
     select: { id: true, businessId: true, clientId: true, price: true, paymentStatus: true, paymentMode: true },
   });
 
@@ -49,3 +49,5 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
 
   return NextResponse.json({ appointment: updated });
 }
+
+export const PATCH = safeRoute(PATCH_handler);

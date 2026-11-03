@@ -1,7 +1,6 @@
-import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { authOptions } from "@/lib/auth";
+import { pageAccess } from "@/lib/access";
 import { prisma } from "@/lib/prisma";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { safeTimeZone, utcToZoned } from "@/lib/time";
@@ -10,8 +9,7 @@ import { QueueClient } from "./QueueClient";
 export const dynamic = "force-dynamic";
 
 export default async function QueuePage() {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.businessId) redirect("/login");
+  const session = await pageAccess("queue.control");
 
   const [business, services] = await Promise.all([
     prisma.business.findUnique({ where: { id: session.user.businessId }, select: { bookingMode: true, timezone: true, packId: true } }),

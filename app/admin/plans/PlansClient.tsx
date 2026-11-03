@@ -13,6 +13,7 @@ interface PlanConfig {
   maxServices: number;
   maxMonthlyAppointments: number;
   maxBroadcastsPerMonth: number;
+  maxTeamMembers: number;
   platformFeeMinorIN: number;
   analytics: boolean;
   customBranding: boolean;
@@ -162,6 +163,7 @@ export function PlansClient({ plans: initialPlans, tenantCounts, envConfigured }
           maxServices: Number(form.maxServices),
           maxMonthlyAppointments: Number(form.maxMonthlyAppointments),
           maxBroadcastsPerMonth: Number(form.maxBroadcastsPerMonth),
+          maxTeamMembers: Number(form.maxTeamMembers),
           platformFeeMinorIN: Number(form.platformFeeMinorIN),
           analytics: form.analytics,
           customBranding: form.customBranding,
@@ -367,6 +369,7 @@ export function PlansClient({ plans: initialPlans, tenantCounts, envConfigured }
                     { key: "maxServices", label: "Max services" },
                     { key: "maxMonthlyAppointments", label: "Appts/month" },
                     { key: "maxBroadcastsPerMonth", label: "Broadcasts/month" },
+                    { key: "maxTeamMembers", label: "Team members (besides owner)" },
                   ].map(({ key, label }) => (
                     <div key={key}>
                       <label className="text-xs font-medium block mb-1.5">{label}</label>

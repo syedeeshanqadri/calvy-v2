@@ -29,6 +29,7 @@ const FIXTURES: Record<TemplateId, object> = {
   },
   verification: { name: "Asha Rao", secret: SECRET },
   password_reset: { name: "Asha Rao", secret: SECRET },
+  team_invite: { name: "Asha Rao", secret: SECRET, businessName: "Sunrise", roleName: "Receptionist" },
   customer_verification: { name: "Riya Kapoor", secret: SECRET },
   customer_password_reset: { name: "Riya Kapoor", secret: SECRET },
   customer_account_setup: { name: "Riya Kapoor", secret: SECRET },
@@ -37,7 +38,7 @@ const FIXTURES: Record<TemplateId, object> = {
 };
 const ids = Object.keys(TEMPLATES) as TemplateId[];
 const tenant = { name: "Sunrise", color: "#0f766e", fg: "#ffffff" };
-const NO_TENANT = new Set<TemplateId>(["verification", "password_reset", "customer_verification", "customer_password_reset", "customer_account_setup", "lead", "form_notification"]);
+const NO_TENANT = new Set<TemplateId>(["team_invite", "verification", "password_reset", "customer_verification", "customer_password_reset", "customer_account_setup", "lead", "form_notification"]);
 
 describe("every template", () => {
   it("has a fixture", () => expect(Object.keys(FIXTURES).sort()).toEqual([...ids].sort()));

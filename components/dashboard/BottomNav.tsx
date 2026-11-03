@@ -9,6 +9,7 @@ import {
   Sparkles, SlidersHorizontal, LogOut, Megaphone, Receipt, ListOrdered,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAccess } from "@/components/providers/AccessProvider";
 import { useFlags } from "@/components/providers/FlagsProvider";
 import type { FeatureFlag } from "@/lib/flags";
 import { useTerms } from "@/components/providers/TermsProvider";
@@ -42,10 +43,11 @@ const ALL_MORE_ITEMS: { label: string; href: string; icon: typeof UserCog; flag?
 export function BottomNav() {
   const pathname = usePathname();
   const flags = useFlags();
+  const { allows } = useAccess();
   const { t, tokenMode } = useTerms();
   const labelOf = (i: { label: string; term?: TermKey }) => (i.term ? t(i.term, { plural: true, cap: true }) : i.label);
-  const bar = tokenMode ? PRIMARY.map((i) => (i === CALENDAR_ITEM ? QUEUE_ITEM : i)) : PRIMARY;
-  const MORE_ITEMS = [...(tokenMode ? [CALENDAR_ITEM] : []), ...ALL_MORE_ITEMS].filter((i) => !("flag" in i) || !i.flag || flags[i.flag]);
+  const bar = (tokenMode ? PRIMARY.map((i) => (i === CALENDAR_ITEM ? QUEUE_ITEM : i)) : PRIMARY).filter((i) => allows(i.href));
+  const MORE_ITEMS = [...(tokenMode ? [CALENDAR_ITEM] : []), ...ALL_MORE_ITEMS].filter((i) => (!("flag" in i) || !i.flag || flags[i.flag]) && allows(i.href));
   const [showMore, setShowMore] = useState(false);
 
   const isMoreActive = MORE_ITEMS.some(item => pathname.startsWith(item.href));

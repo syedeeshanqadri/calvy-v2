@@ -3,7 +3,7 @@ import { render } from "@react-email/render";
 import {
   BookingCancellationEmail, BookingConfirmationEmail, BookingReminderEmail, BookingRescheduleEmail, BusinessAlertEmail, BusinessLiveEmail,
   CustomerAccountSetupEmail, CustomerResetEmail, CustomerVerifyEmail, DailySummaryEmail, EmailVerificationEmail, InvoiceEmail, LeadAcknowledgmentEmail, MeetingLinkEmail,
-  PasswordResetEmail, QueueClosedEmail, QueueMovedBackEmail, ReviewRequestEmail, StatusChangeEmail, WelcomeEmail, businessAlertHeadline,
+  PasswordResetEmail, TeamInviteEmail, QueueClosedEmail, QueueMovedBackEmail, ReviewRequestEmail, StatusChangeEmail, WelcomeEmail, businessAlertHeadline,
   type BookingProps, type BusinessAlertProps, type DailySummaryProps, type InvoiceProps,
 } from "@/emails/templates";
 import type { TenantBrand } from "@/emails/EmailLayout";
@@ -202,6 +202,11 @@ export const TEMPLATES = {
     subject: () => "Reset your Calvy password",
     Email: (p) => <PasswordResetEmail name={p.name} resetUrl={p.secret} />,
     text: (p) => lines(`Hi ${first(p.name)}, use this link to reset your Calvy password.`, p.secret, "This link expires in 1 hour. If you did not ask for this, ignore this message."),
+  }),
+  team_invite: define<AuthPayload & { businessName: string; roleName: string }>({
+    subject: (p) => `You have been invited to ${p.businessName} on Calvy`,
+    Email: (p) => <TeamInviteEmail name={p.name} businessName={p.businessName} roleName={p.roleName} acceptUrl={p.secret} />,
+    text: (p) => lines(`Hi ${first(p.name)}, you have been invited to join ${p.businessName} on Calvy as ${p.roleName}.`, p.secret, "This link expires in 48 hours and works once."),
   }),
   customer_verification: define<AuthPayload>({
     subject: () => "Verify your email",

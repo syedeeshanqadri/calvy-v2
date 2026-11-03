@@ -427,6 +427,17 @@ export function PasswordResetEmail({ name, resetUrl }: { name: string; resetUrl:
   );
 }
 
+export function TeamInviteEmail({ name, businessName, roleName, acceptUrl }: { name: string; businessName: string; roleName: string; acceptUrl: string }) {
+  return (
+    <EmailLayout preview={`You have been invited to ${businessName} on Calvy`}>
+      <H>Join {businessName} on Calvy</H>
+      <P>Hi {name.split(" ")[0]}, you have been invited to join the {businessName} team as {roleName}. Set a password to get started.</P>
+      <CTA href={acceptUrl} label="Accept invitation" />
+      <P>This link expires in 48 hours and works once. If you were not expecting it, ignore this email.</P>
+    </EmailLayout>
+  );
+}
+
 export function LeadAcknowledgmentEmail({ name, demoRequested }: { name: string; demoRequested: boolean }) {
   return (
     <EmailLayout preview="Thanks for reaching out to Calvy">

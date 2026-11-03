@@ -6,7 +6,7 @@ import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
-import { Bell, Check, Globe, Phone, Mail, MapPin, DollarSign, Wallet, CreditCard, Lock } from "lucide-react";
+import { Bell, Users, Check, Globe, Phone, Mail, MapPin, DollarSign, Wallet, CreditCard, Lock } from "lucide-react";
 import { CURRENCIES } from "@/lib/currency";
 import { useFlags } from "@/components/providers/FlagsProvider";
 import { ThemeColorPicker } from "@/components/theme/ThemeColorPicker";
@@ -217,6 +217,10 @@ export function SettingsClient({ business, customSlotInterval = false, stripePay
           <Link href="/dashboard/settings/notifications" className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all text-[#6b6b80] hover:text-[#0f0f1a]">
             <Bell size={14} />
             Notifications
+          </Link>
+          <Link href="/dashboard/settings/team" className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all text-[#6b6b80] hover:text-[#0f0f1a]">
+            <Users size={14} />
+            Team
           </Link>
         </div>
 

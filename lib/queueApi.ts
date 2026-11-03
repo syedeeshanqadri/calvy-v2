@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { accessSession } from "@/lib/access";
 import { prisma } from "@/lib/prisma";
 import { QueueRequestError, type QueueBusiness } from "@/lib/queueDb";
 import { safeTimeZone } from "@/lib/time";
@@ -11,7 +10,7 @@ type Ctx =
 
 /** Signed-in business that runs on tokens, or the error response to return. */
 export async function queueContext(): Promise<Ctx> {
-  const session = await getServerSession(authOptions);
+  const session = await accessSession("queue.control");
   const businessId = session?.user?.businessId;
   if (!businessId) return { ok: false, res: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) };
   const b = await prisma.business.findUnique({

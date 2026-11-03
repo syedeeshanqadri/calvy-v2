@@ -24,6 +24,7 @@ async function main() {
       maxServices: l.maxServices,
       maxMonthlyAppointments: l.maxMonthlyAppointments,
       maxBroadcastsPerMonth: l.maxBroadcastsPerMonth,
+      maxTeamMembers: l.maxTeamMembers,
       analytics: l.analytics,
       customBranding: l.customBranding,
       imageUpload: l.imageUpload,

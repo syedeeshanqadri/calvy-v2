@@ -1,7 +1,5 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { pageAccess } from "@/lib/access";
 import { prisma } from "@/lib/prisma";
-import { redirect } from "next/navigation";
 import { AnalyticsClient } from "./AnalyticsClient";
 import { getBusinessFeatures } from "@/lib/getFeatures";
 import { UpgradeGate } from "@/components/dashboard/UpgradeGate";
@@ -12,8 +10,7 @@ const MONTH_LABELS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct
 const DAY_LABELS = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 
 export default async function AnalyticsPage() {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.businessId) redirect("/login");
+  const session = await pageAccess("reports.view");
 
   const businessId = session.user.businessId;
 

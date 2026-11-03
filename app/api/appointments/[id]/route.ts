@@ -1,7 +1,7 @@
 import { safeRoute } from "@/lib/api";
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { accessSession, appointmentWhere, scopeOf } from "@/lib/access";
+import { can, ForbiddenError } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { parseBody } from "@/lib/validation/common";
 import { appointmentPatchSchema } from "@/lib/validation/appointments";
@@ -22,13 +22,13 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://calvy.io";
 
 async function PATCH_handler(req: NextRequest, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
-  const session = await getServerSession(authOptions);
+  const session = await accessSession(["appointments.write", "appointments.cancel"]);
   if (!session?.user?.businessId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const appointment = await prisma.appointment.findFirst({
-    where: { id: params.id, businessId: session.user.businessId },
+    where: { id: params.id, businessId: session.user.businessId, ...appointmentWhere(session.access) },
   });
   if (!appointment) {
     return NextResponse.json({ error: "Appointment not found" }, { status: 404 });
@@ -38,6 +38,14 @@ async function PATCH_handler(req: NextRequest, props: { params: Promise<{ id: st
   if (!parsed.ok) return parsed.res;
   const { status, paymentStatus, paymentMode, date, time, staffId, meetingUrl } = parsed.data;
   const businessId = session.user.businessId;
+  // Cancelling needs "cancel"; any other change needs "create & edit"; own-only members may not hand an appointment to someone else.
+  if (!session.access.isOwner) {
+    const perms = session.access.permissions;
+    const cancelling = status === "cancelled";
+    const otherChange = paymentStatus !== undefined || paymentMode !== undefined || date !== undefined || staffId !== undefined || meetingUrl !== undefined || (status !== undefined && !cancelling);
+    if ((cancelling && !can(perms, "appointments.cancel")) || (otherChange && !can(perms, "appointments.write"))) throw new ForbiddenError();
+    if (scopeOf(session.access).kind !== "all" && staffId !== undefined && staffId !== session.access.staffId) throw new ForbiddenError();
+  }
 
   const biz = await prisma.business.findUnique({ where: { id: businessId }, select: { timezone: true } });
   const tz = safeTimeZone(biz?.timezone);
@@ -226,13 +234,13 @@ async function PATCH_handler(req: NextRequest, props: { params: Promise<{ id: st
 
 async function DELETE_handler(req: NextRequest, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
-  const session = await getServerSession(authOptions);
+  const session = await accessSession("appointments.cancel");
   if (!session?.user?.businessId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const appointment = await prisma.appointment.findFirst({
-    where: { id: params.id, businessId: session.user.businessId },
+    where: { id: params.id, businessId: session.user.businessId, ...appointmentWhere(session.access) },
   });
   if (!appointment) {
     return NextResponse.json({ error: "Appointment not found" }, { status: 404 });

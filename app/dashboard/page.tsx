@@ -1,5 +1,7 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { resolveAccess } from "@/lib/access";
+import { MemberHome } from "@/components/dashboard/MemberHome";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { logger } from "@/lib/logger";
@@ -25,6 +27,8 @@ const MONTHS_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "S
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
+  const access = await resolveAccess(session);
+  if (access && !access.isOwner) return <MemberHome name={session?.user?.name ?? ""} roleName={access.roleName} permissions={access.permissions} />;
   if (!session?.user?.businessId) redirect("/login");
 
   const businessId = session.user.businessId;

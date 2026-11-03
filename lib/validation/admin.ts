@@ -105,6 +105,7 @@ export const planPatchSchema = z.object({
   maxServices: limitNum.optional(),
   maxMonthlyAppointments: limitNum.optional(),
   maxBroadcastsPerMonth: limitNum.optional(),
+  maxTeamMembers: limitNum.optional(),
   platformFeeMinorIN: z.coerce.number().int().min(0).max(100_000).optional(),
   ...flagShape,
   features: z.array(z.string().max(200)).max(50).optional(),

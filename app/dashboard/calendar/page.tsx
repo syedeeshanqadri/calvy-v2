@@ -1,16 +1,13 @@
 import { safeTimeZone, utcToZoned } from "@/lib/time";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { pageAccess, appointmentWhere } from "@/lib/access";
 import { prisma } from "@/lib/prisma";
-import { redirect } from "next/navigation";
 import { CalendarClient } from "./CalendarClient";
 import { bookingForLabel } from "@/lib/patients";
 
 export const dynamic = 'force-dynamic';
 
 export default async function CalendarPage() {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.businessId) redirect("/login");
+  const session = await pageAccess(["calendar.manage", "appointments.view_all", "appointments.view_own"]);
   const tz = safeTimeZone((await prisma.business.findUnique({ where: { id: session.user.businessId }, select: { timezone: true } }))?.timezone);
 
   const now = new Date();
@@ -19,7 +16,7 @@ export default async function CalendarPage() {
 
   const [appointments, staff, services] = await Promise.all([
     prisma.appointment.findMany({
-      where: { businessId: session.user.businessId, date: { gte: rangeStart, lte: rangeEnd }, status: { not: "expired" } },
+      where: { businessId: session.user.businessId, date: { gte: rangeStart, lte: rangeEnd }, status: { not: "expired" }, ...appointmentWhere(session.access) },
       include: { client: true, service: true, staff: true },
     }),
     prisma.staff.findMany({

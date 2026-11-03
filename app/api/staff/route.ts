@@ -1,7 +1,6 @@
 import { safeRoute } from "@/lib/api";
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { accessSession } from "@/lib/access";
 import { prisma } from "@/lib/prisma";
 import { linkStaffToAllServices } from "@/lib/schedule";
 import { checkLimit, denialResponse } from "@/lib/limits";
@@ -12,7 +11,7 @@ import { staffCreateSchema } from "@/lib/validation/dashboard";
 export const dynamic = 'force-dynamic';
 
 async function GET_handler() {
-  const session = await getServerSession(authOptions);
+  const session = await accessSession(["appointments.view_all", "appointments.view_own", "appointments.write", "calendar.manage"]);
   if (!session?.user?.businessId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -26,7 +25,7 @@ async function GET_handler() {
 }
 
 async function POST_handler(request: NextRequest) {
-  const session = await getServerSession(authOptions);
+  const session = await accessSession("owner");
   if (!session?.user?.businessId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
