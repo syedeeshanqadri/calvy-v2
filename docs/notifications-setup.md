@@ -4,6 +4,22 @@ Do this once chunk 1 (`/api/cron/notifications`) is merged and deployed. Vercel 
 
 Since chunk 4 this one endpoint does all scheduled work: it expires unpaid holds, queues booking reminders that are due (one or two per booking, 24h before by default) and opted-in morning summaries (08:00 to 12:00 business time), then sends. The old `/api/cron/reminders` route is gone; if any external job still calls it, point it at `/api/cron/notifications`. `vercel.json` keeps one daily Vercel cron on `/api/cron/notifications` as the backstop. Without the cron-job.org job, reminders go out at most once a day, so a 2h reminder can be missed.
 
+## Current setup (configured 2026-11-03)
+
+| What | Where | State |
+|---|---|---|
+| Vercel project | `q3labs/calvy-v2`, production domain `calvy-v2.vercel.app` | Deployment Protection (Vercel Authentication) is on for **all** deployments, production included |
+| `CRON_SECRET` | Vercel env, Production + Preview, Sensitive | Rotated 2026-11-03 (the old value was Sensitive and could not be read back); 64 hex chars |
+| `NOTIFY_SECRET_KEY` | Vercel env, Production + Preview, Sensitive | Added 2026-11-03; 64 hex chars |
+| Protection Bypass for Automation | Vercel → Settings → Deployment Protection | One secret, note `cron-job.org` (created through the Vercel API) |
+| cron-job.org job | Title `calvy-v2 notifications`, **job ID `8782530`** | `GET https://calvy-v2.vercel.app/api/cron/notifications`, minutes `*/2` UTC, headers `Authorization: Bearer <CRON_SECRET>` + `x-vercel-protection-bypass: <bypass>`, 30s timeout, email on failure and on auto-disable |
+
+Verified 2026-11-03 after the production redeploy: with both headers → 200 and the JSON summary; with the bypass only → 401 `{"error":"Unauthorized"}`; with no headers → 302 to Vercel's login (Deployment Protection answers before the app); the first scheduled cron-job.org run → 200; the run shows in the Vercel function logs.
+
+No secret value is stored in this repo. To change one: rotate it in Vercel, redeploy, then edit job `8782530`'s headers on cron-job.org (or via its API with `CRONJOB_ORG_API_KEY`). Since `NOTIFY_SECRET_KEY` is now set, rotating it breaks reset/verify emails still waiting in the outbox and unsubscribe links already sent.
+
+The steps below are how this was done, for redoing it by hand.
+
 ## 1. Vercel: bypass secret
 1. Vercel → the Calvy project → **Settings → Deployment Protection → Protection Bypass for Automation**.
 2. Create a secret (name it `cron-job.org`) and copy its value. You paste it into cron-job.org in step 3. Your app does not need it in an env var.
@@ -13,7 +29,7 @@ Revoking this secret stops the scheduler until you paste a new one into cron-job
 ## 2. Vercel: our own secret
 1. Generate a value in the terminal:
    ```zsh
-   openssl rand -base64 32
+   openssl rand -hex 32
    ```
 2. Vercel → **Settings → Environment Variables**: add `CRON_SECRET` with that value for the environment you are scheduling (Production). If `CRON_SECRET` already exists, reuse its value and do not change it: the daily Vercel crons use it too.
 3. **Redeploy**: env vars only reach new deployments.
@@ -23,7 +39,7 @@ Create a free account, then **Cronjobs → Create cronjob**:
 
 | Field | Value |
 |---|---|
-| Title | `Calvy notifications` |
+| Title | `calvy-v2 notifications` |
 | URL | `https://<your-production-domain>/api/cron/notifications` (the exact domain from Vercel → Settings → Domains; a redirecting domain can break the call) |
 | Schedule | Every 2 minutes (custom: minutes `*/2`, all else every) |
 | Request method (Advanced tab) | `GET` |
