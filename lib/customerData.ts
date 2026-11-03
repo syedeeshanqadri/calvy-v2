@@ -3,8 +3,9 @@ import { cache } from "react";
 import { getCustomer } from "@/lib/customerSession";
 import { overviewForCustomer } from "@/lib/customerDb";
 import { buildStats, buildUpdates, manageability, tokenMoveBlocker, type ManageCheck } from "@/lib/customerView";
-import { bookingForLabel } from "@/lib/patients";
-import { formatDateLabel, formatTimeLabel, safeTimeZone, utcToZoned } from "@/lib/time";
+import { bookingForLabel, patientNameOf } from "@/lib/patients";
+import { followUpOffer } from "@/lib/followUp";
+import { formatDateLabel, formatTimeLabel, safeTimeZone, utcToZoned, zonedToUtc } from "@/lib/time";
 import { formatCurrencyAmount } from "@/lib/currency";
 import { trackingUrl } from "@/lib/tracking";
 import { meetingUrlFor } from "@/lib/online";
@@ -44,6 +45,10 @@ export interface BookingView {
   moveBlocked: string | null;
   /** The business's booking page with this service already chosen. */
   bookAgainHref: string;
+  /** This booking is the free follow-up of an earlier one. */
+  isFollowUp: boolean;
+  /** A free follow-up is on offer for this completed booking (until the label's date). The link signs a ticket and opens the booking page. */
+  followUp: { untilLabel: string; href: string } | null;
   /** Google review link, only for a completed visit of a business that set one. */
   reviewUrl: string | null;
 }
@@ -58,6 +63,13 @@ export const getCustomerData = cache(async () => {
 
   const now = new Date();
   type Row = (typeof overview.upcoming)[number];
+  const followUpFor = (a: Row, tz: string, at: Date) => {
+    const offer = followUpOffer(
+      { status: a.status, followUpOfId: a.followUpOfId, hasFollowUp: !!a.followUp, staffId: a.staffId, serviceId: a.serviceId, localDate: utcToZoned(a.date, tz).date, patientName: patientNameOf(a) },
+      a.business.followUpDays, utcToZoned(at, tz).date,
+    );
+    return offer ? { untilLabel: formatDateLabel(zonedToUtc(offer.until, 12 * 60, tz), tz), href: `/api/customer/follow-up?appointment=${encodeURIComponent(a.id)}` } : null;
+  };
   const view = (a: Row): BookingView => {
     const tz = safeTimeZone(a.business.timezone);
     // The joining link only goes out for a confirmed booking that has not ended (same rule as the tracking page).
@@ -76,6 +88,8 @@ export const getCustomerData = cache(async () => {
       tokenNumber: a.tokenNumber, trackUrl: a.tokenNumber ? trackingUrl(a.business.slug, a.id) : null,
       manage: manageability({ status: a.status, date: a.date, tokenNumber: a.tokenNumber, queueState: a.queueState, business: { cancellationCutoffHours: a.business.cancellationCutoffHours, name: a.business.name } }, now),
       moveBlocked: tokenMoveBlocker(a),
+      isFollowUp: !!a.followUpOfId,
+      followUp: followUpFor(a, tz, now),
       bookAgainHref: `/${a.business.slug}/book-now?service=${encodeURIComponent(a.serviceId)}`,
       reviewUrl: a.status === "completed" ? safeReviewLink(a.business.googleReviewUrl) : null,
     };

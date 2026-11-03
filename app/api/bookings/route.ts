@@ -32,6 +32,8 @@ import { chargeFor, getPayConfig, startCheckout } from "@/lib/onlinePayment";
 import { effectivePayMode } from "@/lib/fees";
 import { resolveBookingMode, resolveMeetingUrl } from "@/lib/online";
 import { loadMeetingUrl } from "@/lib/onlineDb";
+import { Prisma } from "@prisma/client";
+import { FollowUpTicketError, resolveFollowUp } from "@/lib/followUpDb";
 
 export const dynamic = 'force-dynamic';
 
@@ -157,7 +159,32 @@ async function bookingHandler(req: NextRequest) {
   if (!modeResult.ok) return NextResponse.json({ error: modeResult.error, code: "MODE_REQUIRED" }, { status: 400 });
   const isOnline = modeResult.isOnline;
 
-  const totalPrice = orderedServices.reduce((sum, s) => sum + s.price, 0);
+  // Free follow-up: a verified customer's ticket, the same doctor and service, the same person, inside the window.
+  // Anything else (another doctor, a later date, someone else) is an ordinary paid booking. A bad or expired
+  // ticket is refused rather than silently charged.
+  let followUpOfId: string | null = null;
+  if (parsed.data.followUpTicket) {
+    let doctorId: string | null = staffId ?? null;
+    if (business.bookingMode === "TOKEN" && tokenSessionId) {
+      doctorId = (await prisma.tokenSession.findFirst({ where: { id: tokenSessionId, businessId: business.id }, select: { staffId: true } }))?.staffId ?? null;
+    }
+    try {
+      const r = await resolveFollowUp(prisma, {
+        ticket: parsed.data.followUpTicket, business: { id: business.id, timezone: business.timezone, followUpDays: business.followUpDays },
+        staffId: doctorId, serviceIds, date, patientName, bookerEmail: clientEmail,
+      });
+      followUpOfId = r.followUpOfId;
+    } catch (err) {
+      if (err instanceof FollowUpTicketError) return NextResponse.json({ error: err.message, code: "FOLLOW_UP_EXPIRED" }, { status: 400 });
+      throw err;
+    }
+  }
+  const followUpTaken = (err: unknown) =>
+    err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002" && String(err.meta?.target ?? "").includes("followUpOfId");
+  const followUpTakenResponse = () =>
+    NextResponse.json({ error: "Your free follow-up has already been used. Please book again as a new appointment.", code: "FOLLOW_UP_USED" }, { status: 409 });
+
+  const totalPrice = followUpOfId ? 0 : orderedServices.reduce((sum, s) => sum + s.price, 0);
   const totalDuration = orderedServices.reduce((sum, s) => sum + s.duration, 0);
   const serviceNamesLabel = orderedServices.map(s => s.name).join(" & ");
 
@@ -180,12 +207,13 @@ async function bookingHandler(req: NextRequest) {
       return await bookToken({
         business, services: orderedServices, tokenSessionId, date, tz: bizTz,
         client: { name: clientName, email: clientEmail, phone: clientPhone },
-        notes, maxMonthlyAppointments: limits.maxMonthlyAppointments, monthStart, payConfig, patientName, patientDetails,
+        notes, maxMonthlyAppointments: limits.maxMonthlyAppointments, monthStart, payConfig, patientName, patientDetails, followUpOfId,
         maxPeoplePerBooker: business.maxPeoplePerBooker, isOnline,
       });
     } catch (err) {
       if (err instanceof DuplicatePatientError) return await duplicateResponse(err);
       if (err instanceof LimitReachedError) return await limitResponse();
+      if (followUpTaken(err)) return followUpTakenResponse();
       throw err;
     }
   }
@@ -279,6 +307,7 @@ async function bookingHandler(req: NextRequest) {
                 bufferAfterMin: availability.ok ? availability.bufferAfterMin : 0,
                 duration: totalDuration,
                 price: totalPrice,
+                followUpOfId,
                 status: holdExpiresAt ? PENDING_PAYMENT : "confirmed",
                 holdExpiresAt,
                 isOnline,
@@ -384,6 +413,7 @@ async function bookingHandler(req: NextRequest) {
       if (err instanceof DuplicatePatientError) return await duplicateResponse(err);
       if (err instanceof SlotConflictError) return conflictResponse();
       if (err instanceof LimitReachedError) return await limitResponse();
+      if (followUpTaken(err)) return followUpTakenResponse();
       throw err;
     }
     if (!hold) {
@@ -401,7 +431,8 @@ async function bookingHandler(req: NextRequest) {
   }
 
   // Postpaid path — create appointments directly, client pays at visit
-  if (paymentMode === "postpaid") {
+  // (A free follow-up owes nothing, so it never takes the legacy prepaid path.)
+  if (paymentMode === "postpaid" || followUpOfId) {
     client = await getOrCreateClient();
     let appointment;
     try {
@@ -410,6 +441,7 @@ async function bookingHandler(req: NextRequest) {
       if (err instanceof DuplicatePatientError) return await duplicateResponse(err);
       if (err instanceof SlotConflictError) return conflictResponse();
       if (err instanceof LimitReachedError) return await limitResponse();
+      if (followUpTaken(err)) return followUpTakenResponse();
       throw err;
     }
     await notify(appointment.id, 0);

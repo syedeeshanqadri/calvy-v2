@@ -59,6 +59,7 @@ interface BusinessData {
   description: string; primaryColor: string; availabilityJson: string; currency: string;
   slotInterval?: number;
   maxPeoplePerBooker?: number;
+  followUpDays?: number;
   paymentMode?: string;
   bankAccountName?: string; bankAccountNumber?: string; bankRoutingNumber?: string; bankIban?: string;
   legalBusinessName?: string; rzpBusinessType?: string; rzpCategory?: string; rzpSubcategory?: string;
@@ -99,6 +100,7 @@ export function SettingsClient({ business, customSlotInterval = false, stripePay
   );
 
   const [slotInterval, setSlotInterval] = useState(business.slotInterval ?? 30);
+  const [followUpDays, setFollowUpDays] = useState(String(business.followUpDays ?? 0));
   const [maxPeople, setMaxPeople] = useState(String(business.maxPeoplePerBooker ?? DEFAULT_MAX_PEOPLE_PER_BOOKER));
 
   const [payout, setPayout] = useState({
@@ -175,7 +177,7 @@ export function SettingsClient({ business, customSlotInterval = false, stripePay
         const res = await fetch("/api/settings", {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ...profile, availabilityJson: JSON.stringify(availability), slotInterval, maxPeoplePerBooker: Number(maxPeople) }),
+          body: JSON.stringify({ ...profile, availabilityJson: JSON.stringify(availability), slotInterval, maxPeoplePerBooker: Number(maxPeople), followUpDays: Math.max(0, Math.min(365, Math.trunc(Number(followUpDays) || 0))) }),
         });
         if (!res.ok) throw new Error("Failed to save settings");
       }
@@ -316,6 +318,15 @@ export function SettingsClient({ business, customSlotInterval = false, stripePay
                   staff={staff}
                   appointmentWord={term(business, "appointment")}
                 />
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader><CardTitle>Free follow-up</CardTitle></CardHeader>
+              <CardContent className="space-y-2">
+                <label htmlFor="follow-up-days" className="text-sm font-medium block">Days after a completed {term(business, "appointment")} for one free follow-up</label>
+                <input id="follow-up-days" type="number" min={0} max={365} value={followUpDays} onChange={e => setFollowUpDays(e.target.value)}
+                  className="w-24 rounded-xl border border-[#e8e6e0] px-4 py-3 text-sm" />
+                <p className="text-xs text-[#6b6b80]">0 turns it off. When a customer&apos;s {term(business, "appointment")} is marked completed, they can sign in to My bookings and book one free follow-up with the same {term(business, "staff")} for the same service, up to this many days after that {term(business, "appointment")}. A different {term(business, "staff")}, a later date or another person is booked and charged as a normal {term(business, "appointment")}. Press Save settings to apply.</p>
               </CardContent>
             </Card>
             <Card>

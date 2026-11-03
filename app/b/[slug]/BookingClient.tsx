@@ -18,6 +18,7 @@ import { AnotherBooking } from "@/components/booking/AnotherBooking";
 import { CreateAccountOffer } from "@/components/booking/CreateAccountOffer";
 import { PATIENT_GENDERS, PATIENT_RELATIONS, PATIENT_RELATION_LABELS, type PatientRelation } from "@/lib/patients";
 import type { PayConfig } from "@/lib/onlinePayment";
+import type { FollowUpOffer } from "@/lib/followUp";
 import { parseBookingDeepLink } from "@/lib/deepLink";
 import "@/app/[slug]/site.css";
 import "@/app/[slug]/booking.css";
@@ -55,7 +56,7 @@ interface Business {
 }
 
 /** `fontClasses` carries the pack fonts (see app/[slug]/fonts); without it the page falls back to system fonts. */
-export function BookingClient({ business, fontClasses, homeHref = "/" }: { business: Business; fontClasses?: string; homeHref?: string }) {
+export function BookingClient({ business, fontClasses, homeHref = "/", followUp = null }: { business: Business; fontClasses?: string; homeHref?: string; followUp?: FollowUpOffer | null }) {
   const word = (key: TermKey, opts?: TermOpts) => t(business, key, opts);
   const svc1 = word("service"), svcN = word("service", { plural: true });
   const Svc1 = word("service", { cap: true });
@@ -83,13 +84,13 @@ export function BookingClient({ business, fontClasses, homeHref = "/" }: { busin
   const [step, setStep] = useState<Step>(deep ? "datetime" : "service");
   const [serviceSearch, setServiceSearch] = useState("");
   const [selectedServices, setSelectedServices] = useState<string[]>(() => {
-    const preselect = searchParams?.get("service");
+    const preselect = followUp?.serviceId ?? searchParams?.get("service");
     return preselect && services.some(s => s.id === preselect) ? [preselect] : [];
   });
-  const [selectedStaff, setSelectedStaff] = useState<string | null>(deep ? "any" : null);
+  const [selectedStaff, setSelectedStaff] = useState<string | null>(followUp?.staffId && !tokenMode ? followUp.staffId : deep ? "any" : null);
   const [selectedDate, setSelectedDate] = useState<number | null>(deep?.date ? Number(deep.date.slice(8)) : null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
-  const [form, setForm] = useState({ name: "", email: "", phone: "", notes: "" });
+  const [form, setForm] = useState({ name: "", email: followUp?.email ?? "", phone: "", notes: "" });
   // "Who is this appointment for?" Someone else: the booker's email/phone stay, the patient is who it is for.
   const [forSomeone, setForSomeone] = useState(false);
   const [patientName, setPatientName] = useState("");
@@ -203,7 +204,7 @@ export function BookingClient({ business, fontClasses, homeHref = "/" }: { busin
   const needsModeChoice = offeredMode === "BOTH";
   const isOnline = offeredMode === "ONLINE" || (needsModeChoice && bookingMode === "online");
   const totalDuration = selectedServiceObjs.reduce((s, svc) => s + svc.duration, 0);
-  const totalPrice = selectedServiceObjs.reduce((s, svc) => s + svc.price, 0);
+  const listPrice = selectedServiceObjs.reduce((s, svc) => s + svc.price, 0);
 
   const staffParam = selectedStaff && selectedStaff !== "any" ? `&staffId=${selectedStaff}` : "";
   const monthKey = `${viewYear}-${String(viewMonth + 1).padStart(2, "0")}`;
@@ -282,6 +283,16 @@ export function BookingClient({ business, fontClasses, homeHref = "/" }: { busin
 
   const tokenDateLabel = tokenDate ? (() => { const [y, m, d] = tokenDate.split("-").map(Number); return `${MONTHS[m - 1]} ${d}, ${y}`; })() : "—";
   const dateStr = tokenMode ? tokenDateLabel : selectedDate ? `${MONTHS[viewMonth]} ${selectedDate}, ${viewYear}` : "—";
+  // Free follow-up (display only; the server decides on the booking): same doctor, same service, same person, on or before the last day.
+  const bookingDateIso0 = tokenMode ? tokenDate : selectedDate ? `${viewYear}-${String(viewMonth + 1).padStart(2, "0")}-${String(selectedDate).padStart(2, "0")}` : "";
+  const norm = (n: string) => n.trim().toLowerCase().replace(/\s+/g, " ");
+  const followUpFree = !!followUp
+    && selectedServices.length === 1 && selectedServices[0] === followUp.serviceId
+    && (tokenMode ? tokenPick?.staffId === followUp.staffId : selectedStaff === followUp.staffId)
+    && !!bookingDateIso0 && bookingDateIso0 <= followUp.until
+    && norm(forSomeone ? patientName : form.name) === norm(followUp.patientName)
+    && norm(form.email) === norm(followUp.email);
+  const totalPrice = followUpFree ? 0 : listPrice;
   const bookingDateIso = tokenMode ? tokenDate : selectedDate ? `${viewYear}-${String(viewMonth + 1).padStart(2, "0")}-${String(selectedDate).padStart(2, "0")}` : "";
   const bookerName = form.name || savedName;
   // Booking for myself: dates (or, for tokens, sessions) I already hold are greyed out. Someone else is allowed the same day.
@@ -327,6 +338,7 @@ export function BookingClient({ business, fontClasses, homeHref = "/" }: { busin
           clientPhone: form.phone || null,
           notes: form.notes || null,
           ...(needsModeChoice && bookingMode ? { mode: bookingMode } : {}),
+          ...(followUp ? { followUpTicket: followUp.ticket } : {}),
         }),
       });
       const data = await res.json();
@@ -479,6 +491,15 @@ export function BookingClient({ business, fontClasses, homeHref = "/" }: { busin
 
       <div className="st-wrap bk-layout">
         <main className="bk-main">
+          {followUp && (
+            <div role="status" className="bk-note" style={{ border: "1px solid var(--brand)", borderRadius: 12, padding: "12px 16px", marginBottom: 16 }}>
+              <strong>Your free follow-up</strong>
+              <p className="st-muted" style={{ marginTop: 4 }}>
+                Book {followUp.doctorName ? `with ${followUp.doctorName} ` : ""}on or before {followUp.untilLabel} and it is free. A different {word("staff")}, a later date or another person is booked as a normal {appt1} and charged.
+              </p>
+              {followUpFree && <p style={{ marginTop: 6, fontWeight: 600 }}>This booking is free.</p>}
+            </div>
+          )}
 
           {/* Step: Service */}
           {step === "service" && (

@@ -53,6 +53,7 @@ export function BookingCard({ b, highlight = false }: { b: BookingView; highligh
               <p className="text-sm text-[#6b6b80] truncate">{b.businessName}</p>
             </div>
             <StatusChip status={b.status} label={b.statusLabel} />
+            {b.isFollowUp && <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-sky-50 text-sky-700 border border-sky-200">Free follow-up</span>}
           </div>
 
           <dl className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5 text-sm">
@@ -61,6 +62,7 @@ export function BookingCard({ b, highlight = false }: { b: BookingView; highligh
             {b.staffName && <div className="flex items-center gap-2"><UserRound size={15} className="text-[#6b6b80] shrink-0" aria-hidden /><dt className="sr-only">With</dt><dd>With {b.staffName}</dd></div>}
             {b.online && <div className="flex items-center gap-2 text-sky-700"><Video size={15} className="shrink-0" aria-hidden /><dt className="sr-only">Format</dt><dd>Online consultation</dd></div>}
           </dl>
+          {b.followUp && <p className="mt-3 text-xs text-[#6b6b80]">Free follow-up with {b.staffName ?? "the same practitioner"} until {b.followUp.untilLabel}. Another practitioner or a later date is a normal paid booking.</p>}
           {b.forName && b.forName !== "" && <p className="mt-1.5 text-xs text-[#6b6b80]">For {b.forName}</p>}
 
           <div className="mt-4 flex flex-wrap gap-2">
@@ -75,6 +77,7 @@ export function BookingCard({ b, highlight = false }: { b: BookingView; highligh
               </>
             )}
             {b.reviewUrl && <a href={b.reviewUrl} target="_blank" rel="noopener noreferrer" className={primary}><Star size={15} aria-hidden />Review us on Google</a>}
+            {b.followUp && <a href={b.followUp.href} className={primary}><Repeat size={15} aria-hidden />Book free follow-up</a>}
             {!live && <Link href={b.bookAgainHref} className={ghost}><Repeat size={15} aria-hidden />Book again</Link>}
           </div>
           {live && canManage && b.moveBlocked && <p className="mt-3 text-xs text-[#6b6b80]">{b.moveBlocked}</p>}

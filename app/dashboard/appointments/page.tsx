@@ -54,6 +54,7 @@ export default async function AppointmentsPage() {
       color: a.service.color,
       tokenNumber: a.tokenNumber,
       isOnline: a.isOnline,
+      isFollowUp: !!a.followUpOfId,
       meetingUrl: meetingUrlFor(a),
       notes,
     };

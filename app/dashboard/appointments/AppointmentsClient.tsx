@@ -170,7 +170,7 @@ export function AppointmentsClient({ appointments, services, staff, csvExport = 
                       </div>
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-sm">{appt.tokenNumber ? <span className="font-semibold mr-1.5">#{appt.tokenNumber}</span> : null}{appt.serviceName}{appt.isOnline && <span className="ml-2 inline-flex items-center gap-1.5 align-middle"><OnlineBadge />{appt.status === "confirmed" && <JoinButton url={appt.meetingUrl} />}</span>}</td>
+                  <td className="px-4 py-3 text-sm">{appt.tokenNumber ? <span className="font-semibold mr-1.5">#{appt.tokenNumber}</span> : null}{appt.serviceName}{appt.isFollowUp && <span className="ml-2 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-sky-50 text-sky-700 border border-sky-200 align-middle">Follow-up</span>}{appt.isOnline && <span className="ml-2 inline-flex items-center gap-1.5 align-middle"><OnlineBadge />{appt.status === "confirmed" && <JoinButton url={appt.meetingUrl} />}</span>}</td>
                   <td className="px-4 py-3 text-sm text-[#6b6b80]">{appt.staffName}</td>
                   <td className="px-4 py-3 text-sm">{appt.date} · {formatTime(appt.time)}</td>
                   <td className="px-4 py-3 text-sm text-[#6b6b80]">{appt.duration}min</td>
