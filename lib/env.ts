@@ -25,8 +25,6 @@ const optionalVars = {
   NOTIFY_EMAIL: optional,
   GOOGLE_CLIENT_ID: optional,
   GOOGLE_CLIENT_SECRET: optional,
-  FACEBOOK_CLIENT_ID: optional,
-  FACEBOOK_CLIENT_SECRET: optional,
   WHATSAPP_PHONE_NUMBER_ID: optional,
   WHATSAPP_ACCESS_TOKEN: optional,
   BLOB_READ_WRITE_TOKEN: optional,
@@ -72,7 +70,6 @@ export const OPTIONAL_SERVICES: Record<string, string[]> = {
   "web-push": ["NEXT_PUBLIC_VAPID_PUBLIC_KEY", "VAPID_PRIVATE_KEY", "VAPID_SUBJECT"],
   "blog-image-uploads": ["BLOB_READ_WRITE_TOKEN"],
   "google-login": ["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET"],
-  "facebook-login": ["FACEBOOK_CLIENT_ID", "FACEBOOK_CLIENT_SECRET"],
   "cron-reminders": ["CRON_SECRET"],
   "distributed-rate-limit": ["UPSTASH_REDIS_REST_URL", "UPSTASH_REDIS_REST_TOKEN"],
 };

@@ -161,9 +161,9 @@ export function SectionsEditor({ config, setConfig, packId, themeColor, timezone
         </ul>
         <div className="flex items-center gap-3 flex-wrap">
           {imageUpload ? (
-            <label className={cn("px-3 py-2 min-h-[40px] inline-flex items-center gap-1.5 rounded-lg border border-[#e8e6e0] text-xs font-semibold cursor-pointer focus-within:ring-2 focus-within:ring-accent/30", (gallery.images.length >= SITE_CAPS.galleryImages || uploading) ? "opacity-50 cursor-not-allowed" : "hover:bg-[#f8f7f4]")}>
+            <label className={cn("relative overflow-hidden px-3 py-2 min-h-[40px] inline-flex items-center gap-1.5 rounded-lg border border-[#e8e6e0] text-xs font-semibold cursor-pointer focus-within:ring-2 focus-within:ring-accent/30", (gallery.images.length >= SITE_CAPS.galleryImages || uploading) ? "opacity-50 cursor-not-allowed" : "hover:bg-[#f8f7f4]")}>
               <Plus size={14} /> {uploading ? "Uploading…" : "Add photos"}
-              <input type="file" accept="image/*" multiple className="sr-only" disabled={gallery.images.length >= SITE_CAPS.galleryImages || uploading} onChange={(e) => { void addPhotos(e.target.files); e.target.value = ""; }} />
+              <input type="file" accept="image/*" multiple className="absolute inset-0 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed" disabled={gallery.images.length >= SITE_CAPS.galleryImages || uploading} onChange={(e) => { void addPhotos(e.target.files); e.target.value = ""; }} />
             </label>
           ) : (
             <p className="text-xs text-[#6b6b80]">Photo uploads are not part of your current plan.</p>

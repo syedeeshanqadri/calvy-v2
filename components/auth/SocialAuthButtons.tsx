@@ -11,15 +11,8 @@ const GoogleIcon = () => (
   </svg>
 );
 
-const FacebookIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden>
-    <path fill="#1877F2" d="M24 12a12 12 0 1 0-13.88 11.85v-8.38H7.08V12h3.04V9.36c0-3 1.79-4.67 4.53-4.67 1.31 0 2.69.24 2.69.24v2.96h-1.52c-1.49 0-1.95.93-1.95 1.88V12h3.32l-.53 3.47h-2.79v8.38A12 12 0 0 0 24 12z" />
-  </svg>
-);
-
 const LABELS: Record<string, { label: string; icon: React.ReactNode }> = {
   google: { label: "Continue with Google", icon: <GoogleIcon /> },
-  facebook: { label: "Continue with Facebook", icon: <FacebookIcon /> },
 };
 
 export default function SocialAuthButtons({ callbackUrl = "/dashboard", providers: only }: { callbackUrl?: string; providers?: string[] }) {
@@ -29,7 +22,7 @@ export default function SocialAuthButtons({ callbackUrl = "/dashboard", provider
     getProviders()
       .then(providers => {
         if (!providers) return;
-        setIds(Object.keys(providers).filter(id => (id === "google" || id === "facebook") && (!only || only.includes(id))));
+        setIds(Object.keys(providers).filter(id => id === "google" && (!only || only.includes(id))));
       })
       .catch(() => {});
   }, []);

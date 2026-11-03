@@ -18,14 +18,14 @@ export function DashboardLayout({ children, title, subtitle }: DashboardLayoutPr
   const [collapsed, setCollapsed] = useState(false);
 
   return (
-    <div className="flex h-dvh overflow-hidden bg-[#f5f5f7]">
+    <div className="flex h-dvh overflow-clip bg-[#f5f5f7]">
       {/* Sidebar — desktop only */}
       <div className={cn("hidden lg:flex flex-col flex-shrink-0 transition-all duration-300", collapsed ? "w-16" : "w-64")}>
         <Sidebar collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} />
       </div>
 
       {/* Main */}
-      <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
+      <div className="flex flex-col flex-1 min-w-0 overflow-clip">
         <Header title={title} subtitle={subtitle} />
         <TrialBanner />
         <PushBanner />
