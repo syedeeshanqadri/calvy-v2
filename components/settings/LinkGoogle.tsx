@@ -5,13 +5,13 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 
 /** "Link Google" for a logged-in owner. Never links silently: this button is the only way to link an existing password account. */
-export function LinkGoogle() {
+export function LinkGoogle({ endpoint = "/api/account/google", provider = "google", callbackUrl = "/dashboard/settings?google=linked", className = "p-5 mb-4" }: { endpoint?: string; provider?: string; callbackUrl?: string; className?: string }) {
   const [state, setState] = useState<{ enabled: boolean; linked: boolean } | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    fetch("/api/account/google").then((r) => (r.ok ? r.json() : null)).then(setState).catch(() => {});
+    fetch(endpoint).then((r) => (r.ok ? r.json() : null)).then(setState).catch(() => {});
   }, []);
 
   if (!state?.enabled) return null;
@@ -19,17 +19,17 @@ export function LinkGoogle() {
   async function link() {
     setBusy(true);
     setError("");
-    const r = await fetch("/api/account/google", { method: "POST" });
+    const r = await fetch(endpoint, { method: "POST" });
     if (!r.ok) {
       setBusy(false);
       setError((await r.json().catch(() => ({}))).error ?? "Could not start linking.");
       return;
     }
-    await signIn("google", { callbackUrl: "/dashboard/settings?google=linked" });
+    await signIn(provider, { callbackUrl });
   }
 
   return (
-    <Card className="p-5 mb-4">
+    <Card className={className}>
       <h3 className="font-semibold text-sm mb-1">Google sign-in</h3>
       {state.linked ? (
         <p className="text-sm text-[#6b6b80]">Google is linked. You can sign in with Google or your password.</p>

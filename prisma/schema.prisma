@@ -722,6 +722,8 @@ model Customer {
   email             String          @unique
   /// Null for an account created automatically at booking, until the emailed setup link sets it.
   password          String?
+  /// Google account id (profile.sub); set by a verified Google sign-up or an explicit "Link Google" while logged in. Never linked silently by email.
+  googleId          String?         @unique
   emailVerified     DateTime?
   passwordChangedAt DateTime?
   createdAt         DateTime        @default(now())
