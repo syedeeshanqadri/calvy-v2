@@ -28,6 +28,8 @@ const securityHeaders = [
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   poweredByHeader: false,
+  // Dev-only "N" badge defaults to bottom-left, where it covers the dashboard sidebar's Settings link.
+  devIndicators: { position: "bottom-right" },
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "images.unsplash.com" },

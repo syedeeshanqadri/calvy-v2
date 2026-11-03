@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ScrollText } from "lucide-react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -68,6 +68,9 @@ export function NotificationsClient({ initial, terms }: { initial: NotificationS
       <div className="max-w-3xl space-y-6">
         <Link href="/dashboard/settings" className="inline-flex items-center gap-1.5 text-sm text-[#6b6b80] hover:text-[#0f0f1a]">
           <ArrowLeft size={14} /> Back to settings
+        </Link>
+        <Link href="/dashboard/settings/notifications/log" className="ml-4 inline-flex items-center gap-1.5 text-sm text-[#0284c7] hover:underline">
+          <ScrollText size={14} /> View notifications log
         </Link>
 
         <Card>
