@@ -387,64 +387,6 @@ test.describe("login", () => {
 });
 
 test.describe("signup + verify-email", () => {
-  // TODO(chore/e2e-ci): not diagnosed yet. page.clock.runFor(30s) does not move the resend countdown (still 55s), so the fake clock does not drive it.
-  test.fixme("signup: toggle, autocomplete, resend with 60s cooldown", async ({ page }) => {
-    await page.clock.install();
-    const signupCalls: unknown[] = [];
-    await page.route("**/api/signup", (route) => {
-      signupCalls.push(route.request().postDataJSON());
-      return json(200, { ok: true })(route);
-    });
-    const calls = await mockApi(page, "resend-verification", json(200, { ok: true }));
-    await page.goto("/signup");
-    await hydrated(page);
-    await shot(page, "signup-initial");
-    const pw = page.getByLabel("Password", { exact: true });
-    await expect(pw).toHaveAttribute("autocomplete", "new-password");
-    await expect(page.getByLabel("Email")).toHaveAttribute("autocomplete", "username");
-    await page.getByRole("button", { name: "Show password" }).click();
-    await expect(pw).toHaveAttribute("type", "text");
-    await page.getByLabel("Your name").fill("Alex");
-    await page.getByLabel("Email").fill("alex@example.com");
-    await pw.fill("longenough1");
-    await page.getByRole("button", { name: "Create my account" }).click();
-    await expect(page.getByRole("heading", { level: 1, name: "Check your email" })).toBeVisible();
-    const resend = page.getByRole("button", { name: /Resend the email/ });
-    await expect(resend).toBeDisabled();
-    await expect(resend).toHaveText("Resend the email (60s)");
-    await shot(page, "signup-check-email-cooldown");
-    await page.clock.runFor(30_000);
-    await expect(resend).toHaveText(/Resend the email \((29|30|31)s\)/);
-    await page.clock.runFor(31_000);
-    await expect(resend).toHaveText("Resend the email");
-    await expect(resend).toBeEnabled();
-    await resend.click();
-    await expect(page.getByText("If that account is not verified yet, we've sent a new link.")).toBeVisible();
-    expect(calls).toEqual([{ email: "alex@example.com" }]);
-    await expect(resend).toBeDisabled();
-    await expect(resend).toHaveText("Resend the email (60s)");
-    await shot(page, "signup-resend-sent");
-    await noHScroll(page);
-  });
-
-  test("signup success screen: resend error", async ({ page }) => {
-    await page.clock.install();
-    await page.route("**/api/signup", json(200, { ok: true }));
-    await mockApi(page, "resend-verification", json(429, { error: "x", retryAfter: 3600 }));
-    await page.goto("/signup");
-    await hydrated(page);
-    await page.getByLabel("Your name").fill("Alex");
-    await page.getByLabel("Email").fill("alex@example.com");
-    await page.getByLabel("Password", { exact: true }).fill("longenough1");
-    await page.getByRole("button", { name: "Create my account" }).click();
-    const resend = page.getByRole("button", { name: /Resend the email/ });
-    await expect(resend).toBeDisabled();
-    await page.clock.runFor(61_000);
-    await resend.click();
-    await expect(page.locator("[role=alert]:not(#__next-route-announcer__)").filter({ hasText: "Too many attempts" })).toHaveText("Too many attempts. Try again in 60 minutes.");
-    await shot(page, "signup-resend-429");
-  });
-
   test("verify-email: no token -> error state with resend path", async ({ page }) => {
     await page.goto("/verify-email");
     await hydrated(page);

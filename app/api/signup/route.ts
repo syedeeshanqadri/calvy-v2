@@ -1,22 +1,26 @@
 import { safeRoute } from "@/lib/api";
-import { NextRequest, NextResponse } from "next/server";
-import bcrypt from "bcryptjs";
-import crypto from "crypto";
+import { NextRequest, NextResponse, after } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createBusinessForUser } from "@/lib/createBusiness";
 import { sendFormNotification } from "@/lib/email";
 import { notify } from "@/lib/notifications/enqueue";
 import { authEmail } from "@/lib/notifications/events";
 import { logger } from "@/lib/logger";
-import { after } from "next/server";
 import { rateLimit, clientIp } from "@/lib/ratelimit";
 import { parseBody } from "@/lib/validation/common";
 import { signupSchema } from "@/lib/validation/public";
 import { detectRegion, currencyFor } from "@/lib/onboarding";
 import { testTokenHookEnabled } from "@/lib/auth-http";
+import { createSetupToken } from "@/lib/auth-tokens";
+import { signTicket } from "@/lib/signedTicket";
+import { SIGNUP_TICKET_PURPOSE, SIGNUP_TICKET_TTL_MS } from "@/lib/signupTicket";
 
 export const dynamic = 'force-dynamic';
 
+/**
+ * Passwordless sign-up: name, email, phone (India), business type. The owner goes straight into the onboarding
+ * wizard with a one-time sign-in ticket; the email carries the link that verifies the address and sets the password.
+ */
 async function POST_handler(req: NextRequest) {
   const ip = clientIp(req);
   const rl = await rateLimit(`signup:${ip}`, 5, 60_000);
@@ -29,50 +33,52 @@ async function POST_handler(req: NextRequest) {
 
   const parsed = await parseBody(req, signupSchema);
   if (!parsed.ok) return parsed.res;
-  const { name, email, password, timezone } = parsed.data;
+  const { name, email, phone, packId, timezone } = parsed.data;
   const region = detectRegion(timezone);
-  const businessName = parsed.data.businessName || `${name.split(/\s+/)[0]}'s Business`;
 
   const existing = await prisma.user.findFirst({ where: { email: { equals: email, mode: "insensitive" } } });
   if (existing) {
-    return NextResponse.json({ error: "An account with this email already exists." }, { status: 409 });
+    return NextResponse.json({ error: "An account with this email already exists. Try signing in, or use Forgot password." }, { status: 409 });
   }
 
-  const hashed = await bcrypt.hash(password, 12);
-
-  const user = await prisma.user.create({
-    data: { name, email, password: hashed },
-  });
+  const user = await prisma.user.create({ data: { name, email } }); // no password yet, email not verified yet
   await createBusinessForUser({
     ownerId: user.id,
     ownerName: name,
     ownerEmail: email,
-    businessName,
+    businessName: `${name.split(/\s+/)[0]}'s Business`,
     currency: currencyFor(region),
     region,
     timezone,
+    packId,
+    phone,
+    onboardingStep: 3, // region and type are already known
+    welcome: false,
   });
 
-  // Create a 24-hour verification token
-  const token = crypto.randomBytes(32).toString("hex");
-  await prisma.verificationToken.create({
-    data: { token, email: user.email, expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000) },
-  });
-
-  // Tell the owner (never includes the password or tokens).
-  after(() => sendFormNotification({
-    title: "New signup",
-    fields: { Name: name, Business: businessName, Email: email, Region: region },
-  }));
-
-  // Queue the verification email. A failure here must not fail the signup: the user can ask for another link.
+  // The email: verify the address and choose a password, in one step.
+  const { token, tokenHash, expiresAt } = createSetupToken();
+  await prisma.passwordResetToken.create({ data: { userId: user.id, tokenHash, expiresAt } });
   try {
-    await notify(authEmail({ template: "verification", userId: user.id, to: email, name, token }));
+    await notify(authEmail({ template: "owner_account_setup", userId: user.id, to: email, name, token }));
   } catch (err) {
-    logger.error("[signup] verification email not queued", { err });
+    logger.error("[signup] setup email not queued", { err });
   }
 
-  return NextResponse.json({ message: "Account created. Please check your email to verify.", ...(testTokenHookEnabled() ? { devToken: token } : {}) }, { status: 201 });
+  after(() => sendFormNotification({
+    title: "New signup",
+    fields: { Name: name, Email: email, Phone: phone ?? "-", Type: packId, Region: region },
+  }));
+
+  const secret = process.env.NEXTAUTH_SECRET ?? "";
+  return NextResponse.json(
+    {
+      message: "Account created. Check your email to verify it and set your password.",
+      ticket: signTicket(SIGNUP_TICKET_PURPOSE, user.id, secret, SIGNUP_TICKET_TTL_MS),
+      ...(testTokenHookEnabled() ? { devToken: token } : {}),
+    },
+    { status: 201 },
+  );
 }
 
 export const POST = safeRoute(POST_handler);

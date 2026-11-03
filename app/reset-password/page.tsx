@@ -10,7 +10,9 @@ const MIN = 8;
 const INVALID = "This reset link is invalid or has expired.";
 
 function ResetForm() {
-  const token = useSearchParams().get("token") ?? "";
+  const params = useSearchParams();
+  const token = params.get("token") ?? "";
+  const setup = params.get("setup") === "1"; // came from the sign-up email: verify the address and set the first password
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [pwError, setPwError] = useState("");
@@ -29,7 +31,7 @@ function ResetForm() {
     setLoading(false);
     if (r.ok) {
       // The token is spent: take it out of the address bar and history entry.
-      window.history.replaceState(null, "", "/reset-password");
+      window.history.replaceState(null, "", setup ? "/reset-password?setup=1" : "/reset-password");
       setState("done");
       return;
     }
@@ -41,8 +43,8 @@ function ResetForm() {
   if (state === "done") {
     return (
       <div role="status">
-        <h1 className="font-syne font-bold text-2xl text-[#0f0f1a] mb-2">Password changed</h1>
-        <p className="text-[#6b6b80] text-sm mb-6">Your password was changed. Sign in with your new password.</p>
+        <h1 className="font-syne font-bold text-2xl text-[#0f0f1a] mb-2">{setup ? "Email verified" : "Password changed"}</h1>
+        <p className="text-[#6b6b80] text-sm mb-6">{setup ? "Your email is verified and your password is set. Sign in to continue." : "Your password was changed. Sign in with your new password."}</p>
         <Link href="/login?reset=1" className={primaryBtn}>Continue to sign in</Link>
       </div>
     );
@@ -60,8 +62,8 @@ function ResetForm() {
 
   return (
     <>
-      <h1 className="font-syne font-bold text-2xl text-[#0f0f1a] mb-1">Choose a new password</h1>
-      <p className="text-[#6b6b80] text-sm mb-7">Pick something you don&apos;t use on other sites.</p>
+      <h1 className="font-syne font-bold text-2xl text-[#0f0f1a] mb-1">{setup ? "Verify your email and set a password" : "Choose a new password"}</h1>
+      <p className="text-[#6b6b80] text-sm mb-7">{setup ? "Choose a password for signing in. This also confirms your email address." : "Pick something you don't use on other sites."}</p>
       <form onSubmit={handleSubmit} className="space-y-4">
         <PasswordInput
           id="new-password"

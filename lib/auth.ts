@@ -7,6 +7,8 @@ import { prisma } from "@/lib/prisma";
 import { rateLimit } from "@/lib/ratelimit";
 import { revalidateBusinessClaims } from "@/lib/sessionBusiness";
 import { cookies } from "next/headers";
+import { verifyTicket } from "@/lib/signedTicket";
+import { SIGNUP_TICKET_PURPOSE } from "@/lib/signupTicket";
 import { decideGoogleSignIn, verifyLinkIntent, LINK_COOKIE } from "@/lib/googleLink";
 import { normalizeEmail, tryNormalizeEmail } from "@/lib/email-normalize";
 
@@ -74,6 +76,21 @@ export const authOptions: NextAuthOptions = {
           if (e instanceof Error && e.message === "EmailNotVerified") throw e;
           return null;
         }
+      },
+    }),
+    // Passwordless sign-up: the sign-up response carries a short-lived signed ticket that opens the first session,
+    // so the owner can start the wizard before they have verified the email or chosen a password.
+    CredentialsProvider({
+      id: "signup-ticket",
+      name: "signup-ticket",
+      credentials: { ticket: { label: "Ticket", type: "text" } },
+      async authorize(credentials) {
+        const userId = verifyTicket(SIGNUP_TICKET_PURPOSE, credentials?.ticket, process.env.NEXTAUTH_SECRET ?? "");
+        if (!userId) return null;
+        const user = await prisma.user.findUnique({ where: { id: userId } });
+        // Only a brand-new account (no password yet) can be opened this way.
+        if (!user || user.password) return null;
+        return { id: user.id, name: user.name, email: user.email, viaTicket: true } as { id: string; name: string; email: string };
       },
     }),
     // Customer accounts: a separate table, so owners and customers never share credentials.
@@ -157,6 +174,13 @@ export const authOptions: NextAuthOptions = {
         return token;
       }
       if (token.kind === "customer") return token;
+      if ((user as { viaTicket?: boolean } | undefined)?.viaTicket) token.ticketAuthAt = Date.now();
+      // A session opened by a sign-up ticket ends the moment the account gets its password (the setup link). That
+      // way someone who signed up with another person's email cannot keep a session once the real owner sets a password.
+      if (!user && typeof token.ticketAuthAt === "number" && token.uid) {
+        const u = await prisma.user.findUnique({ where: { id: token.uid as string }, select: { passwordChangedAt: true } });
+        if (!u || (u.passwordChangedAt && u.passwordChangedAt.getTime() > (token.ticketAuthAt as number))) throw new Error("SessionRevoked");
+      }
       // On sign-in, resolve our DB user by email (works for credentials + OAuth,
       // since OAuth token.sub is the provider's id, not ours).
       const rawEmail = (user?.email ?? token.email) as string | undefined;

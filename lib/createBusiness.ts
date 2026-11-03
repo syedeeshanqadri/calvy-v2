@@ -56,6 +56,11 @@ export async function createBusinessForUser(params: {
   packId?: PackId;
   /** "IN" or "INTL"; defaults from the currency. */
   region?: "IN" | "INTL";
+  phone?: string;
+  /** Wizard step to open at (sign-up already knows region and type, so it starts at 3). */
+  onboardingStep?: number;
+  /** Send the welcome email (default true). The passwordless sign-up sends its setup email instead. */
+  welcome?: boolean;
 }) {
   const pack = getPack(params.packId);
   const businessType = params.businessType ?? pack.businessType;
@@ -75,6 +80,8 @@ export async function createBusinessForUser(params: {
       currency: params.currency,
       region: params.region ?? (params.currency === "INR" ? "IN" : "INTL"),
       onboardingCompletedAt: null,
+      onboardingStep: params.onboardingStep ?? 1,
+      phone: params.phone ?? null,
       timezone: safeTimeZone(params.timezone),
       owner: { connect: { id: params.ownerId } },
       services: {
@@ -101,7 +108,7 @@ export async function createBusinessForUser(params: {
     skipDuplicates: true,
   });
   // Welcome only. "Your business is live" goes out when the owner finishes the onboarding wizard.
-  try {
+  if (params.welcome !== false) try {
     await notify(ownerWelcome({ businessId: business.id, slug, businessName: params.businessName, ownerName: params.ownerName, ownerEmail: params.ownerEmail }));
   } catch (err) {
     logger.error("[Notifications] welcome email failed", { err });

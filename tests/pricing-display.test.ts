@@ -36,9 +36,16 @@ describe("pricing display", () => {
 
 import { signupSchema } from "@/lib/validation/public";
 
-describe("signup no longer asks for plan, region or pack (the wizard does)", () => {
-  it("accepts just name, email and password", () => {
-    const r = signupSchema.safeParse({ name: "Jo", email: "jo@x.test", password: "longenough1" });
-    expect(r.success).toBe(true);
+describe("sign-up asks only for the essentials", () => {
+  const base = { name: "Jo", email: "jo@x.test", packId: "SALON_SPA" };
+  it("India needs a phone number, other regions do not, and the type is required", () => {
+    expect(signupSchema.safeParse({ ...base, timezone: "Asia/Kolkata" }).success).toBe(false);
+    expect(signupSchema.safeParse({ ...base, timezone: "Asia/Kolkata", phone: "+91 98765 43210" }).success).toBe(true);
+    expect(signupSchema.safeParse({ ...base, timezone: "Europe/London" }).success).toBe(true);
+    expect(signupSchema.safeParse({ name: "Jo", email: "jo@x.test", timezone: "Europe/London" }).success).toBe(false);
+  });
+  it("has no password field", () => {
+    const r = signupSchema.safeParse({ ...base, timezone: "Europe/London", password: "ignored" });
+    expect(r.success && "password" in r.data).toBe(false);
   });
 });

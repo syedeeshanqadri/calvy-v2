@@ -1,4 +1,4 @@
-import crypto from "crypto";
+import { signTicket, verifyTicket } from "@/lib/signedTicket";
 
 /**
  * Google sign-in rules (pure, unit-tested). An email address alone never links a Google login to an existing
@@ -32,24 +32,11 @@ export function decideGoogleSignIn(i: {
 export const LINK_COOKIE = "calvy_link_google";
 export const LINK_TTL_MS = 10 * 60_000;
 
-function mac(payload: string, secret: string): string {
-  return crypto.createHmac("sha256", secret).update(payload).digest("hex");
-}
-
 /** A short-lived signed token that says "this logged-in user asked to link Google". */
 export function signLinkIntent(userId: string, secret: string, now = Date.now()): string {
-  const payload = `${userId}.${now + LINK_TTL_MS}`;
-  return `${payload}.${mac(payload, secret)}`;
+  return signTicket("link-google", userId, secret, LINK_TTL_MS, now);
 }
 
 export function verifyLinkIntent(value: string | undefined | null, secret: string, now = Date.now()): string | null {
-  if (!value || !secret) return null;
-  const parts = value.split(".");
-  if (parts.length !== 3) return null;
-  const [userId, exp, sig] = parts;
-  const expected = mac(`${userId}.${exp}`, secret);
-  const a = Buffer.from(sig), b = Buffer.from(expected);
-  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
-  if (!(Number(exp) > now)) return null;
-  return userId;
+  return verifyTicket("link-google", value, secret, now);
 }

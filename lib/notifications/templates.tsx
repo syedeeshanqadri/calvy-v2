@@ -3,7 +3,7 @@ import { render } from "@react-email/render";
 import {
   BookingCancellationEmail, BookingConfirmationEmail, BookingReminderEmail, BookingRescheduleEmail, BusinessAlertEmail, BusinessLiveEmail,
   CustomerAccountSetupEmail, CustomerResetEmail, CustomerVerifyEmail, DailySummaryEmail, EmailVerificationEmail, InvoiceEmail, LeadAcknowledgmentEmail, MeetingLinkEmail,
-  PasswordResetEmail, TeamInviteEmail, QueueClosedEmail, QueueMovedBackEmail, ReviewRequestEmail, StatusChangeEmail, WelcomeEmail, businessAlertHeadline,
+  PasswordResetEmail, OwnerAccountSetupEmail, TeamInviteEmail, QueueClosedEmail, QueueMovedBackEmail, ReviewRequestEmail, StatusChangeEmail, WelcomeEmail, businessAlertHeadline,
   type BookingProps, type BusinessAlertProps, type DailySummaryProps, type InvoiceProps,
 } from "@/emails/templates";
 import type { TenantBrand } from "@/emails/EmailLayout";
@@ -197,6 +197,11 @@ export const TEMPLATES = {
     subject: () => "Verify your Calvy account",
     Email: (p) => <EmailVerificationEmail name={p.name} verifyUrl={p.secret} />,
     text: (p) => lines(`Hi ${first(p.name)}, confirm your email address to activate your Calvy account.`, p.secret, "This link expires in 24 hours."),
+  }),
+  owner_account_setup: define<AuthPayload>({
+    subject: () => "Verify your email and set your Calvy password",
+    Email: (p) => <OwnerAccountSetupEmail name={p.name} setupUrl={p.secret} />,
+    text: (p) => lines(`Hi ${first(p.name)}, welcome to Calvy. Confirm your email and choose a password:`, p.secret, "This link expires in 7 days. If you did not sign up, ignore this message."),
   }),
   password_reset: define<AuthPayload>({
     subject: () => "Reset your Calvy password",
