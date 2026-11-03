@@ -402,7 +402,7 @@ export function WebsiteEditorClient({ terms, slug, businessName, businessType, w
           <Input label="Subtitle" placeholder="Meet the professionals..." value={config.team.subtitle} onChange={e => set("team", "subtitle", e.target.value)} />
         </SectionCard>
 
-        <SectionsEditor config={config} setConfig={(fn) => setConfig(fn)} packId={packId} themeColor={themeColor} timezone={timezone} currency={currency} imageUpload={imageUpload} staff={staff} services={services} businessName={businessName} />
+        <SectionsEditor config={config} setConfig={(fn) => setConfig(fn)} packId={packId} themeColor={themeColor} timezone={timezone} currency={currency} imageUpload={imageUpload} staff={staff} services={services} businessName={businessName} hasReviewLink={!!googleReviewUrl} />
 
         {/* ── CONTACT ── */}
         <SectionCard title="Contact Section" enabled={config.contact.enabled} onToggle={() => toggle("contact")}>

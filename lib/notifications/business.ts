@@ -1,7 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import type { NotificationInput } from "@/lib/notifications/enqueue";
 import type { Notice } from "@/lib/notifications/events";
-import { ALERT_EVENTS, REVIEW_EVENT, type AlertKind } from "@/lib/notifications/prefs";
+import { ALERT_EVENTS, REVIEW_EVENT, REVIEW_DELAY_DEFAULT_HOURS, resolvePrefs, type AlertKind } from "@/lib/notifications/prefs";
+import { recentlyAskedForReview } from "@/lib/notifications/reviewThrottle";
 import { safeReviewLink } from "@/lib/brandLinks";
 
 /**
@@ -62,17 +63,33 @@ export async function ownerAlert(n: Notice, kind: AlertKind, d: AlertDetails = {
   }
 }
 
-export const REVIEW_DELAY_MS = 2 * 3_600_000;
+export const REVIEW_DELAY_MS = REVIEW_DELAY_DEFAULT_HOURS * 3_600_000;
 
-/** booking.review_request: once per booking, 2h after it is completed, only with a valid review link. */
-export function reviewRequest(n: Notice, googleReviewUrl: string | null | undefined, now: Date = new Date()): NotificationInput | null {
+/** booking.review_request: once per booking, `delayHours` after it is completed (default 2), only with a valid review link. */
+export function reviewRequest(n: Notice, googleReviewUrl: string | null | undefined, now: Date = new Date(), delayHours: number = REVIEW_DELAY_DEFAULT_HOURS): NotificationInput | null {
   const reviewUrl = safeReviewLink(googleReviewUrl);
   if (!n.to || !reviewUrl) return null;
   return {
     event: REVIEW_EVENT, audience: "CUSTOMER", subjectId: n.appointmentId, recipient: n.to, template: "review_request",
-    businessId: n.businessId, appointmentId: n.appointmentId, notBefore: new Date(now.getTime() + REVIEW_DELAY_MS),
+    businessId: n.businessId, appointmentId: n.appointmentId, notBefore: new Date(now.getTime() + delayHours * 3_600_000),
     payload: { clientName: n.payload.clientName, businessName: n.payload.businessName, reviewUrl },
   };
+}
+
+/**
+ * The review request for a completed booking, or null: no review link, no email address, or the customer was already
+ * asked in the last 30 days. The business's own delay (1 to 48 hours) applies; the switch and unsubscribes are checked in enqueue().
+ */
+export async function reviewRequestFor(
+  n: Notice,
+  business: { googleReviewUrl: string | null; notificationPrefs: unknown },
+  now: Date = new Date(),
+): Promise<NotificationInput | null> {
+  const delay = resolvePrefs(business.notificationPrefs).customer.reviewDelayHours;
+  const input = reviewRequest(n, business.googleReviewUrl, now, delay);
+  if (!input) return null;
+  if (await recentlyAskedForReview(prisma, { businessId: n.businessId, recipient: n.to as string, appointmentId: n.appointmentId, now })) return null;
+  return input;
 }
 
 /** account.created + business.live: the owner's first two emails, once per business. */

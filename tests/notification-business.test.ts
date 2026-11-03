@@ -67,7 +67,7 @@ const notice: Notice = {
   payload: { clientName: "Riya Kapoor", businessName: "Sunrise", serviceName: "Checkup", staffName: "Dr Rao", date: "Tuesday, November 3", time: "10:00 AM", duration: 30, price: 500, currency: "INR" },
 };
 const fullPrefs = (over: Record<string, any> = {}) => ({
-  customer: { completed: true, reviewRequest: true }, business: { created: true, rescheduled: true, cancelled: true, paid: true, status: false },
+  customer: { completed: true, reviewRequest: true, reviewDelayHours: 2 }, business: { created: true, rescheduled: true, cancelled: true, paid: true, status: false },
   dailySummary: false, reminderLeadMinutes: [1440], ...over,
 });
 

@@ -411,15 +411,15 @@ export default async function TenantWebsitePage(props: { params: Promise<{ slug:
         {faqItems.length > 0 && <FaqSection title={cfg.faq!.title || "Questions we get asked"} items={faqItems} />}
 
         {/* ── REVIEW ── */}
-        {reviewUrl && (
+        {reviewUrl && cfg.reviews?.enabled !== false && (
           <section className="st-section">
             <div className="st-wrap">
               <div className="st-review">
                 <div>
-                  <h3>Happy with your visit?</h3>
+                  <h3>Happy with your {t(business, "appointment")}?</h3>
                   <p>A quick Google review helps others find us.</p>
                 </div>
-                <ReviewButton href={reviewUrl} color={primary} fg={primaryFg} />
+                <ReviewButton href={reviewUrl} color={primary} fg={primaryFg} label="Review us on Google" />
               </div>
             </div>
           </section>

@@ -5,6 +5,8 @@ import { loadBrand } from "@/lib/notifications/brand";
 import { CHANNELS, type Channel, type SendOutcome } from "@/lib/notifications/channels";
 import { MAX_ATTEMPTS, nextAttemptAt } from "@/lib/notifications/policy";
 import { OPTIONAL_EVENTS, skipReasons, unsubscribeLinks } from "@/lib/notifications/prefs";
+import { REVIEW_EVENT } from "@/lib/notifications/prefs";
+import { reviewSendBlocker } from "@/lib/notifications/reviewThrottle";
 import { REMINDER_EVENT, reminderSendCheck } from "@/lib/notifications/reminderRules";
 import { decryptSecret } from "@/lib/notifications/secret";
 import { renderTemplate } from "@/lib/notifications/templates";
@@ -61,6 +63,8 @@ async function attemptSend(row: NotificationOutbox, channels: Record<string, Cha
     // Checked again here: the recipient may have unsubscribed, or the business switched it off, since it was queued.
     const skip = (await skipReasons(prisma, [{ businessId: row.businessId, event: row.event, recipient: row.recipient }])).get(0);
     if (skip) return { kind: "skipped", error: skip };
+    const throttled = row.event === REVIEW_EVENT ? await reviewSendBlocker(prisma, row, now) : null;
+    if (throttled) return { kind: "skipped", error: throttled };
     // A reminder is only right if its booking is still on, at the same time.
     const stale = row.event === REMINDER_EVENT ? await reminderSendCheck(row) : null;
     if (stale) return { kind: "skipped", error: stale };
