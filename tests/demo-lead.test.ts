@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { createElement } from "react";
-import { render } from "@react-email/components";
+import { render } from "@react-email/render";
 import { LeadAcknowledgmentEmail } from "@/emails/templates";
 import { leadSchema } from "@/lib/validation/public";
 

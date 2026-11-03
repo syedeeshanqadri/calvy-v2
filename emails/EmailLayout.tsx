@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Body, Container, Head, Hr, Html, Img, Link, Preview, Section, Text } from "@react-email/components";
+import { Body, Container, Head, Hr, Html, Img, Link, Preview, Section, Text } from "react-email";
 
 export const brand = {
   accent: "#0284c7",

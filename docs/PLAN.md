@@ -469,6 +469,16 @@ Items from the old Steps 3 and 4 that the 2026-10-24 re-plan deferred. Each gets
 | SA-04 | Signup answers "An account with this email already exists" (account enumeration, rate limited). Accept or switch to a generic message plus email | Low |
 | SA-05 | The Neon database credentials and test password in the local `.claude/settings.json` should be rotated and removed (the file is untracked and the repo is private, but it sits on disk); the dev database is also used by the test server | Low |
 
+## Dependency maintenance (planned 2026-11-03, not started)
+
+After `chore/deps-maintenance`, `npm audit` shows 21 moderate advisories (0 high or critical). They all need a major upgrade. 20 are dev-only (the eslint chain) or build-time only (Sentry's bundler plugin), and 1 is the `react-email` CLI's `glob`, which the runtime components do not import.
+
+| ID | Item | Size | Plan |
+|---|---|---|---|
+| DM-01 | ESLint 9 → 10 (clears the `minimatch` < 11 chain: `eslint`, `@eslint/*`, `typescript-eslint`, `eslint-config-next`) | M | **Blocked upstream:** `eslint-config-next` 16 pulls `eslint-plugin-react` 7.37, `eslint-plugin-import` 2.32 and `eslint-plugin-jsx-a11y` 6.10, which do not list ESLint 10 as a peer and still use `minimatch` 3. Recheck monthly with `npm view eslint-plugin-react@latest peerDependencies`. When all three support 10: (1) branch `chore/eslint-10`; (2) `npm i -D eslint@^10 eslint-config-next@<matching>`; (3) migrate `eslint.config.mjs` for removed options (see the ESLint 10 migration guide) and keep every rule we have today; (4) `npm run lint` must report the same or fewer warnings, 0 errors; (5) `npm audit` must drop the eslint chain. Dev-only, no runtime risk |
+| DM-02 | Prisma 5.22 → 6 → 7 (two steps, never straight to 7) | L | **6 first** (`chore/prisma-6`): `npm i prisma@^6 @prisma/client@^6`. Read the v6 upgrade guide: implicit many-to-many tables get a new primary key (a generated migration), `Buffer` → `Uint8Array` for `Bytes`, `NotFoundError` removed (use `P2025`), new reserved model names. Generate the migration with `npm run db:migrate:dev` on the dev database only, then lint/tsc/tests, `npm run build`, the Playwright smoke, and one `SKIP LOCKED` outbox run on dev. **Then 7** (`chore/prisma-7`): new `prisma-client` generator with an output path, `prisma.config.ts` (env is no longer loaded automatically, which affects the `db:*` scripts and dotenv-cli), driver adapters (`@prisma/adapter-neon` or `@prisma/adapter-pg`) in `lib/prisma.ts`, ESM output; re-check `$queryRaw` call sites (outbox claim) and the Vercel build. Each step is its own PR with the owner's click-test |
+| DM-03 | `glob` ≤ 14.0.1 (AbortSignal bypass) in `@sentry/bundler-plugins` (build time) and the `react-email` CLI | S | No safe fix: even the latest `@sentry/bundler-plugins` (11.10) still pins `glob` ^13, and forcing 14 through `overrides` is a major bump inside code we don't own. Recheck when bumping Sentry; then `npm audit` should list neither |
+
 ---
 
 ## Dependencies across steps

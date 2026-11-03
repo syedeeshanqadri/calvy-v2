@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
 import { createElement } from "react";
-import { render } from "@react-email/components";
+import { render } from "@react-email/render";
 import { meetingUrlFor } from "@/lib/online";
 import { appointmentPatchSchema } from "@/lib/validation/appointments";
 import { MeetingLinkEmail } from "@/emails/templates";
