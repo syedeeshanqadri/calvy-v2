@@ -127,3 +127,50 @@ describe("upload purposes", () => {
     expect(parsePhotoPurpose("constructor")).toBe("about");
   });
 });
+
+import { sectionOn } from "@/lib/siteSections";
+import { renderToStaticMarkup } from "react-dom/server";
+import { createElement } from "react";
+import { OfferBanner, GallerySection, FaqSection, TeamCards, ServiceCards } from "@/components/site/SiteSections";
+
+describe("defaults: a section with content is on unless switched off", () => {
+  it("sectionOn", () => {
+    expect(sectionOn(undefined, true)).toBe(true);
+    expect(sectionOn(true, true)).toBe(true);
+    expect(sectionOn(false, true)).toBe(false);
+    expect(sectionOn(true, false)).toBe(false);
+    expect(sectionOn(undefined, false)).toBe(false);
+  });
+  it("offer shows by default when it has text, hides when switched off or past its end date", () => {
+    const now = new Date("2026-11-10T12:00:00Z");
+    expect(offerVisible({ text: "Sale", endsOn: "" }, now, "UTC")).toBe(true);
+    expect(offerVisible({ enabled: false, text: "Sale", endsOn: "" }, now, "UTC")).toBe(false);
+    expect(offerVisible({ text: "Sale", endsOn: "2026-11-01" }, now, "UTC")).toBe(false);
+  });
+  it("an enabled gallery without alt text is rejected, a default-on one too", () => {
+    expect(validateSections({ gallery: { images: [{ url: "https://a.com/x.png", alt: "" }] } })).toHaveLength(1);
+    expect(validateSections({ gallery: { enabled: false, images: [{ url: "https://a.com/x.png", alt: "" }] } })).toEqual([]);
+  });
+});
+
+describe("shared render components (same ones the editor preview uses)", () => {
+  const html = (el: React.ReactElement) => renderToStaticMarkup(el);
+  it("offer, FAQ, gallery, team and service cards produce the expected markup", () => {
+    expect(html(createElement(OfferBanner, { text: "20% off" }))).toContain("20% off");
+    const faq = html(createElement(FaqSection, { title: "FAQ", items: [{ q: "Parking?", a: "Yes, free." }] }));
+    expect(faq).toContain("<details");
+    expect(faq).toContain("Parking?");
+    const gal = html(createElement(GallerySection, { title: "Gallery", images: [{ url: "https://a.com/x.webp", alt: "Front desk" }] }));
+    expect(gal).toContain('alt="Front desk"');
+    const team = html(createElement(TeamCards, { staff: [{ id: "1", name: "Ana Diaz", role: "Stylist", photoUrl: "https://a.com/a.webp", bio: "Ten years of colour.", specialisation: "Balayage" }] }));
+    expect(team).toContain('alt="Ana Diaz"');
+    expect(team).toContain("Ten years of colour.");
+    expect(team).toContain("Balayage");
+    const svc = html(createElement(ServiceCards, { currency: "INR", bookingUrl: "/b", services: [{ id: "s", name: "Cut", description: "", duration: 30, price: 500, capacity: 1, imageUrl: "https://a.com/s.webp" }] }));
+    expect(svc).toContain("st-svc-card-img");
+  });
+  it("empty sections render nothing", () => {
+    expect(html(createElement(FaqSection, { title: "FAQ", items: [] }))).toBe("");
+    expect(html(createElement(GallerySection, { title: "G", images: [] }))).toBe("");
+  });
+});

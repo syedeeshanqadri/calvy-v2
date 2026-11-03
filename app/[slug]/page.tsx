@@ -144,8 +144,8 @@ export default async function TenantWebsitePage(props: { params: Promise<{ slug:
   const groups = groupByCategory(business.services);
   const hasTeam = cfg.team.enabled && business.staff.length > 0;
   const showOffer = offerVisible(cfg.offer, new Date(), business.timezone);
-  const galleryImages = cfg.gallery?.enabled ? sanitizeGallery(cfg.gallery.images) : [];
-  const faqItems = cfg.faq?.enabled ? sanitizeFaq(cfg.faq.items) : [];
+  const galleryImages = cfg.gallery && cfg.gallery.enabled !== false ? sanitizeGallery(cfg.gallery.images) : [];
+  const faqItems = cfg.faq && cfg.faq.enabled !== false ? sanitizeFaq(cfg.faq.items) : [];
   const faqLd = faqJsonLd(faqItems);
   const serviceCards = parseServiceLayout(cfg.serviceLayout) === "cards";
   const hasSocial = Object.keys(social).length > 0;

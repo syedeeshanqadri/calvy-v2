@@ -16,14 +16,22 @@ export const SITE_CAPS = {
   url: 1000,
 } as const;
 
+/**
+ * Is an optional section on? A section that has content is ON unless the owner switched it off
+ * (enabled === false); one without content never renders. So adding content is enough to publish it.
+ */
+export function sectionOn(enabled: boolean | undefined, hasContent: boolean): boolean {
+  return enabled !== false && hasContent;
+}
+
 export type HeroLook = "split" | "arch" | "dark";
 export type ServiceLayout = "list" | "cards";
 
 export interface GalleryItem { url: string; alt: string }
 export interface FaqItem { q: string; a: string }
-export interface GallerySection { enabled: boolean; title: string; images: GalleryItem[] }
-export interface OfferSection { enabled: boolean; text: string; /** YYYY-MM-DD, last day the banner shows; empty = no end. */ endsOn: string }
-export interface FaqSection { enabled: boolean; title: string; items: FaqItem[] }
+export interface GallerySection { enabled?: boolean; title: string; images: GalleryItem[] }
+export interface OfferSection { enabled?: boolean; text: string; /** YYYY-MM-DD, last day the banner shows; empty = no end. */ endsOn: string }
+export interface FaqSection { enabled?: boolean; title: string; items: FaqItem[] }
 
 const LOOK_TO_LAYOUT: Record<HeroLook, HeroLayout> = { split: "split", arch: "arch", dark: "immersive" };
 
@@ -92,18 +100,18 @@ export function validateSections(cfg: { gallery?: Partial<GallerySection>; faq?:
   const imgs = cfg.gallery?.images ?? [];
   if (imgs.length > SITE_CAPS.galleryImages) errors.push(`The gallery holds at most ${SITE_CAPS.galleryImages} photos.`);
   if (imgs.some((i) => !isSafeImageUrl(i.url))) errors.push("A gallery photo has an invalid address.");
-  if (cfg.gallery?.enabled && imgs.some((i) => !i.alt?.trim())) errors.push("Describe every gallery photo (alt text) so screen readers can read it.");
+  if (sectionOn(cfg.gallery?.enabled, imgs.length > 0) && imgs.some((i) => !i.alt?.trim())) errors.push("Describe every gallery photo (alt text) so screen readers can read it.");
   const faq = cfg.faq?.items ?? [];
   if (faq.length > SITE_CAPS.faqItems) errors.push(`The FAQ holds at most ${SITE_CAPS.faqItems} questions.`);
   if (faq.some((f) => !f.q?.trim() || !f.a?.trim())) errors.push("Every FAQ needs both a question and an answer.");
-  if (cfg.offer?.enabled && !cfg.offer.text?.trim()) errors.push("Write the offer text, or switch the banner off.");
+  if (cfg.offer?.enabled === true && !cfg.offer.text?.trim()) errors.push("Write the offer text, or switch the banner off.");
   if (cfg.offer?.endsOn && !/^\d{4}-\d{2}-\d{2}$/.test(cfg.offer.endsOn)) errors.push("The offer end date is not a valid date.");
   return errors;
 }
 
 /** Banner shows while enabled, has text, and today (in the business's timezone) is not after the end date. */
 export function offerVisible(offer: Partial<OfferSection> | undefined, now: Date, timezone = "UTC"): boolean {
-  if (!offer?.enabled || !offer.text?.trim()) return false;
+  if (!offer || !sectionOn(offer.enabled, !!offer.text?.trim())) return false;
   if (!offer.endsOn) return true;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(offer.endsOn)) return true;
   let today: string;
