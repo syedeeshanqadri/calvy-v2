@@ -18,6 +18,10 @@ vi.mock("@/lib/prisma", () => ({ prisma: mocks.db }));
 vi.mock("@/lib/notifications/enqueue", () => ({ notify: mocks.notify }));
 vi.mock("@/lib/push", () => ({ sendPushToBusiness: mocks.push }));
 vi.mock("@/lib/whatsapp", () => ({ sendBookingConfirmationWhatsApp: mocks.whatsapp }));
+// Owner alerts: a tagged stand-in, so the tests can tell them from the customer's messages.
+vi.mock("@/lib/notifications/business", () => ({
+  ownerAlert: vi.fn(async (_n: unknown, kind: string, d: { version?: string; price?: number } = {}) => ({ event: `alert.booking.${kind}`, version: d.version, payload: { price: d.price } })),
+}));
 
 import { sendConfirmationFor, settlePaidPayment } from "@/lib/onlinePayment";
 
@@ -30,7 +34,10 @@ const booking = (over: Record<string, unknown> = {}) => ({
   ...over,
 });
 type Queued = { event: string; template: string; version?: string | number; payload: Record<string, any> } | null;
-const sent = () => mocks.notify.mock.calls.flatMap((c) => c) as Queued[];
+const isAlert = (q: unknown) => (q as Queued)?.event?.startsWith("alert.") ?? false;
+/** What the customer is sent (calls made only of owner alerts are left out). */
+const sent = () => mocks.notify.mock.calls.filter((c) => !c.every((q) => q === null || isAlert(q))).flatMap((c) => c) as Queued[];
+const alerts = () => (mocks.notify.mock.calls.flat() as Queued[]).filter(isAlert);
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -61,7 +68,8 @@ describe("sendConfirmationFor", () => {
   it("the flood-protection case: the business hears about it, the contact gets nothing", async () => {
     await sendConfirmationFor("a1", { paid: true, contactMessages: false, payment: { id: "pay1", amountMinor: 50000 } });
     expect(mocks.push).toHaveBeenCalledTimes(1);
-    expect(mocks.notify).not.toHaveBeenCalled();
+    expect(sent()).toEqual([]);
+    expect(alerts().map((a) => a?.event)).toEqual(["alert.booking.created", "alert.booking.paid"]);
     expect(mocks.whatsapp).not.toHaveBeenCalled();
   });
 
@@ -87,6 +95,8 @@ describe("settlePaidPayment", () => {
     expect(await settlePaidPayment("pay1")).toBe("confirmed");
     expect(sent().map((n) => n?.event)).toEqual(["booking.created", "booking.paid"]);
     expect(sent()[1]).toMatchObject({ version: "pay1", payload: { paymentRef: "cf_pay_1", price: 500 } });
+    // The business: a new-booking alert and a payment alert keyed on the same payment.
+    expect(alerts()).toMatchObject([{ event: "alert.booking.created" }, { event: "alert.booking.paid", version: "pay1", payload: { price: 500 } }]);
   });
 
   it("the gateway calling again (webhook retry, return page) queues nothing more", async () => {

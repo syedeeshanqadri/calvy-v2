@@ -59,7 +59,7 @@ describe("manual mark-paid receipt", () => {
   it("no email on file: still paid, nothing queued", async () => {
     db.findFirst.mockReset().mockResolvedValueOnce(basic).mockResolvedValueOnce({ ...full, client: { name: "R", email: null } });
     expect((await call()).status).toBe(200);
-    expect(notify).toHaveBeenCalledWith(null); // nothing to send to
+    expect(notify.mock.calls[0][0]).toBeNull(); // no receipt: nothing to send to
   });
   it("a failed enqueue does not undo the payment", async () => {
     notify.mockRejectedValue(new Error("db down"));

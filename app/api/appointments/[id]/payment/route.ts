@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { notify } from "@/lib/notifications/enqueue";
 import { noticeFrom, receipt } from "@/lib/notifications/events";
+import { ownerAlert } from "@/lib/notifications/business";
 
 export const dynamic = 'force-dynamic';
 
@@ -38,7 +39,10 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
       where: { id: params.id, businessId: session.user.businessId },
       include: { client: true, service: true, staff: true, business: true },
     });
-    if (full) await notify(receipt(noticeFrom(full)));
+    if (full) {
+      const n = noticeFrom(full);
+      await notify(receipt(n), await ownerAlert(n, "paid"));
+    }
   } catch (err) {
     logger.error("[Payments] receipt failed:", { err });
   }

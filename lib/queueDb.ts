@@ -6,6 +6,7 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { findOrCreateClient } from "@/lib/clients";
 import { notify } from "@/lib/notifications/enqueue";
+import { ownerAlert } from "@/lib/notifications/business";
 import { queueClosed, queueMovedBack, type Notice } from "@/lib/notifications/events";
 import { DEFAULT_CURRENCY } from "@/lib/currency";
 import { creditLabel } from "@/lib/credit";
@@ -283,6 +284,9 @@ export async function runQueueAction(
           // The key carries the miss count, so the second and third missed calls are told as well.
           await notify(queueMovedBack(notice, placeInLine(plan.order, plan.subjectId), plan.updates[subject.id]?.notPresentCount ?? subject.notPresentCount));
         } else if (plan.outcome === "no_show" || plan.outcome === "cancelled") {
+          await notify(plan.outcome === "cancelled"
+            ? await ownerAlert(notice, "cancelled")
+            : await ownerAlert(notice, "status", { version: "no_show", statusLabel: "closed after missed calls" }));
           await notify(queueClosed(notice, {
             reason: plan.outcome === "no_show" ? "missed" : "cancelled",
             creditLabel: credit ? creditLabel(credit.amountMinor, credit.currency) : undefined,

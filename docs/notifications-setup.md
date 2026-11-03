@@ -2,7 +2,7 @@
 
 Do this once chunk 1 (`/api/cron/notifications`) is merged and deployed. Vercel Hobby only allows a daily cron, so cron-job.org triggers the endpoint every 2 minutes.
 
-Since chunk 4 this one endpoint does all scheduled work: it expires unpaid holds, queues booking reminders that are due (one or two per booking, 24h before by default), then sends. The old `/api/cron/reminders` route is gone; if any external job still calls it, point it at `/api/cron/notifications`. `vercel.json` keeps one daily Vercel cron on `/api/cron/notifications` as the backstop. Without the cron-job.org job, reminders go out at most once a day, so a 2h reminder can be missed.
+Since chunk 4 this one endpoint does all scheduled work: it expires unpaid holds, queues booking reminders that are due (one or two per booking, 24h before by default) and opted-in morning summaries (08:00 to 12:00 business time), then sends. The old `/api/cron/reminders` route is gone; if any external job still calls it, point it at `/api/cron/notifications`. `vercel.json` keeps one daily Vercel cron on `/api/cron/notifications` as the backstop. Without the cron-job.org job, reminders go out at most once a day, so a 2h reminder can be missed.
 
 ## 1. Vercel: bypass secret
 1. Vercel → the Calvy project → **Settings → Deployment Protection → Protection Bypass for Automation**.
@@ -37,7 +37,7 @@ Save, then use **Test run**. cron-job.org closes the connection at 30 seconds; e
 ```zsh
 curl -sS "https://<your-production-domain>/api/cron/notifications" -H "Authorization: Bearer <CRON_SECRET value>" -H "x-vercel-protection-bypass: <bypass secret>"
 ```
-Expected: JSON such as `{"ok":true,"expiredHolds":0,"remindersQueued":0,"claimed":0,"sent":0,"retried":0,"failed":0,"skipped":0,"reclaimedDead":0,"purged":0}`.
+Expected: JSON such as `{"ok":true,"expiredHolds":0,"remindersQueued":0,"summariesQueued":0,"claimed":0,"sent":0,"retried":0,"failed":0,"skipped":0,"reclaimedDead":0,"purged":0}`.
 
 | You get | Meaning |
 |---|---|
@@ -45,7 +45,7 @@ Expected: JSON such as `{"ok":true,"expiredHolds":0,"remindersQueued":0,"claimed
 | 401 with `{"error":"Unauthorized"}` | Bypass fine; `CRON_SECRET` wrong, or not redeployed after adding it |
 | 3xx | Use the final domain in the URL |
 | 404 | Chunk 1 is not on this deployment yet |
-| `-1` in `expiredHolds` or `remindersQueued` | That step failed this run (see the Vercel logs); sending still ran |
+| `-1` in `expiredHolds`, `remindersQueued` or `summariesQueued` | That step failed this run (see the Vercel logs); sending still ran |
 
 ## Later
 - **Encryption key (optional):** reset and verify links wait in the outbox encrypted, and unsubscribe links are signed, with `NOTIFY_SECRET_KEY` if you set it (same way as step 2: Production, then redeploy) and otherwise with a key derived from `NEXTAUTH_SECRET`, so nothing breaks if you never set it. Changing either secret while such emails are pending makes those few fail; unsubscribe links already sent stop working.

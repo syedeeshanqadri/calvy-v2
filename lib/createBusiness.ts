@@ -4,6 +4,9 @@ import { isReservedSlug } from "@/lib/slugs";
 import { safeTimeZone } from "@/lib/time";
 import { syncBusinessHours } from "@/lib/schedule";
 import { getPack, type PackId } from "@/lib/packs";
+import { logger } from "@/lib/logger";
+import { notify } from "@/lib/notifications/enqueue";
+import { ownerOnboarding } from "@/lib/notifications/business";
 
 function toBaseSlug(name: string): string {
   return name
@@ -93,5 +96,11 @@ export async function createBusinessForUser(params: {
     data: business.staff.flatMap((st) => business.services.map((sv) => ({ staffId: st.id, serviceId: sv.id }))),
     skipDuplicates: true,
   });
+  // Welcome + "you are live" (with the website link). No "live" flag exists yet, so both go at creation.
+  try {
+    await notify(...ownerOnboarding({ businessId: business.id, slug, businessName: params.businessName, ownerName: params.ownerName, ownerEmail: params.ownerEmail }));
+  } catch (err) {
+    logger.error("[Notifications] owner onboarding emails failed", { err });
+  }
   return business;
 }

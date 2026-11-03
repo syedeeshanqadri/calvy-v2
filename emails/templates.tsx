@@ -353,6 +353,7 @@ export function DailySummaryEmail(p: DailySummaryProps) {
   return (
     <EmailLayout tenant={p.tenant} calvyFooter preview={`${p.businessName}: ${p.dateLabel}`}>
       <H>Your day: {p.dateLabel}</H>
+      <P>Yesterday:</P>
       <Card>
         <DetailRow label={`New ${word}`} value={String(p.counts.bookings)} strong />
         <DetailRow label="Completed" value={String(p.counts.completed)} />

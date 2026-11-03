@@ -14,6 +14,7 @@ import { safeTimeZone, formatDateLabel, formatTimeLabel, zonedTimeToUtc, utcToZo
 import { settleCancellation } from "@/lib/holds";
 import { refundPayment } from "@/lib/onlinePayment";
 import { meetingUrlFor } from "@/lib/online";
+import { ownerAlert, reviewRequest } from "@/lib/notifications/business";
 
 export const dynamic = 'force-dynamic';
 
@@ -182,9 +183,19 @@ async function PATCH_handler(req: NextRequest, props: { params: Promise<{ id: st
       if (full) {
         const n = noticeFrom(full);
         const rebookUrl = `${APP_URL}/${full.business.slug}`;
+        const move = willReschedule ? { from: appointment.date, to: full.date, oldDate: fmtDate(appointment.date), oldTime: fmtTime(appointment.date) } : null;
+        await notify(
+          willCancel ? await ownerAlert(n, "cancelled")
+            : move ? await ownerAlert(n, "rescheduled", { version: `${move.from.getTime()}>${move.to.getTime()}`, oldDate: move.oldDate, oldTime: move.oldTime })
+            : willComplete ? await ownerAlert(n, "status", { version: "completed", statusLabel: "completed" })
+            : willNoShow ? await ownerAlert(n, "status", { version: "no_show", statusLabel: "marked as a no-show" })
+            : null,
+          willPay && !willCancel ? await ownerAlert(n, "paid") : null,
+          willComplete ? reviewRequest(n, full.business.googleReviewUrl) : null,
+        );
         await notify(
           willCancel ? cancellation(n, rebookUrl)
-            : willReschedule ? reschedule(n, { from: appointment.date, to: full.date, oldDate: fmtDate(appointment.date), oldTime: fmtTime(appointment.date) })
+            : move ? reschedule(n, move)
             : willComplete ? statusChange(n, "completed", rebookUrl)
             : willNoShow ? statusChange(n, "no_show", rebookUrl)
             : null,
