@@ -14,7 +14,7 @@ import { safeTimeZone, formatDateLabel, formatTimeLabel, zonedTimeToUtc, utcToZo
 import { settleCancellation } from "@/lib/holds";
 import { refundPayment } from "@/lib/onlinePayment";
 import { meetingUrlFor } from "@/lib/online";
-import { ownerAlert, reviewRequest } from "@/lib/notifications/business";
+import { ownerAlert, reviewRequestFor } from "@/lib/notifications/business";
 
 export const dynamic = 'force-dynamic';
 
@@ -191,7 +191,7 @@ async function PATCH_handler(req: NextRequest, props: { params: Promise<{ id: st
             : willNoShow ? await ownerAlert(n, "status", { version: "no_show", statusLabel: "marked as a no-show" })
             : null,
           willPay && !willCancel ? await ownerAlert(n, "paid") : null,
-          willComplete ? reviewRequest(n, full.business.googleReviewUrl) : null,
+          willComplete ? await reviewRequestFor(n, full.business) : null,
         );
         await notify(
           willCancel ? cancellation(n, rebookUrl)

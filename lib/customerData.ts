@@ -1,3 +1,4 @@
+import { safeReviewLink } from "@/lib/brandLinks";
 import { cache } from "react";
 import { getCustomer } from "@/lib/customerSession";
 import { overviewForCustomer } from "@/lib/customerDb";
@@ -42,6 +43,8 @@ export interface BookingView {
   /** Queue token that was already moved to another day once: it can be cancelled, not moved again. */
   moveBlocked: string | null;
   bookAgainHref: string;
+  /** Google review link, only for a completed visit of a business that set one. */
+  reviewUrl: string | null;
 }
 
 export interface WalletView { businessName: string; businessSlug: string; balanceLabel: string; balanceMinor: number; currency: string }
@@ -73,6 +76,7 @@ export const getCustomerData = cache(async () => {
       manage: manageability({ status: a.status, date: a.date, tokenNumber: a.tokenNumber, queueState: a.queueState, business: { cancellationCutoffHours: a.business.cancellationCutoffHours, name: a.business.name } }, now),
       moveBlocked: tokenMoveBlocker(a),
       bookAgainHref: `/${a.business.slug}/book-now`,
+      reviewUrl: a.status === "completed" ? safeReviewLink(a.business.googleReviewUrl) : null,
     };
   };
 

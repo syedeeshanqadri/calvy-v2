@@ -8,6 +8,7 @@ import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { Card, CardContent } from "@/components/ui/Card";
 import { LogFilters, LogPager } from "@/components/notifications/LogFilters";
 import { LogTable } from "@/components/notifications/LogTable";
+import { REVIEW_EVENT } from "@/lib/notifications/prefs";
 import { listLog, ownerLogWhere, parseLogFilters, since } from "@/lib/notifications/log";
 
 export const dynamic = "force-dynamic";
@@ -20,11 +21,12 @@ export default async function NotificationLogPage({ searchParams }: { searchPara
   if (!businessId) redirect("/login");
   const filters = parseLogFilters(await searchParams);
   const now = new Date();
-  const [{ rows, hasMore }, counts] = await Promise.all([
+  const [{ rows, hasMore }, counts, reviewsSent] = await Promise.all([
     listLog(ownerLogWhere(businessId, filters, now), filters.page, { mask: false, now }),
     prisma.notificationOutbox.groupBy({
       by: ["status"], where: { businessId, createdAt: { gte: since(filters.days, now) } }, _count: { _all: true },
     }),
+    prisma.notificationOutbox.count({ where: { businessId, event: REVIEW_EVENT, status: "SENT", createdAt: { gte: since(filters.days, now) } } }),
   ]);
   const count = (s: string) => counts.find((c) => c.status === s)?._count._all ?? 0;
   const tiles = [
@@ -48,6 +50,7 @@ export default async function NotificationLogPage({ searchParams }: { searchPara
             </div>
           ))}
         </div>
+        <p className="text-sm text-[#6b6b80]" data-testid="review-requests-sent">Review requests sent · {filters.days === 1 ? "24h" : `${filters.days}d`}: <strong className="text-[#0f0f1a]">{reviewsSent}</strong></p>
         <Card>
           <CardContent className="space-y-4 pt-5">
             <LogFilters action={ACTION} filters={filters} searchHint="Email, phone or message type" />

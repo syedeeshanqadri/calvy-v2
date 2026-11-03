@@ -30,7 +30,7 @@ export const MAX_REMINDERS = 2;
 const DEFAULT_REMINDER_LEADS = [1440];
 
 const prefsSchema = z.object({
-  customer: z.object({ completed: z.boolean().optional(), reviewRequest: z.boolean().optional() }).optional(),
+  customer: z.object({ completed: z.boolean().optional(), reviewRequest: z.boolean().optional(), reviewDelayHours: z.number().optional() }).optional(),
   business: z.object({
     created: z.boolean().optional(), rescheduled: z.boolean().optional(), cancelled: z.boolean().optional(),
     paid: z.boolean().optional(), status: z.boolean().optional(),
@@ -45,6 +45,8 @@ export interface NotificationPrefs {
     completed: boolean;
     /** Google review request 2h after a booking is completed (needs the business's review link). */
     reviewRequest: boolean;
+    /** Hours after completion before the review request goes out (1 to 48, default 2). */
+    reviewDelayHours: number;
   };
   /** Alerts to the business: new booking, rescheduled, cancelled and paid are on; other status changes are off. */
   business: Record<AlertKind, boolean>;
@@ -52,6 +54,13 @@ export interface NotificationPrefs {
   dailySummary: boolean;
   /** Up to two reminders, longest lead first (24h + 2h, say). Empty means the business sends no reminders. */
   reminderLeadMinutes: number[];
+}
+
+export const REVIEW_DELAY_DEFAULT_HOURS = 2;
+/** A whole number of hours from 1 to 48; anything else (missing, junk, out of range) is clamped or defaulted. */
+export function clampReviewDelay(v: unknown): number {
+  if (typeof v !== "number" || !Number.isFinite(v)) return REVIEW_DELAY_DEFAULT_HOURS;
+  return Math.min(48, Math.max(1, Math.round(v)));
 }
 
 /** Allowed leads only, no repeats, at most two. Not set means the default (one, 24h before). */
@@ -67,7 +76,7 @@ export function resolvePrefs(raw: unknown): NotificationPrefs {
   const data = parsed.success ? parsed.data : {};
   const b = data.business ?? {};
   return {
-    customer: { completed: data.customer?.completed ?? true, reviewRequest: data.customer?.reviewRequest ?? true },
+    customer: { completed: data.customer?.completed ?? true, reviewRequest: data.customer?.reviewRequest ?? true, reviewDelayHours: clampReviewDelay(data.customer?.reviewDelayHours) },
     business: { created: b.created ?? true, rescheduled: b.rescheduled ?? true, cancelled: b.cancelled ?? true, paid: b.paid ?? true, status: b.status ?? false },
     dailySummary: data.dailySummary ?? false,
     reminderLeadMinutes: resolveReminderLeads(data.reminderLeadMinutes),
@@ -76,7 +85,7 @@ export function resolvePrefs(raw: unknown): NotificationPrefs {
 
 /** What the settings page saves: every field, strictly typed. Reminder leads must be allowed values, distinct. */
 export const prefsInputSchema = z.object({
-  customer: z.object({ completed: z.boolean(), reviewRequest: z.boolean() }).strict(),
+  customer: z.object({ completed: z.boolean(), reviewRequest: z.boolean(), reviewDelayHours: z.number().int().min(1).max(48).default(REVIEW_DELAY_DEFAULT_HOURS) }).strict(),
   business: z.object({ created: z.boolean(), rescheduled: z.boolean(), cancelled: z.boolean(), paid: z.boolean(), status: z.boolean() }).strict(),
   dailySummary: z.boolean(),
   reminderLeadMinutes: z.array(z.number().refine((m) => (REMINDER_LEADS as readonly number[]).includes(m), "Not an allowed reminder time"))

@@ -2,7 +2,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { CalendarClock, Clock, ListOrdered, Phone, RefreshCw, Repeat, UserRound, Video, XCircle } from "lucide-react";
+import { CalendarClock, Clock, ListOrdered, Phone, RefreshCw, Repeat, Star, UserRound, Video, XCircle } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { cn } from "@/lib/utils";
 import type { BookingView } from "@/lib/customerData";
@@ -74,6 +74,7 @@ export function BookingCard({ b, highlight = false }: { b: BookingView; highligh
                 <button type="button" className={`${ghost} text-red-700 hover:bg-red-50`} onClick={() => setMode("cancel")}><XCircle size={15} aria-hidden />Cancel</button>
               </>
             )}
+            {b.reviewUrl && <a href={b.reviewUrl} target="_blank" rel="noopener noreferrer" className={primary}><Star size={15} aria-hidden />Review us on Google</a>}
             {!live && <Link href={b.bookAgainHref} className={ghost}><Repeat size={15} aria-hidden />Book again</Link>}
           </div>
           {live && canManage && b.moveBlocked && <p className="mt-3 text-xs text-[#6b6b80]">{b.moveBlocked}</p>}

@@ -10,7 +10,7 @@ import { logger, getRequestId } from "@/lib/logger";
 import { getStorage } from "@/lib/storage";
 import { processLogo } from "@/lib/logo";
 import { MAX_LOGO_BYTES } from "@/lib/validation/logo";
-import { normalizeReviewLink, normalizeSocialLinks } from "@/lib/brandLinks";
+import { reviewLinkFromInput, normalizeSocialLinks } from "@/lib/brandLinks";
 
 export const dynamic = "force-dynamic";
 
@@ -105,7 +105,7 @@ async function PATCH_handler(req: NextRequest) {
   if (googleReviewUrl !== undefined) {
     if (!googleReviewUrl.trim()) data.googleReviewUrl = null;
     else {
-      const r = normalizeReviewLink(googleReviewUrl);
+      const r = reviewLinkFromInput(googleReviewUrl);
       if (!r.ok) return NextResponse.json({ error: r.error }, { status: 400 });
       data.googleReviewUrl = r.value;
     }

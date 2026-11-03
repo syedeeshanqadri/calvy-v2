@@ -158,3 +158,26 @@ export function safeReviewLink(v: unknown): string | null {
   const r = normalizeReviewLink(v);
   return r.ok ? r.value : null;
 }
+
+/** Google Place IDs look like "ChIJ…" (older ones start Gh, Eg, Eh or Ei). Letters, digits, "_" and "-" only. */
+const PLACE_ID = /^(ChIJ|GhIJ|Eg|Eh|Ei)[A-Za-z0-9_-]{10,250}$/;
+
+export function isPlaceId(v: string): boolean {
+  return PLACE_ID.test(v.trim());
+}
+
+/** The write-a-review page for a place. The same link goes to every customer: no rating filter, no gating. */
+export function buildReviewLink(placeId: string): string {
+  return `https://search.google.com/local/writereview?placeid=${encodeURIComponent(placeId.trim())}`;
+}
+
+export const PLACE_ID_FINDER_URL = "https://developers.google.com/maps/documentation/places/web-service/place-id";
+
+/** What the owner pastes: a Place ID (turned into the review link) or a full Google review URL. */
+export function reviewLinkFromInput(input: string): Result {
+  const v = (input ?? "").trim();
+  if (isPlaceId(v)) return { ok: true, value: buildReviewLink(v) };
+  const r = normalizeReviewLink(v);
+  if (r.ok) return r;
+  return { ok: false, error: "Paste your Google Place ID (starts with ChIJ) or the review link from your Google Business Profile" };
+}

@@ -42,7 +42,7 @@ export function NotificationsClient({ initial, terms }: { initial: NotificationS
 
   const update = (p: NotificationPrefs) => { setPrefs(p); setStatus(null); };
   const setBusiness = (k: keyof NotificationPrefs["business"], v: boolean) => update({ ...prefs, business: { ...prefs.business, [k]: v } });
-  const setCustomer = (k: keyof NotificationPrefs["customer"], v: boolean) => update({ ...prefs, customer: { ...prefs.customer, [k]: v } });
+  const setCustomer = (k: keyof NotificationPrefs["customer"], v: boolean | number) => update({ ...prefs, customer: { ...prefs.customer, [k]: v } });
   const setLeads = (a: number | undefined, b: number | undefined) =>
     update({ ...prefs, reminderLeadMinutes: [a, b].filter((m): m is number => !!m && m > 0).filter((m, i, all) => all.indexOf(m) === i).sort((x, y) => y - x) });
 
@@ -119,8 +119,14 @@ export function NotificationsClient({ initial, terms }: { initial: NotificationS
             </div>
             <Toggle id="n-completed" label={`"Thanks for visiting" when a ${appt} is completed`} checked={prefs.customer.completed} onChange={(v) => setCustomer("completed", v)} />
             <Toggle id="n-review" label="Ask for a Google review"
-              hint={settings.hasReviewLink ? `Sent 2 hours after a ${appt} is completed` : "Add your Google review link under Website first; until then nothing is sent"}
+              hint={settings.hasReviewLink ? `Sent ${prefs.customer.reviewDelayHours} ${prefs.customer.reviewDelayHours === 1 ? "hour" : "hours"} after a ${appt} is completed, at most once per customer every 30 days` : "Add your Google review link under Website first; until then nothing is sent"}
               checked={prefs.customer.reviewRequest} onChange={(v) => setCustomer("reviewRequest", v)} />
+            <div>
+              <label htmlFor="n-review-delay" className="block text-sm font-medium text-[#0f0f1a] mb-1.5">Hours to wait before asking (1 to 48)</label>
+              <input id="n-review-delay" type="number" inputMode="numeric" min={1} max={48} step={1} disabled={!prefs.customer.reviewRequest}
+                className={selectCls} value={prefs.customer.reviewDelayHours}
+                onChange={(e) => setCustomer("reviewDelayHours", Math.min(48, Math.max(1, Math.round(Number(e.target.value) || 1))))} />
+            </div>
           </CardContent>
         </Card>
 

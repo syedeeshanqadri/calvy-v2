@@ -49,7 +49,7 @@ export function SocialIcons({ links, className = "", tone = "light" }: { links: 
   );
 }
 
-export function ReviewButton({ href, color, fg, label = "Leave a Google review", className = "" }: {
+export function ReviewButton({ href, color, fg, label = "Review us on Google", className = "" }: {
   href: string; color: string; fg: string; label?: string; className?: string;
 }) {
   return (

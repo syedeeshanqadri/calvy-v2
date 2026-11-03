@@ -42,6 +42,7 @@ export const websiteConfigSchema = z.looseObject({
   gallery: gallerySchema.optional(),
   offer: offerSchema.optional(),
   faq: faqSchema.optional(),
+  reviews: z.looseObject({ enabled: z.boolean().optional() }).optional(),
 });
 
 export const websitePatchSchema = z.object({

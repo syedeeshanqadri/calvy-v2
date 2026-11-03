@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { BrandMark, ReviewButton, SocialIcons } from "@/components/site/Brand";
 import {
-  SOCIAL_LABELS, SOCIAL_PLATFORMS, normalizeReviewLink, normalizeSocial,
+  SOCIAL_LABELS, SOCIAL_PLATFORMS, reviewLinkFromInput, PLACE_ID_FINDER_URL, normalizeSocial,
   type SocialLinks, type SocialPlatform,
 } from "@/lib/brandLinks";
 import { readableForeground, safeThemeColor } from "@/lib/theme";
@@ -56,7 +56,7 @@ export function BrandLinksCard({ businessName, themeColor, logoUrl: initialLogo,
       return [p, r.ok ? "" : r.error];
     }),
   ) as Record<SocialPlatform, string>;
-  const reviewResult = review.trim() ? normalizeReviewLink(review) : null;
+  const reviewResult = review.trim() ? reviewLinkFromInput(review) : null;
   const reviewError = reviewResult && !reviewResult.ok ? reviewResult.error : "";
   const hasErrors = SOCIAL_PLATFORMS.some((p) => fieldErrors[p]) || !!reviewError;
 
@@ -152,7 +152,7 @@ export function BrandLinksCard({ businessName, themeColor, logoUrl: initialLogo,
 
         {/* Google review */}
         <div className="border-t border-[#f0ede8] pt-4 space-y-2">
-          <Input label="Google review link" placeholder="https://g.page/r/…/review" value={review} onChange={(e) => setReview(e.target.value)} />
+          <Input label="Google Place ID or review link" placeholder="ChIJ… or https://g.page/r/…/review" value={review} onChange={(e) => setReview(e.target.value)} />
           {reviewError && <p className="text-xs text-red-500">{reviewError}</p>}
           <details className="text-xs text-[#6b6b80]">
             <summary className="cursor-pointer font-medium text-[#3d3d4d]">How do I get this link?</summary>
@@ -161,6 +161,7 @@ export function BrandLinksCard({ businessName, themeColor, logoUrl: initialLogo,
               <li>Click <strong>Ask for reviews</strong> (or <strong>Get more reviews</strong>).</li>
               <li>Click <strong>Copy link</strong> and paste it here.</li>
             </ol>
+            <p className="mt-2">Or paste your <strong>Place ID</strong> (it starts with <code>ChIJ</code>). Find it with <a className="underline font-medium" href={PLACE_ID_FINDER_URL} target="_blank" rel="noopener noreferrer">Google&apos;s Place ID finder</a>; we build the review link for you. Every customer gets the same link.</p>
           </details>
         </div>
 

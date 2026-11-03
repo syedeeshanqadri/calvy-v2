@@ -24,6 +24,7 @@ interface Props {
   staff: TeamCardMember[];
   services: ServiceCardItem[];
   businessName: string;
+  hasReviewLink: boolean;
 }
 
 function Toggle({ on, onClick, label }: { on: boolean; onClick: () => void; label: string }) {
@@ -65,7 +66,7 @@ function Section({ title, enabled, shown, onToggle, status, children }: { title:
 
 const iconBtn = "min-h-[40px] min-w-[40px] inline-flex items-center justify-center rounded-lg border border-[#e8e6e0] hover:bg-[#f8f7f4] disabled:opacity-40";
 
-export function SectionsEditor({ config, setConfig, packId, themeColor, timezone, currency, imageUpload, staff, services, businessName }: Props) {
+export function SectionsEditor({ config, setConfig, packId, themeColor, timezone, currency, imageUpload, staff, services, businessName, hasReviewLink }: Props) {
   const [uploadError, setUploadError] = useState("");
   const [uploading, setUploading] = useState(false);
 
@@ -189,6 +190,12 @@ export function SectionsEditor({ config, setConfig, packId, themeColor, timezone
         </div>
         <p className="text-xs text-[#6b6b80]">Add a service image on the <Link className="underline font-semibold" href="/dashboard/services">Services page</Link>. Cards without an image show text only.</p>
         {layout === "cards" && services.length > 0 && <Preview themeColor={themeColor} packId={packId}><div className="st-wrap" style={{ padding: "16px 12px" }}><ServiceCards services={services.slice(0, 3)} bookingUrl="#" currency={currency} /></div></Preview>}
+      </Section>
+
+      <Section title="Google review button" enabled={config.reviews?.enabled !== false} shown={hasReviewLink && config.reviews?.enabled !== false}
+        status={!hasReviewLink ? "Not showing: add your Google Place ID or review link under Brand & links above." : config.reviews?.enabled === false ? "Switched off, so the review button is not on your website." : "Showing on your website (after you save)."}
+        onToggle={() => setConfig((c) => ({ ...c, reviews: { ...(c.reviews ?? {}), enabled: c.reviews?.enabled === false } }))}>
+        <p className="text-xs text-[#6b6b80]">One button, the same Google link for every customer. We never filter by rating and never show made-up ratings.</p>
       </Section>
 
       <Section title="FAQ" enabled={faq.enabled !== false} shown={faqOn} status={status(faqOn, faq.enabled, sanitizeFaq(faq.items).length > 0)} onToggle={() => patch("faq", { enabled: faq.enabled === false })}>

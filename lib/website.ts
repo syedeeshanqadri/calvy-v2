@@ -79,6 +79,8 @@ export interface WebsiteConfig {
   gallery?: GallerySection;
   offer?: OfferSection;
   faq?: FaqSection;
+  /** "Review us on Google" block; on when a review link is set unless switched off. */
+  reviews?: { enabled?: boolean };
 }
 
 const HERO_IMAGES: Record<string, string> = {
