@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Section, Text } from "@react-email/components";
+import { Section, Text } from "react-email";
 import { EmailLayout, H, P, Card, DetailRow, CTA, Hairline, brand, type TenantBrand } from "./EmailLayout";
 import { formatCurrencyAmount } from "@/lib/currency";
 import { t, type TermsSource } from "@/lib/terms";

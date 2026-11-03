@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { createElement } from "react";
 import { readFileSync } from "fs";
-import { render } from "@react-email/components";
+import { render } from "@react-email/render";
 import {
   meetingUrlSchema, meetingUrlOrEmpty, resolveBookingMode, resolveMeetingUrl, meetingUrlFor, offersOnline, onlineBadge, telemedicineNote,
 } from "@/lib/online";

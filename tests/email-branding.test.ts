@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createElement } from "react";
-import { render } from "@react-email/components";
+import { render } from "@react-email/render";
 import {
   BookingCancellationEmail, BookingConfirmationEmail, BookingReminderEmail, BookingRescheduleEmail,
   InvoiceEmail, QueueClosedEmail, QueueMovedBackEmail, EmailVerificationEmail, type BookingProps,
