@@ -29,6 +29,7 @@ const include = {
   client: { select: { id: true, name: true, email: true } },
   service: { select: { name: true, meetingUrl: true } },
   staff: { select: { name: true, meetingUrl: true } },
+  tokenSession: { select: { name: true } },
   business: true,
 } satisfies Prisma.AppointmentInclude;
 
@@ -65,6 +66,7 @@ export async function rescheduleSlots(verifiedEmail: string, id: string, date: s
 export async function rescheduleByCustomer(verifiedEmail: string, id: string, date: string, time: string): Promise<{ ok: true; dateLabel: string; timeLabel: string } | Fail> {
   const a = await findOwned(verifiedEmail, id);
   if (!a) return fail(404, "Booking not found.");
+  if (a.tokenNumber) return fail(400, "Queue tokens move to a session, not a time. Please refresh and try again.");
   const can = manageability(a, new Date());
   if (!can.ok) return fail(409, can.reason, can.code);
 
@@ -157,7 +159,12 @@ export async function cancelByCustomer(verifiedEmail: string, id: string): Promi
 
   const credit = await prisma.$transaction(async (tx) => {
     // Guarded on the status we just checked, so two quick clicks cancel once.
-    const claimed = await tx.appointment.updateMany({ where: { id: a.id, status: { in: ["confirmed", "pending"] } }, data: { status: "cancelled" } });
+    // A queue token is closed on the queue screen too, and only while it is still waiting there.
+    const token = a.tokenNumber ? { OR: [{ queueState: null }, { queueState: "WAITING" as const }] } : {};
+    const claimed = await tx.appointment.updateMany({
+      where: { id: a.id, status: { in: ["confirmed", "pending"] }, ...token },
+      data: { status: "cancelled", ...(a.tokenNumber ? { queueState: "CANCELLED" as const } : {}) },
+    });
     if (claimed.count !== 1) return "already" as const;
     return creditClosedBooking(tx, { businessId: a.businessId, clientId: a.client.id, appointmentId: a.id, kind: "CANCELLED", note: "Cancelled by the customer" });
   });

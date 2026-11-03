@@ -116,6 +116,8 @@ export function BookingClient({ business, fontClasses, homeHref = "/" }: { busin
   const [onlineResult, setOnlineResult] = useState<{ meetingUrl: string | null } | null>(null);
   // The server did not email/WhatsApp the confirmation (a contact over its daily quota): say so, never silently.
   const [confirmationWithheld, setConfirmationWithheld] = useState(false);
+  /** "created" / "verify": the booker's account waits for its emailed verify link. */
+  const [accountNotice, setAccountNotice] = useState<string | null>(null);
   const [tokenDate, setTokenDate] = useState("");
   const [tokenPick, setTokenPick] = useState<TokenOption | null>(null);
   const [tokenResult, setTokenResult] = useState<{ number: number; estimatedTime: string; sessionName: string; dateLabel: string; staffName: string | null; trackUrl?: string | null } | null>(null);
@@ -342,7 +344,7 @@ export function BookingClient({ business, fontClasses, homeHref = "/" }: { busin
         return;
       }
       addMyBooking(business.slug, { ...kept, confirmed: true });
-      if (data.url) { window.location.href = data.url; } else { if (data.token) setTokenResult(data.token); if (data.isOnline) setOnlineResult({ meetingUrl: data.meetingUrl ?? null }); setConfirmationWithheld(!!data.confirmationWithheld); setBooked(true); }
+      if (data.url) { window.location.href = data.url; } else { if (data.token) setTokenResult(data.token); if (data.isOnline) setOnlineResult({ meetingUrl: data.meetingUrl ?? null }); setConfirmationWithheld(!!data.confirmationWithheld); setAccountNotice(typeof data.account === "string" ? data.account : null); setBooked(true); }
     } catch (e) { setError(e instanceof Error && e.message.startsWith("Could not load") ? e.message : "Network error. Please try again."); }
     finally { setLoading(false); }
   }
@@ -382,6 +384,11 @@ export function BookingClient({ business, fontClasses, homeHref = "/" }: { busin
             </p>
           ) : (
             <p className="st-muted" style={{ marginTop: 10 }}>A confirmation has been sent to <strong>{form.email}</strong>.</p>
+          )}
+          {accountNotice && (
+            <p className="bk-note" role="status" style={{ marginTop: 14, textAlign: "left" }}>
+              {accountNotice === "created" ? "We made an account for you with this email. " : ""}Please verify your account to keep track of all your {word("appointment", { plural: true })}: we emailed a link to <strong>{form.email}</strong>. Your booking is confirmed either way.
+            </p>
           )}
           {tokenResult && (
             <div style={{ marginTop: 24 }}>

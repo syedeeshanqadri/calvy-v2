@@ -383,6 +383,17 @@ export function CustomerVerifyEmail({ name, verifyUrl }: { name: string; verifyU
   );
 }
 
+export function CustomerAccountSetupEmail({ name, setupUrl }: { name: string; setupUrl: string }) {
+  return (
+    <EmailLayout preview="Verify your account to keep track of all your appointments">
+      <H>Verify your account</H>
+      <P>Hi {name.split(" ")[0]}, thanks for your booking. We made an account for you with this email so you can keep track of all your appointments, move or cancel them, and see your wallet in one place.</P>
+      <CTA href={setupUrl} label="Verify and set my password" />
+      <P>Your booking is confirmed either way; this step is optional. The link expires in 24 hours (you can get a new one with Forgot password). If you did not book anything, you can ignore this email.</P>
+    </EmailLayout>
+  );
+}
+
 export function CustomerResetEmail({ name, resetUrl }: { name: string; resetUrl: string }) {
   return (
     <EmailLayout preview="Reset your password">

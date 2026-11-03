@@ -45,22 +45,29 @@ export type ManageCode = "STATUS" | "PAST" | "TOKEN" | "CUTOFF";
 export type ManageCheck = { ok: true } | { ok: false; code: ManageCode; reason: string };
 
 /**
- * May the customer cancel or move this booking themselves? Only a live, future, time-slot booking,
- * and only before the business's cutoff (cancellationCutoffHours before the start; 0 = until it starts).
- * Queue tokens are handled at reception, not here.
+ * May the customer cancel or move this booking themselves? Only a live, future booking, and only before the
+ * business's cutoff (cancellationCutoffHours before the start; 0 = until it starts). A queue token qualifies
+ * while it is still waiting (not called, served or closed); its start is the estimated turn.
  */
 export function manageability(
-  a: { status: string; date: Date; tokenNumber?: number | null; business: { cancellationCutoffHours: number; name?: string } },
+  a: { status: string; date: Date; tokenNumber?: number | null; queueState?: string | null; business: { cancellationCutoffHours: number; name?: string } },
   now: Date = new Date(),
 ): ManageCheck {
   if (!["confirmed", "pending"].includes(a.status)) return { ok: false, code: "STATUS", reason: "This booking can no longer be changed." };
+  if (a.tokenNumber && a.queueState && a.queueState !== "WAITING") return { ok: false, code: "STATUS", reason: "This token is already being handled at the front desk." };
   if (a.date.getTime() <= now.getTime()) return { ok: false, code: "PAST", reason: "This appointment has already started." };
-  if (a.tokenNumber) return { ok: false, code: "TOKEN", reason: "Queue bookings are changed at the front desk. Please contact the business." };
   const hours = a.business.cancellationCutoffHours ?? 0;
   if (!beforeCancellationCutoff(a.date, hours, now)) {
     return { ok: false, code: "CUTOFF", reason: `Changes close ${hours} hour${hours === 1 ? "" : "s"} before the appointment. Please contact ${a.business.name ?? "the business"}.` };
   }
   return { ok: true };
+}
+
+/** A queue token moves to another day at most once (the move itself is checked by manageability first). */
+export function tokenMoveBlocker(a: { tokenNumber?: number | null; carriedFromId?: string | null }): string | null {
+  if (!a.tokenNumber) return null;
+  if (a.carriedFromId) return "This token was already moved once. Please contact the business to change it again.";
+  return null;
 }
 
 /* ── Overview: numbers and updates ───────────────────────────────────────── */

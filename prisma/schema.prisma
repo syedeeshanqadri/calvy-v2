@@ -700,7 +700,8 @@ model Customer {
   name              String
   /// Lowercased.
   email             String          @unique
-  password          String
+  /// Null for an account created automatically at booking, until the emailed setup link sets it.
+  password          String?
   emailVerified     DateTime?
   passwordChangedAt DateTime?
   createdAt         DateTime        @default(now())

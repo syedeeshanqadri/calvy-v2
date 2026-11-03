@@ -132,7 +132,8 @@ describe("bookings are linked only after verification", () => {
   it("a verified account is matched on its verified email, any case, across businesses", async () => {
     await overviewForCustomer({ email: "a@x.com", verified: true });
     const where = db.appointment.findMany.mock.calls[0][0].where;
-    expect(where).toEqual({ client: { email: { equals: "a@x.com", mode: "insensitive" } } });
+    // Matched on the verified email across businesses; a moved token's placeholder on the old day is not a booking.
+    expect(where).toEqual({ client: { email: { equals: "a@x.com", mode: "insensitive" } }, OR: [{ queueState: null }, { queueState: { not: "MOVED" } }] });
     expect(where.businessId).toBeUndefined();
     expect(db.customerCredit.findMany.mock.calls[0][0].where).toEqual({ client: { email: { equals: "a@x.com", mode: "insensitive" } } });
   });

@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Check, Clock, Video, X } from "lucide-react";
+import { ArrowLeft, Check, Clock, Video, X } from "lucide-react";
 import { BrandMark } from "@/components/site/Brand";
 import { safeThemeColor, readableForeground, themeVars } from "@/lib/theme";
 import { t } from "@/lib/terms";
@@ -11,7 +11,7 @@ import type { TrackingPage } from "@/lib/trackingDb";
 const POLL_MS = 15_000;
 
 /** Public live-queue page. Polls every 15 seconds; shows only this customer's own place. */
-export function TrackClient({ code, initial }: { code: string; initial: TrackingPage }) {
+export function TrackClient({ code, initial, back }: { code: string; initial: TrackingPage; back: { href: string; label: string } }) {
   const [page, setPage] = useState<TrackingPage>(initial);
   const [updatedAt, setUpdatedAt] = useState(() => new Date());
   const [problem, setProblem] = useState("");
@@ -44,7 +44,12 @@ export function TrackClient({ code, initial }: { code: string; initial: Tracking
   return (
     <main className="min-h-screen bg-[#f8f7f4]" style={themeVars(color) as React.CSSProperties}>
       <header style={{ background: color, color: fg }}>
-        <div className="max-w-md mx-auto px-4 py-5 flex items-center gap-3">
+        <div className="max-w-md mx-auto px-4 pt-3">
+          <Link href={back.href} className="inline-flex min-h-10 items-center gap-1.5 text-sm font-medium opacity-90 hover:opacity-100 hover:underline">
+            <ArrowLeft size={16} aria-hidden /> <span className="truncate">{back.label}</span>
+          </Link>
+        </div>
+        <div className="max-w-md mx-auto px-4 pb-5 pt-1 flex items-center gap-3">
           <span className="w-11 h-11 rounded-xl bg-white/90 p-1 inline-flex shrink-0">
             <BrandMark name={business.name} logoUrl={business.logoUrl} color={color} fg={fg} size={36} />
           </span>
