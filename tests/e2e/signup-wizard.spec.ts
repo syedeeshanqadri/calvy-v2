@@ -24,14 +24,16 @@ test("passwordless sign-up, wizard as a salon, website goes live, then set passw
   await page.getByRole("button", { name: "Get started" }).click();
   const { devToken } = await (await signupResponse).json();
 
-  // Straight into the wizard, no verification first; region and type are already set, so it opens at step 3.
+  // Straight into the wizard, no verification first; country and type are already set, so it opens at the basics (step 2).
   await expect(page).toHaveURL(/\/onboarding/, { timeout: 60_000 });
-  await expect(page.getByText("Step 3 of 8")).toBeVisible();
+  await expect(page.getByText("Step 2 of 7")).toBeVisible();
 
   const next = () => page.getByRole("button", { name: /^(Continue|Finish)$/ }).click();
   await expect(page.getByLabel(/Phone/)).toHaveValue("+91 98765 43210");
   await page.getByLabel("Business name").fill("Glow Salon");
-  await page.getByLabel("Your web address").fill(slug);
+  await expect(page.getByLabel("Country")).toHaveValue("IN"); // auto-selected, no timezone field
+  await expect(page.getByLabel(/Timezone/)).toHaveCount(0);
+  await page.getByLabel("Your page link").fill(slug);
   await expect(page.getByText("Available")).toBeVisible();
   await next();
   await page.getByRole("radio", { name: /Time slots/ }).click();
@@ -40,7 +42,7 @@ test("passwordless sign-up, wizard as a salon, website goes live, then set passw
   await next();
   await next(); // hours
   await next(); // plan: Free preselected
-  await expect(page.getByText("Step 8 of 8")).toBeVisible();
+  await expect(page.getByText("Step 7 of 7")).toBeVisible();
   await expect(page.getByTestId("booking-link")).toContainText(slug);
   await page.getByRole("button", { name: "Go to dashboard" }).click();
   await expect(page).toHaveURL(/\/dashboard/, { timeout: 60_000 });

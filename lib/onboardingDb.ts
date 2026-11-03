@@ -9,7 +9,8 @@ import { createBusinessForUser } from "@/lib/createBusiness";
 import { notify } from "@/lib/notifications/enqueue";
 import { ownerLive } from "@/lib/notifications/business";
 import { logger } from "@/lib/logger";
-import { LAST_STEP, STEPS, currencyFor, stepSchemas, hoursToJson, type SavableStep } from "@/lib/onboarding";
+import { LAST_STEP, STEPS, currencyFor, groupForCountry, stepSchemas, hoursToJson, type SavableStep } from "@/lib/onboarding";
+import { REGIONS } from "@/lib/regions";
 import { validateSlug } from "@/lib/slugs";
 import type { z } from "zod";
 
@@ -55,12 +56,12 @@ export async function loadWizardState(businessId: string) {
     where: { id: businessId },
     include: { services: { where: { isActive: true }, orderBy: { createdAt: "asc" } } },
   });
-  const root = process.env.NEXT_PUBLIC_ROOT_DOMAIN;
   return {
     step: b.onboardingCompletedAt ? LAST_STEP : Math.min(LAST_STEP, Math.max(1, b.onboardingStep)),
     completed: !!b.onboardingCompletedAt,
     region: (b.region === "IN" ? "IN" : "INTL") as "IN" | "INTL",
     currency: b.currency,
+    country: b.region === "IN" ? "IN" : (REGIONS.find((r) => r.currency === b.currency && r.code !== "IN")?.code ?? "US"),
     packId: b.packId,
     name: b.name,
     slug: b.slug,
@@ -71,7 +72,6 @@ export async function loadWizardState(businessId: string) {
     intendedPlan: (["professional", "business"].includes(b.intendedPlan ?? "") ? b.intendedPlan : "free") as "free" | "professional" | "business",
     availabilityJson: b.availabilityJson,
     services: b.services.map((s) => ({ id: s.id, name: s.name, duration: s.duration, price: s.price })),
-    rootDomain: root ?? null,
   };
 }
 
@@ -97,10 +97,7 @@ export async function saveStep<S extends SavableStep>(businessId: string, step: 
     const cur = await tx.business.findUniqueOrThrow({ where: { id: businessId }, select: { onboardingStep: true, packId: true, onboardingCompletedAt: true } });
     const next = { onboardingStep: Math.max(cur.onboardingStep, advance.onboardingStep) };
 
-    if (step === "region") {
-      const d = data as Input<"region">;
-      await tx.business.update({ where: { id: businessId }, data: { region: d.region, currency: currencyFor(d.region, d.country), ...next } });
-    } else if (step === "type") {
+    if (step === "type") {
       const d = data as Input<"type">;
       const pack = getPack(d.packId);
       await tx.business.update({ where: { id: businessId }, data: { packId: pack.id, businessType: pack.businessType, bookingMode: pack.defaultBookingMode, ...next } });
@@ -110,7 +107,13 @@ export async function saveStep<S extends SavableStep>(businessId: string, step: 
       try {
         await tx.business.update({
           where: { id: businessId },
-          data: { name: d.name, slug: d.slug, timezone: safeTimeZone(d.timezone), phone: d.phone ?? null, address: d.address ?? null, ...next },
+          data: {
+            name: d.name, slug: d.slug, phone: d.phone ?? null, address: d.address ?? null,
+            // Country drives region (price list) and currency. The timezone comes from the device, in the background.
+            region: groupForCountry(d.country), currency: currencyFor(groupForCountry(d.country), d.country),
+            ...(d.timezone ? { timezone: safeTimeZone(d.timezone) } : {}),
+            ...next,
+          },
         });
       } catch (err) {
         if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") throw new SlugTakenError();

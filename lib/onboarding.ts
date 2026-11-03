@@ -1,16 +1,16 @@
 import { z } from "zod";
 import { PACK_IDS } from "@/lib/packs/types";
-import { REGIONS } from "@/lib/regions";
+import { REGIONS, REGION_CODES } from "@/lib/regions";
 import { isValidTimeZone } from "@/lib/time";
 import { phoneField, text } from "@/lib/validation/common";
 import { validateSlug } from "@/lib/slugs";
 
 /** Wizard steps, in order. The number is what Business.onboardingStep stores. */
-export const STEPS = ["region", "type", "basics", "mode", "services", "hours", "plan", "done"] as const;
+export const STEPS = ["type", "basics", "mode", "services", "hours", "plan", "done"] as const;
 export type StepName = (typeof STEPS)[number];
 export const LAST_STEP = STEPS.length;
 /** Steps the owner may skip (defaults stay in place). */
-export const SKIPPABLE: ReadonlySet<StepName> = new Set(["region", "mode", "services", "hours", "plan"]);
+export const SKIPPABLE: ReadonlySet<StepName> = new Set(["mode", "services", "hours", "plan"]);
 
 export type RegionGroup = "IN" | "INTL";
 
@@ -20,7 +20,30 @@ export function detectRegion(timeZone: string | null | undefined, locale?: strin
   return "INTL";
 }
 
-/** Currency for the region picked in step 1. India is always INR; International uses the chosen country (default USD). */
+const TZ_COUNTRY: [RegExp, string][] = [
+  [/^Asia\/(Kolkata|Calcutta)$/, "IN"], [/^Europe\/London$/, "GB"], [/^Australia\//, "AU"], [/^Pacific\/Auckland$/, "NZ"],
+  [/^Asia\/Dubai$/, "AE"], [/^Asia\/Riyadh$/, "SA"], [/^Asia\/Karachi$/, "PK"], [/^Asia\/Dhaka$/, "BD"],
+  [/^Asia\/Kuala_Lumpur$/, "MY"], [/^Asia\/Singapore$/, "SG"], [/^Africa\/Lagos$/, "NG"], [/^Africa\/Johannesburg$/, "ZA"],
+  [/^America\/(Toronto|Vancouver|Edmonton|Winnipeg|Halifax|St_Johns|Regina)$/, "CA"],
+  [/^Europe\/(Paris|Berlin|Madrid|Rome|Amsterdam|Brussels|Vienna|Lisbon|Dublin|Helsinki|Athens)$/, "EU"],
+  [/^America\//, "US"],
+];
+
+/** Best guess of the owner's country from the device (timezone first, then the locale's region). Never leaves the list of supported countries. */
+export function detectCountry(timeZone: string | null | undefined, locale?: string | null): string {
+  const hit = timeZone ? TZ_COUNTRY.find(([re]) => re.test(timeZone)) : undefined;
+  if (hit) return hit[1];
+  const region = locale?.split("-")[1]?.toUpperCase();
+  if (region && REGIONS.some((r) => r.code === region)) return region;
+  return "US";
+}
+
+/** The pricing group for a country: India has its own price list, everyone else is International. */
+export function groupForCountry(country: string): RegionGroup {
+  return country === "IN" ? "IN" : "INTL";
+}
+
+/** Currency for a country (India is INR; the rest use the country's currency, default USD). */
 export function currencyFor(group: RegionGroup, country?: string): string {
   if (group === "IN") return "INR";
   const c = REGIONS.find((r) => r.code === country && r.code !== "IN");
@@ -77,7 +100,6 @@ const timezone = z.string().max(64).refine(isValidTimeZone, "Invalid timezone.")
 
 /** One schema per step; the API validates exactly the step it is saving. */
 export const stepSchemas = {
-  region: z.object({ region: z.enum(["IN", "INTL"]), country: z.string().max(4).optional() }),
   type: z.object({ packId: z.enum(PACK_IDS) }),
   basics: z.object({
     name: text(120).min(1, "Business name is required."),
@@ -86,9 +108,13 @@ export const stepSchemas = {
       if (!r.ok) { ctx.addIssue({ code: "custom", message: r.error }); return z.NEVER; }
       return r.slug;
     }),
-    timezone,
+    country: z.enum(REGION_CODES, { error: "Please choose your country." }),
+    /** Detected from the device in the background; never shown. Optional. */
+    timezone: z.preprocess((v) => (v === "" || v == null ? undefined : v), timezone.optional()),
     phone: z.preprocess((v) => (v === "" || v == null ? undefined : v), phoneField.optional()),
     address: z.preprocess((v) => (v === "" || v == null ? undefined : v), text(300).optional()),
+  }).superRefine((v, ctx) => {
+    if (v.country === "IN" && !v.phone) ctx.addIssue({ code: "custom", path: ["phone"], message: "Please enter your phone number." });
   }),
   mode: z.object({ bookingMode: z.enum(["SLOT", "TOKEN"]) }),
   services: z.object({ services: z.array(serviceInput).max(20) }),

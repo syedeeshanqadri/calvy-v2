@@ -13,7 +13,7 @@ vi.mock("@/lib/notifications/enqueue", () => ({ notify }));
 vi.mock("@/lib/createBusiness", () => ({ createBusinessForUser: vi.fn() }));
 
 import { validateSlug } from "@/lib/slugs";
-import { clampStep, currencyFor, detectRegion, HOURS_PRESETS, resumeStep, stepSchemas, SKIPPABLE, STEPS } from "@/lib/onboarding";
+import { clampStep, currencyFor, detectCountry, detectRegion, groupForCountry, HOURS_PRESETS, resumeStep, stepSchemas, SKIPPABLE, STEPS } from "@/lib/onboarding";
 import { checkSlug, completeOnboarding, loadWizardState, saveStep, SlugTakenError } from "@/lib/onboardingDb";
 
 beforeEach(() => vi.clearAllMocks());
@@ -31,7 +31,7 @@ describe("slug validation", () => {
     expect(!r.ok && r.error).toMatch(/reserved/);
   });
   it("the basics step refuses a bad slug server-side", () => {
-    const base = { name: "Glow", timezone: "Asia/Kolkata", slug: "admin" };
+    const base = { name: "Glow", country: "GB", slug: "admin" };
     expect(stepSchemas.basics.safeParse(base).success).toBe(false);
     expect(stepSchemas.basics.safeParse({ ...base, slug: "glow" }).success).toBe(true);
   });
@@ -50,7 +50,7 @@ describe("slug uniqueness", () => {
     const p2002 = new Prisma.PrismaClientKnownRequestError("dup", { code: "P2002", clientVersion: "5" });
     db.$transaction.mockImplementation(async (fn: (tx: unknown) => unknown) =>
       fn({ business: { findUniqueOrThrow: vi.fn(async () => ({ onboardingStep: 1, packId: "OTHER" })), update: vi.fn(async () => { throw p2002; }) } }));
-    await expect(saveStep("b1", "basics", { name: "Glow", slug: "glow", timezone: "Asia/Kolkata" } as never)).rejects.toBeInstanceOf(SlugTakenError);
+    await expect(saveStep("b1", "basics", { name: "Glow", slug: "glow", country: "GB" } as never)).rejects.toBeInstanceOf(SlugTakenError);
   });
 });
 
@@ -63,6 +63,24 @@ describe("step helpers", () => {
     expect(currencyFor("INTL", "GB")).toBe("GBP");
     expect(currencyFor("INTL", "IN")).toBe("USD");
   });
+  it("basics: phone is required in India, optional elsewhere; the timezone is optional (detected in the background)", () => {
+    const base = { name: "Glow", slug: "glow" };
+    expect(stepSchemas.basics.safeParse({ ...base, country: "IN" }).success).toBe(false);
+    expect(stepSchemas.basics.safeParse({ ...base, country: "IN", phone: "+91 98765 43210" }).success).toBe(true);
+    expect(stepSchemas.basics.safeParse({ ...base, country: "GB" }).success).toBe(true);
+    expect(stepSchemas.basics.safeParse({ ...base, country: "XX" }).success).toBe(false);
+    expect(stepSchemas.basics.safeParse({ ...base, country: "GB", timezone: "Not/AZone" }).success).toBe(false);
+  });
+  it("detects the country from the device and keeps it inside the supported list", () => {
+    expect(detectCountry("Asia/Kolkata")).toBe("IN");
+    expect(detectCountry("Europe/London")).toBe("GB");
+    expect(detectCountry("Australia/Sydney")).toBe("AU");
+    expect(detectCountry("America/New_York")).toBe("US");
+    expect(detectCountry("Atlantic/Reykjavik", "en-NZ")).toBe("NZ");
+    expect(detectCountry(undefined, undefined)).toBe("US");
+    expect(groupForCountry("IN")).toBe("IN");
+    expect(groupForCountry("GB")).toBe("INTL");
+  });
   it("hours need at least one open day and a closing time after opening", () => {
     const closed = Object.fromEntries(["0", "1", "2", "3", "4", "5", "6"].map((d) => [d, { enabled: false, start: "09:00", end: "18:00" }]));
     expect(stepSchemas.hours.safeParse({ hours: closed }).success).toBe(false);
@@ -74,15 +92,16 @@ describe("step helpers", () => {
     expect(SKIPPABLE.has("basics")).toBe(false);
     expect(SKIPPABLE.has("type")).toBe(false);
     expect(SKIPPABLE.has("hours")).toBe(true);
-    expect(STEPS).toHaveLength(8);
+    expect(STEPS).toHaveLength(7);
+    expect(STEPS).not.toContain("region");
   });
 });
 
 describe("wizard resume", () => {
-  it("opens at the saved step, clamped to 1..8", () => {
+  it("opens at the saved step, clamped to 1..7", () => {
     expect(resumeStep(5)).toBe(5);
     expect(resumeStep(0)).toBe(1);
-    expect(resumeStep(99)).toBe(8);
+    expect(resumeStep(99)).toBe(7);
     expect(clampStep("abc")).toBe(1);
   });
   it("loadWizardState returns the saved step and the saved values", async () => {

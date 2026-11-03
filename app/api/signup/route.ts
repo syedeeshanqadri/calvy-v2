@@ -9,7 +9,7 @@ import { logger } from "@/lib/logger";
 import { rateLimit, clientIp } from "@/lib/ratelimit";
 import { parseBody } from "@/lib/validation/common";
 import { signupSchema } from "@/lib/validation/public";
-import { detectRegion, currencyFor } from "@/lib/onboarding";
+import { detectRegion, detectCountry, currencyFor } from "@/lib/onboarding";
 import { testTokenHookEnabled } from "@/lib/auth-http";
 import { createSetupToken } from "@/lib/auth-tokens";
 import { signTicket } from "@/lib/signedTicket";
@@ -35,6 +35,7 @@ async function POST_handler(req: NextRequest) {
   if (!parsed.ok) return parsed.res;
   const { name, email, phone, packId, timezone } = parsed.data;
   const region = detectRegion(timezone);
+  const country = detectCountry(timezone);
 
   const existing = await prisma.user.findFirst({ where: { email: { equals: email, mode: "insensitive" } } });
   if (existing) {
@@ -47,12 +48,12 @@ async function POST_handler(req: NextRequest) {
     ownerName: name,
     ownerEmail: email,
     businessName: `${name.split(/\s+/)[0]}'s Business`,
-    currency: currencyFor(region),
+    currency: currencyFor(region, country),
     region,
     timezone,
     packId,
     phone,
-    onboardingStep: 3, // region and type are already known
+    onboardingStep: 2, // country (currency) and type are already known: start at the basics
     welcome: false,
   });
 

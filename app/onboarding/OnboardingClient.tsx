@@ -9,20 +9,22 @@ import { getPack } from "@/lib/packs";
 import type { PackId } from "@/lib/packs/types";
 import { REGIONS, currencyForRegion } from "@/lib/regions";
 import { getRegionPricing, formatMoney, isFeatureHeading, PRICING_NOTE } from "@/lib/pricing";
-import { HOURS_PRESETS, SKIPPABLE, STEPS, detectRegion, type Hours } from "@/lib/onboarding";
+import { HOURS_PRESETS, SKIPPABLE, STEPS, detectCountry, type Hours } from "@/lib/onboarding";
 import { businessHoursFromJson } from "@/lib/schedule";
+import { publicSiteUrl } from "@/lib/siteBase";
 import { inputClass, primaryBtn, secondaryBtn } from "@/components/auth/AuthShell";
 
 type WizardState = {
-  step: number; completed: boolean; region: "IN" | "INTL"; currency: string; packId: PackId;
-  name: string; slug: string; timezone: string; phone: string; address: string;
+  step: number; completed: boolean; region: "IN" | "INTL"; currency: string; country: string; packId: PackId;
+  name: string; slug: string; phone: string; address: string;
   bookingMode: "SLOT" | "TOKEN"; intendedPlan: "free" | "professional" | "business"; availabilityJson: string;
-  services: { id: string; name: string; duration: number; price: number }[]; rootDomain: string | null;
+  services: { id: string; name: string; duration: number; price: number }[];
 };
 type Svc = { id?: string; name: string; duration: number; price: number };
 
+const ROOT_DOMAIN = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "calvy.io";
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-const TITLES = ["Where are you based?", "What kind of business is it?", "The basics", "How do customers book?", "Your services", "Working hours", "Choose a plan", "You're live"];
+const TITLES = ["What kind of business is it?", "The basics", "How do customers book?", "Your services", "Working hours", "Choose a plan", "You're live"];
 
 function hoursFromState(json: string): Hours {
   if (!json || json === "{}") return HOURS_PRESETS[0].hours;
@@ -44,15 +46,18 @@ export default function OnboardingClient({ initial, ownerName }: { initial: Wiza
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
-  // Step 1: region, auto-detected until the owner changes it (only when nothing was saved yet).
-  const [region, setRegion] = useState<"IN" | "INTL">(initial.step <= 1 ? "INTL" : initial.region);
-  const [country, setCountry] = useState(() => REGIONS.find((r) => r.currency === initial.currency && r.code !== "IN")?.code ?? "US");
+  // Country: auto-selected from the device until the owner changes it. Region (price list) and currency follow it.
+  const [country, setCountry] = useState(initial.country);
+  const [deviceTz, setDeviceTz] = useState("");
   useEffect(() => {
-    if (initial.step <= 1) setRegion(detectRegion(Intl.DateTimeFormat().resolvedOptions().timeZone, navigator.language));
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    setDeviceTz(tz);
+    // Only a workspace that has not saved its basics yet follows the device; a saved choice is kept.
+    if (initial.step <= 2) setCountry(detectCountry(tz, navigator.language));
   }, [initial.step]);
 
   const [packId, setPackId] = useState<PackId>(initial.packId);
-  const [basics, setBasics] = useState({ name: initial.name, slug: initial.slug, phone: initial.phone, address: initial.address, timezone: initial.timezone });
+  const [basics, setBasics] = useState({ name: initial.name, slug: initial.slug, phone: initial.phone, address: initial.address });
   const [mode, setMode] = useState(initial.bookingMode);
   const [services, setServices] = useState<Svc[]>(initial.services);
   const [hours, setHours] = useState<Hours>(() => hoursFromState(initial.availabilityJson));
@@ -66,7 +71,7 @@ export default function OnboardingClient({ initial, ownerName }: { initial: Wiza
   const [slugState, setSlugState] = useState<{ status: "idle" | "checking" | "ok" | "bad"; msg: string }>({ status: "idle", msg: "" });
   const slugSeq = useRef(0);
   useEffect(() => {
-    if (view !== 3) return;
+    if (view !== 2) return;
     const seq = ++slugSeq.current;
     setSlugState({ status: "checking", msg: "Checking…" });
     const t = setTimeout(async () => {
@@ -106,9 +111,8 @@ export default function OnboardingClient({ initial, ownerName }: { initial: Wiza
     const name = STEPS[view - 1];
     let data: unknown;
     if (!skip) {
-      if (name === "region") data = { region, country: region === "INTL" ? country : undefined };
       if (name === "type") data = { packId };
-      if (name === "basics") data = { name: basics.name, slug: basics.slug, timezone: basics.timezone, phone: basics.phone, address: basics.address };
+      if (name === "basics") data = { name: basics.name, slug: basics.slug, country, timezone: deviceTz, phone: basics.phone, address: basics.address };
       if (name === "mode") data = { bookingMode: mode };
       if (name === "services") data = { services };
       if (name === "hours") data = { hours };
@@ -130,7 +134,7 @@ export default function OnboardingClient({ initial, ownerName }: { initial: Wiza
     router.refresh();
   }
 
-  const siteUrl = typeof window === "undefined" ? "" : st.rootDomain ? `https://${st.slug}.${st.rootDomain}` : `${window.location.origin}/${st.slug}`;
+  const siteUrl = publicSiteUrl(st.slug, ROOT_DOMAIN);
   const bookingUrl = siteUrl ? `${siteUrl}/book-now` : "";
   async function copy(text: string) {
     try { await navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 1800); } catch { /* clipboard blocked */ }
@@ -142,7 +146,7 @@ export default function OnboardingClient({ initial, ownerName }: { initial: Wiza
 
   const pricing = getRegionPricing(st.region);
   const money = (n: number) => formatMoney(n, pricing);
-  const canNext = view === 3 ? slugState.status !== "bad" && basics.name.trim().length > 0 : view === 5 ? services.length > 0 && services.every((s) => s.name.trim()) : true;
+  const canNext = view === 2 ? slugState.status !== "bad" && basics.name.trim().length > 0 && (country !== "IN" || basics.phone.trim().length > 0) : view === 4 ? services.length > 0 && services.every((s) => s.name.trim()) : true;
   const skippable = SKIPPABLE.has(STEPS[view - 1]);
   const total = STEPS.length;
 
@@ -168,59 +172,35 @@ export default function OnboardingClient({ initial, ownerName }: { initial: Wiza
           <h1 className="font-syne font-bold text-2xl text-[#0f0f1a] mb-1">{view === 1 && ownerName ? `Welcome, ${ownerName.split(" ")[0]}! ${TITLES[0]}` : TITLES[view - 1]}</h1>
 
           {view === 1 && (
-            <div className="mt-4 space-y-4">
-              <p className="text-sm text-[#6b6b80]">We use this for your currency and prices. You can change it any time.</p>
-              <div role="radiogroup" aria-label="Region" className="grid grid-cols-2 gap-2">
-                {([["IN", "India", "Prices in ₹ INR"], ["INTL", "International", "Prices in your currency"]] as const).map(([v, label, sub]) => (
-                  <button key={v} type="button" role="radio" aria-checked={region === v} onClick={() => setRegion(v)}
-                    className={`min-h-16 text-left rounded-xl border-2 p-3 transition-colors ${region === v ? "border-[#0284c7] bg-sky-50/60" : "border-[#e8e6e0] hover:border-[#c9c6bd]"}`}>
-                    <span className="block text-sm font-semibold text-[#0f0f1a]">{label}</span>
-                    <span className="block text-xs text-[#6b6b80]">{sub}</span>
-                  </button>
-                ))}
-              </div>
-              {region === "INTL" && (
-                <div>
-                  <label htmlFor="ob-country" className="text-sm font-medium text-[#0f0f1a] block mb-1.5">Country</label>
-                  <select id="ob-country" value={country} onChange={(e) => setCountry(e.target.value)} className={`${inputClass} bg-white`}>
-                    {REGIONS.filter((r) => r.code !== "IN").map((r) => <option key={r.code} value={r.code}>{r.name} ({r.currency})</option>)}
-                  </select>
-                  <p className="text-xs text-[#6b6b80] mt-1">Currency: {currencyForRegion(country)}</p>
-                </div>
-              )}
-            </div>
-          )}
-
-          {view === 2 && (
             <div className="mt-4">
               <PackPicker value={packId} onChange={setPackId} legend="Pick the closest match. Wording and your starter setup follow." name="ob-pack" />
               <p className="text-xs text-[#6b6b80] mt-3">Customers become &ldquo;{pack.terms.client.plural.toLowerCase()}&rdquo; and bookings become &ldquo;{pack.terms.appointment.plural.toLowerCase()}&rdquo; across your dashboard.</p>
             </div>
           )}
 
-          {view === 3 && (
+          {view === 2 && (
             <div className="mt-4 space-y-4">
               <div>
                 <label htmlFor="ob-name" className="text-sm font-medium text-[#0f0f1a] block mb-1.5">Business name</label>
                 <input id="ob-name" value={basics.name} onChange={(e) => setBasics({ ...basics, name: e.target.value })} maxLength={120} autoComplete="organization" className={inputClass} />
               </div>
               <div>
-                <label htmlFor="ob-slug" className="text-sm font-medium text-[#0f0f1a] block mb-1.5">Your web address</label>
-                <div className="flex items-center gap-2">
-                  <input id="ob-slug" value={basics.slug} onChange={(e) => setBasics({ ...basics, slug: e.target.value.toLowerCase().replace(/\s+/g, "-") })} maxLength={40} autoCapitalize="none" spellCheck={false} aria-describedby="ob-slug-msg" className={inputClass} />
-                  <span className="text-xs text-[#6b6b80] whitespace-nowrap">.{st.rootDomain ?? "calvy.io"}</span>
-                </div>
+                <label htmlFor="ob-slug" className="text-sm font-medium text-[#0f0f1a] block mb-1.5">Your page link</label>
+                <input id="ob-slug" value={basics.slug} onChange={(e) => setBasics({ ...basics, slug: e.target.value.toLowerCase().replace(/\s+/g, "-") })} maxLength={40} autoCapitalize="none" spellCheck={false} aria-describedby="ob-slug-msg" className={inputClass} />
+                <p className="text-xs text-[#6b6b80] mt-1 break-all">Customers will visit <span className="font-medium text-[#0f0f1a]">{publicSiteUrl(basics.slug || "your-name", ROOT_DOMAIN).replace(/^https?:\/\//, "")}</span></p>
                 <p id="ob-slug-msg" role="status" className={`text-xs mt-1 ${slugState.status === "bad" ? "text-red-600" : slugState.status === "ok" ? "text-green-700" : "text-[#6b6b80]"}`}>{slugState.msg || "Lowercase letters, numbers and hyphens."}</p>
               </div>
               <div>
-                <label htmlFor="ob-tz" className="text-sm font-medium text-[#0f0f1a] block mb-1.5">Timezone</label>
-                <input id="ob-tz" value={basics.timezone} onChange={(e) => setBasics({ ...basics, timezone: e.target.value })} className={inputClass} />
-                <button type="button" onClick={() => setBasics({ ...basics, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone })} className="text-xs text-[#0369a1] mt-1 min-h-8 hover:underline">Use my device timezone</button>
+                <label htmlFor="ob-country" className="text-sm font-medium text-[#0f0f1a] block mb-1.5">Country</label>
+                <select id="ob-country" value={country} onChange={(e) => setCountry(e.target.value)} autoComplete="country" className={`${inputClass} bg-white`}>
+                  {REGIONS.map((r) => <option key={r.code} value={r.code}>{r.name}</option>)}
+                </select>
+                <p className="text-xs text-[#6b6b80] mt-1">Sets your currency ({currencyForRegion(country)}) and prices. Your timezone is picked up from your device.</p>
               </div>
               <div className="grid sm:grid-cols-2 gap-3">
                 <div>
-                  <label htmlFor="ob-phone" className="text-sm font-medium text-[#0f0f1a] block mb-1.5">Phone <span className="text-[#6b6b80] font-normal">(optional)</span></label>
-                  <input id="ob-phone" type="tel" value={basics.phone} onChange={(e) => setBasics({ ...basics, phone: e.target.value })} autoComplete="tel" className={inputClass} />
+                  <label htmlFor="ob-phone" className="text-sm font-medium text-[#0f0f1a] block mb-1.5">Phone {country !== "IN" && <span className="text-[#6b6b80] font-normal">(optional)</span>}</label>
+                  <input id="ob-phone" type="tel" required={country === "IN"} value={basics.phone} onChange={(e) => setBasics({ ...basics, phone: e.target.value })} autoComplete="tel" className={inputClass} />
                 </div>
                 <div>
                   <label htmlFor="ob-address" className="text-sm font-medium text-[#0f0f1a] block mb-1.5">Address <span className="text-[#6b6b80] font-normal">(optional)</span></label>
@@ -230,7 +210,7 @@ export default function OnboardingClient({ initial, ownerName }: { initial: Wiza
             </div>
           )}
 
-          {view === 4 && (
+          {view === 3 && (
             <div className="mt-4 space-y-3" role="radiogroup" aria-label="Booking mode">
               {([
                 ["SLOT", "Time slots", "Customers pick an exact time, like 3:30 pm. Best for salons, consultants, classes."],
@@ -245,7 +225,7 @@ export default function OnboardingClient({ initial, ownerName }: { initial: Wiza
             </div>
           )}
 
-          {view === 5 && (
+          {view === 4 && (
             <div className="mt-4 space-y-3">
               <p className="text-sm text-[#6b6b80]">Starter {svcN} for your business. Edit, remove or add. Prices are in {st.currency}.</p>
               {services.map((s, i) => (
@@ -272,7 +252,7 @@ export default function OnboardingClient({ initial, ownerName }: { initial: Wiza
             </div>
           )}
 
-          {view === 6 && (
+          {view === 5 && (
             <div className="mt-4 space-y-3">
               <div className="flex flex-wrap gap-2" role="group" aria-label="Quick presets">
                 {HOURS_PRESETS.map((p) => (
@@ -303,7 +283,7 @@ export default function OnboardingClient({ initial, ownerName }: { initial: Wiza
             </div>
           )}
 
-          {view === 7 && (
+          {view === 6 && (
             <div className="mt-4 space-y-3">
               <p className="text-sm text-[#6b6b80]">Every account starts free. {PRICING_NOTE}</p>
               <div role="radiogroup" aria-label="Plan" className="space-y-3">
@@ -327,7 +307,7 @@ export default function OnboardingClient({ initial, ownerName }: { initial: Wiza
             </div>
           )}
 
-          {view === 8 && (
+          {view === 7 && (
             <div className="mt-4 space-y-4">
               <p className="text-sm text-[#6b6b80]">{st.name} is ready to take bookings. Share your link with customers.</p>
               <div className="rounded-2xl border border-[#e8e6e0] overflow-hidden">

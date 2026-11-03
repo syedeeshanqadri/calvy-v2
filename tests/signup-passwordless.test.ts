@@ -39,7 +39,7 @@ describe("sign-up", () => {
     const res = await signup(post("/api/signup", { name: "Asha Rao", email: "Asha@Glow.test", phone: "+91 98765 43210", packId: "SALON_SPA", timezone: "Asia/Kolkata" }));
     expect(res.status).toBe(201);
     expect(db.user.create).toHaveBeenCalledWith({ data: { name: "Asha Rao", email: "asha@glow.test" } }); // no password, not verified
-    expect(createBusinessForUser).toHaveBeenCalledWith(expect.objectContaining({ packId: "SALON_SPA", phone: "+91 98765 43210", region: "IN", currency: "INR", onboardingStep: 3, welcome: false }));
+    expect(createBusinessForUser).toHaveBeenCalledWith(expect.objectContaining({ packId: "SALON_SPA", phone: "+91 98765 43210", region: "IN", currency: "INR", onboardingStep: 2, welcome: false }));
     expect(notify.mock.calls[0][0]).toMatchObject({ template: "owner_account_setup", recipient: "asha@glow.test" });
     expect(String(notify.mock.calls[0][0].secret)).toContain("/reset-password?setup=1&token=");
     expect((await res.json()).ticket).toEqual(expect.any(String));
