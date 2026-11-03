@@ -25,16 +25,13 @@ function withCurrency<T extends { region?: string; currency?: string }>(v: T, ct
 }
 
 export const signupSchema = z.object({
-  name: text(120).min(1, "All fields are required."),
-  businessName: text(120).min(1, "All fields are required."),
+  name: text(120).min(1, "Please enter your name."),
+  /** Optional: the wizard asks for the business name. Defaults to "<first name>'s Business". */
+  businessName: z.preprocess(blankToUndef, text(120).optional()),
   email: emailField,
   password: z.string().min(8, "Password must be at least 8 characters.").max(200),
-  ...regionFields,
   timezone,
-  packId,
-  /** The plan the visitor chose on the signup page. Reported to the owner only; accounts always start on Free. */
-  plan: z.enum(["free", "professional", "business"]).optional().catch(undefined),
-}).transform(withCurrency);
+}).transform((v) => v);
 
 export const onboardingSchema = z.object({
   businessName: text(120).min(1, "Business name is required."),

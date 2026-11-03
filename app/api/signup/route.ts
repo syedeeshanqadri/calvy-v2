@@ -12,6 +12,8 @@ import { after } from "next/server";
 import { rateLimit, clientIp } from "@/lib/ratelimit";
 import { parseBody } from "@/lib/validation/common";
 import { signupSchema } from "@/lib/validation/public";
+import { detectRegion, currencyFor } from "@/lib/onboarding";
+import { testTokenHookEnabled } from "@/lib/auth-http";
 
 export const dynamic = 'force-dynamic';
 
@@ -27,7 +29,9 @@ async function POST_handler(req: NextRequest) {
 
   const parsed = await parseBody(req, signupSchema);
   if (!parsed.ok) return parsed.res;
-  const { name, businessName, email, password, currency, timezone, plan, packId } = parsed.data;
+  const { name, email, password, timezone } = parsed.data;
+  const region = detectRegion(timezone);
+  const businessName = parsed.data.businessName || `${name.split(/\s+/)[0]}'s Business`;
 
   const existing = await prisma.user.findFirst({ where: { email: { equals: email, mode: "insensitive" } } });
   if (existing) {
@@ -44,9 +48,9 @@ async function POST_handler(req: NextRequest) {
     ownerName: name,
     ownerEmail: email,
     businessName,
-    currency,
+    currency: currencyFor(region),
+    region,
     timezone,
-    packId,
   });
 
   // Create a 24-hour verification token
@@ -58,7 +62,7 @@ async function POST_handler(req: NextRequest) {
   // Tell the owner (never includes the password or tokens).
   after(() => sendFormNotification({
     title: "New signup",
-    fields: { Name: name, Business: businessName, Email: email, "Chosen plan": plan ?? "free" },
+    fields: { Name: name, Business: businessName, Email: email, Region: region },
   }));
 
   // Queue the verification email. A failure here must not fail the signup: the user can ask for another link.
@@ -68,7 +72,7 @@ async function POST_handler(req: NextRequest) {
     logger.error("[signup] verification email not queued", { err });
   }
 
-  return NextResponse.json({ message: "Account created. Please check your email to verify." }, { status: 201 });
+  return NextResponse.json({ message: "Account created. Please check your email to verify.", ...(testTokenHookEnabled() ? { devToken: token } : {}) }, { status: 201 });
 }
 
 export const POST = safeRoute(POST_handler);

@@ -25,6 +25,12 @@ export default function LoginPage() {
     const params = new URLSearchParams(window.location.search);
     if (params.get("verified") === "1") setSuccess("Email verified! You can now sign in.");
     if (params.get("reset") === "1") setSuccess("Your password was changed. Sign in with your new password.");
+    if (params.get("error") === "GoogleLinkRequired") {
+      setError("An account with this email already exists. Sign in with your email and password first, then choose \"Link Google\" in Settings.");
+    }
+    if (params.get("error") === "GoogleDenied" || params.get("error") === "AccessDenied") {
+      setError("We could not sign you in with Google. Make sure your Google email is verified, or use your email and password.");
+    }
     if (params.get("error") === "expired-token") {
       setError("Your verification link has expired. Enter your email below and choose Resend verification email.");
       setCanResend(true);

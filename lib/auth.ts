@@ -6,6 +6,8 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { rateLimit } from "@/lib/ratelimit";
 import { revalidateBusinessClaims } from "@/lib/sessionBusiness";
+import { cookies } from "next/headers";
+import { decideGoogleSignIn, verifyLinkIntent, LINK_COOKIE } from "@/lib/googleLink";
 import { normalizeEmail, tryNormalizeEmail } from "@/lib/email-normalize";
 
 // Case-insensitive user lookup; an exact lowercase match wins over legacy
@@ -102,20 +104,42 @@ export const authOptions: NextAuthOptions = {
     async signIn({ user, account, profile }) {
       if (!account || account.provider === "credentials" || account.provider === "customer") return true;
       if (!user.email) return false; // provider didn't share an email — can't proceed
-      // Accounts are linked by email, so an unverified Google address must never log into an existing account.
-      if (account.provider === "google" && (profile as { email_verified?: boolean } | undefined)?.email_verified !== true) return false;
-
       const oauthEmail = tryNormalizeEmail(user.email);
       if (!oauthEmail) return false;
       const existing = await findUserByEmail(oauthEmail);
+
+      if (account.provider === "google") {
+        let linkIntentUserId: string | null = null;
+        try {
+          linkIntentUserId = verifyLinkIntent((await cookies()).get(LINK_COOKIE)?.value, process.env.NEXTAUTH_SECRET ?? "");
+        } catch { /* no request context: no link intent */ }
+        const d = decideGoogleSignIn({
+          emailVerified: (profile as { email_verified?: boolean } | undefined)?.email_verified === true,
+          sub: account.providerAccountId,
+          existing: existing ? { id: existing.id, password: existing.password, googleId: existing.googleId } : null,
+          linkIntentUserId,
+        });
+        if (d.action === "deny") return d.reason === "password-account" ? "/login?error=GoogleLinkRequired" : "/login?error=GoogleDenied";
+        try {
+          if (d.action === "create") {
+            await prisma.user.create({
+              data: { name: user.name ?? oauthEmail.split("@")[0], email: oauthEmail, image: user.image ?? null, emailVerified: new Date(), googleId: account.providerAccountId },
+            });
+          } else if (existing && d.action === "link") {
+            await prisma.user.update({ where: { id: existing.id }, data: { googleId: account.providerAccountId, emailVerified: existing.emailVerified ?? new Date() } });
+          } else if (existing && !existing.emailVerified) {
+            await prisma.user.update({ where: { id: existing.id }, data: { emailVerified: new Date() } });
+          }
+        } catch {
+          return "/login?error=GoogleDenied"; // e.g. this Google account is already linked to another user
+        }
+        if (linkIntentUserId) { try { (await cookies()).delete(LINK_COOKIE); } catch { /* best effort */ } }
+        return true;
+      }
+
       if (!existing) {
         await prisma.user.create({
-          data: {
-            name: user.name ?? oauthEmail.split("@")[0],
-            email: oauthEmail,
-            image: user.image ?? null,
-            emailVerified: new Date(), // OAuth emails are pre-verified
-          },
+          data: { name: user.name ?? oauthEmail.split("@")[0], email: oauthEmail, image: user.image ?? null, emailVerified: new Date() },
         });
       } else if (!existing.emailVerified) {
         await prisma.user.update({ where: { id: existing.id }, data: { emailVerified: new Date() } });

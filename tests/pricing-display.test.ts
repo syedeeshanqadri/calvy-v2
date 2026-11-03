@@ -36,14 +36,9 @@ describe("pricing display", () => {
 
 import { signupSchema } from "@/lib/validation/public";
 
-describe("signup plan field", () => {
-  const base = { name: "Jo", businessName: "Salon", email: "jo@x.test", password: "longenough1", currency: "USD" };
-  it("accepts the plan choice (reported to the owner only)", () => {
-    const r = signupSchema.safeParse({ ...base, plan: "professional" });
-    expect(r.success && r.data.plan).toBe("professional");
-  });
-  it("ignores unknown plans instead of failing the signup", () => {
-    const r = signupSchema.safeParse({ ...base, plan: "enterprise" });
-    expect(r.success && r.data.plan).toBeUndefined();
+describe("signup no longer asks for plan, region or pack (the wizard does)", () => {
+  it("accepts just name, email and password", () => {
+    const r = signupSchema.safeParse({ name: "Jo", email: "jo@x.test", password: "longenough1" });
+    expect(r.success).toBe(true);
   });
 });

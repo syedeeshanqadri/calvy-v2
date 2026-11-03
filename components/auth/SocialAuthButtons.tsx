@@ -22,14 +22,14 @@ const LABELS: Record<string, { label: string; icon: React.ReactNode }> = {
   facebook: { label: "Continue with Facebook", icon: <FacebookIcon /> },
 };
 
-export default function SocialAuthButtons({ callbackUrl = "/dashboard" }: { callbackUrl?: string }) {
+export default function SocialAuthButtons({ callbackUrl = "/dashboard", providers: only }: { callbackUrl?: string; providers?: string[] }) {
   const [ids, setIds] = useState<string[]>([]);
 
   useEffect(() => {
     getProviders()
       .then(providers => {
         if (!providers) return;
-        setIds(Object.keys(providers).filter(id => id === "google" || id === "facebook"));
+        setIds(Object.keys(providers).filter(id => (id === "google" || id === "facebook") && (!only || only.includes(id))));
       })
       .catch(() => {});
   }, []);

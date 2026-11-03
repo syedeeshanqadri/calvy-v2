@@ -98,8 +98,6 @@ describe("pack in signup/onboarding input", () => {
   it("accepts a valid pack id", () => {
     const r = onboardingSchema.safeParse({ ...base, packId: "CLINIC" });
     expect(r.success && r.data.packId).toBe("CLINIC");
-    const s = signupSchema.safeParse({ ...base, name: "A", email: "a@b.co", password: "password123", packId: "FITNESS" });
-    expect(s.success && s.data.packId).toBe("FITNESS");
   });
   it("treats a missing or unknown pack as unset (becomes OTHER)", () => {
     expect(onboardingSchema.safeParse(base).data?.packId).toBeUndefined();

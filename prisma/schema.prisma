@@ -15,6 +15,8 @@ model User {
   name                String
   email               String               @unique
   password            String? // null for OAuth-only accounts (Google/Facebook)
+  /// Google account id (profile.sub). Set only on a verified Google sign-up or an explicit "Link Google" by the logged-in owner; never linked silently by email.
+  googleId            String?              @unique
   image               String?
   role                String               @default("user")
   emailVerified       DateTime?
@@ -72,6 +74,14 @@ model Business {
   ownerId                  String              @unique
   businessType             String              @default("general")
   packId                   PackId              @default(OTHER)
+  /// "IN" or "INTL"; picked in the onboarding wizard (drives currency and which price list is shown).
+  region                   String              @default("INTL")
+  /// Wizard progress: the step to show next (1..8). Saved per step so the wizard resumes.
+  onboardingStep           Int                 @default(1)
+  /// Null until the wizard is finished. Existing businesses were stamped by the migration.
+  onboardingCompletedAt    DateTime?
+  /// The plan the owner showed interest in during the wizard. Everyone starts on Free (subscriptions are parked).
+  intendedPlan             String?
   bookingMode              BookingMode         @default(SLOT)
   onlinePayMode            OnlinePayMode       @default(BOOKING_FEE_ONLY)
   feePayer                 FeePayer            @default(CUSTOMER)
