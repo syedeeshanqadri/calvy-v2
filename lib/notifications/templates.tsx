@@ -102,9 +102,18 @@ export const TEMPLATES = {
     attachments: (p) => (p.ics ? [icsAttachment({ appointmentId: p.ics.appointmentId, serviceName: p.serviceName, businessName: p.businessName, staffName: p.staffName, durationMinutes: p.ics.durationMinutes, start: new Date(p.ics.start) })] : undefined),
   }),
   reminder: define<BookingPayload>({
-    subject: (p) => `Reminder: ${p.serviceName} on ${p.date} at ${p.time}`,
+    subject: (p) =>
+      p.token
+        ? `Reminder: ${p.token.sessionName} starts at ${p.token.sessionStart ?? p.token.estimatedTime} on ${p.date}, your number is #${p.token.number}`
+        : `Reminder: ${p.serviceName} on ${p.date} at ${p.time}`,
     Email: (p) => <BookingReminderEmail {...p} />,
-    text: (p) => lines(`Hi ${first(p.clientName)}, a reminder about your ${appt(p)} at ${p.businessName}.`, detailsText(p), joinText(p)),
+    text: (p) => lines(
+      `Hi ${first(p.clientName)}, a reminder about your ${appt(p)} at ${p.businessName}.`,
+      p.token && `Your session starts at ${p.token.sessionStart ?? p.token.estimatedTime} on ${p.date}. Your number is #${p.token.number}.`,
+      detailsText(p),
+      joinText(p),
+      p.token && p.trackUrl && `Track your place: ${p.trackUrl}`,
+    ),
   }),
   reschedule: define<BookingPayload & { oldDate: string; oldTime: string }>({
     subject: (p) => `Your ${appt(p)} was moved to ${p.date} at ${p.time}`,

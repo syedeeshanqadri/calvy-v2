@@ -1,6 +1,8 @@
 import { createHash } from "crypto";
 import { DEFAULT_CURRENCY } from "@/lib/currency";
 import type { NotificationInput } from "@/lib/notifications/enqueue";
+import type { NotifChannelName } from "@/lib/notifications/policy";
+import { REMINDER_EVENT, type ReminderMark } from "@/lib/notifications/reminderRules";
 import type { BookingPayload, InvoicePayload } from "@/lib/notifications/templates";
 import { meetingUrlFor } from "@/lib/online";
 import { t } from "@/lib/terms";
@@ -138,6 +140,24 @@ export function receipt(n: Notice, paid: { price?: number; paymentRef?: string; 
 export function statusChange(n: Notice, status: "completed" | "no_show", rebookUrl?: string): NotificationInput | null {
   if (!n.to) return null;
   return { ...base(n), event: `booking.${status}`, template: "status_change", payload: { ...n.payload, status, rebookUrl } };
+}
+
+/**
+ * booking.reminder: one per lead (24h, 2h...) and booking time, per channel. A move changes `mark.version`, so
+ * the new time is reminded again; the old one is skipped at send. Expires when the booking starts.
+ * `sessionStart` is the token session's start label ("your session starts at...").
+ */
+export function reminder(
+  n: Notice,
+  r: { mark: ReminderMark; startsAt: Date; sessionStart?: string; channel: NotifChannelName; to: string | null | undefined },
+): NotificationInput | null {
+  if (!r.to) return null;
+  const token = n.payload.token && r.sessionStart ? { ...n.payload.token, sessionStart: r.sessionStart } : n.payload.token;
+  return {
+    ...base(n), event: REMINDER_EVENT, template: "reminder", channel: r.channel, recipient: r.to,
+    version: `${r.mark.version}:${r.mark.lead}`, expiresAt: r.startsAt,
+    payload: { ...n.payload, token, reminder: r.mark },
+  };
 }
 
 /** booking.queue_moved_back: once per missed call, so the second and third are told too. */

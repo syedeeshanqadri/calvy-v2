@@ -72,22 +72,3 @@ export async function sendBookingConfirmationWhatsApp(details: {
   }
 }
 
-export async function sendReminderWhatsApp(details: {
-  to: string;
-  clientName: string;
-  /** Who the appointment is for, when that is not the person receiving the message. */
-  patientName?: string;
-  serviceName: string;
-  time: string;
-}) {
-  if (!isConfigured()) return;
-  const { to, clientName, patientName, serviceName, time } = details;
-  const forWho = patientName && patientName.trim().toLowerCase() !== clientName.trim().toLowerCase() ? ` for *${patientName}*` : "";
-  const body = `Hi ${clientName}! 🗓 Reminder: your *${serviceName}*${forWho} is *tomorrow at ${time}*. See you then! — Calvy`;
-
-  try {
-    await sendMessage(to, body);
-  } catch (err) {
-    logger.error("[WhatsApp] Failed to send reminder:", { err });
-  }
-}

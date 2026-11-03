@@ -5,7 +5,6 @@ import { render } from "@react-email/render";
 import { formatCurrencyAmount, DEFAULT_CURRENCY } from "@/lib/currency";
 import {
   BookingConfirmationEmail,
-  BookingReminderEmail,
   InvoiceEmail,
   type BookingProps,
 } from "@/emails/templates";
@@ -141,18 +140,6 @@ export async function sendBookingConfirmation(d: BookingDetails) {
     attachments: d.appointmentDate
       ? [icsAttachment({ appointmentId: d.ctx?.appointmentId, serviceName: d.serviceName, businessName: d.businessName, staffName: d.staffName, durationMinutes: d.duration, start: d.appointmentDate })]
       : undefined,
-  });
-}
-
-export async function sendBookingReminder(d: {
-  to: string; clientName: string; patientName?: string; businessName: string; serviceName: string;
-  date: string; time: string; staffName?: string; duration?: number; price?: number; currency?: string; terms?: TermsSource; online?: { meetingUrl: string | null }; ctx?: EmailContext;
-}) {
-  const tenant = await tenantBrand(d.ctx?.businessId, d.businessName);
-  return dispatch({
-    to: d.to, type: "reminder", ctx: d.ctx,
-    subject: `Reminder: ${d.serviceName} on ${d.date} at ${d.time}`,
-    react: <BookingReminderEmail clientName={d.clientName} patientName={d.patientName} businessName={d.businessName} serviceName={d.serviceName} date={d.date} time={d.time} staffName={d.staffName} duration={d.duration} price={d.price} currency={d.currency} terms={d.terms} online={d.online} tenant={tenant} />,
   });
 }
 

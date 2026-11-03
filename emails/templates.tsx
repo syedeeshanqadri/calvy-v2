@@ -23,7 +23,7 @@ export interface BookingProps {
   /** Optional mail only (reminder, thank-you): a signed link that stops these emails. Never set on transactional mail. */
   unsubscribeUrl?: string;
   /** Token bookings show the number and an estimated time instead of a fixed time. */
-  token?: { number: number; estimatedTime: string; sessionName: string };
+  token?: { number: number; estimatedTime: string; sessionName: string; sessionStart?: string };
   /** Signed public link to the live queue page (token bookings). */
   trackUrl?: string;
   /** Online consultation. meetingUrl is null when the business has not set a link yet. Only confirmation and reminder pass it. */
@@ -113,8 +113,15 @@ export function BookingReminderEmail(p: BookingProps) {
       <Badge text="Reminder" color={brand.accent} bg="#e6f2fb" />
       <H>Your {appt(p)} is coming up</H>
       <P>Hi {p.clientName.split(" ")[0]}, a friendly reminder about your upcoming {appt(p)} at <strong style={{ color: brand.ink }}>{p.businessName}</strong>.</P>
+      {p.token ? (
+        <P>
+          Your session starts at <strong style={{ color: brand.ink }}>{p.token.sessionStart ?? p.token.estimatedTime}</strong> on {p.date}. Your number is{" "}
+          <strong style={{ color: brand.ink }}>#{p.token.number}</strong>.
+        </P>
+      ) : null}
       <BookingDetails p={p} />
       <OnlineJoin p={p} />
+      {p.token && p.trackUrl ? <CTA color={p.tenant?.color} fg={p.tenant?.fg} href={p.trackUrl} label="Track your place in line" /> : null}
       <P>See you there! If you need to make a change, just reply to this email.</P>
     </EmailLayout>
   );

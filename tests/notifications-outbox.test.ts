@@ -12,6 +12,7 @@ const db = vi.hoisted(() => ({
 vi.mock("@/lib/prisma", () => ({
   prisma: {
     $queryRaw: db.queryRaw,
+    appointment: { findMany: async () => [] },
     business: { findUnique: db.findBusiness },
     notificationOutbox: { createMany: db.createMany, findMany: db.findMany, findUnique: db.findUnique, updateMany: db.updateMany },
   },
@@ -279,6 +280,6 @@ describe("GET /api/cron/notifications", () => {
     vi.stubEnv("CRON_SECRET", "s3cret");
     const res = await call("Bearer s3cret");
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ ok: true, claimed: 0, sent: 0, retried: 0, failed: 0, skipped: 0, reclaimedDead: 0, purged: 0 });
+    expect(await res.json()).toEqual({ ok: true, expiredHolds: 0, remindersQueued: 0, claimed: 0, sent: 0, retried: 0, failed: 0, skipped: 0, reclaimedDead: 0, purged: 0 });
   });
 });

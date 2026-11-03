@@ -141,7 +141,7 @@ async function PATCH_handler(req: NextRequest, props: { params: Promise<{ id: st
           (tx) =>
             tx.appointment.update({
               where: { id: params.id },
-              data: { ...data, staffId: cand, date: newDate, endAt: new Date(newDate!.getTime() + appointment.duration * 60_000) },
+              data: { ...data, staffId: cand, date: newDate, endAt: new Date(newDate!.getTime() + appointment.duration * 60_000), reminderSent: false },
             }),
         );
         moved = true;
