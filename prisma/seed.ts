@@ -104,7 +104,9 @@ async function main() {
   });
 
   // "Hair Salon" is not an id packForBusinessType() knows, so the pack is set explicitly.
+  // Seeded businesses are fully set up: they never see the onboarding wizard.
   const demoFields = {
+    onboardingCompletedAt: new Date(), onboardingStep: 7,
     businessType: "Hair Salon",
     packId: "SALON_SPA" as PackId,
     plan: "professional",
@@ -295,6 +297,7 @@ async function seedPackBusinesses() {
       create: { name: spec.owner, email: spec.email, password, emailVerified: new Date() },
     });
     const fields = {
+      onboardingCompletedAt: new Date(), onboardingStep: 7,
       businessType: spec.businessType, packId: spec.packId, currency: spec.currency,
       plan: "professional", planStatus: "active", description: spec.description,
     };
