@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getPayConfig } from "@/lib/onlinePayment";
 import { contactRequirements } from "@/lib/patients";
 import { parseSocialLinks, safeReviewLink } from "@/lib/brandLinks";
+import { followUpFromQuery } from "@/lib/followUpDb";
 import { BookingClient } from "@/app/b/[slug]/BookingClient";
 import { headers } from "next/headers";
 import { siteBase } from "@/lib/siteBase";
@@ -21,7 +22,7 @@ async function getBusiness(slug: string) {
   });
 }
 
-export async function generateMetadata(props: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+export async function generateMetadata(props: { params: Promise<{ slug: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> }): Promise<Metadata> {
   const params = await props.params;
   const business = await getBusiness(params.slug);
   if (!business) return { title: "Not Found" };
@@ -32,7 +33,7 @@ export async function generateMetadata(props: { params: Promise<{ slug: string }
   };
 }
 
-export default async function BookNowPage(props: { params: Promise<{ slug: string }> }) {
+export default async function BookNowPage(props: { params: Promise<{ slug: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const params = await props.params;
   const host = (await headers()).get("host");
   const business = await getBusiness(params.slug);
@@ -70,5 +71,5 @@ export default async function BookNowPage(props: { params: Promise<{ slug: strin
   };
 
   const homeHref = siteBase(host, business.slug, process.env.NEXT_PUBLIC_ROOT_DOMAIN ?? "calvy.io") || "/";
-  return <BookingClient business={data} fontClasses={await siteFontClasses(business.packId)} homeHref={homeHref} />;
+  return <BookingClient followUp={await followUpFromQuery((await props.searchParams).followUp, business)} business={data} fontClasses={await siteFontClasses(business.packId)} homeHref={homeHref} />;
 }

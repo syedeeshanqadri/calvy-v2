@@ -95,6 +95,12 @@ export const settingsPatchSchema = z.object({
     .min(0, "cancellationCutoffHours must be between 0 and 720")
     .max(720, "cancellationCutoffHours must be between 0 and 720")
     .optional(),
+  followUpDays: z.coerce
+    .number({ error: "followUpDays must be a number" })
+    .int()
+    .min(0, "followUpDays must be between 0 and 365")
+    .max(365, "followUpDays must be between 0 and 365")
+    .optional(),
   slotInterval: z.coerce
     .number({ error: "slotInterval must be a number" })
     .int("slotInterval must be an integer")

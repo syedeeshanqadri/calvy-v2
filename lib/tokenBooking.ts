@@ -144,6 +144,8 @@ export interface TokenBookingInput {
   isOnline?: boolean;
   /** Fair use: most different people one booker contact may take tokens for per session. */
   maxPeoplePerBooker: number;
+  /** Set when this token is the free follow-up of an earlier appointment: it costs nothing. */
+  followUpOfId?: string | null;
 }
 
 /** Book the next token in a session: confirm at once, or hold it while the customer pays online. */
@@ -177,7 +179,7 @@ export async function bookToken(input: TokenBookingInput): Promise<NextResponse>
     staffName = staff.name;
   }
 
-  const totalPrice = services.reduce((sum, s) => sum + s.price, 0);
+  const totalPrice = input.followUpOfId ? 0 : services.reduce((sum, s) => sum + s.price, 0);
   const notes = [services.length > 1 ? `__services__:${services.slice(1).map((s) => s.name).join("|")}` : "", input.notes ?? ""]
     .filter(Boolean).join("\n") || null;
 
@@ -201,7 +203,7 @@ export async function bookToken(input: TokenBookingInput): Promise<NextResponse>
       data: {
         businessId: business.id, clientId: client.id, staffId: session.staffId, serviceId: services[0].id,
         date: estimatedAt, endAt: new Date(estimatedAt.getTime() + session.minutesPerToken * 60_000),
-        duration: session.minutesPerToken, price: totalPrice, notes, patientName: input.patientName, ...input.patientDetails, isOnline: input.isOnline ?? false,
+        duration: session.minutesPerToken, price: totalPrice, followUpOfId: input.followUpOfId ?? null, notes, patientName: input.patientName, ...input.patientDetails, isOnline: input.isOnline ?? false,
         status: holdExpiresAt ? PENDING_PAYMENT : "confirmed", holdExpiresAt,
         paymentStatus: "unpaid", paymentMode: business.paymentMode,
         tokenSessionId: session.id, sessionDate: dateOnly(date), tokenNumber: a.number, estimatedAt,

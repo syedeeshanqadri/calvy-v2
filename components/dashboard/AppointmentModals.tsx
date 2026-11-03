@@ -17,6 +17,8 @@ export interface StaffOption { id: string; name: string; }
 
 export interface ApptDetail {
   id: string;
+  /** The free follow-up of an earlier appointment. */
+  isFollowUp?: boolean;
   clientName: string;
   clientEmail: string;
   serviceName: string;

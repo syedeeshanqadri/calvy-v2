@@ -127,6 +127,8 @@ model Business {
   /// Fair use: most different people one booker contact can book for per day (per session for tokens).
   maxPeoplePerBooker       Int                 @default(4)
   cancellationCutoffHours  Int                 @default(0)
+  /// Days after a completed appointment during which one free follow-up with the same doctor is allowed. 0 = off.
+  followUpDays             Int                 @default(0)
   workingHours             WorkingHours[]
   timeOff                  TimeOff[]
   tokenSessions            TokenSession[]
@@ -298,6 +300,10 @@ model Appointment {
   /// The earlier booking this one was carried over from ("Not coming"); at most one carry-over per booking.
   /// Who the appointment is for (a booker can book for others). Null on older bookings: then the contact's name.
   patientName        String?
+  /// Set when this booking is the free follow-up of an earlier, completed appointment. Unique: one follow-up per appointment.
+  followUpOfId       String?            @unique
+  followUpOf         Appointment?       @relation("FollowUp", fields: [followUpOfId], references: [id], onDelete: SetNull)
+  followUp           Appointment?       @relation("FollowUp")
   /// For someone else: how they relate to the booker (child, parent, spouse, other), and (clinic pack) age and gender.
   patientRelation    String?
   patientAge         Int?

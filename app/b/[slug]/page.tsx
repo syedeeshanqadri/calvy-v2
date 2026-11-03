@@ -3,12 +3,13 @@ import { prisma } from "@/lib/prisma";
 import { getPayConfig } from "@/lib/onlinePayment";
 import { contactRequirements } from "@/lib/patients";
 import { parseSocialLinks, safeReviewLink } from "@/lib/brandLinks";
+import { followUpFromQuery } from "@/lib/followUpDb";
 import { BookingClient } from "./BookingClient";
 import { siteFontClasses } from "@/app/[slug]/fonts";
 
 export const dynamic = 'force-dynamic';
 
-export default async function BusinessBookingPage(props: { params: Promise<{ slug: string }> }) {
+export default async function BusinessBookingPage(props: { params: Promise<{ slug: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const params = await props.params;
   const business = await prisma.business.findUnique({
     where: { slug: params.slug },
@@ -51,5 +52,5 @@ export default async function BusinessBookingPage(props: { params: Promise<{ slu
     })),
   };
 
-  return <BookingClient business={data} fontClasses={await siteFontClasses(business.packId)} />;
+  return <BookingClient followUp={await followUpFromQuery((await props.searchParams).followUp, business)} business={data} fontClasses={await siteFontClasses(business.packId)} />;
 }
