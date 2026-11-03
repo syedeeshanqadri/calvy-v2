@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
+import { revalidateSite } from "@/lib/revalidateSite";
 import { parseBody } from "@/lib/validation/common";
 
 import { websitePatchSchema } from "@/lib/validation/misc";
@@ -24,6 +25,7 @@ async function PATCH_handler(req: NextRequest) {
     data: { websiteJson },
   });
 
+  await revalidateSite(session.user.businessId);
   return NextResponse.json({ ok: true });
 }
 

@@ -5,6 +5,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 import { checkLimit, denialResponse } from "@/lib/limits";
+import { revalidateSite } from "@/lib/revalidateSite";
 import { parseBody } from "@/lib/validation/common";
 import { servicePatchSchema } from "@/lib/validation/dashboard";
 
@@ -44,6 +45,7 @@ async function PATCH_handler(request: NextRequest, props: { params: Promise<{ id
   }
 
   const updated = await prisma.service.update({ where: { id: params.id }, data: { ...body, ...(body.meetingUrl !== undefined && { meetingUrl: body.meetingUrl || null }), ...(body.imageUrl !== undefined && { imageUrl: body.imageUrl || null }) } });
+  await revalidateSite(session.user.businessId);
   return NextResponse.json({ service: updated });
 }
 

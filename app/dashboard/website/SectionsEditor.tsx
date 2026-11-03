@@ -7,7 +7,8 @@ import { Input } from "@/components/ui/Input";
 import { uploadSitePhoto } from "@/components/dashboard/PhotoField";
 import { OfferBanner, GallerySection, FaqSection, TeamCards, ServiceCards, type TeamCardMember, type ServiceCardItem } from "@/components/site/SiteSections";
 import { themeVars, safeThemeColor } from "@/lib/theme";
-import { SITE_CAPS, defaultHeroLook, parseHeroLook, parseServiceLayout, moveItem, offerVisible, sanitizeGallery, sanitizeFaq, type HeroLook } from "@/lib/siteSections";
+import { SiteHero } from "@/app/[slug]/SiteHero";
+import { SITE_CAPS, sectionOn, resolveHeroLayout, defaultHeroLook, parseHeroLook, parseServiceLayout, moveItem, offerVisible, sanitizeGallery, sanitizeFaq, type HeroLook } from "@/lib/siteSections";
 import type { WebsiteConfig } from "@/lib/website";
 import { cn } from "@/lib/utils";
 import "@/app/[slug]/site.css";
@@ -22,6 +23,7 @@ interface Props {
   imageUpload: boolean;
   staff: TeamCardMember[];
   services: ServiceCardItem[];
+  businessName: string;
 }
 
 function Toggle({ on, onClick, label }: { on: boolean; onClick: () => void; label: string }) {
@@ -44,7 +46,7 @@ function Preview({ children, themeColor, packId }: { children: ReactNode; themeC
   );
 }
 
-function Section({ title, enabled, onToggle, children }: { title: string; enabled?: boolean; onToggle?: () => void; children: ReactNode }) {
+function Section({ title, enabled, shown, onToggle, status, children }: { title: string; enabled?: boolean; shown?: boolean; onToggle?: () => void; status?: string; children: ReactNode }) {
   return (
     <Card className={cn(enabled === false && "opacity-70")}>
       <CardHeader>
@@ -53,20 +55,31 @@ function Section({ title, enabled, onToggle, children }: { title: string; enable
           {onToggle && <Toggle on={!!enabled} onClick={onToggle} label={`Show ${title} on your website`} />}
         </div>
       </CardHeader>
-      <CardContent className="space-y-3 pt-0">{children}</CardContent>
+      <CardContent className="space-y-3 pt-0">
+        {status && <p role="status" className={cn("text-xs rounded-lg px-3 py-2", shown ? "bg-green-50 text-green-800" : "bg-amber-50 text-amber-900")}>{status}</p>}
+        {children}
+      </CardContent>
     </Card>
   );
 }
 
 const iconBtn = "min-h-[40px] min-w-[40px] inline-flex items-center justify-center rounded-lg border border-[#e8e6e0] hover:bg-[#f8f7f4] disabled:opacity-40";
 
-export function SectionsEditor({ config, setConfig, packId, themeColor, timezone, currency, imageUpload, staff, services }: Props) {
+export function SectionsEditor({ config, setConfig, packId, themeColor, timezone, currency, imageUpload, staff, services, businessName }: Props) {
   const [uploadError, setUploadError] = useState("");
   const [uploading, setUploading] = useState(false);
 
-  const gallery = config.gallery ?? { enabled: false, title: "Gallery", images: [] };
-  const offer = config.offer ?? { enabled: false, text: "", endsOn: "" };
-  const faq = config.faq ?? { enabled: false, title: "Questions we get asked", items: [] };
+  const gallery = config.gallery ?? { title: "Gallery", images: [] };
+  const offer = config.offer ?? { text: "", endsOn: "" };
+  const faq = config.faq ?? { title: "Questions we get asked", items: [] };
+  const galleryOn = sectionOn(gallery.enabled, sanitizeGallery(gallery.images).length > 0);
+  const offerOn = offerVisible(offer, new Date(), timezone);
+  const faqOn = sectionOn(faq.enabled, sanitizeFaq(faq.items).length > 0);
+  const status = (on: boolean, enabled: boolean | undefined, hasContent: boolean, expired = false) =>
+    on ? "Showing on your website (after you save)."
+      : enabled === false ? "Switched off, so it is not on your website. Use the switch to turn it on."
+      : expired ? "Hidden because the end date has passed."
+      : hasContent ? "Not showing yet." : "Not showing yet. Add content and it appears automatically.";
   const look = parseHeroLook(config.heroLook) ?? defaultHeroLook(packId);
   const layout = parseServiceLayout(config.serviceLayout);
 
@@ -108,20 +121,25 @@ export function SectionsEditor({ config, setConfig, packId, themeColor, timezone
             </button>
           ))}
         </div>
-        <p className="text-xs text-[#6b6b80]">Save to see it on your website. Your hero photo and text stay as they are.</p>
+        <Preview themeColor={themeColor} packId={packId}>
+          <div style={{ maxHeight: 420, overflow: "hidden" }}>
+            <SiteHero layout={resolveHeroLayout(look, packId)} businessName={businessName} badge={config.hero.badge} headline={config.hero.headline} subheadline={config.hero.subheadline}
+              ctaText={config.hero.ctaText} bookingUrl="#" image={config.hero.image} imageFocus={config.hero.imageFocus} chips={[]} trust={[]} />
+          </div>
+        </Preview>
+        <p className="text-xs text-[#6b6b80]">Your hero photo and text stay as they are. Save to put the new look on your website.</p>
       </Section>
 
-      <Section title="Offer banner" enabled={offer.enabled} onToggle={() => patch("offer", { enabled: !offer.enabled })}>
+      <Section title="Offer banner" enabled={offer.enabled !== false} shown={offerOn} status={status(offerOn, offer.enabled, !!offer.text.trim(), !!offer.text.trim() && offer.enabled !== false && !offerOn)} onToggle={() => patch("offer", { enabled: offer.enabled === false })}>
         <Input label="Banner text" maxLength={SITE_CAPS.offerText} placeholder="e.g. 20% off first visits this month" value={offer.text} onChange={(e) => patch("offer", { text: e.target.value })} />
         <div>
           <Input label="Last day to show (optional)" type="date" value={offer.endsOn} onChange={(e) => patch("offer", { endsOn: e.target.value })} />
           <p className="text-xs text-[#6b6b80] mt-1">The banner hides itself after this date ({timezone} time). Leave empty to show it until you switch it off.</p>
         </div>
-        {offer.enabled && offer.text.trim() && !offerVisible(offer, new Date(), timezone) && <p role="status" className="text-xs text-amber-800 bg-amber-50 rounded-lg px-3 py-2">That date has passed, so the banner is hidden on your website.</p>}
-        {offer.text.trim() && <Preview themeColor={themeColor} packId={packId}><OfferBanner text={offer.text.trim()} /></Preview>}
+        {offerOn && <Preview themeColor={themeColor} packId={packId}><OfferBanner text={offer.text.trim()} /></Preview>}
       </Section>
 
-      <Section title="Photo gallery" enabled={gallery.enabled} onToggle={() => patch("gallery", { enabled: !gallery.enabled })}>
+      <Section title="Photo gallery" enabled={gallery.enabled !== false} shown={galleryOn} status={status(galleryOn, gallery.enabled, gallery.images.length > 0)} onToggle={() => patch("gallery", { enabled: gallery.enabled === false })}>
         <Input label="Section heading" maxLength={SITE_CAPS.title} value={gallery.title} onChange={(e) => patch("gallery", { title: e.target.value })} />
         <ul className="space-y-2">
           {gallery.images.map((img, i) => (
@@ -152,7 +170,7 @@ export function SectionsEditor({ config, setConfig, packId, themeColor, timezone
           <span className="text-xs text-[#6b6b80]">{gallery.images.length} of {SITE_CAPS.galleryImages} photos</span>
         </div>
         {uploadError && <p role="alert" className="text-xs text-red-500">{uploadError}</p>}
-        {gallery.images.length > 0 && <Preview themeColor={themeColor} packId={packId}><GallerySection title={gallery.title || "Gallery"} images={sanitizeGallery(gallery.images)} /></Preview>}
+        {galleryOn && <Preview themeColor={themeColor} packId={packId}><GallerySection title={gallery.title || "Gallery"} images={sanitizeGallery(gallery.images)} /></Preview>}
       </Section>
 
       <Section title="Team cards">
@@ -173,7 +191,7 @@ export function SectionsEditor({ config, setConfig, packId, themeColor, timezone
         {layout === "cards" && services.length > 0 && <Preview themeColor={themeColor} packId={packId}><div className="st-wrap" style={{ padding: "16px 12px" }}><ServiceCards services={services.slice(0, 3)} bookingUrl="#" currency={currency} /></div></Preview>}
       </Section>
 
-      <Section title="FAQ" enabled={faq.enabled} onToggle={() => patch("faq", { enabled: !faq.enabled })}>
+      <Section title="FAQ" enabled={faq.enabled !== false} shown={faqOn} status={status(faqOn, faq.enabled, sanitizeFaq(faq.items).length > 0)} onToggle={() => patch("faq", { enabled: faq.enabled === false })}>
         <Input label="Section heading" maxLength={SITE_CAPS.title} value={faq.title} onChange={(e) => patch("faq", { title: e.target.value })} />
         <ul className="space-y-3">
           {faq.items.map((f, i) => (
@@ -195,7 +213,7 @@ export function SectionsEditor({ config, setConfig, packId, themeColor, timezone
           <span className="text-xs text-[#6b6b80]">{faq.items.length} of {SITE_CAPS.faqItems} questions</span>
         </div>
         <p className="text-xs text-[#6b6b80]">Write your own answers. Search engines can show them in results.</p>
-        {sanitizeFaq(faq.items).length > 0 && <Preview themeColor={themeColor} packId={packId}><FaqSection title={faq.title || "Questions we get asked"} items={sanitizeFaq(faq.items)} /></Preview>}
+        {faqOn && <Preview themeColor={themeColor} packId={packId}><FaqSection title={faq.title || "Questions we get asked"} items={sanitizeFaq(faq.items)} /></Preview>}
       </Section>
     </>
   );
