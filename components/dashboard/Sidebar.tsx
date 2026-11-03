@@ -10,10 +10,11 @@ import { cn } from "@/lib/utils";
 import { useFlags } from "@/components/providers/FlagsProvider";
 import type { FeatureFlag } from "@/lib/flags";
 import { Logo } from "@/components/ui/Logo";
+import { useAccess } from "@/components/providers/AccessProvider";
 import { useTerms } from "@/components/providers/TermsProvider";
 import type { TermKey } from "@/lib/packs/types";
 
-const NAV_ITEMS: { label: string; href: string; icon: typeof LayoutDashboard; flag?: FeatureFlag; term?: TermKey; tokenOnly?: boolean }[] = [
+const NAV_ITEMS: { label: string; href: string; icon: typeof LayoutDashboard; flag?: FeatureFlag; term?: TermKey; tokenOnly?: boolean; memberOnly?: boolean }[] = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { label: "Queue", href: "/dashboard/queue", icon: ListOrdered, tokenOnly: true },
   { term: "appointment", label: "Appointments", href: "/dashboard/appointments", icon: Calendar },
@@ -31,6 +32,7 @@ const NAV_ITEMS: { label: string; href: string; icon: typeof LayoutDashboard; fl
   { label: "Billing", href: "/dashboard/billing", icon: Sparkles, flag: "payments" },
   { label: "Support", href: "/dashboard/support", icon: LifeBuoy },
   { label: "Settings", href: "/dashboard/settings", icon: SlidersHorizontal },
+  { label: "Notification settings", href: "/dashboard/settings/notifications", icon: SlidersHorizontal, memberOnly: true },
 ];
 
 interface SidebarProps { collapsed?: boolean; onToggle?: () => void; }
@@ -38,9 +40,10 @@ interface SidebarProps { collapsed?: boolean; onToggle?: () => void; }
 export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const pathname = usePathname();
   const flags = useFlags();
+  const { isOwner, allows } = useAccess();
   const { t, tokenMode } = useTerms();
   const labelOf = (i: { label: string; term?: TermKey }) => (i.term ? t(i.term, { plural: true, cap: true }) : i.label);
-  const items = NAV_ITEMS.filter((i) => (!i.flag || flags[i.flag]) && (!i.tokenOnly || tokenMode));
+  const items = NAV_ITEMS.filter((i) => (!i.flag || flags[i.flag]) && (!i.tokenOnly || tokenMode) && allows(i.href) && (!i.memberOnly || !isOwner));
   const mainCount = tokenMode ? 5 : 4;
 
   return (

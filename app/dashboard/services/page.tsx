@@ -1,15 +1,12 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { pageAccess } from "@/lib/access";
 import { prisma } from "@/lib/prisma";
-import { redirect } from "next/navigation";
 import { ServicesClient } from "./ServicesClient";
 import { getBusinessFeatures } from "@/lib/getFeatures";
 
 export const dynamic = 'force-dynamic';
 
 export default async function ServicesPage() {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.businessId) redirect("/login");
+  const session = await pageAccess("services.manage");
 
   const [services, features] = await Promise.all([
     prisma.service.findMany({

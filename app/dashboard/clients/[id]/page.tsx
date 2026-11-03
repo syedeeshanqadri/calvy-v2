@@ -1,20 +1,19 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { pageAccess, appointmentWhere } from "@/lib/access";
 import { prisma } from "@/lib/prisma";
-import { redirect, notFound } from "next/navigation";
+import { notFound } from "next/navigation";
 import { ClientDetailClient } from "./ClientDetailClient";
 
 export const dynamic = 'force-dynamic';
 
 export default async function ClientDetailPage(props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.businessId) redirect("/login");
+  const session = await pageAccess("customers.view");
 
   const client = await prisma.client.findUnique({
     where: { id: params.id },
     include: {
       appointments: {
+        where: appointmentWhere(session.access),
         include: { service: true, staff: true },
         orderBy: { date: "desc" },
       },

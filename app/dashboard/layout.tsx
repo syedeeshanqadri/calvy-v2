@@ -1,6 +1,8 @@
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
+import { resolveAccess } from "@/lib/access";
+import { AccessProvider } from "@/components/providers/AccessProvider";
 import { prisma } from "@/lib/prisma";
 import { getFlags } from "@/lib/flags";
 import { FlagsProvider } from "@/components/providers/FlagsProvider";
@@ -14,10 +16,11 @@ export default async function DashboardRootLayout({ children }: { children: Reac
   let termsOverride: unknown;
   let bookingMode: string | undefined;
 
-  if (session?.user?.businessId) {
+  const access = await resolveAccess(session);
+  if (session?.user?.businessId || (access && !access.isOwner)) {
     try {
       const biz = await prisma.business.findUnique({
-        where: { id: session.user.businessId },
+        where: { id: access?.businessId ?? session?.user?.businessId },
         select: { currency: true, packId: true, termsOverride: true, bookingMode: true },
       });
       currency = biz?.currency ?? "USD";
@@ -44,9 +47,11 @@ export default async function DashboardRootLayout({ children }: { children: Reac
 
   return (
     <FlagsProvider flags={getFlags()}>
-      <CurrencyProvider currency={currency}>
-        <TermsProvider packId={packId} termsOverride={termsOverride} bookingMode={bookingMode}>{children}</TermsProvider>
-      </CurrencyProvider>
+      <AccessProvider value={{ isOwner: access?.isOwner ?? true, permissions: access?.permissions ?? [] }}>
+        <CurrencyProvider currency={currency}>
+          <TermsProvider packId={packId} termsOverride={termsOverride} bookingMode={bookingMode}>{children}</TermsProvider>
+        </CurrencyProvider>
+      </AccessProvider>
     </FlagsProvider>
   );
 }

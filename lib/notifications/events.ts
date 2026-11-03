@@ -203,6 +203,21 @@ export function authEmail(i: { template: AuthTemplate; userId: string; to: strin
   };
 }
 
+/** auth.verify-style invite for a team member; the accept link lives only in the encrypted secret. Each new token is a new email. */
+export function teamInviteEmail(i: { memberId: string; to: string; name: string; businessName: string; roleName: string; token: string; baseUrl?: string }): NotificationInput {
+  const base = (i.baseUrl ?? process.env.NEXT_PUBLIC_APP_URL ?? "https://calvy.io").replace(/\/+$/, "");
+  return {
+    event: "auth.reset",
+    audience: "BUSINESS",
+    subjectId: i.memberId,
+    version: createHash("sha256").update(i.token).digest("hex").slice(0, 16),
+    recipient: i.to,
+    template: "team_invite",
+    payload: { name: i.name, businessName: i.businessName, roleName: i.roleName },
+    secret: `${base}/accept-invite?token=${i.token}`,
+  };
+}
+
 /** platform.lead: the instant acknowledgment to someone who left their details on the marketing site. */
 export function leadAcknowledgment(i: { leadId: string; to: string; name: string; demoRequested: boolean }): NotificationInput {
   return {

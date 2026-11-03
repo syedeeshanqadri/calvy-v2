@@ -1,8 +1,6 @@
 import Link from "next/link";
-import { getServerSession } from "next-auth";
-import { redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
-import { authOptions } from "@/lib/auth";
+import { pageAccess } from "@/lib/access";
 import { prisma } from "@/lib/prisma";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { Card, CardContent } from "@/components/ui/Card";
@@ -16,9 +14,8 @@ const ACTION = "/dashboard/settings/notifications/log";
 
 /** Owner delivery log: every email/WhatsApp message of this business, newest first (chunk 6). */
 export default async function NotificationLogPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
-  const session = await getServerSession(authOptions);
-  const businessId = session?.user?.kind !== "customer" ? session?.user?.businessId : undefined;
-  if (!businessId) redirect("/login");
+  const session = await pageAccess("notifications.settings");
+  const businessId = session.user.businessId;
   const filters = parseLogFilters(await searchParams);
   const now = new Date();
   const [{ rows, hasMore }, counts, reviewsSent] = await Promise.all([

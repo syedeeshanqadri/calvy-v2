@@ -1,5 +1,4 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { pageAccess } from "@/lib/access";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { WebsiteEditorClient } from "./WebsiteEditorClient";
@@ -9,8 +8,7 @@ import { getBusinessFeatures } from "@/lib/getFeatures";
 export const dynamic = "force-dynamic";
 
 export default async function WebsitePage() {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.businessId) redirect("/login");
+  const session = await pageAccess(["website.edit", "reviews.settings"]);
 
   const [business, features] = await Promise.all([
     prisma.business.findUnique({

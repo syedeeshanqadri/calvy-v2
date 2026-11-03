@@ -8,7 +8,7 @@ import { isActivePlan, type PlanLimits } from "@/lib/plans";
 import { getEffectiveLimits } from "@/lib/getFeatures";
 import { safeTimeZone, utcToZoned, zonedToUtc } from "@/lib/time";
 
-export type LimitKind = "staff" | "services" | "monthlyAppointments" | "upload" | "csv" | "group" | "slotInterval" | "expenses";
+export type LimitKind = "staff" | "services" | "monthlyAppointments" | "upload" | "csv" | "group" | "slotInterval" | "expenses" | "team";
 
 export interface LimitDenial {
   kind: LimitKind;
@@ -32,6 +32,13 @@ export function evaluateLimit(limits: PlanLimits, kind: LimitKind, used = 0): Li
     case "staff":
       return limits.maxStaff !== -1 && used >= limits.maxStaff
         ? { kind, status: 402, code: "LIMIT_REACHED", limit: limits.maxStaff, error: `Staff limit (${limits.maxStaff}) reached on your plan. Upgrade to add more.` }
+        : null;
+    case "team":
+      return limits.maxTeamMembers !== -1 && used >= limits.maxTeamMembers
+        ? {
+            kind, status: 402, code: limits.maxTeamMembers === 0 ? "FEATURE_LOCKED" : "LIMIT_REACHED", limit: limits.maxTeamMembers,
+            error: limits.maxTeamMembers === 0 ? "Team logins are not available on your plan. Upgrade to add team members." : `Team limit (${limits.maxTeamMembers}) reached on your plan. Upgrade to add more.`,
+          }
         : null;
     case "services":
       return limits.maxServices !== -1 && used >= limits.maxServices
@@ -89,6 +96,8 @@ export async function checkLimit(businessId: string, kind: LimitKind, opts: Chec
   let used = 0;
   if (kind === "staff" && limits.maxStaff !== -1) {
     used = await prisma.staff.count({ where: { businessId, isActive: true } });
+  } else if (kind === "team" && limits.maxTeamMembers !== -1) {
+    used = await prisma.teamMember.count({ where: { businessId } });
   } else if (kind === "services" && limits.maxServices !== -1) {
     used = await prisma.service.count({ where: { businessId, isActive: true } });
   } else if (kind === "monthlyAppointments" && limits.maxMonthlyAppointments !== -1) {

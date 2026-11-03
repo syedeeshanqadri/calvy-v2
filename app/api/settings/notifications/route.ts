@@ -1,7 +1,6 @@
 import { safeRoute } from "@/lib/api";
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { accessSession } from "@/lib/access";
 import { prisma } from "@/lib/prisma";
 import { prefsInputSchema } from "@/lib/notifications/prefs";
 import { loadNotificationSettings } from "@/lib/notifications/settings";
@@ -9,7 +8,7 @@ import { loadNotificationSettings } from "@/lib/notifications/settings";
 export const dynamic = "force-dynamic";
 
 async function GET_handler() {
-  const session = await getServerSession(authOptions);
+  const session = await accessSession("notifications.settings");
   if (!session?.user?.businessId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const settings = await loadNotificationSettings(session.user.businessId);
   if (!settings) return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -18,7 +17,7 @@ async function GET_handler() {
 
 /** Saves the whole set of switches for the session's own business; reminder leads sorted longest first. */
 async function PUT_handler(request: NextRequest) {
-  const session = await getServerSession(authOptions);
+  const session = await accessSession("notifications.settings");
   if (!session?.user?.businessId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   let body: unknown;

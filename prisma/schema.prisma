@@ -22,6 +22,7 @@ model User {
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
   business            Business?
+  teamMember          TeamMember?
   passwordResetTokens PasswordResetToken[]
 }
 
@@ -135,6 +136,7 @@ model Business {
   expenses                 Expense[]
   notifications            Notification[]
   supportTickets           SupportTicket[]
+  teamMembers              TeamMember[]
 }
 
 model Staff {
@@ -226,6 +228,8 @@ model PlanConfig {
   maxServices            Int
   maxMonthlyAppointments Int
   maxBroadcastsPerMonth  Int      @default(0)
+  /// Team logins besides the owner (-1 = unlimited, 0 = owner only).
+  maxTeamMembers         Int      @default(0)
   /// Calvy platform fee per public online booking in India, in paise (Free = 1000, paid plans = 0).
   platformFeeMinorIN     Int      @default(0)
   // Feature flags
@@ -727,4 +731,52 @@ model CustomerToken {
   customer   Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
 
   @@index([customerId, purpose])
+}
+
+/// A team login for one business (separate from bookable Staff). One login = one business.
+/// Owner-only areas are never stored here, so they can never be granted.
+model TeamMember {
+  id          String       @id @default(cuid())
+  businessId  String
+  /// Normalised email, unique across all businesses.
+  email       String       @unique
+  name        String
+  /// Free-text label (Receptionist, Doctor...). Display only.
+  roleName    String
+  permissions String[]     @default([])
+  /// Optional link to a bookable staff record; scopes "own only" appointment access.
+  staffId     String?
+  /// Set when the invite is accepted. Deleting the member also deletes this user.
+  userId      String?      @unique
+  createdAt   DateTime     @default(now())
+  business    Business     @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  user        User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  invites     TeamInvite[]
+
+  @@index([businessId])
+}
+
+model TeamInvite {
+  id        String     @id @default(cuid())
+  memberId  String
+  tokenHash String     @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  revokedAt DateTime?
+  createdAt DateTime   @default(now())
+  member    TeamMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([memberId])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  businessId String
+  actorId    String
+  action     String
+  target     String?
+  detail     String?
+  createdAt  DateTime @default(now())
+
+  @@index([businessId, createdAt])
 }

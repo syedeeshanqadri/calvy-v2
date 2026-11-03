@@ -1,7 +1,7 @@
 import { safeRoute } from "@/lib/api";
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { accessSession, appointmentWhere, scopeOf } from "@/lib/access";
+import { ForbiddenError } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { notify } from "@/lib/notifications/enqueue";
 import { confirmation, type Notice } from "@/lib/notifications/events";
@@ -22,7 +22,7 @@ import { safeTimeZone, zonedDayRange, zonedTimeToUtc, utcToZoned, formatDateLabe
 export const dynamic = 'force-dynamic';
 
 async function GET_handler(request: NextRequest) {
-  const session = await getServerSession(authOptions);
+  const session = await accessSession(["appointments.view_all", "appointments.view_own"]);
   if (!session?.user?.businessId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -41,6 +41,8 @@ async function GET_handler(request: NextRequest) {
   }
   if (status) where.status = status;
   if (staffId) where.staffId = staffId;
+  // Own-only members: the scope always wins over a staffId filter in the query.
+  Object.assign(where, appointmentWhere(session.access));
 
   const appointments = await prisma.appointment.findMany({
     where,
@@ -65,7 +67,7 @@ async function GET_handler(request: NextRequest) {
 }
 
 async function POST_handler(request: NextRequest) {
-  const session = await getServerSession(authOptions);
+  const session = await accessSession("appointments.write");
   if (!session?.user?.businessId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -74,6 +76,8 @@ async function POST_handler(request: NextRequest) {
   const parsed = await parseBody(request, appointmentCreateSchema);
   if (!parsed.ok) return parsed.res;
   const { clientName, clientEmail, clientPhone, staffId, date, time, notes, allowOverlap } = parsed.data;
+  // Own-only members can only book onto their own linked staff record.
+  if (scopeOf(session.access).kind !== "all" && (!session.access.staffId || staffId !== session.access.staffId)) throw new ForbiddenError();
 
   // Support serviceIds[] (multi) and legacy serviceId (single)
   const serviceIds: string[] = parsed.data.serviceIds?.length ? parsed.data.serviceIds : [parsed.data.serviceId!];

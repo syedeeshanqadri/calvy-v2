@@ -1,7 +1,6 @@
 import { safeRoute } from "@/lib/api";
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { accessSession } from "@/lib/access";
 import { prisma } from "@/lib/prisma";
 import { isActivePlan } from "@/lib/plans";
 import { findClientByEmail } from "@/lib/email-normalize";
@@ -14,7 +13,7 @@ import { clientCreateSchema } from "@/lib/validation/dashboard";
 export const dynamic = 'force-dynamic';
 
 async function POST_handler(request: NextRequest) {
-  const session = await getServerSession(authOptions);
+  const session = await accessSession("customers.edit");
   if (!session?.user?.businessId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

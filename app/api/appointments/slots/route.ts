@@ -1,7 +1,6 @@
 import { safeRoute } from "@/lib/api";
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { accessSession } from "@/lib/access";
 import { prisma } from "@/lib/prisma";
 import { parseQuery } from "@/lib/validation/common";
 import { ownerSlotsQuery } from "@/lib/validation/appointments";
@@ -16,7 +15,7 @@ export const dynamic = "force-dynamic";
  * `excludeId` when rescheduling so the appointment does not block its own slot.
  */
 async function GET_handler(request: NextRequest) {
-  const session = await getServerSession(authOptions);
+  const session = await accessSession("appointments.write");
   const businessId = session?.user?.businessId;
   if (!businessId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 

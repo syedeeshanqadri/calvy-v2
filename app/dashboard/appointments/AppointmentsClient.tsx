@@ -30,7 +30,7 @@ const PAYMENT_STATUS_STYLES: Record<string, string> = {
 
 type Row = ApptDetail;
 
-export function AppointmentsClient({ appointments, services, staff, csvExport = false, upgradeHref = null }: { appointments: Row[]; services: ServiceOption[]; staff: StaffOption[]; csvExport?: boolean; upgradeHref?: string | null }) {
+export function AppointmentsClient({ appointments, services, staff, csvExport = false, upgradeHref = null, canExport = true, canWrite = true }: { appointments: Row[]; services: ServiceOption[]; staff: StaffOption[]; csvExport?: boolean; upgradeHref?: string | null; canExport?: boolean; canWrite?: boolean; canCancel?: boolean }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { t } = useTerms();
@@ -134,8 +134,8 @@ export function AppointmentsClient({ appointments, services, staff, csvExport = 
                 </div>
               )}
             </div>
-            {!csvExport && <LockedExport compact upgradeHref={upgradeHref} />}
-            {csvExport && (
+            {canExport && !csvExport && <LockedExport compact upgradeHref={upgradeHref} />}
+            {canExport && csvExport && (
               <a
                 href={exportHref}
                 download
@@ -146,7 +146,7 @@ export function AppointmentsClient({ appointments, services, staff, csvExport = 
                 <Download size={14} />
               </a>
             )}
-            <Button size="sm" className="gap-1.5" onClick={() => setShowModal(true)}><Plus size={14} /> New</Button>
+            {canWrite && <Button size="sm" className="gap-1.5" onClick={() => setShowModal(true)}><Plus size={14} /> New</Button>}
           </div>
         </div>
         <div className="overflow-x-auto">

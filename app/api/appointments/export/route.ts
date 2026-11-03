@@ -1,7 +1,6 @@
 import { safeRoute } from "@/lib/api";
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { accessSession } from "@/lib/access";
 import { prisma } from "@/lib/prisma";
 import { parseQuery } from "@/lib/validation/common";
 import { appointmentExportQuery } from "@/lib/validation/appointments";
@@ -13,7 +12,7 @@ export const dynamic = "force-dynamic";
 const MAX_ROWS = 10_000;
 
 async function GET_handler(request: NextRequest) {
-  const session = await getServerSession(authOptions);
+  const session = await accessSession("reports.view");
   const businessId = session?.user?.businessId;
   if (!businessId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 

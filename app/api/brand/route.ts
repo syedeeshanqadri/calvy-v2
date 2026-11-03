@@ -1,8 +1,8 @@
 import { safeRoute } from "@/lib/api";
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
 import { z } from "zod";
-import { authOptions } from "@/lib/auth";
+import { accessSession } from "@/lib/access";
+import { can, ForbiddenError } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { parseBody } from "@/lib/validation/common";
 import { rateLimit } from "@/lib/ratelimit";
@@ -14,8 +14,8 @@ import { reviewLinkFromInput, normalizeSocialLinks } from "@/lib/brandLinks";
 
 export const dynamic = "force-dynamic";
 
-async function businessIdOrNull() {
-  const session = await getServerSession(authOptions);
+async function businessIdOrNull(need: Parameters<typeof accessSession>[0] = "website.edit") {
+  const session = await accessSession(need);
   return session?.user?.businessId ?? null;
 }
 
@@ -89,12 +89,15 @@ const linksSchema = z.object({
 
 /** Save social links and the Google review link (values are normalised; empty clears). */
 async function PATCH_handler(req: NextRequest) {
-  const businessId = await businessIdOrNull();
-  if (!businessId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  // Website editors may change both; "Reviews settings" alone may change only the Google review link.
+  const session = await accessSession(["website.edit", "reviews.settings"]);
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const businessId = session.user.businessId;
 
   const parsed = await parseBody(req, linksSchema);
   if (!parsed.ok) return parsed.res;
   const { socialLinks, googleReviewUrl } = parsed.data;
+  if (socialLinks !== undefined && !can(session.access.permissions, "website.edit") && !session.access.isOwner) throw new ForbiddenError();
 
   const data: { socialLinks?: Record<string, string>; googleReviewUrl?: string | null } = {};
   if (socialLinks !== undefined) {

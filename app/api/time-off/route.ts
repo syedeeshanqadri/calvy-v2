@@ -1,7 +1,6 @@
 import { safeRoute } from "@/lib/api";
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { accessSession } from "@/lib/access";
 import { prisma } from "@/lib/prisma";
 import { parseBody, parseQuery } from "@/lib/validation/common";
 import { timeOffCreateSchema, timeOffListQuery } from "@/lib/validation/timeoff";
@@ -12,7 +11,7 @@ export const dynamic = "force-dynamic";
 const MAX_SPAN_DAYS = 366;
 
 async function GET_handler(request: NextRequest) {
-  const session = await getServerSession(authOptions);
+  const session = await accessSession(["calendar.manage", "appointments.view_all", "appointments.view_own"]);
   const businessId = session?.user?.businessId;
   if (!businessId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -44,7 +43,7 @@ async function GET_handler(request: NextRequest) {
 }
 
 async function POST_handler(request: NextRequest) {
-  const session = await getServerSession(authOptions);
+  const session = await accessSession("calendar.manage");
   const businessId = session?.user?.businessId;
   if (!businessId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 

@@ -10,7 +10,8 @@ import { Avatar } from "@/components/ui/Avatar";
 import { useCurrency } from "@/components/providers/CurrencyProvider";
 import Link from "next/link";
 import { useTerms } from "@/components/providers/TermsProvider";
-import { Search, Plus, Mail, Phone, Star } from "lucide-react";
+import { Search, Plus, Mail, Phone, Star, Download } from "lucide-react";
+import { LockedExport } from "@/components/dashboard/LockedExport";
 
 interface ClientRow {
   id: string; name: string; email: string; phone: string;
@@ -19,7 +20,7 @@ interface ClientRow {
 
 const COLORS = ["#0284c7","#3b82f6","#22c55e","#8b5cf6","#f59e0b","#ec4899","#14b8a6","#f97316"];
 
-export function ClientsClient({ clients }: { clients: ClientRow[] }) {
+export function ClientsClient({ clients, canEdit = true, canExport = true, csvExport = true, upgradeHref = null }: { clients: ClientRow[]; canEdit?: boolean; canExport?: boolean; csvExport?: boolean; upgradeHref?: string | null }) {
   const router = useRouter();
   const { t } = useTerms();
   const cli1 = t("client");
@@ -73,7 +74,15 @@ export function ClientsClient({ clients }: { clients: ClientRow[] }) {
             <button onClick={() => setView("list")} className={`px-3 py-1.5 rounded-lg text-xs transition-all ${view === "list" ? "bg-[#f8f7f4] text-brand-900" : "text-[#6b6b80]"}`}>List</button>
           </div>
         </div>
-        <Button size="sm" className="gap-1.5" onClick={() => { setError(""); setShowModal(true); }}><Plus size={14} /> Add {cli1}</Button>
+        <div className="flex gap-2">
+          {canExport && !csvExport && <LockedExport compact upgradeHref={upgradeHref} />}
+          {canExport && csvExport && (
+            <a href="/api/clients/export" download title="Download CSV" aria-label="Download CSV" data-testid="clients-export" className="h-9 px-3 rounded-xl border border-[#e8e6e0] bg-white text-[#6b6b80] hover:text-brand-800 flex items-center gap-2 text-sm transition-colors">
+              <Download size={14} />
+            </a>
+          )}
+          {canEdit && <Button size="sm" className="gap-1.5" onClick={() => { setError(""); setShowModal(true); }}><Plus size={14} /> Add {cli1}</Button>}
+        </div>
       </div>
 
       {view === "grid" ? (

@@ -1,10 +1,9 @@
 import { meetingUrlFor } from "@/lib/online";
 import { safeTimeZone, utcToZoned } from "@/lib/time";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { pageAccess, appointmentWhere } from "@/lib/access";
+import { can } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { getFlags } from "@/lib/flags";
-import { redirect } from "next/navigation";
 import { AppointmentsClient } from "./AppointmentsClient";
 import { getBusinessFeatures } from "@/lib/getFeatures";
 import { bookingForLabel } from "@/lib/patients";
@@ -12,8 +11,7 @@ import { bookingForLabel } from "@/lib/patients";
 export const dynamic = 'force-dynamic';
 
 export default async function AppointmentsPage() {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.businessId) redirect("/login");
+  const session = await pageAccess(["appointments.view_all", "appointments.view_own"]);
   const tz = safeTimeZone((await prisma.business.findUnique({ where: { id: session.user.businessId }, select: { timezone: true } }))?.timezone);
 
   const features = await getBusinessFeatures(session.user.businessId);
@@ -21,7 +19,7 @@ export default async function AppointmentsPage() {
   const [appointments, services, staff] = await Promise.all([
     prisma.appointment.findMany({
       // Lapsed online-payment holds are noise for the owner.
-      where: { businessId: session.user.businessId, status: { not: "expired" } },
+      where: { businessId: session.user.businessId, status: { not: "expired" }, ...appointmentWhere(session.access) },
       include: { client: true, service: true, staff: true },
       orderBy: { date: "desc" },
     }),
@@ -67,6 +65,9 @@ export default async function AppointmentsPage() {
       services={services.map(s => ({ id: s.id, name: s.name, duration: s.duration, price: s.price, mode: s.mode }))}
       staff={staff.map(s => ({ id: s.id, name: s.name }))}
       csvExport={features.csvExport}
+      canExport={can(session.access.permissions, "reports.view")}
+      canWrite={can(session.access.permissions, "appointments.write")}
+      canCancel={can(session.access.permissions, "appointments.cancel")}
       upgradeHref={getFlags().payments ? "/dashboard/billing" : null}
     />
   );
