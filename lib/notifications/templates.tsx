@@ -185,6 +185,7 @@ export const TEMPLATES = {
     Email: (p) => <DailySummaryEmail {...p} />,
     text: (p) => lines(
       `Your day: ${p.dateLabel}`,
+      "Yesterday:",
       `New ${t(p.terms ?? {}, "appointment", { plural: true })}: ${p.counts.bookings}`,
       `Completed: ${p.counts.completed}`, `Cancelled: ${p.counts.cancelled}`, `Missed: ${p.counts.noShows}`,
       typeof p.paidTotal === "number" && `Paid: ${formatCurrencyAmount(p.paidTotal, p.currency ?? "INR")}`,

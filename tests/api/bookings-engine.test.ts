@@ -351,7 +351,8 @@ describe("POST /api/bookings: contact details and booking for someone else", () 
     const res = await POST(req(valid));
     expect(res.status).toBe(200);
     expect(db.appointment.create).toHaveBeenCalled();
-    expect(queueNotification).not.toHaveBeenCalled();
+    // No customer message; the call carries only the owner alert slot (null here: no business email in the mock).
+    expect(vi.mocked(queueNotification).mock.calls.flat().filter((q) => (q as { audience?: string } | null)?.audience === "CUSTOMER")).toEqual([]);
     expect(sendBookingConfirmationWhatsApp).not.toHaveBeenCalled();
     expect(push).toHaveBeenCalled(); // the business still hears about it
     expect((await res.json()).confirmationWithheld).toBe(true); // and the booker is told, not left waiting

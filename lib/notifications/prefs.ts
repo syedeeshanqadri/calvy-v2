@@ -9,8 +9,20 @@ import { sign, verifySignature } from "@/lib/notifications/secret";
  * receipts, queue notices and account emails.
  */
 
-/** Events a customer can unsubscribe from. Review requests join this list when they move to the outbox. */
-export const OPTIONAL_EVENTS: ReadonlySet<string> = new Set(["booking.completed", "booking.reminder"]);
+/** Events a customer can unsubscribe from (optional mail: a footer link and List-Unsubscribe headers). */
+export const OPTIONAL_EVENTS: ReadonlySet<string> = new Set(["booking.completed", "booking.reminder", "booking.review_request"]);
+
+/** Owner alerts: one event per kind, separate from the customer's email for the same change. */
+export const ALERT_EVENTS = {
+  created: "alert.booking.created",
+  rescheduled: "alert.booking.rescheduled",
+  cancelled: "alert.booking.cancelled",
+  paid: "alert.booking.paid",
+  status: "alert.booking.status",
+} as const;
+export type AlertKind = keyof typeof ALERT_EVENTS;
+export const SUMMARY_EVENT = "summary.daily";
+export const REVIEW_EVENT = "booking.review_request";
 
 /** How long before a booking a reminder may go: 1h, 2h, 3h, 24h, 48h. */
 export const REMINDER_LEADS = [60, 120, 180, 1440, 2880] as const;
@@ -18,7 +30,12 @@ export const MAX_REMINDERS = 2;
 const DEFAULT_REMINDER_LEADS = [1440];
 
 const prefsSchema = z.object({
-  customer: z.object({ completed: z.boolean().optional() }).optional(),
+  customer: z.object({ completed: z.boolean().optional(), reviewRequest: z.boolean().optional() }).optional(),
+  business: z.object({
+    created: z.boolean().optional(), rescheduled: z.boolean().optional(), cancelled: z.boolean().optional(),
+    paid: z.boolean().optional(), status: z.boolean().optional(),
+  }).optional(),
+  dailySummary: z.boolean().optional(),
   reminderLeadMinutes: z.array(z.number()).optional(),
 });
 
@@ -26,7 +43,13 @@ export interface NotificationPrefs {
   customer: {
     /** "Thanks for visiting" email when a booking is marked completed. */
     completed: boolean;
+    /** Google review request 2h after a booking is completed (needs the business's review link). */
+    reviewRequest: boolean;
   };
+  /** Alerts to the business: new booking, rescheduled, cancelled and paid are on; other status changes are off. */
+  business: Record<AlertKind, boolean>;
+  /** Morning email at 08:00 business time (opt-in). */
+  dailySummary: boolean;
   /** Up to two reminders, longest lead first (24h + 2h, say). Empty means the business sends no reminders. */
   reminderLeadMinutes: number[];
 }
@@ -42,15 +65,31 @@ export function resolveReminderLeads(raw: number[] | undefined): number[] {
 export function resolvePrefs(raw: unknown): NotificationPrefs {
   const parsed = prefsSchema.safeParse(raw);
   const data = parsed.success ? parsed.data : {};
+  const b = data.business ?? {};
   return {
-    customer: { completed: data.customer?.completed ?? true },
+    customer: { completed: data.customer?.completed ?? true, reviewRequest: data.customer?.reviewRequest ?? true },
+    business: { created: b.created ?? true, rescheduled: b.rescheduled ?? true, cancelled: b.cancelled ?? true, paid: b.paid ?? true, status: b.status ?? false },
+    dailySummary: data.dailySummary ?? false,
     reminderLeadMinutes: resolveReminderLeads(data.reminderLeadMinutes),
   };
 }
 
+/** What the settings page saves: every field, strictly typed. Reminder leads must be allowed values, distinct. */
+export const prefsInputSchema = z.object({
+  customer: z.object({ completed: z.boolean(), reviewRequest: z.boolean() }).strict(),
+  business: z.object({ created: z.boolean(), rescheduled: z.boolean(), cancelled: z.boolean(), paid: z.boolean(), status: z.boolean() }).strict(),
+  dailySummary: z.boolean(),
+  reminderLeadMinutes: z.array(z.number().refine((m) => (REMINDER_LEADS as readonly number[]).includes(m), "Not an allowed reminder time"))
+    .max(MAX_REMINDERS)
+    .refine((l) => new Set(l).size === l.length, "The two reminders must be at different times"),
+}).strict();
+
 /** The business's own switch for an event (events with no switch are always on). */
 const BUSINESS_SWITCH: Record<string, (p: NotificationPrefs) => boolean> = {
   "booking.completed": (p) => p.customer.completed,
+  [REVIEW_EVENT]: (p) => p.customer.reviewRequest,
+  [SUMMARY_EVENT]: (p) => p.dailySummary,
+  ...Object.fromEntries((Object.keys(ALERT_EVENTS) as AlertKind[]).map((k) => [ALERT_EVENTS[k], (p: NotificationPrefs) => p.business[k]])),
 };
 
 export interface SkipCandidate { businessId: string | null; event: string; recipient: string }

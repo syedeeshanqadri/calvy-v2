@@ -13,6 +13,7 @@ import { applyPaymentEvent } from "@/lib/payments/events";
 import { prismaPaymentEventStore } from "@/lib/payments/db";
 import { notify } from "@/lib/notifications/enqueue";
 import { confirmation, noticeFrom, receipt, serviceLabel } from "@/lib/notifications/events";
+import { ownerAlert } from "@/lib/notifications/business";
 import { sendBookingConfirmationWhatsApp } from "@/lib/whatsapp";
 import { sendPushToBusiness } from "@/lib/push";
 import { DEFAULT_CURRENCY } from "@/lib/currency";
@@ -140,12 +141,22 @@ export async function sendConfirmationFor(
     tag: "new-booking",
   }).catch(() => {});
 
+  const notice = noticeFrom(a);
+  const paid = opts.payment;
+  const paidMajor = paid ? paid.amountMinor / 100 : undefined;
+  // The business is always told, by email too (its own switches decide), even when the contact is not messaged.
+  try {
+    await notify(
+      await ownerAlert(notice, "created"),
+      paid ? await ownerAlert(notice, "paid", { version: paid.id, price: paidMajor }) : null,
+    );
+  } catch (e) {
+    logger.error("[Notifications] business alert failed:", { err: e });
+  }
+
   if (opts.contactMessages === false) return; // flood protection: the business was told, the contact is not messaged
 
   try {
-    const notice = noticeFrom(a);
-    const paid = opts.payment;
-    const paidMajor = paid ? paid.amountMinor / 100 : undefined;
     await notify(
       confirmation(notice, a.date),
       paid ? receipt(notice, {

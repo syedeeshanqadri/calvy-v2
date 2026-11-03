@@ -3,7 +3,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { razorpay } from "@/lib/razorpay";
 import { notify as queueNotification } from "@/lib/notifications/enqueue";
-import { confirmation } from "@/lib/notifications/events";
+import { confirmation, type Notice } from "@/lib/notifications/events";
+import { ownerAlert } from "@/lib/notifications/business";
 import { t } from "@/lib/terms";
 import { sendBookingConfirmationWhatsApp } from "@/lib/whatsapp";
 import { sendPushToBusiness } from "@/lib/push";
@@ -324,26 +325,26 @@ async function POST_handler(req: NextRequest) {
     }).catch(() => {});
 
     try {
-      if (!suppressContactMessages) {
-        await queueNotification(confirmation({
-          appointmentId,
-          businessId: business!.id,
-          to: clientEmail,
-          payload: {
-            clientName,
-            patientName,
-            businessName: business!.name,
-            serviceName: serviceNamesLabel,
-            staffName: staffMember?.name ?? `Your ${t(business!, "staff")}`,
-            date: dateLabel,
-            time,
-            duration: totalDuration,
-            price: totalPrice,
-            currency: business!.currency ?? DEFAULT_CURRENCY,
-            online: isOnline ? { meetingUrl: resolveMeetingUrl(orderedServices[0], staffMember) } : undefined,
-          },
-        }, appointmentStart));
-      }
+      const notice: Notice = {
+        appointmentId,
+        businessId: business!.id,
+        to: clientEmail,
+        payload: {
+          clientName,
+          patientName,
+          businessName: business!.name,
+          serviceName: serviceNamesLabel,
+          staffName: staffMember?.name ?? `Your ${t(business!, "staff")}`,
+          date: dateLabel,
+          time,
+          duration: totalDuration,
+          price: totalPrice,
+          currency: business!.currency ?? DEFAULT_CURRENCY,
+          online: isOnline ? { meetingUrl: resolveMeetingUrl(orderedServices[0], staffMember) } : undefined,
+        },
+      };
+      // The business is always told; the contact only when not over its daily cap.
+      await queueNotification(suppressContactMessages ? null : confirmation(notice, appointmentStart), await ownerAlert(notice, "created"));
     } catch (err) {
       logger.error("[Notifications] confirmation failed:", { err });
     }

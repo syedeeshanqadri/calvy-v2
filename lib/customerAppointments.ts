@@ -4,6 +4,7 @@ import { t } from "@/lib/terms";
 import { logger } from "@/lib/logger";
 import { notify } from "@/lib/notifications/enqueue";
 import { cancellation, noticeFrom, reschedule } from "@/lib/notifications/events";
+import { ownerAlert } from "@/lib/notifications/business";
 import { sendPushToBusiness } from "@/lib/push";
 import { bookExclusive, SlotConflictError, conflictMessage, isPastBooking } from "@/lib/booking";
 import { loadAvailability, type AvailabilityQuery } from "@/lib/availability";
@@ -135,7 +136,12 @@ export async function rescheduleByCustomer(verifiedEmail: string, id: string, da
   }).catch(() => {});
   // Customer: email with the new time (once per move, so a double click is still one email).
   try {
-    await notify(reschedule(noticeFrom({ ...a, date: start }), { from: oldDate, to: start, oldDate: formatDateLabel(oldDate, tz), oldTime: formatTimeLabel(oldDate, tz) }));
+    const n = noticeFrom({ ...a, date: start });
+    const move = { from: oldDate, to: start, oldDate: formatDateLabel(oldDate, tz), oldTime: formatTimeLabel(oldDate, tz) };
+    await notify(
+      reschedule(n, move),
+      await ownerAlert(n, "rescheduled", { version: `${oldDate.getTime()}>${start.getTime()}`, byCustomer: true, oldDate: move.oldDate, oldTime: move.oldTime }),
+    );
   } catch (err) {
     logger.error("[CustomerAppt] reschedule notification failed", { err });
   }
@@ -164,7 +170,8 @@ export async function cancelByCustomer(verifiedEmail: string, id: string): Promi
     url: "/dashboard/appointments", tag: "customer-cancel",
   }).catch(() => {});
   try {
-    await notify(cancellation(noticeFrom(a), `${appUrl()}/${a.business.slug}`));
+    const n = noticeFrom(a);
+    await notify(cancellation(n, `${appUrl()}/${a.business.slug}`), await ownerAlert(n, "cancelled", { byCustomer: true }));
   } catch (err) {
     logger.error("[CustomerAppt] cancellation notification failed", { err });
   }

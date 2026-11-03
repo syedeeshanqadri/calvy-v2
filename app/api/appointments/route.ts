@@ -4,7 +4,8 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { notify } from "@/lib/notifications/enqueue";
-import { confirmation } from "@/lib/notifications/events";
+import { confirmation, type Notice } from "@/lib/notifications/events";
+import { ownerAlert } from "@/lib/notifications/business";
 import { t } from "@/lib/terms";
 import { findOrCreateClient } from "@/lib/clients";
 import { sendPushToBusiness } from "@/lib/push";
@@ -239,7 +240,7 @@ async function POST_handler(request: NextRequest) {
   }).catch(() => {});
 
   try {
-    await notify(confirmation({
+    const notice: Notice = {
       appointmentId: appointment.id,
       businessId,
       to: client.email,
@@ -255,7 +256,8 @@ async function POST_handler(request: NextRequest) {
         currency: business.currency ?? "USD",
         online: isOnline ? { meetingUrl: resolveMeetingUrl(orderedServices[0], assignedStaff) } : undefined,
       },
-    }, apptDate));
+    };
+    await notify(confirmation(notice, apptDate), await ownerAlert(notice, "created"));
   } catch (err) {
     logger.error("[Notifications] confirmation failed for panel booking:", { err });
   }

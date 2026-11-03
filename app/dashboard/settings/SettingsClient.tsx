@@ -1,11 +1,12 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
-import { Check, Globe, Phone, Mail, MapPin, DollarSign, Wallet, CreditCard, Lock } from "lucide-react";
+import { Bell, Check, Globe, Phone, Mail, MapPin, DollarSign, Wallet, CreditCard, Lock } from "lucide-react";
 import { CURRENCIES } from "@/lib/currency";
 import { useFlags } from "@/components/providers/FlagsProvider";
 import { ThemeColorPicker } from "@/components/theme/ThemeColorPicker";
@@ -202,7 +203,7 @@ export function SettingsClient({ business, customSlotInterval = false, stripePay
     <DashboardLayout title="Settings" subtitle="Manage your business profile and availability">
       <div className="max-w-3xl space-y-6">
         {/* Tab bar */}
-        <div className="flex gap-1 bg-[#f0ede8] p-1 rounded-xl w-fit">
+        <div className="flex flex-wrap gap-1 bg-[#f0ede8] p-1 rounded-xl w-fit max-w-full">
           {TABS.map(t => (
             <button
               key={t.key}
@@ -213,6 +214,10 @@ export function SettingsClient({ business, customSlotInterval = false, stripePay
               {t.label}
             </button>
           ))}
+          <Link href="/dashboard/settings/notifications" className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all text-[#6b6b80] hover:text-[#0f0f1a]">
+            <Bell size={14} />
+            Notifications
+          </Link>
         </div>
 
         {/* Business Profile tab */}
