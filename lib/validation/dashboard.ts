@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { text, emailField, blankToUndef, money } from "./common";
+import { SITE_CAPS, isSafeImageUrl } from "@/lib/siteSections";
 import { SERVICE_MODES, meetingUrlOrEmpty } from "@/lib/online";
 
 const hexColor = z.string().trim().regex(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/, "color must be a hex colour like #0284c7");
@@ -21,6 +22,9 @@ export const clientCreateSchema = z
     path: ["phone"],
   });
 
+/** Empty string clears the photo; anything else must be an https or uploaded image URL. */
+const optionalImage = z.string().max(SITE_CAPS.url).refine((v) => v === "" || isSafeImageUrl(v), "image must be an https URL or an uploaded file");
+
 export const staffCreateSchema = z.object({
   name: text(120).min(1),
   role: text(80).min(1),
@@ -28,6 +32,9 @@ export const staffCreateSchema = z.object({
   phone: z.preprocess(blankToUndef, text(40).optional()),
   color: z.preprocess(blankToUndef, hexColor.optional()),
   meetingUrl: z.preprocess(blankToUndef, meetingUrlOrEmpty.optional()),
+  photoUrl: z.preprocess(blankToUndef, optionalImage.optional()),
+  bio: z.preprocess(blankToUndef, text(SITE_CAPS.staffBio).optional()),
+  specialisation: z.preprocess(blankToUndef, text(SITE_CAPS.staffSpecialisation).optional()),
 });
 
 export const staffPatchSchema = z.object({
@@ -39,6 +46,9 @@ export const staffPatchSchema = z.object({
   isActive: z.boolean().optional(),
   /** Empty string clears the link. */
   meetingUrl: meetingUrlOrEmpty.optional(),
+  photoUrl: optionalImage.optional(),
+  bio: text(SITE_CAPS.staffBio).optional(),
+  specialisation: text(SITE_CAPS.staffSpecialisation).optional(),
 });
 
 const serviceCore = {
@@ -64,6 +74,7 @@ export const serviceCreateSchema = z.object({
   bufferAfterMin: z.preprocess(blankToUndef, serviceCore.buffer.optional()),
   mode: z.preprocess(blankToUndef, z.enum(SERVICE_MODES).optional()),
   meetingUrl: z.preprocess(blankToUndef, meetingUrlOrEmpty.optional()),
+  imageUrl: z.preprocess(blankToUndef, optionalImage.optional()),
 });
 
 /** Allow-list only: businessId, isActive and any other column cannot be mass-assigned. */
@@ -81,6 +92,7 @@ export const servicePatchSchema = z.object({
   mode: z.enum(SERVICE_MODES).optional(),
   /** Empty string clears the override (the staff member's link applies). */
   meetingUrl: meetingUrlOrEmpty.optional(),
+  imageUrl: optionalImage.optional(),
 });
 
 const expenseDate = z

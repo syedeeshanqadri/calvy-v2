@@ -37,6 +37,9 @@ export default async function StaffPage() {
         phone: s.phone ?? "",
         color: s.color,
         meetingUrl: s.meetingUrl ?? "",
+        photoUrl: s.photoUrl ?? "",
+        bio: s.bio ?? "",
+        specialisation: s.specialisation ?? "",
         isActive: s.isActive,
       }))}
       currentPlan={business?.plan ?? "trial"}

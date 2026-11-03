@@ -23,7 +23,8 @@ import { HeroAvailabilityCard } from "./HeroAvailabilityCard";
 import { offersOnline, onlineBadge } from "@/lib/online";
 import { PackIcon } from "@/components/site/PackIcon";
 import { getPack } from "@/lib/packs";
-import { heroLayoutFor } from "@/lib/siteLayout";
+import { resolveHeroLayout, offerVisible, sanitizeGallery, sanitizeFaq, faqJsonLd, parseServiceLayout } from "@/lib/siteSections";
+import { OfferBanner, GallerySection, FaqSection, TeamCards, ServiceCards } from "@/components/site/SiteSections";
 import "./site.css";
 import { headers } from "next/headers";
 import { siteBase, publicSiteUrl } from "@/lib/siteBase";
@@ -142,6 +143,11 @@ export default async function TenantWebsitePage(props: { params: Promise<{ slug:
   const logoRadius = business.packId === "SALON_SPA" || business.packId === "CONSULTANT" ? "rounded-full" : "rounded-[10px]";
   const groups = groupByCategory(business.services);
   const hasTeam = cfg.team.enabled && business.staff.length > 0;
+  const showOffer = offerVisible(cfg.offer, new Date(), business.timezone);
+  const galleryImages = cfg.gallery?.enabled ? sanitizeGallery(cfg.gallery.images) : [];
+  const faqItems = cfg.faq?.enabled ? sanitizeFaq(cfg.faq.items) : [];
+  const faqLd = faqJsonLd(faqItems);
+  const serviceCards = parseServiceLayout(cfg.serviceLayout) === "cards";
   const hasSocial = Object.keys(social).length > 0;
   const showPhone = cfg.contact.showPhone && !!business.phone;
   const showEmail = cfg.contact.showEmail && !!business.email;
@@ -182,7 +188,9 @@ export default async function TenantWebsitePage(props: { params: Promise<{ slug:
   return (
     <div className={`st ${fontClasses}`} data-pack={business.packId} style={themeVars(primary) as React.CSSProperties}>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString(jsonLd) }} />
+      {faqLd && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString(faqLd) }} />}
       <a className="st-sr" href="#main">Skip to content</a>
+      {showOffer && <OfferBanner text={cfg.offer!.text.trim()} />}
 
       {/* ── TOP INFO BAR ── */}
       {((status && showHours) || showAddress || showPhone || hasSocial || anyOnline) && (
@@ -212,6 +220,8 @@ export default async function TenantWebsitePage(props: { params: Promise<{ slug:
             {cfg.about.enabled && <a href="#about">{cfg.about.title}</a>}
             {cfg.services.enabled && business.services.length > 0 && <a href="#services">{cfg.services.title}</a>}
             {hasTeam && <a href="#team">{cfg.team.title}</a>}
+            {galleryImages.length > 0 && <a href="#gallery">{cfg.gallery!.title || "Gallery"}</a>}
+            {faqItems.length > 0 && <a href="#faq">FAQ</a>}
             {cfg.contact.enabled && <a href="#contact">{cfg.contact.title}</a>}
           </nav>
           <Link href={bookingUrl} className="st-btn st-btn-primary st-btn-sm">{cfg.hero.ctaText}</Link>
@@ -222,7 +232,7 @@ export default async function TenantWebsitePage(props: { params: Promise<{ slug:
         {/* ── HERO ── */}
         {cfg.hero.enabled && (
           <SiteHero
-            layout={heroLayoutFor(business.packId)}
+            layout={resolveHeroLayout(cfg.heroLook, business.packId)}
             businessName={business.name}
             badge={cfg.hero.badge}
             headline={cfg.hero.headline}
@@ -271,6 +281,10 @@ export default async function TenantWebsitePage(props: { params: Promise<{ slug:
                 {cfg.services.subtitle && <p>{cfg.services.subtitle}</p>}
               </div>
               <div>
+                {serviceCards ? (
+                  <ServiceCards services={business.services} bookingUrl={bookingUrl} currency={business.currency} />
+                ) : (
+                  <>
                 {groups.map((g) => (
                   <div key={g.key} className="st-svc-group">
                     {groups.length > 1 && <h3>{g.label}</h3>}
@@ -289,6 +303,8 @@ export default async function TenantWebsitePage(props: { params: Promise<{ slug:
                     ))}
                   </div>
                 ))}
+                  </>
+                )}
                 {cfg.services.ctaText && (
                   <div className="st-more">
                     <Link href={bookingUrl} className="st-btn st-btn-primary">{cfg.services.ctaText}</Link>
@@ -308,15 +324,7 @@ export default async function TenantWebsitePage(props: { params: Promise<{ slug:
                 <h2>{cfg.team.title}</h2>
                 {cfg.team.subtitle && <p>{cfg.team.subtitle}</p>}
               </div>
-              <ul className="st-team">
-                {business.staff.map((member) => (
-                  <li key={member.id} className="st-person">
-                    <div className="st-avatar" aria-hidden>{initialsOf(member.name)}</div>
-                    <b>{member.name}</b>
-                    <span className="st-muted">{member.role}</span>
-                  </li>
-                ))}
-              </ul>
+              <TeamCards staff={business.staff} />
             </div>
           </section>
         )}
@@ -395,6 +403,12 @@ export default async function TenantWebsitePage(props: { params: Promise<{ slug:
             </div>
           </section>
         )}
+
+        {/* ── GALLERY ── */}
+        {galleryImages.length > 0 && <GallerySection title={cfg.gallery!.title || "Gallery"} images={galleryImages} />}
+
+        {/* ── FAQ ── */}
+        {faqItems.length > 0 && <FaqSection title={cfg.faq!.title || "Questions we get asked"} items={faqItems} />}
 
         {/* ── REVIEW ── */}
         {reviewUrl && (

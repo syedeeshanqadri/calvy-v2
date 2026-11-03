@@ -322,3 +322,37 @@
 /* Sticky mobile book bar */
 .st-bar { position: sticky; bottom: 0; z-index: 30; padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); background: #fff; border-top: 1px solid var(--line); box-shadow: 0 -8px 24px -16px rgba(0,0,0,.3); }
 @media (min-width: 900px) { .st-bar { display: none; } }
+
+/* Owner sections: offer banner, gallery, FAQ, team photos, image service cards */
+.st-offer { background: var(--brand-ink, var(--brand)); color: #fff; text-align: center; font-weight: 600; font-size: var(--fs-sm); }
+.st-offer p { padding: 10px 0; margin: 0; }
+
+.st-gallery { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+.st-gallery-item { position: relative; aspect-ratio: 4 / 3; overflow: hidden; border-radius: var(--radius); background: var(--surface); }
+.st-gallery-item img { object-fit: cover; }
+@media (min-width: 900px) { .st-gallery { grid-template-columns: repeat(4, 1fr); gap: 14px; } }
+
+.st-faq-layout { display: grid; gap: 8px; }
+@media (min-width: 900px) { .st-faq-layout { grid-template-columns: 300px 1fr; gap: 72px; } .st-faq-layout .st-head-sec { position: sticky; top: 100px; align-self: start; } }
+.st-faq-item { border-bottom: 1px solid var(--line); }
+.st-faq-item summary { cursor: pointer; list-style: none; min-height: 48px; padding: 14px 32px 14px 0; font-weight: 700; font-size: 1.0625rem; position: relative; display: flex; align-items: center; }
+.st-faq-item summary::-webkit-details-marker { display: none; }
+.st-faq-item summary::after { content: "+"; position: absolute; right: 4px; font-size: 1.5rem; font-weight: 400; color: var(--brand-ink, var(--brand)); }
+.st-faq-item[open] summary::after { content: "\2212"; }
+.st-faq-item summary:focus-visible { outline: 3px solid var(--brand); outline-offset: 2px; }
+.st-faq-item p { margin: 0; padding: 0 0 18px; color: var(--muted); max-width: 40em; white-space: pre-line; }
+
+.st-person-photo { position: relative; width: 100%; aspect-ratio: 1; border-radius: var(--radius); overflow: hidden; background: var(--surface); margin-bottom: 14px; }
+.st-person-photo img { object-fit: cover; }
+.st-person-spec { align-self: flex-start; margin-top: 4px; }
+.st-person-bio { margin: 6px 0 10px; color: var(--muted); font-size: 0.9375rem; }
+
+.st-svc-cards { list-style: none; margin: 0; padding: 0; display: grid; gap: 16px; }
+@media (min-width: 640px) { .st-svc-cards { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 1100px) { .st-svc-cards { grid-template-columns: repeat(3, 1fr); } }
+.st-svc-card { border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; background: #fff; display: flex; flex-direction: column; }
+.st-svc-card-img { position: relative; aspect-ratio: 4 / 3; background: var(--surface); }
+.st-svc-card-img img { object-fit: cover; }
+.st-svc-card-body { padding: 18px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
+.st-svc-card-foot { display: flex; justify-content: space-between; align-items: baseline; margin-top: auto; }
+.st-svc-card .st-btn { align-self: flex-start; }

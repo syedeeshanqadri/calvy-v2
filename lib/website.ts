@@ -1,4 +1,5 @@
 import { t, type TermsSource } from "@/lib/terms";
+import type { FaqSection, GallerySection, HeroLook, OfferSection, ServiceLayout } from "@/lib/siteSections";
 /** Which part of a photo the fixed-size frame keeps when it has to crop. */
 export type ImageFocus = "top" | "center" | "bottom";
 
@@ -72,6 +73,12 @@ export interface WebsiteConfig {
   services: ServicesSection;
   team: TeamSection;
   contact: ContactSection;
+  /** Owner's hero look; unset = the pack's default. */
+  heroLook?: HeroLook;
+  serviceLayout?: ServiceLayout;
+  gallery?: GallerySection;
+  offer?: OfferSection;
+  faq?: FaqSection;
 }
 
 const HERO_IMAGES: Record<string, string> = {

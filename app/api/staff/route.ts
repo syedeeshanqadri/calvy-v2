@@ -33,7 +33,7 @@ async function POST_handler(request: NextRequest) {
 
   const parsed = await parseBody(request, staffCreateSchema);
   if (!parsed.ok) return parsed.res;
-  const { name, role, email, phone, color, meetingUrl } = parsed.data;
+  const { name, role, email, phone, color, meetingUrl, photoUrl, bio, specialisation } = parsed.data;
 
   const denied = await checkLimit(session.user.businessId, "staff", { owner: true });
   if (denied) return denialResponse(denied);
@@ -47,6 +47,9 @@ async function POST_handler(request: NextRequest) {
       phone: phone || "",
       color: color || "#0284c7",
       meetingUrl: meetingUrl || null,
+      photoUrl: photoUrl || null,
+      bio: bio || null,
+      specialisation: specialisation || null,
       isActive: true,
       workingHours: JSON.stringify({
         monday: { start: "09:00", end: "18:00", isWorking: true },

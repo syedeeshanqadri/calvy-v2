@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { text } from "./common";
+import { SITE_CAPS, isSafeImageUrl } from "@/lib/siteSections";
 
 const section = (extra: z.ZodRawShape = {}) =>
   z.looseObject({ enabled: z.boolean().optional(), badge: text(120).optional(), ...extra }).optional();
@@ -8,6 +9,24 @@ const httpUrlOrEmpty = z
   .string()
   .max(1000)
   .refine((v) => v === "" || /^(https?:\/\/|\/)/i.test(v), "image must be an http(s) URL");
+
+const safeImage = z.string().max(SITE_CAPS.url).refine(isSafeImageUrl, "image must be an https URL or an uploaded file");
+
+const gallerySchema = z.looseObject({
+  enabled: z.boolean().optional(),
+  title: text(SITE_CAPS.title).optional(),
+  images: z.array(z.object({ url: safeImage, alt: text(SITE_CAPS.altText) })).max(SITE_CAPS.galleryImages).optional(),
+});
+const offerSchema = z.looseObject({
+  enabled: z.boolean().optional(),
+  text: text(SITE_CAPS.offerText).optional(),
+  endsOn: z.string().regex(/^(\d{4}-\d{2}-\d{2})?$/, "invalid date").optional(),
+});
+const faqSchema = z.looseObject({
+  enabled: z.boolean().optional(),
+  title: text(SITE_CAPS.title).optional(),
+  items: z.array(z.object({ q: text(SITE_CAPS.faqQuestion).min(1), a: text(SITE_CAPS.faqAnswer).min(1) })).max(SITE_CAPS.faqItems).optional(),
+});
 
 /** Known fields are type-checked and capped; unknown keys pass through (the editor owns the shape). */
 export const websiteConfigSchema = z.looseObject({
@@ -18,6 +37,11 @@ export const websiteConfigSchema = z.looseObject({
   services: section({ title: text(300).optional() }),
   team: section({ title: text(300).optional() }),
   contact: section({ title: text(300).optional() }),
+  heroLook: z.enum(["split", "arch", "dark"]).optional(),
+  serviceLayout: z.enum(["list", "cards"]).optional(),
+  gallery: gallerySchema.optional(),
+  offer: offerSchema.optional(),
+  faq: faqSchema.optional(),
 });
 
 export const websitePatchSchema = z.object({

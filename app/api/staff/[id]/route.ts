@@ -23,7 +23,7 @@ async function PATCH_handler(request: NextRequest, props: { params: Promise<{ id
 
   const parsed = await parseBody(request, staffPatchSchema);
   if (!parsed.ok) return parsed.res;
-  const { name, role, email, phone, color, isActive, meetingUrl } = parsed.data;
+  const { name, role, email, phone, color, isActive, meetingUrl, photoUrl, bio, specialisation } = parsed.data;
 
   const staff = await prisma.staff.update({
     where: { id: params.id },
@@ -35,6 +35,9 @@ async function PATCH_handler(request: NextRequest, props: { params: Promise<{ id
       ...(color !== undefined && { color }),
       ...(isActive !== undefined && { isActive }),
       ...(meetingUrl !== undefined && { meetingUrl: meetingUrl || null }),
+      ...(photoUrl !== undefined && { photoUrl: photoUrl || null }),
+      ...(bio !== undefined && { bio: bio || null }),
+      ...(specialisation !== undefined && { specialisation: specialisation || null }),
     },
   });
 
