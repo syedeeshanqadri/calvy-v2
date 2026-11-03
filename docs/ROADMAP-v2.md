@@ -1,4 +1,4 @@
-# Calvy v2 — Roadmap (updated Nov 3 2026)
+# Calvy v2 — Roadmap (updated Nov 3 2026; WhatsApp moved after Cashfree subscriptions)
 
 Rule: keep ALL features open during the build (PLAN_ENFORCEMENT off). Plan restrictions ON before launch.
 
@@ -7,15 +7,15 @@ Rule: keep ALL features open during the build (PLAN_ENFORCEMENT off). Plan restr
 | # | Work | Notes |
 |---|---|---|
 | 1 | Google sign-up + onboarding wizard | Shipped (PR #65): passwordless sign-up (name, email, phone required in India, business type), emailed link verifies and sets the password, 7-step resumable wizard, Google sign-in without silent linking |
-| 2 | WhatsApp integration settings | Each business uses its OWN credentials: Meta Cloud API or third-party/OpenWA. Stored encrypted, owner-only, mid+ plans |
-| 3 | WhatsApp alerts | Every email alert also on WhatsApp, transactional only, email fallback |
-| 4 | Dependency maintenance | |
-| 5 | Customer accounts | |
-| 6 | Follow-ups | |
-| 7 | Clinic records + credit at booking | Per decisions doc |
-| 8 | Payment settings | Moved out of Parked (was chunk 11) |
-| 9 | Cashfree Easy Split | Moved out of Parked (was chunk 12) |
-| 10 | Plan subscriptions on Cashfree (remove Razorpay) | Moved out of Parked (was chunk 13) |
+| 2 | Dependency maintenance |  |
+| 3 | Customer accounts |  |
+| 4 | Follow-ups |  |
+| 5 | Clinic records + credit at booking | Per decisions doc |
+| 6 | Payment settings | Moved out of Parked (was chunk 11) |
+| 7 | Cashfree Easy Split | Moved out of Parked (was chunk 12) |
+| 8 | Plan subscriptions on Cashfree (remove Razorpay) | Moved out of Parked (was chunk 13) |
+| 9 | WhatsApp integration settings | Each business uses its OWN credentials: Meta Cloud API or third-party/OpenWA. Stored encrypted, owner-only, mid+ plans |
+| 10 | WhatsApp alerts | Every email alert also on WhatsApp, transactional only, email fallback |
 | 11 | Admin panel (super user) | All businesses, view-as (audited), manual create/edit/suspend, plans, operations, payments/credit overview |
 | 12 | Business mobile app (businesses only) | PWA first (installable, push alerts, full dashboard), then Play Store via TWA wrapper; Flutter only if PWA proves insufficient |
 | 13 | Pre-launch | Security pass, production env (Asia Neon, R2, Upstash, Sentry, fresh secrets, domain), honest landing page, plan restrictions ON |

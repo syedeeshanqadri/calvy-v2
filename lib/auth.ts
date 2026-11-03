@@ -1,7 +1,6 @@
 import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
-import FacebookProvider from "next-auth/providers/facebook";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { rateLimit } from "@/lib/ratelimit";
@@ -35,18 +34,8 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
     }),
   );
 }
-if (process.env.FACEBOOK_CLIENT_ID && process.env.FACEBOOK_CLIENT_SECRET) {
-  oauthProviders.push(
-    FacebookProvider({
-      clientId: process.env.FACEBOOK_CLIENT_ID,
-      clientSecret: process.env.FACEBOOK_CLIENT_SECRET,
-    }),
-  );
-}
-
 export const oauthEnabled = {
   google: !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET),
-  facebook: !!(process.env.FACEBOOK_CLIENT_ID && process.env.FACEBOOK_CLIENT_SECRET),
 };
 
 export const authOptions: NextAuthOptions = {
@@ -154,14 +143,7 @@ export const authOptions: NextAuthOptions = {
         return true;
       }
 
-      if (!existing) {
-        await prisma.user.create({
-          data: { name: user.name ?? oauthEmail.split("@")[0], email: oauthEmail, image: user.image ?? null, emailVerified: new Date() },
-        });
-      } else if (!existing.emailVerified) {
-        await prisma.user.update({ where: { id: existing.id }, data: { emailVerified: new Date() } });
-      }
-      return true;
+      return false; // Google is the only OAuth provider
     },
     async jwt({ token, user }) {
       // Customer sessions carry no business claims and never get any.

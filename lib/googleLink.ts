@@ -24,7 +24,7 @@ export function decideGoogleSignIn(i: {
   if (e.googleId) return e.googleId === i.sub ? { action: "allow" } : { action: "deny", reason: "other-google" };
   if (i.linkIntentUserId === e.id) return { action: "link" };
   // A password account is never taken over by email match. Accounts with no password were created by an
-  // earlier Google/Facebook sign-up and have nothing to protect, so they keep working and get linked.
+  // earlier Google sign-up and have nothing to protect, so they keep working and get linked.
   if (e.password) return { action: "deny", reason: "password-account" };
   return { action: "link" };
 }
