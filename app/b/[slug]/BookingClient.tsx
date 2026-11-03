@@ -387,7 +387,7 @@ export function BookingClient({ business, fontClasses, homeHref = "/" }: { busin
           )}
           {accountNotice && (
             <p className="bk-note" role="status" style={{ marginTop: 14, textAlign: "left" }}>
-              {accountNotice === "created" ? "We made an account for you with this email. " : ""}Please verify your account to keep track of all your {word("appointment", { plural: true })}: we emailed a link to <strong>{form.email}</strong>. Your booking is confirmed either way.
+              Verify your email to create your account and track your {word("appointment", { plural: true })} and payments. We sent a link to set your password to <strong>{form.email}</strong>. Your booking is confirmed either way.
             </p>
           )}
           {tokenResult && (

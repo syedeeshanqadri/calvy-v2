@@ -170,7 +170,7 @@ export function ChatWidget({ business }: { business: ChatBusiness }) {
         setTimeout(() => { window.location.href = data.url; }, 900);
       } else {
         push(msg("bot", `✅ **Booking confirmed!** A confirmation email has been sent to **${details.email}**. See you soon! 🎉`));
-        if (data.account) push(msg("bot", `Please verify your account to keep track of all your appointments: we emailed a link to **${details.email}**. Your booking is confirmed either way.`));
+        if (data.account) push(msg("bot", `Verify your email to create your account and track your appointments and payments. We sent a link to set your password to **${details.email}**. Your booking is confirmed either way.`));
         setStep("success");
       }
     } catch (e) {
