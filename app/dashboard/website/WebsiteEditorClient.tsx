@@ -171,7 +171,7 @@ function ImagePickerModal({ isOpen, current, onSelect, onClose, showUpload = tru
 
       {tab === "upload" && (
         <div className="space-y-4">
-          <label className={cn("flex flex-col items-center justify-center w-full h-48 rounded-2xl border-2 border-dashed transition-colors cursor-pointer", uploading ? "border-accent/40 bg-accent/5" : "border-[#e8e6e0] hover:border-accent/40 hover:bg-[#f8f7f4]")}>
+          <label className={cn("relative overflow-hidden flex flex-col items-center justify-center w-full h-48 rounded-2xl border-2 border-dashed transition-colors cursor-pointer", uploading ? "border-accent/40 bg-accent/5" : "border-[#e8e6e0] hover:border-accent/40 hover:bg-[#f8f7f4]")}>
             {uploading ? (
               <>
                 <svg className="animate-spin w-8 h-8 text-accent mb-3" fill="none" viewBox="0 0 24 24">
@@ -187,7 +187,7 @@ function ImagePickerModal({ isOpen, current, onSelect, onClose, showUpload = tru
                 <span className="text-xs text-[#6b6b80] mt-1">JPG, PNG, WebP — max 5 MB. We crop it to fit automatically.</span>
               </>
             )}
-            <input type="file" accept="image/*" className="sr-only" disabled={uploading} onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
+            <input type="file" accept="image/*" className="absolute inset-0 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed" disabled={uploading} onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
           </label>
           {uploadError && <p className="text-xs text-red-500">{uploadError}</p>}
         </div>

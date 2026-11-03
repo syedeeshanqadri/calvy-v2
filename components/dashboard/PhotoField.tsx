@@ -34,9 +34,9 @@ export function PhotoField({ label, value, onChange, purpose, square = false }: 
           {value ? <Image src={value} alt="" fill sizes="112px" className="object-cover" unoptimized /> : <ImageIcon size={20} className="text-[#c5c3bf]" aria-hidden />}
         </div>
         <div className="flex flex-col gap-1.5">
-          <label className="px-3 py-2 min-h-[40px] inline-flex items-center rounded-lg border border-[#e8e6e0] text-xs font-semibold hover:bg-[#f8f7f4] cursor-pointer focus-within:ring-2 focus-within:ring-accent/30">
+          <label className="relative overflow-hidden px-3 py-2 min-h-[40px] inline-flex items-center rounded-lg border border-[#e8e6e0] text-xs font-semibold hover:bg-[#f8f7f4] cursor-pointer focus-within:ring-2 focus-within:ring-accent/30">
             {busy ? "Uploading…" : value ? "Change photo" : "Upload photo"}
-            <input type="file" accept="image/*" className="sr-only" disabled={busy} onChange={(e) => { void pick(e.target.files?.[0]); e.target.value = ""; }} />
+            <input type="file" accept="image/*" className="absolute inset-0 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed" disabled={busy} onChange={(e) => { void pick(e.target.files?.[0]); e.target.value = ""; }} />
           </label>
           {value && <button type="button" onClick={() => onChange("")} className="text-xs text-[#6b6b80] underline text-left">Remove</button>}
         </div>
