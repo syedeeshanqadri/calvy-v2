@@ -20,7 +20,7 @@ Env vars are in `.env.local` (see README "Environment Variables"). Tests only co
 
 ## Architecture
 
-Next.js 16 App Router (React 19), TypeScript, Prisma 5 on PostgreSQL (Neon), NextAuth v4 (JWT + credentials), Tailwind, Resend email, Vercel Blob uploads, Web Push. Deployed on Vercel; `vercel.json` schedules `/api/cron/reminders` daily.
+Next.js 16 App Router (React 19), TypeScript, Prisma 5 on PostgreSQL (Neon), NextAuth v4 (JWT + credentials), Tailwind, Resend email, Vercel Blob uploads, Web Push. Deployed on Vercel; `vercel.json` schedules `/api/cron/notifications` daily as a backstop to the every-2-minutes cron-job.org call (docs/notifications-setup.md).
 
 ### Multi-tenancy via subdomains
 [proxy.ts](proxy.ts) (formerly middleware.ts) rewrites `{slug}.calvy.io/<path>` to `/{slug}/<path>` internally (never for `/api/*`), so tenant public sites live in `app/[slug]/` (incl. `book-now`). `/dashboard`, `/admin`, `/crm` are wrapped in NextAuth `withAuth`; logged-in users hitting `/login`/`/signup` are redirected to `/dashboard`. Root domain comes from `NEXT_PUBLIC_ROOT_DOMAIN`. Every tenant-scoped query must be filtered by the session user's `businessId`.

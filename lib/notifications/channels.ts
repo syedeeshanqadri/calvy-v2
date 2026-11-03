@@ -33,7 +33,11 @@ const sendEmail: Channel = async (message, to, idempotencyKey) => {
   }
 };
 
+/** A channel with no provider behind it yet: its rows are kept as SKIPPED so the log says why nothing went. */
+const notSetUp: Channel = async () => ({ kind: "skipped", error: "channel not set up" });
+
+/** WhatsApp gets a real adapter later (per-business sessions, roadmap item 9); it plugs in here and sends `message.text`. */
 export const CHANNELS: Record<"EMAIL" | "WHATSAPP", Channel> = {
   EMAIL: sendEmail,
-  WHATSAPP: async () => ({ kind: "skipped", error: "whatsapp channel not available yet" }),
+  WHATSAPP: notSetUp,
 };

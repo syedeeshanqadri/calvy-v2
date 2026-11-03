@@ -121,10 +121,10 @@ describe("who can see the link", () => {
       expect(readFileSync(f, "utf8"), f).not.toContain("meetingUrl");
     }
   });
-  it("only confirmation and reminder emails are given the link", () => {
+  it("only the confirmation in lib/email is given the link (reminders come from the outbox)", () => {
     const src = readFileSync("lib/email.tsx", "utf8");
     const passes = src.split("\n").filter((l) => l.includes("online: d.online") || l.includes("online={d.online}"));
-    expect(passes.length).toBe(2);
+    expect(passes.length).toBe(1);
     expect(src).not.toMatch(/BookingCancellationEmail[^\n]*online/);
     expect(src).not.toMatch(/BookingRescheduleEmail[^\n]*online/);
   });

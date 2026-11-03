@@ -9,11 +9,17 @@ import { sign, verifySignature } from "@/lib/notifications/secret";
  * receipts, queue notices and account emails.
  */
 
-/** Events a customer can unsubscribe from. Reminders and review requests join this list when they move to the outbox. */
-export const OPTIONAL_EVENTS: ReadonlySet<string> = new Set(["booking.completed"]);
+/** Events a customer can unsubscribe from. Review requests join this list when they move to the outbox. */
+export const OPTIONAL_EVENTS: ReadonlySet<string> = new Set(["booking.completed", "booking.reminder"]);
+
+/** How long before a booking a reminder may go: 1h, 2h, 3h, 24h, 48h. */
+export const REMINDER_LEADS = [60, 120, 180, 1440, 2880] as const;
+export const MAX_REMINDERS = 2;
+const DEFAULT_REMINDER_LEADS = [1440];
 
 const prefsSchema = z.object({
   customer: z.object({ completed: z.boolean().optional() }).optional(),
+  reminderLeadMinutes: z.array(z.number()).optional(),
 });
 
 export interface NotificationPrefs {
@@ -21,12 +27,25 @@ export interface NotificationPrefs {
     /** "Thanks for visiting" email when a booking is marked completed. */
     completed: boolean;
   };
+  /** Up to two reminders, longest lead first (24h + 2h, say). Empty means the business sends no reminders. */
+  reminderLeadMinutes: number[];
+}
+
+/** Allowed leads only, no repeats, at most two. Not set means the default (one, 24h before). */
+export function resolveReminderLeads(raw: number[] | undefined): number[] {
+  if (raw === undefined) return [...DEFAULT_REMINDER_LEADS];
+  const allowed = new Set<number>(REMINDER_LEADS);
+  return [...new Set(raw.filter((m) => allowed.has(m)))].sort((a, b) => b - a).slice(0, MAX_REMINDERS);
 }
 
 /** Business.notificationPrefs with every default filled in. Invalid or missing JSON means all defaults. */
 export function resolvePrefs(raw: unknown): NotificationPrefs {
   const parsed = prefsSchema.safeParse(raw);
-  return { customer: { completed: parsed.success ? parsed.data.customer?.completed ?? true : true } };
+  const data = parsed.success ? parsed.data : {};
+  return {
+    customer: { completed: data.customer?.completed ?? true },
+    reminderLeadMinutes: resolveReminderLeads(data.reminderLeadMinutes),
+  };
 }
 
 /** The business's own switch for an event (events with no switch are always on). */
