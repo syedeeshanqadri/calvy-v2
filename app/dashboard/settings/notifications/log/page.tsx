@@ -51,7 +51,7 @@ export default async function NotificationLogPage({ searchParams }: { searchPara
         <Card>
           <CardContent className="space-y-4 pt-5">
             <LogFilters action={ACTION} filters={filters} searchHint="Email, phone or message type" />
-            <p className="text-xs text-[#6b6b80]">Skipped means we chose not to send (switched off, unsubscribed, booking changed or expired). Failed messages from the last 7 days can be resent once each try; sign-in links cannot.</p>
+            <p className="text-xs text-[#6b6b80]">Skipped means we chose not to send (switched off, unsubscribed, booking changed or expired). Failed messages from the last 7 days can be resent; sign-in links cannot.</p>
             <LogTable rows={rows} resendBase="/api/notifications/log" />
             <LogPager action={ACTION} filters={filters} hasMore={hasMore} />
           </CardContent>
