@@ -15,6 +15,8 @@ export const customerSignupSchema = z.object({
 export const customerEmailSchema = z.object({ email: emailField });
 /** Verifying needs the link AND the password chosen at signup, so a stranger's signup with someone else's email cannot be completed by that person. */
 export const customerVerifySchema = z.object({ token: tokenField, password: z.string().min(1).max(200) });
+/** Setting the first password of an account made at booking: the new-password rules apply. */
+export const customerSetupSchema = z.object({ token: tokenField, password: passwordField });
 export const customerResetSchema = z.object({ token: tokenField, password: passwordField });
 export const customerProfileSchema = z
   .object({

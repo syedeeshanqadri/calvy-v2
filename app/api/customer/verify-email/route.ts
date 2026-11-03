@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { rateLimit, clientIp } from "@/lib/ratelimit";
 import bcrypt from "bcryptjs";
 import { hashToken } from "@/lib/auth-tokens";
-import { customerVerifySchema } from "@/lib/validation/customer";
+import { customerSetupSchema, customerVerifySchema } from "@/lib/validation/customer";
 import { readJsonBody, parseWith, tooManyRequests } from "@/lib/auth-http";
 import { redeemCustomerToken } from "@/lib/customerDb";
 
@@ -27,8 +27,28 @@ async function POST_handler(req: NextRequest) {
   const parsed = parseWith(customerVerifySchema, body.data);
   if (!parsed.ok) return NextResponse.json({ error: INVALID }, { status: 400 });
 
-  const rec = await prisma.customerToken.findUnique({ where: { tokenHash: hashToken(parsed.data.token) }, select: { purpose: true, customer: { select: { password: true } } } });
-  if (!rec || rec.purpose !== "verify" || !(await bcrypt.compare(parsed.data.password, rec.customer.password))) {
+  const rec = await prisma.customerToken.findUnique({ where: { tokenHash: hashToken(parsed.data.token) }, select: { purpose: true, customer: { select: { password: true, email: true } } } });
+  if (!rec || rec.purpose !== "verify") return NextResponse.json({ error: INVALID }, { status: 400 });
+
+  // An account made at booking has no password yet: whoever holds the emailed link owns the address,
+  // so they choose the first password here, and that verifies the email too.
+  if (!rec.customer.password) {
+    const setup = customerSetupSchema.safeParse(parsed.data);
+    if (!setup.success) return NextResponse.json({ error: setup.error.issues[0]?.message ?? "Please choose a password of at least 8 characters." }, { status: 400 });
+    const hashed = await bcrypt.hash(setup.data.password, 12);
+    const now = new Date();
+    const done = await prisma.$transaction(async (tx) => {
+      const id = await redeemCustomerToken(tx, parsed.data.token, "verify", now);
+      if (!id) return false;
+      // Guarded: if a password was set in the meantime (signup), this link no longer sets one.
+      const set = await tx.customer.updateMany({ where: { id, password: null }, data: { password: hashed, passwordChangedAt: now, emailVerified: now } });
+      return set.count === 1;
+    });
+    if (!done) return NextResponse.json({ error: INVALID }, { status: 400 });
+    return NextResponse.json({ ok: true, setup: true, email: rec.customer.email });
+  }
+
+  if (!(await bcrypt.compare(parsed.data.password, rec.customer.password))) {
     return NextResponse.json({ error: INVALID_PASSWORD }, { status: 400 });
   }
 

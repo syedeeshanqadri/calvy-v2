@@ -85,7 +85,8 @@ export const authOptions: NextAuthOptions = {
         const rl = await rateLimit(`customer-login:${email}`, 10, 60_000);
         if (!rl.ok) throw new Error("TooManyAttempts");
         const customer = await prisma.customer.findUnique({ where: { email } });
-        if (!customer || !(await bcrypt.compare(credentials.password, customer.password))) return null;
+        // An account made at booking has no password yet: it signs in only after the emailed setup link.
+        if (!customer?.password || !(await bcrypt.compare(credentials.password, customer.password))) return null;
         if (!customer.emailVerified) throw new Error("EmailNotVerified");
         return { id: customer.id, name: customer.name, email: customer.email, kind: "customer" } as { id: string; name: string; email: string };
       },

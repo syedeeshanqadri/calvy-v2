@@ -20,6 +20,8 @@ import { checkLimit, startOfBusinessMonth, assertMonthlyHeadroom, LimitReachedEr
 import { zonedTimeToUtc, formatDateLabel, safeTimeZone } from "@/lib/time";
 import { logger } from "@/lib/logger";
 import { bookToken } from "@/lib/tokenBooking";
+import { ensureCustomerAccount } from "@/lib/customerInvite";
+import { appBaseUrl } from "@/lib/auth-http";
 import { missingContact } from "@/lib/patients";
 import { tryNormalizeEmail } from "@/lib/email-normalize";
 import { normalizePhone } from "@/lib/phone";
@@ -49,7 +51,7 @@ async function notifyLimitReached(businessId: string, limit: number) {
   }).catch(() => {});
 }
 
-async function POST_handler(req: NextRequest) {
+async function bookingHandler(req: NextRequest) {
   const rl = await rateLimit(`booking:${clientIp(req)}`, 10, 60_000);
   if (!rl.ok) {
     return NextResponse.json(
@@ -477,6 +479,29 @@ async function POST_handler(req: NextRequest) {
   }
   await notify(appointment.id, totalPrice);
   return NextResponse.json({ success: true, appointmentId: appointment.id, confirmationWithheld: suppressContactMessages, isOnline, meetingUrl: isOnline ? await loadMeetingUrl(appointment.id) : null });
+}
+
+/**
+ * Every successful booking also makes sure the booker's email has a customer account (created without a
+ * password, with an emailed "verify and set your password" link). The booking never depends on it; the
+ * response says so the success screen can tell them to check their inbox. Skipped when contact messages
+ * were held back (daily cap), so this cannot be used to send repeated emails to an address.
+ */
+async function POST_handler(req: NextRequest) {
+  const raw = (await req.clone().json().catch(() => null)) as { clientEmail?: unknown; clientName?: unknown } | null;
+  const res = await bookingHandler(req);
+  if (!res.ok) return res;
+  const data = (await res.clone().json().catch(() => null)) as Record<string, unknown> | null;
+  if (!data?.success || data.confirmationWithheld) return res;
+  let baseUrl: string | undefined;
+  try { baseUrl = appBaseUrl(req); } catch { baseUrl = undefined; }
+  const account = await ensureCustomerAccount({
+    email: typeof raw?.clientEmail === "string" ? raw.clientEmail : null,
+    name: typeof raw?.clientName === "string" ? raw.clientName : "",
+    baseUrl,
+  });
+  if (!account) return res;
+  return NextResponse.json({ ...data, account }, { status: res.status, headers: res.headers });
 }
 
 export const POST = safeRoute(POST_handler);

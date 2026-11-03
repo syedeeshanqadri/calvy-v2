@@ -70,12 +70,13 @@ export function BookingCard({ b, highlight = false }: { b: BookingView; highligh
             {live && b.trackUrl && <Link href={b.trackUrl} className={ghost}><ListOrdered size={15} aria-hidden />Track queue</Link>}
             {live && canManage && (
               <>
-                <button type="button" className={ghost} onClick={() => setMode("reschedule")}><RefreshCw size={15} aria-hidden />Reschedule</button>
+                {!b.moveBlocked && <button type="button" className={ghost} onClick={() => setMode("reschedule")}><RefreshCw size={15} aria-hidden />{b.tokenNumber ? "Move to another day" : "Reschedule"}</button>}
                 <button type="button" className={`${ghost} text-red-700 hover:bg-red-50`} onClick={() => setMode("cancel")}><XCircle size={15} aria-hidden />Cancel</button>
               </>
             )}
             {!live && <Link href={b.bookAgainHref} className={ghost}><Repeat size={15} aria-hidden />Book again</Link>}
           </div>
+          {live && canManage && b.moveBlocked && <p className="mt-3 text-xs text-[#6b6b80]">{b.moveBlocked}</p>}
           {live && !b.manage.ok && (
             <p className="mt-3 text-xs text-[#6b6b80]">
               {b.manage.reason}{" "}
@@ -85,7 +86,8 @@ export function BookingCard({ b, highlight = false }: { b: BookingView; highligh
         </div>
       </div>
 
-      {mode === "reschedule" && <RescheduleModal b={b} onClose={() => setMode(null)} onDone={() => { setMode(null); router.refresh(); }} />}
+      {mode === "reschedule" && b.tokenNumber && <TokenMoveModal b={b} onClose={() => setMode(null)} onDone={() => { setMode(null); router.refresh(); }} />}
+      {mode === "reschedule" && !b.tokenNumber && <RescheduleModal b={b} onClose={() => setMode(null)} onDone={() => { setMode(null); router.refresh(); }} />}
       {mode === "cancel" && <CancelModal b={b} onClose={() => setMode(null)} onDone={() => { setMode(null); router.refresh(); }} />}
     </li>
   );
@@ -148,6 +150,77 @@ function RescheduleModal({ b, onClose, onDone }: { b: BookingView; onClose: () =
         <div className="flex gap-3 pt-1">
           <button type="button" onClick={onClose} className={`${ghost} flex-1`}>Keep as is</button>
           <button type="button" onClick={save} disabled={!time || saving} className={`${primary} flex-1`}>{saving ? "Moving…" : "Confirm new time"}</button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+interface SessionOption { id: string; name: string; staffName: string | null; startTime: string; endTime: string; left: number }
+
+/** A queue token moves to another day: pick a date, then a session; it joins the end of that queue. */
+function TokenMoveModal({ b, onClose, onDone }: { b: BookingView; onClose: () => void; onDone: () => void }) {
+  const [date, setDate] = useState("");
+  const [sessions, setSessions] = useState<SessionOption[] | null>(null);
+  const [sessionId, setSessionId] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  async function load(d: string) {
+    setDate(d); setSessionId(""); setError(""); setSessions(null);
+    if (!d) return;
+    if (d === b.dateInput) { setError("That is the day you already have. Pick another day."); return; }
+    setLoading(true);
+    const r = await call(`/api/customer/appointments/${b.id}/slots?date=${d}`);
+    setLoading(false);
+    if (!r.ok) { setError(String(r.data.error ?? "Could not load sessions.")); setSessions([]); return; }
+    const list = (r.data.sessions as SessionOption[]) ?? [];
+    setSessions(list);
+    if (list.length === 1) setSessionId(list[0].id);
+  }
+
+  async function save() {
+    setSaving(true); setError("");
+    const r = await call(`/api/customer/appointments/${b.id}/reschedule`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ date, tokenSessionId: sessionId }),
+    });
+    setSaving(false);
+    if (!r.ok) { setError(String(r.data.error ?? "Could not move the token.")); return; }
+    onDone();
+  }
+
+  return (
+    <Modal isOpen onClose={onClose} title="Move to another day" size="md">
+      <div className="space-y-4">
+        <p className="text-sm text-[#6b6b80]">{b.serviceName} at {b.businessName}. Now: <strong className="text-[#0f0f1a]">{b.dateLabel}, {b.timeLabel}</strong></p>
+        <p className="text-sm text-[#6b6b80]">You get a new token at the end of that day&apos;s queue. Your booking{b.paid ? " and payment" : ""} stay the same. A token can be moved once.</p>
+        <div>
+          <label htmlFor={`tm-date-${b.id}`} className="text-sm font-medium block mb-1.5">Pick a new day</label>
+          <input id={`tm-date-${b.id}`} type="date" min={b.today} value={date} onChange={(e) => load(e.target.value)}
+            className="w-full min-h-11 rounded-xl border border-[#e8e6e0] bg-white px-4 text-sm focus:outline-none focus:ring-2 focus:ring-sky-200 focus:border-sky-500" />
+        </div>
+        <div aria-live="polite">
+          {loading && <p className="text-sm text-[#6b6b80]">Loading sessions…</p>}
+          {!loading && sessions && sessions.length === 0 && !error && <p className="text-sm text-[#6b6b80]">No session with free tokens on this day. Try another day.</p>}
+          {!loading && sessions && sessions.length > 0 && (
+            <div role="radiogroup" aria-label="Sessions" className="space-y-2">
+              {sessions.map((s) => (
+                <button key={s.id} type="button" role="radio" aria-checked={sessionId === s.id} onClick={() => setSessionId(s.id)}
+                  className={cn("w-full min-h-11 rounded-xl border px-4 py-2 text-left text-sm", sessionId === s.id ? "bg-sky-600 text-white border-sky-600" : "bg-white border-[#e8e6e0] hover:border-sky-400")}>
+                  <span className="font-semibold">{s.name}</span> · {s.startTime}–{s.endTime}{s.staffName ? ` · ${s.staffName}` : ""}
+                  <span className={cn("block text-xs", sessionId === s.id ? "text-sky-100" : "text-[#6b6b80]")}>{s.left} token{s.left === 1 ? "" : "s"} left</span>
+                </button>
+              ))}
+            </div>
+          )}
+          {!date && <p className="text-sm text-[#6b6b80]">Choose a day to see its sessions.</p>}
+        </div>
+        {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
+        <p className="text-xs text-[#6b6b80]">{b.businessName} is told straight away, and we email you the new token.</p>
+        <div className="flex gap-3 pt-1">
+          <button type="button" onClick={onClose} className={`${ghost} flex-1`}>Keep as is</button>
+          <button type="button" onClick={save} disabled={!sessionId || saving} className={`${primary} flex-1`}>{saving ? "Moving…" : "Move my token"}</button>
         </div>
       </div>
     </Modal>

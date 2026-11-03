@@ -20,7 +20,12 @@ describe("who can change a booking", () => {
       expect(manageability({ status, date: at(48), business: biz() }, now)).toMatchObject({ ok: false, code: "STATUS" });
     }
     expect(manageability({ status: "confirmed", date: at(-1), business: biz() }, now)).toMatchObject({ ok: false, code: "PAST" });
-    expect(manageability({ status: "confirmed", date: at(48), tokenNumber: 7, business: biz() }, now)).toMatchObject({ ok: false, code: "TOKEN" });
+    // Queue tokens: manageable while still waiting, not once the front desk has called or closed them.
+    expect(manageability({ status: "confirmed", date: at(48), tokenNumber: 7, business: biz() }, now)).toEqual({ ok: true });
+    expect(manageability({ status: "confirmed", date: at(48), tokenNumber: 7, queueState: "WAITING", business: biz() }, now)).toEqual({ ok: true });
+    for (const queueState of ["SERVING", "DONE", "NO_SHOW", "MOVED", "CANCELLED"]) {
+      expect(manageability({ status: "confirmed", date: at(48), tokenNumber: 7, queueState, business: biz() }, now)).toMatchObject({ ok: false, code: "STATUS" });
+    }
   });
   it("inside the business cutoff, the customer is sent to the business", () => {
     const r = manageability({ status: "confirmed", date: at(10), business: biz(24) }, now);
@@ -144,6 +149,13 @@ describe("cancel", () => {
     expect(mocks.notify).toHaveBeenCalledTimes(1);
     expect(mocks.notify.mock.calls[0][0]).toMatchObject({ event: "booking.cancelled", audience: "CUSTOMER", template: "cancellation", subjectId: "a1", recipient: "riya@example.com", businessId: "biz1", payload: { businessName: "Sunrise Clinic" } });
   });
+  it("a waiting queue token cancels and is closed on the queue screen too", async () => {
+    mocks.db.appointment.findFirst.mockResolvedValue(row({ tokenNumber: 4, queueState: "WAITING" }));
+    expect((await cancelPost(req(), params())).status).toBe(200);
+    const call = mocks.db.appointment.updateMany.mock.calls[0][0];
+    expect(call.where).toMatchObject({ id: "a1", OR: [{ queueState: null }, { queueState: "WAITING" }] });
+    expect(call.data).toEqual({ status: "cancelled", queueState: "CANCELLED" });
+  });
   it("anything paid online comes back as credit, never as a card refund", async () => {
     mocks.db.appointment.findFirst.mockResolvedValue(row());
     mocks.creditClosedBooking.mockResolvedValue({ amountMinor: 50000, currency: "INR" });
@@ -151,11 +163,11 @@ describe("cancel", () => {
     expect(body.credit).toEqual({ amountMinor: 50000, currency: "INR" });
     expect((mocks.creditClosedBooking.mock.calls[0] as unknown[])[1]).toMatchObject({ kind: "CANCELLED", appointmentId: "a1", clientId: "c1" });
   });
-  it("inside the cutoff, a past booking, a token or an already closed one is refused and nothing is sent", async () => {
+  it("inside the cutoff, a past booking, a token being served or an already closed one is refused and nothing is sent", async () => {
     for (const over of [
       { business: { ...row().business, cancellationCutoffHours: 100 } },
       { date: new Date(Date.now() - HOUR) },
-      { tokenNumber: 4 },
+      { tokenNumber: 4, queueState: "SERVING" },
       { status: "cancelled" },
     ]) {
       mocks.db.appointment.findFirst.mockResolvedValue(row(over));

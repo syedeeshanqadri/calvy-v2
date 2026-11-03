@@ -27,7 +27,7 @@ async function PATCH_handler(req: NextRequest) {
   if (name) data.name = name;
   if (newPassword) {
     const row = await prisma.customer.findUnique({ where: { id: me.id }, select: { password: true } });
-    if (!row || !(await bcrypt.compare(currentPassword!, row.password))) {
+    if (!row?.password || !(await bcrypt.compare(currentPassword!, row.password))) {
       return NextResponse.json({ error: "Your current password is not correct." }, { status: 400 });
     }
     data.password = await bcrypt.hash(newPassword, 12);

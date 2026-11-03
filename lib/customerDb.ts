@@ -43,11 +43,12 @@ export async function loadCustomerOverview(verifiedEmail: string, now: Date = ne
   const who = { email: { equals: verifiedEmail, mode: "insensitive" as const } };
   const [appointments, credits] = await Promise.all([
     prisma.appointment.findMany({
-      where: { client: who },
+      // A token moved to another day leaves a "MOVED" placeholder on the old day: not a booking of its own.
+      where: { client: who, OR: [{ queueState: null }, { queueState: { not: "MOVED" } }] },
       orderBy: { date: "desc" },
       take: 300,
       select: {
-        id: true, date: true, estimatedAt: true, status: true, holdExpiresAt: true, patientName: true, tokenNumber: true, price: true, paymentStatus: true,
+        id: true, date: true, estimatedAt: true, status: true, holdExpiresAt: true, patientName: true, tokenNumber: true, queueState: true, carriedFromId: true, price: true, paymentStatus: true,
         duration: true, isOnline: true, meetingUrl: true, serviceId: true,
         service: { select: { name: true, meetingUrl: true } }, staff: { select: { name: true, meetingUrl: true } },
         tokenSession: { select: { name: true } }, client: { select: { name: true } },

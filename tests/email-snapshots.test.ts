@@ -32,6 +32,7 @@ const FIXTURES: Record<TemplateId, object> = {
   password_reset: { name: "Asha Rao", secret: SECRET },
   customer_verification: { name: "Riya Kapoor", secret: SECRET },
   customer_password_reset: { name: "Riya Kapoor", secret: SECRET },
+  customer_account_setup: { name: "Riya Kapoor", secret: SECRET },
   lead: { name: "Asha Rao", demoRequested: true },
   form_notification: { title: "New lead", fields: { Name: "Jo", Demo: true }, at: "2 Nov 2026, 10:00" },
 };

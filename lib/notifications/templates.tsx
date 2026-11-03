@@ -2,7 +2,7 @@ import * as React from "react";
 import { render } from "@react-email/render";
 import {
   BookingCancellationEmail, BookingConfirmationEmail, BookingReminderEmail, BookingRescheduleEmail, BusinessAlertEmail, BusinessLiveEmail,
-  CustomerResetEmail, CustomerVerifyEmail, DailySummaryEmail, EmailVerificationEmail, InvoiceEmail, LeadAcknowledgmentEmail, MeetingLinkEmail,
+  CustomerAccountSetupEmail, CustomerResetEmail, CustomerVerifyEmail, DailySummaryEmail, EmailVerificationEmail, InvoiceEmail, LeadAcknowledgmentEmail, MeetingLinkEmail,
   PasswordResetEmail, QueueClosedEmail, QueueMovedBackEmail, ReviewRequestEmail, StatusChangeEmail, WelcomeEmail, businessAlertHeadline,
   type BookingProps, type BusinessAlertProps, type DailySummaryProps, type InvoiceProps,
 } from "@/emails/templates";
@@ -207,6 +207,11 @@ export const TEMPLATES = {
     subject: () => "Verify your email",
     Email: (p) => <CustomerVerifyEmail name={p.name} verifyUrl={p.secret} />,
     text: (p) => lines(`Hi ${first(p.name)}, confirm your email address to see your bookings and wallet in one place.`, p.secret, "This link expires in 24 hours."),
+  }),
+  customer_account_setup: define<AuthPayload>({
+    subject: () => "Verify your account to keep track of your appointments",
+    Email: (p) => <CustomerAccountSetupEmail name={p.name} setupUrl={p.secret} />,
+    text: (p) => lines(`Hi ${first(p.name)}, thanks for your booking. Verify your account and set a password to keep track of all your appointments.`, p.secret, "Your booking is confirmed either way. This link expires in 24 hours."),
   }),
   customer_password_reset: define<AuthPayload>({
     subject: () => "Reset your password",

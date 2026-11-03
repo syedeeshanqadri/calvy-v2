@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import type { Metadata } from "next";
 import { loadTracking } from "@/lib/trackingDb";
 import { rateLimit, clientIp } from "@/lib/ratelimit";
+import { getCustomer } from "@/lib/customerSession";
 import { TrackClient } from "./TrackClient";
 
 export const dynamic = "force-dynamic";
@@ -29,5 +30,7 @@ export default async function TrackPage(props: { params: Promise<{ slug: string;
 
   const page = await loadTracking(code, slug);
   if (!page) notFound();
-  return <TrackClient code={code} initial={page} />;
+  // Signed-in customers go back to their bookings; anyone else to the business's own page.
+  const signedIn = !!(await getCustomer().catch(() => null));
+  return <TrackClient code={code} initial={page} back={signedIn ? { href: "/my/bookings", label: "My bookings" } : { href: `/${slug}`, label: page.business.name }} />;
 }

@@ -1,7 +1,7 @@
 import { cache } from "react";
 import { getCustomer } from "@/lib/customerSession";
 import { overviewForCustomer } from "@/lib/customerDb";
-import { buildStats, buildUpdates, manageability, type ManageCheck } from "@/lib/customerView";
+import { buildStats, buildUpdates, manageability, tokenMoveBlocker, type ManageCheck } from "@/lib/customerView";
 import { bookingForLabel } from "@/lib/patients";
 import { formatDateLabel, formatTimeLabel, safeTimeZone, utcToZoned } from "@/lib/time";
 import { formatCurrencyAmount } from "@/lib/currency";
@@ -39,6 +39,8 @@ export interface BookingView {
   tokenNumber: number | null;
   trackUrl: string | null;
   manage: ManageCheck;
+  /** Queue token that was already moved to another day once: it can be cancelled, not moved again. */
+  moveBlocked: string | null;
   bookAgainHref: string;
 }
 
@@ -68,7 +70,8 @@ export const getCustomerData = cache(async () => {
       status: a.status, statusLabel: STATUS_LABEL[a.status] ?? a.status,
       online: a.isOnline, meetingUrl: link,
       tokenNumber: a.tokenNumber, trackUrl: a.tokenNumber ? trackingUrl(a.business.slug, a.id) : null,
-      manage: manageability({ status: a.status, date: a.date, tokenNumber: a.tokenNumber, business: { cancellationCutoffHours: a.business.cancellationCutoffHours, name: a.business.name } }, now),
+      manage: manageability({ status: a.status, date: a.date, tokenNumber: a.tokenNumber, queueState: a.queueState, business: { cancellationCutoffHours: a.business.cancellationCutoffHours, name: a.business.name } }, now),
+      moveBlocked: tokenMoveBlocker(a),
       bookAgainHref: `/${a.business.slug}/book-now`,
     };
   };
