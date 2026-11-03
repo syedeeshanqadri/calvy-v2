@@ -149,7 +149,7 @@ describe("POST /api/auth/forgot-password", () => {
     const known = await forgot(req({ email: "A@x.co" }));
     mocks.user.findFirst.mockResolvedValueOnce(null);
     const unknown = await forgot(req({ email: "nobody@x.co" }));
-    mocks.user.findFirst.mockResolvedValueOnce({ id: "u2", email: "o@x.co", name: "O", password: null });
+    mocks.user.findFirst.mockResolvedValueOnce({ id: "u2", email: "o@x.co", name: "O", password: null, emailVerified: new Date() });
     const oauth = await forgot(req({ email: "o@x.co" }));
     for (const r of [known, unknown, oauth]) expect(r.status).toBe(200);
     const bodies = await Promise.all([known.json(), unknown.json(), oauth.json()]);

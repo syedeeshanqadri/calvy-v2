@@ -15,18 +15,20 @@ export default async function DashboardRootLayout({ children }: { children: Reac
   let packId: string | undefined;
   let termsOverride: unknown;
   let bookingMode: string | undefined;
+  let onboardingPending = false;
 
   const access = await resolveAccess(session);
   if (session?.user?.businessId || (access && !access.isOwner)) {
     try {
       const biz = await prisma.business.findUnique({
         where: { id: access?.businessId ?? session?.user?.businessId },
-        select: { currency: true, packId: true, termsOverride: true, bookingMode: true },
+        select: { currency: true, packId: true, termsOverride: true, bookingMode: true, onboardingCompletedAt: true },
       });
       currency = biz?.currency ?? "USD";
       packId = biz?.packId;
       termsOverride = biz?.termsOverride;
       bookingMode = biz?.bookingMode;
+      onboardingPending = !!biz && !biz.onboardingCompletedAt && !(access && !access.isOwner);
     } catch {
       // DB cold-start — fall back to USD, page will still render
     }
@@ -36,14 +38,17 @@ export default async function DashboardRootLayout({ children }: { children: Reac
     // yet — so check the DB authoritatively to avoid a redirect loop.
     const biz = await prisma.business.findUnique({
       where: { ownerId: session.user.id },
-      select: { currency: true, packId: true, termsOverride: true, bookingMode: true },
+      select: { currency: true, packId: true, termsOverride: true, bookingMode: true, onboardingCompletedAt: true },
     });
-    if (!biz) redirect("/onboarding");
+    if (!biz || !biz.onboardingCompletedAt) redirect("/onboarding");
     currency = biz.currency ?? "USD";
     packId = biz.packId;
     termsOverride = biz.termsOverride;
     bookingMode = biz.bookingMode;
   }
+
+  // redirect() throws, so it stays outside the try/catch above. Team members never see the wizard.
+  if (onboardingPending) redirect("/onboarding");
 
   return (
     <FlagsProvider flags={getFlags()}>

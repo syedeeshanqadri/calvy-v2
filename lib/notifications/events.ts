@@ -174,11 +174,12 @@ export function queueClosed(n: Notice, closed: { reason: "missed" | "cancelled";
 
 /* ── Accounts and the marketing site (no business, no theme) ───────────────── */
 
-type AuthTemplate = "verification" | "password_reset" | "customer_verification" | "customer_password_reset" | "customer_account_setup";
+type AuthTemplate = "verification" | "password_reset" | "owner_account_setup" | "customer_verification" | "customer_password_reset" | "customer_account_setup";
 
 const AUTH_PATH: Record<AuthTemplate, string> = {
   verification: "/verify-email",
   password_reset: "/reset-password",
+  owner_account_setup: "/reset-password?setup=1",
   customer_verification: "/my/verify-email",
   customer_account_setup: "/my/verify-email?setup=1",
   customer_password_reset: "/my/reset-password",
@@ -192,7 +193,7 @@ export function authEmail(i: { template: AuthTemplate; userId: string; to: strin
   const base = (i.baseUrl ?? process.env.NEXT_PUBLIC_APP_URL ?? "https://calvy.io").replace(/\/+$/, "");
   const customer = i.template.startsWith("customer_");
   return {
-    event: i.template.endsWith("verification") || i.template === "customer_account_setup" ? "auth.verify" : "auth.reset",
+    event: i.template.endsWith("verification") || i.template === "customer_account_setup" || i.template === "owner_account_setup" ? "auth.verify" : "auth.reset",
     audience: customer ? "CUSTOMER" : "BUSINESS",
     subjectId: i.userId,
     version: createHash("sha256").update(i.token).digest("hex").slice(0, 16),

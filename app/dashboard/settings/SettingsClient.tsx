@@ -13,6 +13,7 @@ import { ThemeColorPicker } from "@/components/theme/ThemeColorPicker";
 import { PackSettings } from "@/components/packs/PackSettings";
 import type { PackId } from "@/lib/packs/types";
 import { BookingModeSettings, type TokenSessionRow } from "@/components/tokens/BookingModeSettings";
+import { LinkGoogle } from "@/components/settings/LinkGoogle";
 import { t as term } from "@/lib/terms";
 import { DEFAULT_MAX_PEOPLE_PER_BOOKER, MAX_PEOPLE_PER_BOOKER_LIMIT } from "@/lib/patients";
 
@@ -225,6 +226,7 @@ export function SettingsClient({ business, customSlotInterval = false, stripePay
         </div>
 
         {/* Business Profile tab */}
+        {tab === "profile" && <LinkGoogle />}
         {tab === "profile" && (
           <Card>
             <CardHeader><CardTitle>Business Profile</CardTitle></CardHeader>

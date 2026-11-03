@@ -5,7 +5,7 @@ import { rateLimit, clientIp } from "@/lib/ratelimit";
 import { notify } from "@/lib/notifications/enqueue";
 import { authEmail } from "@/lib/notifications/events";
 import { forgotPasswordSchema } from "@/lib/validation/auth";
-import { createResetToken } from "@/lib/auth-tokens";
+import { createResetToken, createSetupToken } from "@/lib/auth-tokens";
 import { readJsonBody, parseWith, tooManyRequests, testTokenHookEnabled, appBaseUrl } from "@/lib/auth-http";
 import { logger } from "@/lib/logger";
 
@@ -32,15 +32,17 @@ async function POST_handler(req: NextRequest) {
       where: { email: { equals: email, mode: "insensitive" } },
       orderBy: { createdAt: "asc" },
     });
-    if (user && user.password) {
-      const { token, tokenHash, expiresAt } = createResetToken();
+    // A passwordless, unverified account (sign-up not finished) gets a fresh setup link instead of a reset link.
+    const needsSetup = !!user && !user.password && !user.emailVerified;
+    if (user && (user.password || needsSetup)) {
+      const { token, tokenHash, expiresAt } = needsSetup ? createSetupToken() : createResetToken();
       await prisma.$transaction([
         prisma.passwordResetToken.deleteMany({ where: { userId: user.id, usedAt: null } }),
         prisma.passwordResetToken.create({ data: { userId: user.id, tokenHash, expiresAt } }),
       ]);
       rawToken = token;
       try {
-        await notify(authEmail({ template: "password_reset", userId: user.id, to: user.email, name: user.name, token, baseUrl: appBaseUrl(req) }));
+        await notify(authEmail({ template: needsSetup ? "owner_account_setup" : "password_reset", userId: user.id, to: user.email, name: user.name, token, baseUrl: appBaseUrl(req) }));
       } catch (err) {
         logger.error("[auth] reset email failed", { err });
       }

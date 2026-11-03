@@ -30,6 +30,7 @@ const FIXTURES: Record<TemplateId, object> = {
   },
   verification: { name: "Asha Rao", secret: SECRET },
   password_reset: { name: "Asha Rao", secret: SECRET },
+  owner_account_setup: { name: "Asha Rao", secret: SECRET },
   team_invite: { name: "Asha Rao", secret: SECRET, businessName: "Sunrise", roleName: "Receptionist" },
   customer_verification: { name: "Riya Kapoor", secret: SECRET },
   customer_password_reset: { name: "Riya Kapoor", secret: SECRET },

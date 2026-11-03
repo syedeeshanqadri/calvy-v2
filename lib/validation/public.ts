@@ -1,8 +1,9 @@
 import { z } from "zod";
-import { text, emailField, blankToUndef } from "./common";
+import { text, emailField, phoneField, blankToUndef } from "./common";
 import { CURRENCIES } from "@/lib/currency";
 import { isValidTimeZone } from "@/lib/time";
 import { PACK_IDS } from "@/lib/packs/types";
+import { detectRegion } from "@/lib/onboarding";
 import { REGION_CODES, currencyForRegion } from "@/lib/regions";
 
 const currencyCodes = CURRENCIES.map((c) => c.code) as [string, ...string[]];
@@ -24,17 +25,18 @@ function withCurrency<T extends { region?: string; currency?: string }>(v: T, ct
   return { ...v, currency };
 }
 
+/** Sign-up asks for the minimum: name, email, phone (required in India only) and the business type. No password: the emailed link sets it. */
 export const signupSchema = z.object({
-  name: text(120).min(1, "All fields are required."),
-  businessName: text(120).min(1, "All fields are required."),
+  name: text(120).min(1, "Please enter your name."),
   email: emailField,
-  password: z.string().min(8, "Password must be at least 8 characters.").max(200),
-  ...regionFields,
+  phone: z.preprocess(blankToUndef, phoneField.optional()),
+  packId: z.enum(PACK_IDS, { error: "Please choose your business type." }),
   timezone,
-  packId,
-  /** The plan the visitor chose on the signup page. Reported to the owner only; accounts always start on Free. */
-  plan: z.enum(["free", "professional", "business"]).optional().catch(undefined),
-}).transform(withCurrency);
+}).superRefine((v, ctx) => {
+  if (detectRegion(v.timezone) === "IN" && !v.phone) {
+    ctx.addIssue({ code: "custom", path: ["phone"], message: "Please enter your phone number." });
+  }
+});
 
 export const onboardingSchema = z.object({
   businessName: text(120).min(1, "Business name is required."),

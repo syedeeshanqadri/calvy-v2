@@ -92,13 +92,24 @@ export async function reviewRequestFor(
   return input;
 }
 
-/** account.created + business.live: the owner's first two emails, once per business. */
-export function ownerOnboarding(b: { businessId: string; slug: string; businessName: string; ownerName: string; ownerEmail: string }): NotificationInput[] {
+function ownerLinks(b: { slug: string }) {
   const root = process.env.NEXT_PUBLIC_ROOT_DOMAIN;
-  const websiteUrl = root ? `https://${b.slug}.${root}` : `${appUrl()}/${b.slug}`;
-  const common = { audience: "BUSINESS" as const, subjectId: b.businessId, recipient: b.ownerEmail, businessId: b.businessId };
-  return [
-    { ...common, event: "account.created", template: "welcome", payload: { name: b.ownerName, dashboardUrl: `${appUrl()}/dashboard` } },
-    { ...common, event: "business.live", template: "business_live", payload: { name: b.ownerName, businessName: b.businessName, websiteUrl } },
-  ];
+  return { websiteUrl: root ? `https://${b.slug}.${root}` : `${appUrl()}/${b.slug}` };
+}
+type OwnerInfo = { businessId: string; slug: string; businessName: string; ownerName: string; ownerEmail: string };
+const ownerCommon = (b: OwnerInfo) => ({ audience: "BUSINESS" as const, subjectId: b.businessId, recipient: b.ownerEmail, businessId: b.businessId });
+
+/** account.created: sent at sign-up. */
+export function ownerWelcome(b: OwnerInfo): NotificationInput {
+  return { ...ownerCommon(b), event: "account.created", template: "welcome", payload: { name: b.ownerName, dashboardUrl: `${appUrl()}/dashboard` } };
+}
+
+/** business.live: sent once, when the owner finishes the onboarding wizard. */
+export function ownerLive(b: OwnerInfo): NotificationInput {
+  return { ...ownerCommon(b), event: "business.live", template: "business_live", payload: { name: b.ownerName, businessName: b.businessName, websiteUrl: ownerLinks(b).websiteUrl } };
+}
+
+/** Both owner emails (idempotent per business). Kept for callers that want the pair. */
+export function ownerOnboarding(b: OwnerInfo): NotificationInput[] {
+  return [ownerWelcome(b), ownerLive(b)];
 }

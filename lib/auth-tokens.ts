@@ -1,6 +1,8 @@
 import crypto from "crypto";
 
 export const RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hour
+/** Owner account-setup link (sent at sign-up): long enough to open the mail a few days later. */
+export const SETUP_TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 export const VERIFY_TOKEN_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 /** Random 32-byte token, hex encoded (64 chars). Only the hash is stored. */
@@ -19,6 +21,11 @@ export function tokenExpiry(ttlMs: number, now: Date = new Date()): Date {
 export function createResetToken(now: Date = new Date()) {
   const token = generateToken();
   return { token, tokenHash: hashToken(token), expiresAt: tokenExpiry(RESET_TOKEN_TTL_MS, now) };
+}
+
+export function createSetupToken(now: Date = new Date()) {
+  const token = generateToken();
+  return { token, tokenHash: hashToken(token), expiresAt: tokenExpiry(SETUP_TOKEN_TTL_MS, now) };
 }
 
 export function isExpired(expiresAt: Date, now: Date = new Date()): boolean {

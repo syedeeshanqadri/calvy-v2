@@ -416,6 +416,17 @@ export function EmailVerificationEmail({ name, verifyUrl }: { name: string; veri
   );
 }
 
+export function OwnerAccountSetupEmail({ name, setupUrl }: { name: string; setupUrl: string }) {
+  return (
+    <EmailLayout preview="Verify your email and set your Calvy password">
+      <H>Verify your email and set your password</H>
+      <P>Hi {name.split(" ")[0]}, welcome to Calvy. One last step: confirm this is your email address and choose a password, so you can sign in any time.</P>
+      <CTA href={setupUrl} label="Verify and set my password" />
+      <P>You can keep setting up your business in the meantime. This link expires in 7 days (you can get a new one with Forgot password). If you did not sign up, ignore this email.</P>
+    </EmailLayout>
+  );
+}
+
 export function PasswordResetEmail({ name, resetUrl }: { name: string; resetUrl: string }) {
   return (
     <EmailLayout preview="Reset your Calvy password">

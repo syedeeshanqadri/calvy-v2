@@ -36,14 +36,16 @@ describe("pricing display", () => {
 
 import { signupSchema } from "@/lib/validation/public";
 
-describe("signup plan field", () => {
-  const base = { name: "Jo", businessName: "Salon", email: "jo@x.test", password: "longenough1", currency: "USD" };
-  it("accepts the plan choice (reported to the owner only)", () => {
-    const r = signupSchema.safeParse({ ...base, plan: "professional" });
-    expect(r.success && r.data.plan).toBe("professional");
+describe("sign-up asks only for the essentials", () => {
+  const base = { name: "Jo", email: "jo@x.test", packId: "SALON_SPA" };
+  it("India needs a phone number, other regions do not, and the type is required", () => {
+    expect(signupSchema.safeParse({ ...base, timezone: "Asia/Kolkata" }).success).toBe(false);
+    expect(signupSchema.safeParse({ ...base, timezone: "Asia/Kolkata", phone: "+91 98765 43210" }).success).toBe(true);
+    expect(signupSchema.safeParse({ ...base, timezone: "Europe/London" }).success).toBe(true);
+    expect(signupSchema.safeParse({ name: "Jo", email: "jo@x.test", timezone: "Europe/London" }).success).toBe(false);
   });
-  it("ignores unknown plans instead of failing the signup", () => {
-    const r = signupSchema.safeParse({ ...base, plan: "enterprise" });
-    expect(r.success && r.data.plan).toBeUndefined();
+  it("has no password field", () => {
+    const r = signupSchema.safeParse({ ...base, timezone: "Europe/London", password: "ignored" });
+    expect(r.success && "password" in r.data).toBe(false);
   });
 });

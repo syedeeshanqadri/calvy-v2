@@ -60,14 +60,14 @@ describe("Google sign-in needs a verified email", () => {
     const signIn = authOptions.callbacks!.signIn!;
     const user = { id: "g1", email: "victim@example.com", name: "V" };
     const account = { provider: "google", type: "oauth", providerAccountId: "g1" };
-    expect(await signIn({ user, account, profile: { email_verified: false } } as never)).toBe(false);
-    expect(await signIn({ user, account, profile: {} } as never)).toBe(false);
+    expect(await signIn({ user, account, profile: { email_verified: false } } as never)).toBe("/login?error=GoogleDenied");
+    expect(await signIn({ user, account, profile: {} } as never)).toBe("/login?error=GoogleDenied");
     expect(await signIn({ user, account, profile: { email_verified: true } } as never)).toBe(true);
   });
 });
 
 describe("every API route is protected or on the reviewed public list", () => {
-  const PROTECTED = /getServerSession|accessSession|getCustomer\b|queueContext|requireAdmin|isAdminUser|adminAuth|isCronAuthorized|hmacSha256Matches|verifyWebhook|verifySignature|getToken/;
+  const PROTECTED = /getServerSession|accessSession|wizardOwner|getCustomer\b|queueContext|requireAdmin|isAdminUser|adminAuth|isCronAuthorized|hmacSha256Matches|verifyWebhook|verifySignature|getToken/;
   /** Public on purpose. Each one validates its input, is rate limited or signed, and returns no private data. */
   const PUBLIC = new Set([
     "auth/[...nextauth]", "team/accept", "auth/forgot-password", "auth/resend-verification", "auth/reset-password", "auth/verify-email",
