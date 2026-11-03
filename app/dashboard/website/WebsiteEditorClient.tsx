@@ -13,11 +13,15 @@ import { Globe, Eye, ToggleLeft, ToggleRight, Check, Copy, ImageIcon, Link2, Che
 import { cn } from "@/lib/utils";
 import { BrandLinksCard } from "./BrandLinksCard";
 import type { SocialLinks } from "@/lib/brandLinks";
+import { SectionsEditor } from "./SectionsEditor";
+import { validateSections } from "@/lib/siteSections";
+import type { TeamCardMember, ServiceCardItem } from "@/components/site/SiteSections";
 
 interface Props {
   terms?: TermsSource;
   slug: string; businessName: string; businessType: string; websiteJson: string; imageUpload?: boolean; seoControls?: boolean;
   themeColor: string; logoUrl: string | null; socialLinks: SocialLinks; googleReviewUrl: string | null;
+  packId: string; timezone: string; currency: string; staff: TeamCardMember[]; services: ServiceCardItem[];
 }
 
 // ── Textarea ─────────────────────────────────────────────────────────────────
@@ -233,7 +237,7 @@ function SectionCard({ title, enabled, onToggle, children, defaultOpen = true }:
 }
 
 // ── Main ─────────────────────────────────────────────────────────────────────
-export function WebsiteEditorClient({ terms, slug, businessName, businessType, websiteJson, imageUpload = false, seoControls = false, themeColor, logoUrl, socialLinks, googleReviewUrl }: Props) {
+export function WebsiteEditorClient({ terms, slug, businessName, businessType, websiteJson, imageUpload = false, seoControls = false, themeColor, logoUrl, socialLinks, googleReviewUrl, packId, timezone, currency, staff, services }: Props) {
   const initial = parseWebsiteConfig(websiteJson) ?? defaultWebsiteConfig(businessName, businessType, terms);
   const [config, setConfig] = useState<WebsiteConfig>(initial);
   const [saving, setSaving] = useState(false);
@@ -250,6 +254,8 @@ export function WebsiteEditorClient({ terms, slug, businessName, businessType, w
   const siteUrl = publicSiteUrl(slug, rootDomain);
 
   const save = async () => {
+    const problems = validateSections(config);
+    if (problems.length) { setError(problems.join(" ")); return; }
     setSaving(true); setError("");
     try {
       const res = await fetch("/api/website", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ websiteJson: JSON.stringify(config) }) });
@@ -395,6 +401,8 @@ export function WebsiteEditorClient({ terms, slug, businessName, businessType, w
           </div>
           <Input label="Subtitle" placeholder="Meet the professionals..." value={config.team.subtitle} onChange={e => set("team", "subtitle", e.target.value)} />
         </SectionCard>
+
+        <SectionsEditor config={config} setConfig={(fn) => setConfig(fn)} packId={packId} themeColor={themeColor} timezone={timezone} currency={currency} imageUpload={imageUpload} staff={staff} services={services} />
 
         {/* ── CONTACT ── */}
         <SectionCard title="Contact Section" enabled={config.contact.enabled} onToggle={() => toggle("contact")}>

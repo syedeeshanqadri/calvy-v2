@@ -6,6 +6,8 @@ import { Card } from "@/components/ui/Card";
 import { Modal } from "@/components/ui/Modal";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
+import { PhotoField } from "@/components/dashboard/PhotoField";
+import { SITE_CAPS } from "@/lib/siteSections";
 import { Avatar } from "@/components/ui/Avatar";
 import { Plus, Mail, Phone, Pencil, Trash2, Crown, AlertTriangle } from "lucide-react";
 import Link from "next/link";
@@ -20,6 +22,9 @@ interface StaffRow {
   phone: string;
   color: string;
   meetingUrl: string;
+  photoUrl: string;
+  bio: string;
+  specialisation: string;
   isActive: boolean;
 }
 
@@ -42,13 +47,13 @@ export function StaffClient({ staff, currentPlan, maxStaff }: Props) {
   const [editStaff, setEditStaff] = useState<StaffRow | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [form, setForm] = useState({ name: "", role: pack.staffRoles[0], email: "", phone: "", color: "#0284c7", meetingUrl: "" });
+  const [form, setForm] = useState({ name: "", role: pack.staffRoles[0], email: "", phone: "", color: "#0284c7", meetingUrl: "", photoUrl: "", bio: "", specialisation: "" });
 
   const atLimit = maxStaff !== -1 && staff.length >= maxStaff;
 
   function openAdd() {
     setEditStaff(null);
-    setForm({ name: "", role: pack.staffRoles[0], email: "", phone: "", color: "#0284c7", meetingUrl: "" });
+    setForm({ name: "", role: pack.staffRoles[0], email: "", phone: "", color: "#0284c7", meetingUrl: "", photoUrl: "", bio: "", specialisation: "" });
     setRoleOther(false);
     setError("");
     setShowModal(true);
@@ -56,7 +61,7 @@ export function StaffClient({ staff, currentPlan, maxStaff }: Props) {
 
   function openEdit(s: StaffRow) {
     setEditStaff(s);
-    setForm({ name: s.name, role: s.role, email: s.email, phone: s.phone, color: s.color, meetingUrl: s.meetingUrl });
+    setForm({ name: s.name, role: s.role, email: s.email, phone: s.phone, color: s.color, meetingUrl: s.meetingUrl, photoUrl: s.photoUrl, bio: s.bio, specialisation: s.specialisation });
     setRoleOther(false);
     setError("");
     setShowModal(true);
@@ -218,6 +223,17 @@ export function StaffClient({ staff, currentPlan, maxStaff }: Props) {
           <div>
             <Input label="Online meeting link (optional)" type="url" placeholder="https://meet.google.com/… or Zoom, Teams" value={form.meetingUrl} onChange={(e) => setForm({ ...form, meetingUrl: e.target.value })} />
             <p className="text-xs text-[#6b6b80] mt-1">Used for online consultations with this person. Customers only see it after they book.</p>
+          </div>
+          <div className="border-t border-[#f0ede8] pt-3 space-y-3">
+            <p className="text-xs font-semibold text-[#6b6b80] uppercase tracking-wider">Shown on your website team card</p>
+            <PhotoField label="Photo (optional)" purpose="team" square value={form.photoUrl} onChange={(url) => setForm({ ...form, photoUrl: url })} />
+            <Input label="Specialisation (optional)" maxLength={SITE_CAPS.staffSpecialisation} placeholder="e.g. Colour & balayage" value={form.specialisation} onChange={(e) => setForm({ ...form, specialisation: e.target.value })} />
+            <div>
+              <label htmlFor="staff-bio" className="block text-sm font-medium text-brand-700 mb-1.5">Short bio (optional)</label>
+              <textarea id="staff-bio" rows={3} maxLength={SITE_CAPS.staffBio} value={form.bio} onChange={(e) => setForm({ ...form, bio: e.target.value })}
+                className="w-full rounded-xl border border-[#e8e6e0] px-4 py-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent" />
+              <p className="text-xs text-[#6b6b80] mt-1">{form.bio.length}/{SITE_CAPS.staffBio}</p>
+            </div>
           </div>
           <div>
             <label className="block text-sm font-medium text-brand-700 mb-1.5">Color</label>

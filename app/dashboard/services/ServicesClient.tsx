@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { Clock, Plus, MoreVertical, ToggleLeft, ToggleRight, Trash2, Users, Video } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { PhotoField } from "@/components/dashboard/PhotoField";
 import { useCurrency } from "@/components/providers/CurrencyProvider";
 import { CURRENCIES } from "@/lib/currency";
 import { useTerms } from "@/components/providers/TermsProvider";
@@ -15,7 +16,7 @@ import { useTerms } from "@/components/providers/TermsProvider";
 interface ServiceRow {
   id: string; name: string; description: string; duration: number;
   price: number; color: string; category: string; isActive: boolean; capacity: number;
-  mode: "IN_PERSON" | "ONLINE" | "BOTH"; meetingUrl: string;
+  mode: "IN_PERSON" | "ONLINE" | "BOTH"; meetingUrl: string; imageUrl: string;
 }
 
 const PRESET_COLORS = ["#0284c7","#3b82f6","#22c55e","#8b5cf6","#f59e0b","#ec4899","#14b8a6","#f97316"];
@@ -37,7 +38,7 @@ export function ServicesClient({ services: initial, groupBooking = false }: { se
   const [loading, setLoading] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [error, setError] = useState("");
-  const [form, setForm] = useState({ name: "", description: "", duration: "60", price: "0", color: "#0284c7", category: "General", capacity: "1", mode: "IN_PERSON", meetingUrl: "" });
+  const [form, setForm] = useState({ name: "", description: "", duration: "60", price: "0", color: "#0284c7", category: "General", capacity: "1", mode: "IN_PERSON", meetingUrl: "", imageUrl: "" });
 
   const toggleActive = async (id: string) => {
     const svc = services.find(s => s.id === id);
@@ -53,13 +54,13 @@ export function ServicesClient({ services: initial, groupBooking = false }: { se
 
   const openEdit = (svc: ServiceRow) => {
     setEditService(svc);
-    setForm({ name: svc.name, description: svc.description, duration: String(svc.duration), price: String(svc.price), color: svc.color, category: svc.category, capacity: String(svc.capacity ?? 1), mode: svc.mode ?? "IN_PERSON", meetingUrl: svc.meetingUrl ?? "" });
+    setForm({ name: svc.name, description: svc.description, duration: String(svc.duration), price: String(svc.price), color: svc.color, category: svc.category, capacity: String(svc.capacity ?? 1), mode: svc.mode ?? "IN_PERSON", meetingUrl: svc.meetingUrl ?? "", imageUrl: svc.imageUrl ?? "" });
     setError("");
   };
 
   const openAdd = () => {
     setEditService(null);
-    setForm({ name: "", description: "", duration: "60", price: "0", color: "#0284c7", category: "General", capacity: "1", mode: "IN_PERSON", meetingUrl: "" });
+    setForm({ name: "", description: "", duration: "60", price: "0", color: "#0284c7", category: "General", capacity: "1", mode: "IN_PERSON", meetingUrl: "", imageUrl: "" });
     setError("");
     setShowAddModal(true);
   };
@@ -72,7 +73,7 @@ export function ServicesClient({ services: initial, groupBooking = false }: { se
     if (dur < 1) { setError("Duration must be at least 1 minute"); setLoading(false); return; }
     if (prc < 0) { setError("Price cannot be negative"); setLoading(false); return; }
     try {
-      const payload = { name: form.name, description: form.description, duration: dur, price: prc, color: form.color, category: form.category, capacity: Math.max(1, Number(form.capacity) || 1), mode: form.mode, meetingUrl: form.mode === "IN_PERSON" ? "" : form.meetingUrl.trim() };
+      const payload = { name: form.name, description: form.description, duration: dur, price: prc, color: form.color, category: form.category, capacity: Math.max(1, Number(form.capacity) || 1), mode: form.mode, meetingUrl: form.mode === "IN_PERSON" ? "" : form.meetingUrl.trim(), imageUrl: form.imageUrl };
       let res: Response;
       if (editService) {
         res = await fetch(`/api/services/${editService.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
@@ -202,6 +203,7 @@ export function ServicesClient({ services: initial, groupBooking = false }: { se
               <p className="text-xs text-[#6b6b80] mt-1">Leave empty to use each team member&apos;s own link. Customers only see it after they book.</p>
             </div>
           )}
+          <PhotoField label="Website image (optional, used by the image-card layout)" purpose="service" value={form.imageUrl} onChange={(url) => setForm({ ...form, imageUrl: url })} />
           <div>
             <label className="text-sm font-medium text-brand-800 block mb-2">Color</label>
             <div className="flex items-center gap-2 flex-wrap">

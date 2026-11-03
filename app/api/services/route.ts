@@ -19,7 +19,7 @@ async function POST_handler(request: NextRequest) {
 
   const parsed = await parseBody(request, serviceCreateSchema);
   if (!parsed.ok) return parsed.res;
-  const { name, description, duration, price, color, category, capacity, bufferBeforeMin, bufferAfterMin, mode, meetingUrl } = parsed.data;
+  const { name, description, duration, price, color, category, capacity, bufferBeforeMin, bufferAfterMin, mode, meetingUrl, imageUrl } = parsed.data;
 
   const duplicate = await prisma.service.findFirst({
     where: { businessId: session.user.businessId, name: { equals: name, mode: "insensitive" } },
@@ -47,6 +47,7 @@ async function POST_handler(request: NextRequest) {
       bufferAfterMin: bufferAfterMin ?? 0,
       mode: mode ?? "IN_PERSON",
       meetingUrl: meetingUrl || null,
+      imageUrl: imageUrl || null,
       isActive: true,
     },
   });

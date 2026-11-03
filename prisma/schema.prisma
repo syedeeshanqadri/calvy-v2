@@ -138,24 +138,28 @@ model Business {
 }
 
 model Staff {
-  id            String         @id @default(cuid())
-  businessId    String
-  name          String
-  role          String
-  email         String
-  phone         String?
-  color         String         @default("#e84545")
-  isActive      Boolean        @default(true)
+  id             String         @id @default(cuid())
+  businessId     String
+  name           String
+  role           String
+  email          String
+  phone          String?
+  color          String         @default("#e84545")
+  isActive       Boolean        @default(true)
   /// Default video-call link for this person's online consultations (https). Never shown before booking.
-  meetingUrl    String?
-  workingHours  String         @default("{}")
-  createdAt     DateTime       @default(now())
-  appointments  Appointment[]
-  business      Business       @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  services      StaffService[]
-  hours         WorkingHours[]
-  timeOff       TimeOff[]
-  tokenSessions TokenSession[]
+  meetingUrl     String?
+  /// Website team card (lib/siteSections.ts caps): photo URL, short bio, specialisation.
+  photoUrl       String?
+  bio            String?
+  specialisation String?
+  workingHours   String         @default("{}")
+  createdAt      DateTime       @default(now())
+  appointments   Appointment[]
+  business       Business       @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  services       StaffService[]
+  hours          WorkingHours[]
+  timeOff        TimeOff[]
+  tokenSessions  TokenSession[]
 }
 
 model Service {
@@ -174,6 +178,8 @@ model Service {
   meetingUrl      String?
   bufferBeforeMin Int            @default(0)
   bufferAfterMin  Int            @default(0)
+  /// Optional image for the website's image-card layout.
+  imageUrl        String?
   isActive        Boolean        @default(true)
   createdAt       DateTime       @default(now())
   appointments    Appointment[]

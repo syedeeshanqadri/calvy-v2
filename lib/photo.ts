@@ -8,12 +8,15 @@ import sharp from "sharp";
 export const SITE_PHOTO_SIZE = {
   hero: { width: 1600, height: 1200 },
   about: { width: 1200, height: 900 },
+  gallery: { width: 1200, height: 900 },
+  team: { width: 800, height: 800 },
+  service: { width: 800, height: 600 },
 } as const;
 
 export type SitePhotoPurpose = keyof typeof SITE_PHOTO_SIZE;
 
 export function parsePhotoPurpose(v: unknown): SitePhotoPurpose {
-  return v === "hero" ? "hero" : "about";
+  return typeof v === "string" && Object.prototype.hasOwnProperty.call(SITE_PHOTO_SIZE, v) ? (v as SitePhotoPurpose) : "about";
 }
 
 /**
