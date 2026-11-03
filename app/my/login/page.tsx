@@ -6,13 +6,19 @@ import Link from "next/link";
 import AuthShell, { inputClass, primaryBtn, linkClass } from "@/components/auth/AuthShell";
 import PasswordInput from "@/components/auth/PasswordInput";
 import { postAuth } from "@/components/auth/authApi";
+import SocialAuthButtons from "@/components/auth/SocialAuthButtons";
 
 function LoginForm() {
   const router = useRouter();
   const params = useSearchParams();
   const [email, setEmail] = useState(params?.get("email") ?? "");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
+  const [error, setError] = useState(() => {
+    const e = params?.get("error");
+    if (e === "GoogleLinkRequired") return "An account with this email already exists. Sign in with your password first, then choose \"Link Google\" on your Profile page.";
+    if (e === "GoogleDenied" || e === "AccessDenied") return "We could not sign you in with Google. Make sure your Google email is verified, or use your email and password.";
+    return "";
+  });
   const [notice, setNotice] = useState(params?.get("reset") === "1" ? "Your password was changed. Sign in with your new password." : params?.get("verified") === "1" ? "Email verified. Sign in to see your bookings." : "");
   const [loading, setLoading] = useState(false);
   const [canResend, setCanResend] = useState(false);
@@ -51,6 +57,7 @@ function LoginForm() {
         <button type="submit" disabled={loading} className={primaryBtn}>{loading ? "Signing in…" : "Sign in"}</button>
         {canResend && <button type="button" onClick={resend} className={`${linkClass} text-sm`}>Send a new verification email</button>}
       </form>
+      <SocialAuthButtons googleProvider="google-customer" callbackUrl="/my" />
       <p className="text-sm text-[#6b6b80] mt-6">No account yet? <Link href={`/my/signup${email ? `?email=${encodeURIComponent(email)}` : ""}`} className={linkClass}>Create one</Link></p>
     </>
   );

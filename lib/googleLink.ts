@@ -40,3 +40,14 @@ export function signLinkIntent(userId: string, secret: string, now = Date.now())
 export function verifyLinkIntent(value: string | undefined | null, secret: string, now = Date.now()): string | null {
   return verifyTicket("link-google", value, secret, now);
 }
+
+/** Customer accounts use their own cookie and purpose, so an owner "Link Google" token can never link a customer (or the reverse). */
+export const CUSTOMER_LINK_COOKIE = "calvy_link_google_customer";
+
+export function signCustomerLinkIntent(customerId: string, secret: string, now = Date.now()): string {
+  return signTicket("link-google-customer", customerId, secret, LINK_TTL_MS, now);
+}
+
+export function verifyCustomerLinkIntent(value: string | undefined | null, secret: string, now = Date.now()): string | null {
+  return verifyTicket("link-google-customer", value, secret, now);
+}

@@ -82,3 +82,53 @@ export function ProfileCard({ name, email }: { name: string; email: string }) {
     </section>
   );
 }
+
+export function DeleteAccountCard({ email }: { email: string }) {
+  const [open, setOpen] = useState(false);
+  const [confirm, setConfirm] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  async function remove(e: React.FormEvent) {
+    e.preventDefault();
+    setError(""); setBusy(true);
+    try {
+      const res = await fetch("/api/customer/profile", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ confirmEmail: confirm, ...(password ? { password } : {}) }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { setError(data.error ?? "Could not delete the account."); return; }
+      await signOut({ callbackUrl: "/my/login" });
+    } catch {
+      setError("We could not reach the server. Please try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section aria-labelledby="del" className="bg-white rounded-2xl border border-[#e8e6e0] p-5">
+      <h2 id="del" className="font-syne font-bold text-lg">Delete account</h2>
+      <p className="text-sm text-[#6b6b80] mt-1">This removes your Calvy login, your wallet view and your saved details. Businesses keep their own booking records, and any credit saved with them can no longer be reached from here.</p>
+      {!open ? (
+        <button type="button" onClick={() => setOpen(true)} className="mt-4 min-h-11 px-4 rounded-xl border border-red-200 text-red-700 text-sm font-semibold hover:bg-red-50">Delete my account</button>
+      ) : (
+        <form onSubmit={remove} className="mt-4 space-y-3">
+          <div>
+            <label htmlFor="del-email" className="text-sm font-medium block mb-1.5">Type your email ({email}) to confirm</label>
+            <input id="del-email" value={confirm} onChange={(e) => setConfirm(e.target.value)} autoComplete="off" className={inputClass} />
+          </div>
+          <PasswordInput id="del-password" label="Password (if you have one)" value={password} onChange={setPassword} autoComplete="current-password" required={false} />
+          {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
+          <div className="flex gap-2">
+            <button type="submit" disabled={busy || !confirm} className="min-h-11 px-4 rounded-xl bg-red-600 text-white text-sm font-semibold disabled:opacity-60">{busy ? "Deleting…" : "Delete permanently"}</button>
+            <button type="button" onClick={() => { setOpen(false); setError(""); }} className="min-h-11 px-4 rounded-xl border border-[#e8e6e0] text-sm font-semibold">Cancel</button>
+          </div>
+        </form>
+      )}
+    </section>
+  );
+}

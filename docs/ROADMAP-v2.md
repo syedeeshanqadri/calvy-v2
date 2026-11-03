@@ -8,7 +8,7 @@ Rule: keep ALL features open during the build (PLAN_ENFORCEMENT off). Plan restr
 |---|---|---|
 | 1 | Google sign-up + onboarding wizard | Shipped (PR #65): passwordless sign-up (name, email, phone required in India, business type), emailed link verifies and sets the password, 7-step resumable wizard, Google sign-in without silent linking |
 | 2 | Dependency maintenance |  |
-| 3 | Customer accounts |  |
+| 3 | Customer accounts | Shipped on top of #42: Google sign-in for customers (verified email, no silent linking, Link Google on Profile), Book again with the service chosen, delete account. Using credit at booking and the follow-up booking belong to items 4 and 5 |
 | 4 | Follow-ups |  |
 | 5 | Clinic records + credit at booking | Per decisions doc |
 | 6 | Payment settings | Moved out of Parked (was chunk 11) |

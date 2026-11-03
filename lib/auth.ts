@@ -8,7 +8,7 @@ import { revalidateBusinessClaims } from "@/lib/sessionBusiness";
 import { cookies } from "next/headers";
 import { verifyTicket } from "@/lib/signedTicket";
 import { SIGNUP_TICKET_PURPOSE } from "@/lib/signupTicket";
-import { decideGoogleSignIn, verifyLinkIntent, LINK_COOKIE } from "@/lib/googleLink";
+import { decideGoogleSignIn, verifyLinkIntent, verifyCustomerLinkIntent, LINK_COOKIE, CUSTOMER_LINK_COOKIE } from "@/lib/googleLink";
 import { normalizeEmail, tryNormalizeEmail } from "@/lib/email-normalize";
 
 // Case-insensitive user lookup; an exact lowercase match wins over legacy
@@ -32,11 +32,62 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
       clientId: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
     }),
+    // The same Google app, a second provider id: customers sign in here and never share the owner flow.
+    // Add `<your domain>/api/auth/callback/google-customer` as an authorised redirect URI in Google Cloud.
+    GoogleProvider({
+      id: "google-customer",
+      name: "Google (customers)",
+      clientId: process.env.GOOGLE_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+    }),
   );
 }
 export const oauthEnabled = {
   google: !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET),
 };
+
+/**
+ * Google sign-in for CUSTOMER accounts (separate table from owners). Same rules as owners: verified email only and
+ * no silent linking of a password account. On success the sign-in `user` is rewritten into a customer identity so
+ * the jwt callback issues a customer session (kind "customer"), never an owner one.
+ */
+async function customerGoogleSignIn(i: {
+  user: { id?: string; name?: string | null; kind?: string };
+  account: { providerAccountId: string };
+  profile: unknown;
+  email: string;
+}): Promise<boolean | string> {
+  let linkIntentCustomerId: string | null = null;
+  try {
+    linkIntentCustomerId = verifyCustomerLinkIntent((await cookies()).get(CUSTOMER_LINK_COOKIE)?.value, process.env.NEXTAUTH_SECRET ?? "");
+  } catch { /* no request context: no link intent */ }
+  const existing = await prisma.customer.findUnique({ where: { email: i.email } });
+  const d = decideGoogleSignIn({
+    emailVerified: (i.profile as { email_verified?: boolean } | undefined)?.email_verified === true,
+    sub: i.account.providerAccountId,
+    existing: existing ? { id: existing.id, password: existing.password, googleId: existing.googleId } : null,
+    linkIntentUserId: linkIntentCustomerId,
+  });
+  if (d.action === "deny") return d.reason === "password-account" ? "/my/login?error=GoogleLinkRequired" : "/my/login?error=GoogleDenied";
+  try {
+    let customer = existing;
+    if (d.action === "create") {
+      customer = await prisma.customer.create({ data: { name: i.user.name ?? i.email.split("@")[0], email: i.email, googleId: i.account.providerAccountId, emailVerified: new Date() } });
+    } else if (existing && d.action === "link") {
+      customer = await prisma.customer.update({ where: { id: existing.id }, data: { googleId: i.account.providerAccountId, emailVerified: existing.emailVerified ?? new Date() } });
+    } else if (existing && !existing.emailVerified) {
+      customer = await prisma.customer.update({ where: { id: existing.id }, data: { emailVerified: new Date() } });
+    }
+    if (!customer) return "/my/login?error=GoogleDenied";
+    i.user.id = customer.id;
+    i.user.name = customer.name;
+    i.user.kind = "customer";
+  } catch {
+    return "/my/login?error=GoogleDenied"; // e.g. this Google account is already linked to another customer
+  }
+  if (linkIntentCustomerId) { try { (await cookies()).delete(CUSTOMER_LINK_COOKIE); } catch { /* best effort */ } }
+  return true;
+}
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -112,6 +163,9 @@ export const authOptions: NextAuthOptions = {
       if (!user.email) return false; // provider didn't share an email — can't proceed
       const oauthEmail = tryNormalizeEmail(user.email);
       if (!oauthEmail) return false;
+
+      if (account.provider === "google-customer") return customerGoogleSignIn({ user, account, profile, email: oauthEmail });
+
       const existing = await findUserByEmail(oauthEmail);
 
       if (account.provider === "google") {

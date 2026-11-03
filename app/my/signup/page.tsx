@@ -5,6 +5,7 @@ import Link from "next/link";
 import AuthShell, { inputClass, primaryBtn, linkClass } from "@/components/auth/AuthShell";
 import PasswordInput from "@/components/auth/PasswordInput";
 import { postAuth } from "@/components/auth/authApi";
+import SocialAuthButtons from "@/components/auth/SocialAuthButtons";
 
 function SignupForm() {
   const params = useSearchParams();
@@ -55,6 +56,7 @@ function SignupForm() {
         <PasswordInput id="cs-password" label="Password" value={password} onChange={setPassword} autoComplete="new-password" minLength={8} hint="At least 8 characters." />
         <button type="submit" disabled={loading} className={primaryBtn}>{loading ? "Creating…" : "Create account"}</button>
       </form>
+      <SocialAuthButtons googleProvider="google-customer" callbackUrl="/my" />
       <p className="text-sm text-[#6b6b80] mt-6">Already have one? <Link href="/my/login" className={linkClass}>Sign in</Link></p>
     </>
   );

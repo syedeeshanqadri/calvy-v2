@@ -15,14 +15,14 @@ const LABELS: Record<string, { label: string; icon: React.ReactNode }> = {
   google: { label: "Continue with Google", icon: <GoogleIcon /> },
 };
 
-export default function SocialAuthButtons({ callbackUrl = "/dashboard", providers: only }: { callbackUrl?: string; providers?: string[] }) {
+export default function SocialAuthButtons({ callbackUrl = "/dashboard", providers: only, googleProvider = "google" }: { callbackUrl?: string; providers?: string[]; googleProvider?: string }) {
   const [ids, setIds] = useState<string[]>([]);
 
   useEffect(() => {
     getProviders()
       .then(providers => {
         if (!providers) return;
-        setIds(Object.keys(providers).filter(id => id === "google" && (!only || only.includes(id))));
+        setIds(Object.keys(providers).filter(id => id === googleProvider && (!only || only.includes("google"))));
       })
       .catch(() => {});
   }, []);
@@ -44,8 +44,8 @@ export default function SocialAuthButtons({ callbackUrl = "/dashboard", provider
             onClick={() => signIn(id, { callbackUrl })}
             className="w-full flex items-center justify-center gap-2.5 rounded-xl border border-[#e8e6e0] bg-white py-3 text-sm font-medium text-[#0f0f1a] hover:bg-[#f8f7f4] transition-colors"
           >
-            {LABELS[id].icon}
-            {LABELS[id].label}
+            {LABELS.google.icon}
+            {LABELS.google.label}
           </button>
         ))}
       </div>
