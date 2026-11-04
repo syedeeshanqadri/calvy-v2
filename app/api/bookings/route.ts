@@ -34,6 +34,8 @@ import { resolveBookingMode, resolveMeetingUrl } from "@/lib/online";
 import { loadMeetingUrl } from "@/lib/onlineDb";
 import { Prisma } from "@prisma/client";
 import { FollowUpTicketError, resolveFollowUp } from "@/lib/followUpDb";
+import { CreditTicketError, InsufficientCreditError, creditForTicket, spendCredit } from "@/lib/creditDb";
+import { applyCredit, reduceCharge } from "@/lib/credit";
 
 export const dynamic = 'force-dynamic';
 
@@ -208,12 +210,13 @@ async function bookingHandler(req: NextRequest) {
         business, services: orderedServices, tokenSessionId, date, tz: bizTz,
         client: { name: clientName, email: clientEmail, phone: clientPhone },
         notes, maxMonthlyAppointments: limits.maxMonthlyAppointments, monthStart, payConfig, patientName, patientDetails, followUpOfId,
-        maxPeoplePerBooker: business.maxPeoplePerBooker, isOnline,
+        maxPeoplePerBooker: business.maxPeoplePerBooker, isOnline, creditTicket: parsed.data.creditTicket ?? null,
       });
     } catch (err) {
       if (err instanceof DuplicatePatientError) return await duplicateResponse(err);
       if (err instanceof LimitReachedError) return await limitResponse();
       if (followUpTaken(err)) return followUpTakenResponse();
+      if (err instanceof InsufficientCreditError) return NextResponse.json({ error: err.message, code: "CREDIT_CHANGED" }, { status: 409 });
       throw err;
     }
   }
@@ -270,6 +273,7 @@ async function bookingHandler(req: NextRequest) {
     paymentStatus: string,
     paymentModeVal: string,
     holdExpiresAt: Date | null = null,
+    creditMinor = 0,
   ) {
     for (const cand of candidates) {
       try {
@@ -294,8 +298,8 @@ async function bookingHandler(req: NextRequest) {
               return r.ok && (r.available.get(time)?.resourceIds.includes(cand) ?? false);
             },
           },
-          (tx) =>
-            tx.appointment.create({
+          async (tx) => {
+            const created = await tx.appointment.create({
               data: {
                 businessId: business!.id,
                 clientId,
@@ -317,7 +321,11 @@ async function bookingHandler(req: NextRequest) {
                 paymentStatus,
                 paymentMode: paymentModeVal,
               },
-            }),
+            });
+            // Wallet credit used on this booking: recorded in the same transaction as the booking itself.
+            if (creditMinor > 0) await spendCredit(tx, { businessId: business!.id, clientId, appointmentId: created.id, amountMinor: creditMinor, currency: business!.currency ?? DEFAULT_CURRENCY });
+            return created;
+          },
         );
         chosenStaffId = cand;
         return appt;
@@ -404,12 +412,26 @@ async function bookingHandler(req: NextRequest) {
   // Online payments on: hold the slot while the customer pays, or confirm when nothing is due.
   if (onlinePayments) {
     client = await getOrCreateClient();
-    const hold = charge.chargeMinor > 0 ? holdExpiry() : null;
+    // Wallet credit (only through a verified customer's ticket) pays part or all of the online charge first.
+    let creditUsed = 0;
+    let payCharge = charge;
+    if (parsed.data.creditTicket && charge.chargeMinor > 0) {
+      try {
+        const { balanceMinor } = await creditForTicket(prisma, parsed.data.creditTicket, business, client);
+        creditUsed = applyCredit(charge.chargeMinor, balanceMinor).usedMinor;
+        payCharge = reduceCharge(charge, creditUsed);
+      } catch (err) {
+        if (err instanceof CreditTicketError) return NextResponse.json({ error: err.message, code: "CREDIT_EXPIRED" }, { status: 400 });
+        throw err;
+      }
+    }
+    const hold = payCharge.chargeMinor > 0 ? holdExpiry() : null;
     const venueMode = effectivePayMode(business.onlinePayMode) === "FULL_ONLINE" && hold ? "prepaid" : "postpaid";
     let appointment;
     try {
-      appointment = await createAppointment(client.id, "unpaid", venueMode, hold);
+      appointment = await createAppointment(client.id, "unpaid", venueMode, hold, creditUsed);
     } catch (err) {
+      if (err instanceof InsufficientCreditError) return NextResponse.json({ error: err.message, code: "CREDIT_CHANGED" }, { status: 409 });
       if (err instanceof DuplicatePatientError) return await duplicateResponse(err);
       if (err instanceof SlotConflictError) return conflictResponse();
       if (err instanceof LimitReachedError) return await limitResponse();
@@ -422,7 +444,7 @@ async function bookingHandler(req: NextRequest) {
     }
     const started = await startCheckout({
       appointmentId: appointment.id, businessId: business.id, businessName: business.name,
-      currency: business.currency ?? DEFAULT_CURRENCY, charge, holdExpiresAt: hold,
+      currency: business.currency ?? DEFAULT_CURRENCY, charge: payCharge, holdExpiresAt: hold,
       client: { id: client.id, name: clientName, email: clientEmail, phone: clientPhone! },
       note: `${serviceNamesLabel} ${date} ${time}`,
     });

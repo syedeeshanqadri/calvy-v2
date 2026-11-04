@@ -5,6 +5,7 @@ import { getPayConfig } from "@/lib/onlinePayment";
 import { contactRequirements } from "@/lib/patients";
 import { parseSocialLinks, safeReviewLink } from "@/lib/brandLinks";
 import { followUpFromQuery } from "@/lib/followUpDb";
+import { creditOfferFromQuery } from "@/lib/creditDb";
 import { BookingClient } from "@/app/b/[slug]/BookingClient";
 import { headers } from "next/headers";
 import { siteBase } from "@/lib/siteBase";
@@ -71,5 +72,5 @@ export default async function BookNowPage(props: { params: Promise<{ slug: strin
   };
 
   const homeHref = siteBase(host, business.slug, process.env.NEXT_PUBLIC_ROOT_DOMAIN ?? "calvy.io") || "/";
-  return <BookingClient followUp={await followUpFromQuery((await props.searchParams).followUp, business)} business={data} fontClasses={await siteFontClasses(business.packId)} homeHref={homeHref} />;
+  return <BookingClient credit={await creditOfferFromQuery((await props.searchParams).credit, business)} followUp={await followUpFromQuery((await props.searchParams).followUp, business)} business={data} fontClasses={await siteFontClasses(business.packId)} homeHref={homeHref} />;
 }

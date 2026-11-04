@@ -32,7 +32,7 @@ export default async function MyWalletPage() {
             <li key={w.businessSlug} className="bg-white rounded-2xl border border-[#e8e6e0] p-5">
               <p className="text-sm text-[#6b6b80]">{w.businessName}</p>
               <p className="font-syne font-bold text-2xl mt-1">{w.balanceLabel}</p>
-              <Link href={`/${w.businessSlug}/book-now`} className="inline-flex mt-4 min-h-10 items-center rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-sm font-semibold px-5">Book there</Link>
+              <a href={`/api/customer/use-credit?business=${encodeURIComponent(w.businessSlug)}`} className="inline-flex mt-4 min-h-10 items-center rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-sm font-semibold px-5">Book with this credit</a>
             </li>
           ))}
         </ul>

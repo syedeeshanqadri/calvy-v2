@@ -44,3 +44,25 @@ export function refundBlockedByCredit(entries: { kind: CreditKind; amountMinor: 
   const removed = entries.filter((e) => e.kind === "REFUND_REMOVED").reduce((n, e) => n + -e.amountMinor, 0);
   return issued - removed > 0;
 }
+
+/** Calvy platform fee and the business's share of an online charge (minor units). */
+export interface ChargeParts { chargeMinor: number; platformFeeMinor: number; businessShareMinor: number }
+
+/**
+ * What is left to pay online after wallet credit covered `usedMinor` of the charge. The platform fee and the
+ * business share shrink in proportion, so the parts still add up to the new charge. Fully covered: nothing is
+ * charged and no fee is taken (the money was already paid when the credit was created).
+ */
+export function reduceCharge(charge: ChargeParts, usedMinor: number): ChargeParts {
+  const used = Math.max(0, Math.min(usedMinor, charge.chargeMinor));
+  const pay = charge.chargeMinor - used;
+  if (pay <= 0) return { chargeMinor: 0, platformFeeMinor: 0, businessShareMinor: 0 };
+  if (used === 0) return { ...charge };
+  const platformFeeMinor = Math.min(pay, Math.round((charge.platformFeeMinor * pay) / charge.chargeMinor));
+  return { chargeMinor: pay, platformFeeMinor, businessShareMinor: pay - platformFeeMinor };
+}
+
+/** How much credit a returned fee takes back out of the wallet: what that booking issued, never more than the balance (spent credit cannot be recalled). */
+export function creditToRemove(issuedMinor: number, alreadyRemovedMinor: number, balanceMinor: number): number {
+  return Math.max(0, Math.min(issuedMinor - alreadyRemovedMinor, balanceMinor));
+}

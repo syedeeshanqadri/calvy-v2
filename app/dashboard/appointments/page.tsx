@@ -12,7 +12,8 @@ export const dynamic = 'force-dynamic';
 
 export default async function AppointmentsPage() {
   const session = await pageAccess(["appointments.view_all", "appointments.view_own"]);
-  const tz = safeTimeZone((await prisma.business.findUnique({ where: { id: session.user.businessId }, select: { timezone: true } }))?.timezone);
+  const biz = await prisma.business.findUnique({ where: { id: session.user.businessId }, select: { timezone: true, packId: true } });
+  const tz = safeTimeZone(biz?.timezone);
 
   const features = await getBusinessFeatures(session.user.businessId);
 
@@ -20,7 +21,7 @@ export default async function AppointmentsPage() {
     prisma.appointment.findMany({
       // Lapsed online-payment holds are noise for the owner.
       where: { businessId: session.user.businessId, status: { not: "expired" }, ...appointmentWhere(session.access) },
-      include: { client: true, service: true, staff: true },
+      include: { client: true, service: true, staff: true, payments: { where: { status: "PAID" }, select: { id: true }, take: 1 } },
       orderBy: { date: "desc" },
     }),
     prisma.service.findMany({ where: { businessId: session.user.businessId, isActive: true } }),
@@ -55,6 +56,7 @@ export default async function AppointmentsPage() {
       tokenNumber: a.tokenNumber,
       isOnline: a.isOnline,
       isFollowUp: !!a.followUpOfId,
+      paidOnline: a.payments.length > 0,
       meetingUrl: meetingUrlFor(a),
       notes,
     };
@@ -65,6 +67,7 @@ export default async function AppointmentsPage() {
       appointments={rows}
       services={services.map(s => ({ id: s.id, name: s.name, duration: s.duration, price: s.price, mode: s.mode }))}
       staff={staff.map(s => ({ id: s.id, name: s.name }))}
+      clinicRecords={biz?.packId === "CLINIC"}
       csvExport={features.csvExport}
       canExport={can(session.access.permissions, "reports.view")}
       canWrite={can(session.access.permissions, "appointments.write")}
