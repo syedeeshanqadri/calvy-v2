@@ -12,7 +12,8 @@ import { formatTime } from "@/lib/utils";
 import { useTerms } from "@/components/providers/TermsProvider";
 import { useCurrency } from "@/components/providers/CurrencyProvider";
 import { OnlineBadge, JoinButton } from "@/components/dashboard/OnlineJoin";
-import { Search, Filter, Download, Plus, CalendarX } from "lucide-react";
+import { Search, Filter, Download, Plus, CalendarX, Check } from "lucide-react";
+import { canMarkDone, consultationState, feeChoices, feeState } from "@/lib/clinicRecords";
 import { cn } from "@/lib/utils";
 
 type ApptStatus = "confirmed" | "pending" | "cancelled" | "completed" | "no-show";
@@ -30,7 +31,7 @@ const PAYMENT_STATUS_STYLES: Record<string, string> = {
 
 type Row = ApptDetail;
 
-export function AppointmentsClient({ appointments, services, staff, csvExport = false, upgradeHref = null, canExport = true, canWrite = true }: { appointments: Row[]; services: ServiceOption[]; staff: StaffOption[]; csvExport?: boolean; upgradeHref?: string | null; canExport?: boolean; canWrite?: boolean; canCancel?: boolean }) {
+export function AppointmentsClient({ appointments, services, staff, csvExport = false, upgradeHref = null, canExport = true, canWrite = true, clinicRecords = false }: { appointments: Row[]; services: ServiceOption[]; staff: StaffOption[]; csvExport?: boolean; upgradeHref?: string | null; canExport?: boolean; canWrite?: boolean; canCancel?: boolean; clinicRecords?: boolean }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { t } = useTerms();
@@ -46,6 +47,19 @@ export function AppointmentsClient({ appointments, services, staff, csvExport = 
   const [filterStaff, setFilterStaff] = useState("");
   const [filterDateFrom, setFilterDateFrom] = useState("");
   const [filterDateTo, setFilterDateTo] = useState("");
+  const [rowBusy, setRowBusy] = useState<string | null>(null);
+  const [rowError, setRowError] = useState("");
+
+  // Clinic records: one click on the row sets the consultation or the fee (same update the Edit window makes).
+  async function quickSet(id: string, body: { status?: string; paymentStatus?: string }) {
+    setRowBusy(id); setRowError("");
+    try {
+      const res = await fetch(`/api/appointments/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      if (!res.ok) setRowError((await res.json().catch(() => ({}))).error ?? "Could not save.");
+      else router.refresh();
+    } catch { setRowError("We could not reach the server. Please try again."); }
+    finally { setRowBusy(null); }
+  }
 
   useEffect(() => {
     if (searchParams.get("new") === "1") {
@@ -149,11 +163,12 @@ export function AppointmentsClient({ appointments, services, staff, csvExport = 
             {canWrite && <Button size="sm" className="gap-1.5" onClick={() => setShowModal(true)}><Plus size={14} /> New</Button>}
           </div>
         </div>
+        {rowError && <p role="alert" className="px-6 py-2 text-sm text-red-600">{rowError}</p>}
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
               <tr className="bg-[#fafaf8] border-b border-[#f0ede8]">
-                {[t("client", { cap: true }), t("service", { cap: true }), Stf1, "Date & Time", "Duration", "Price", "Status", "Payment", ""].map((h) => (
+                {[t("client", { cap: true }), t("service", { cap: true }), Stf1, "Date & Time", "Duration", "Price", clinicRecords ? "Consultation" : "Status", clinicRecords ? "Fee" : "Payment", ""].map((h) => (
                   <th key={h} className="text-left text-xs font-semibold text-[#6b6b80] px-4 py-3 first:pl-6 last:pr-6">{h}</th>
                 ))}
               </tr>
@@ -175,12 +190,36 @@ export function AppointmentsClient({ appointments, services, staff, csvExport = 
                   <td className="px-4 py-3 text-sm">{appt.date} · {formatTime(appt.time)}</td>
                   <td className="px-4 py-3 text-sm text-[#6b6b80]">{appt.duration}min</td>
                   <td className="px-4 py-3 text-sm font-semibold">{formatPrice(appt.price)}</td>
-                  <td className="px-4 py-3"><StatusBadge status={appt.status as ApptStatus} /></td>
-                  <td className="px-4 py-3">
-                    <span className={cn("text-[11px] font-semibold px-2 py-1 rounded-full capitalize", PAYMENT_STATUS_STYLES[appt.paymentStatus] ?? PAYMENT_STATUS_STYLES.unpaid)}>
-                      {appt.paymentStatus}
-                    </span>
-                  </td>
+                  {clinicRecords ? (
+                    <>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium">{consultationState(appt.status)}</span>
+                          {canWrite && canMarkDone(appt.status) && (
+                            <button type="button" disabled={rowBusy === appt.id} onClick={() => quickSet(appt.id, { status: "completed" })} className="inline-flex items-center gap-1 h-8 px-2.5 rounded-lg border border-[#e8e6e0] text-xs font-semibold hover:bg-[#f8f7f4] disabled:opacity-50"><Check size={12} aria-hidden />Mark done</button>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        {canWrite && !["cancelled", "expired"].includes(appt.status) ? (
+                          <select aria-label={`Fee for ${appt.clientName}`} value={appt.paymentStatus} disabled={rowBusy === appt.id} onChange={(e) => quickSet(appt.id, { paymentStatus: e.target.value })} className="h-8 rounded-lg border border-[#e8e6e0] bg-white px-2 text-xs font-semibold">
+                            {feeChoices(appt.paymentStatus, !!appt.paidOnline).map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
+                          </select>
+                        ) : (
+                          <span className="text-sm">{feeState(appt.paymentStatus, !!appt.paidOnline)}</span>
+                        )}
+                      </td>
+                    </>
+                  ) : (
+                    <>
+                      <td className="px-4 py-3"><StatusBadge status={appt.status as ApptStatus} /></td>
+                      <td className="px-4 py-3">
+                        <span className={cn("text-[11px] font-semibold px-2 py-1 rounded-full capitalize", PAYMENT_STATUS_STYLES[appt.paymentStatus] ?? PAYMENT_STATUS_STYLES.unpaid)}>
+                          {appt.paymentStatus}
+                        </span>
+                      </td>
+                    </>
+                  )}
                   <td className="px-4 py-3 pr-6">
                     <button onClick={() => setViewAppt(appt)} className="text-xs text-accent hover:underline font-medium">Edit</button>
                   </td>

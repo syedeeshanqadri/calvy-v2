@@ -10,7 +10,7 @@ Rule: keep ALL features open during the build (PLAN_ENFORCEMENT off). Plan restr
 | 2 | Dependency maintenance |  |
 | 3 | Customer accounts | Shipped on top of #42: Google sign-in for customers (verified email, no silent linking, Link Google on Profile), Book again with the service chosen, delete account. Using credit at booking and the follow-up booking belong to items 4 and 5 |
 | 4 | Follow-ups | Built (owner decisions Nov 4): business sets the window in Settings → Booking (days, 0 = off, default off). After a COMPLETED appointment the customer signs in to My bookings and books one free follow-up with the same doctor, same service, same person, within the window. Different doctor, later date or another person = a normal paid booking. One follow-up per appointment (DB-unique). A cancelled follow-up is not restored |
-| 5 | Clinic records + credit at booking | Per decisions doc |
+| 5 | Clinic records + credit at booking | Built: clinic businesses get plain Consultation (Done/Pending/Missed/Cancelled) and Fee (Paid online/Paid at clinic/Not paid/Returned) columns with one-click controls, built on the existing status and payment status. A fee returned by hand removes the matching wallet credit once. Credit at booking: My wallet → "Book with this credit" (signed ticket, verified customer only); credit reduces the online charge (platform fee and share shrink proportionally; confirm the fee policy at the Cashfree split chunk). Runs only while online payments are on |
 | 6 | Payment settings | Moved out of Parked (was chunk 11) |
 | 7 | Cashfree Easy Split | Moved out of Parked (was chunk 12) |
 | 8 | Plan subscriptions on Cashfree (remove Razorpay) | Moved out of Parked (was chunk 13) |

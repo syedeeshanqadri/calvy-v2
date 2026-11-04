@@ -26,6 +26,8 @@ export const bookingSchema = z
     mode: z.preprocess(blankToUndef, z.enum(["in_person", "online"]).optional()),
     /** Signed ticket from the customer's "My bookings" follow-up link. Whether it makes the booking free is decided on the server. */
     followUpTicket: z.preprocess(blankToUndef, z.string().max(800).optional()),
+    /** Signed ticket from the customer's "Use credit" link in My wallet: wallet credit at this business reduces the online charge. */
+    creditTicket: z.preprocess(blankToUndef, z.string().max(800).optional()),
   })
   .refine((b) => (b.serviceIds?.length ?? 0) > 0 || !!b.serviceId, {
     message: "serviceId or serviceIds is required",

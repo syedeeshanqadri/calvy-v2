@@ -10,6 +10,8 @@ import { trackingUrl } from "@/lib/tracking";
 import { assertNoDuplicatePatient, assertWithinPeopleCap, contactAtDailyCap } from "@/lib/patientsDb";
 import { chargeFor, sendConfirmationFor, startCheckout, type PayConfig } from "@/lib/onlinePayment";
 import { assertMonthlyHeadroom } from "@/lib/limits";
+import { CreditTicketError, creditForTicket, spendCredit } from "@/lib/creditDb";
+import { applyCredit, reduceCharge } from "@/lib/credit";
 import { loadMeetingUrl } from "@/lib/onlineDb";
 import { addDays, formatDateLabel, parseYMD, utcToZoned, weekdayOf, zonedToUtc } from "@/lib/time";
 import {
@@ -146,6 +148,8 @@ export interface TokenBookingInput {
   maxPeoplePerBooker: number;
   /** Set when this token is the free follow-up of an earlier appointment: it costs nothing. */
   followUpOfId?: string | null;
+  /** Signed ticket from the customer's "Use credit" link; wallet credit reduces the online charge. */
+  creditTicket?: string | null;
 }
 
 /** Book the next token in a session: confirm at once, or hold it while the customer pays online. */
@@ -183,11 +187,25 @@ export async function bookToken(input: TokenBookingInput): Promise<NextResponse>
   const notes = [services.length > 1 ? `__services__:${services.slice(1).map((s) => s.name).join("|")}` : "", input.notes ?? ""]
     .filter(Boolean).join("\n") || null;
 
-  const charge = chargeFor(input.payConfig, totalPrice);
-  if (charge.chargeMinor > 0 && !input.client.phone) return err(400, "A phone number is needed to pay online.");
-  const holdExpiresAt = charge.chargeMinor > 0 ? holdExpiry() : null;
+  const fullCharge = chargeFor(input.payConfig, totalPrice);
+  if (fullCharge.chargeMinor > 0 && !input.client.phone) return err(400, "A phone number is needed to pay online.");
 
   const client = await findOrCreateClient(prisma, business.id, input.client, tz);
+
+  // Wallet credit (only through a verified customer's ticket) pays part or all of the online charge first.
+  let creditUsed = 0;
+  let charge = fullCharge;
+  if (input.creditTicket && fullCharge.chargeMinor > 0) {
+    try {
+      const { balanceMinor } = await creditForTicket(prisma, input.creditTicket, business, client);
+      creditUsed = applyCredit(fullCharge.chargeMinor, balanceMinor).usedMinor;
+      charge = reduceCharge(fullCharge, creditUsed);
+    } catch (e) {
+      if (e instanceof CreditTicketError) return err(400, e.message, "CREDIT_EXPIRED");
+      throw e;
+    }
+  }
+  const holdExpiresAt = charge.chargeMinor > 0 ? holdExpiry() : null;
 
   // Over the contact's daily quota: still booked, but no email or WhatsApp goes to the contact.
   let suppressContactMessages = false;
@@ -199,7 +217,7 @@ export async function bookToken(input: TokenBookingInput): Promise<NextResponse>
     await assertWithinPeopleCap(tx, { businessId: business.id, clientId: client.id, patientName: input.patientName, bookerName: input.client.name, date, tz, tokenSessionId: session.id, max: input.maxPeoplePerBooker });
     suppressContactMessages = await contactAtDailyCap(tx, { businessId: business.id, clientId: client.id });
     const estimatedAt = zonedToUtc(date, a.estimatedMin, tz);
-    return tx.appointment.create({
+    const created = await tx.appointment.create({
       data: {
         businessId: business.id, clientId: client.id, staffId: session.staffId, serviceId: services[0].id,
         date: estimatedAt, endAt: new Date(estimatedAt.getTime() + session.minutesPerToken * 60_000),
@@ -209,6 +227,9 @@ export async function bookToken(input: TokenBookingInput): Promise<NextResponse>
         tokenSessionId: session.id, sessionDate: dateOnly(date), tokenNumber: a.number, estimatedAt,
       },
     });
+    // Wallet credit used on this token: recorded in the same transaction.
+    if (creditUsed > 0) await spendCredit(tx, { businessId: business.id, clientId: client.id, appointmentId: created.id, amountMinor: creditUsed, currency: business.currency ?? DEFAULT_CURRENCY });
+    return created;
   });
 
   if (!result.ok) {

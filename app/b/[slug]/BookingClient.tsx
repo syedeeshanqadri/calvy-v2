@@ -56,7 +56,7 @@ interface Business {
 }
 
 /** `fontClasses` carries the pack fonts (see app/[slug]/fonts); without it the page falls back to system fonts. */
-export function BookingClient({ business, fontClasses, homeHref = "/", followUp = null }: { business: Business; fontClasses?: string; homeHref?: string; followUp?: FollowUpOffer | null }) {
+export function BookingClient({ business, fontClasses, homeHref = "/", followUp = null, credit = null }: { business: Business; fontClasses?: string; homeHref?: string; followUp?: FollowUpOffer | null; credit?: { ticket: string; balanceMinor: number; email: string } | null }) {
   const word = (key: TermKey, opts?: TermOpts) => t(business, key, opts);
   const svc1 = word("service"), svcN = word("service", { plural: true });
   const Svc1 = word("service", { cap: true });
@@ -90,7 +90,7 @@ export function BookingClient({ business, fontClasses, homeHref = "/", followUp 
   const [selectedStaff, setSelectedStaff] = useState<string | null>(followUp?.staffId && !tokenMode ? followUp.staffId : deep ? "any" : null);
   const [selectedDate, setSelectedDate] = useState<number | null>(deep?.date ? Number(deep.date.slice(8)) : null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
-  const [form, setForm] = useState({ name: "", email: followUp?.email ?? "", phone: "", notes: "" });
+  const [form, setForm] = useState({ name: "", email: followUp?.email ?? credit?.email ?? "", phone: "", notes: "" });
   // "Who is this appointment for?" Someone else: the booker's email/phone stay, the patient is who it is for.
   const [forSomeone, setForSomeone] = useState(false);
   const [patientName, setPatientName] = useState("");
@@ -303,7 +303,9 @@ export function BookingClient({ business, fontClasses, homeHref = "/", followUp 
   // Online charge for this booking (same calculator as the server, which stays authoritative).
   const payConfig = business.payConfig ?? null;
   const onlineCharge = payConfig ? computeCharge({ ...payConfig, priceMinor: toMinor(totalPrice) }) : null;
-  const payNowMinor = onlineCharge?.chargeMinor ?? 0;
+  // Wallet credit (display; the server applies it from the signed ticket) pays part or all of the online charge first.
+  const creditUsedMinor = credit && onlineCharge ? Math.min(onlineCharge.chargeMinor, credit.balanceMinor) : 0;
+  const payNowMinor = (onlineCharge?.chargeMinor ?? 0) - creditUsedMinor;
   const payNowLabel = formatCurrencyAmount(payNowMinor / 100, business.currency);
   // Phone is required in India, and whenever an online payment is due.
   const phoneNeeded = !!business.phoneRequired || payNowMinor > 0;
@@ -339,6 +341,7 @@ export function BookingClient({ business, fontClasses, homeHref = "/", followUp 
           notes: form.notes || null,
           ...(needsModeChoice && bookingMode ? { mode: bookingMode } : {}),
           ...(followUp ? { followUpTicket: followUp.ticket } : {}),
+          ...(credit ? { creditTicket: credit.ticket } : {}),
         }),
       });
       const data = await res.json();
@@ -491,6 +494,16 @@ export function BookingClient({ business, fontClasses, homeHref = "/", followUp 
 
       <div className="st-wrap bk-layout">
         <main className="bk-main">
+          {credit && (
+            <div role="status" className="bk-note" style={{ border: "1px solid var(--brand)", borderRadius: 12, padding: "12px 16px", marginBottom: 16 }}>
+              <strong>Your credit: {formatCurrencyAmount(credit.balanceMinor / 100, business.currency)}</strong>
+              <p className="st-muted" style={{ marginTop: 4 }}>
+                {creditUsedMinor > 0
+                  ? `${formatCurrencyAmount(creditUsedMinor / 100, business.currency)} of it will be used on this booking${payNowMinor > 0 ? `; you pay the remaining ${payNowLabel}` : ", so there is nothing to pay online"}.`
+                  : "It is used automatically when this booking has something to pay online."}
+              </p>
+            </div>
+          )}
           {followUp && (
             <div role="status" className="bk-note" style={{ border: "1px solid var(--brand)", borderRadius: 12, padding: "12px 16px", marginBottom: 16 }}>
               <strong>Your free follow-up</strong>

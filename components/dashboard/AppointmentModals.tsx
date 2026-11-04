@@ -19,6 +19,8 @@ export interface ApptDetail {
   id: string;
   /** The free follow-up of an earlier appointment. */
   isFollowUp?: boolean;
+  /** A settled online payment exists (clinic records: "Paid online"). */
+  paidOnline?: boolean;
   clientName: string;
   clientEmail: string;
   serviceName: string;
