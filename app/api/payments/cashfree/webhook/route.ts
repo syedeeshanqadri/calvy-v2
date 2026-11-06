@@ -19,6 +19,13 @@ async function POST_handler(req: NextRequest) {
   const event = parseCashfreeWebhook(rawBody, req.headers, secret);
   if (!event) return NextResponse.json({ error: "Invalid webhook signature" }, { status: 401 });
 
+  // A paid event must carry the amount: without it the amount cannot be checked, so it is not applied here
+  // (the customer's return page re-checks the order with Cashfree, which confirms a genuinely paid order).
+  if (event.kind === "PAID" && event.amountMinor == null) {
+    logger.warn("[Cashfree] paid webhook without an amount not applied", { orderId: event.providerOrderId });
+    return NextResponse.json({ received: true, result: "missing_amount" });
+  }
+
   const outcome = await applyPaymentEvent(prismaPaymentEventStore, "CASHFREE", event);
   if (outcome.result === "amount_mismatch" || outcome.result === "unknown_order") {
     logger.warn("[Cashfree] webhook not applied", { result: outcome.result, orderId: event.providerOrderId, kind: event.kind });

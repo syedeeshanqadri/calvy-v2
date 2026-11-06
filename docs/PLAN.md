@@ -381,6 +381,16 @@ Complete every item before the first real customer (see also S1-01, S9-02, S9-10
 - [ ] Later: reset test account passwords, or start a fresh production DB with or without test accounts (write the reset script then).
 - [ ] Cashfree, R2 and Resend live keys exist only in the production environment, never in the repo.
 - [ ] Confirm the old calvy.io production database password was rotated by Aamir.
+- [ ] **Online payments go-live (Cashfree, production).** Payments are verified in the sandbox first (`docs/payments-sandbox-test.md`). For production, in this order, with live keys that only the owner creates and never pastes into chat or the repo:
+  - [ ] Cashfree production account activated and approved; live App ID and Secret Key created.
+  - [ ] Vercel **Production** environment only: `CASHFREE_APP_ID`, `CASHFREE_SECRET_KEY`, `CASHFREE_ENV=production`. Sandbox keys stay in Preview/Development.
+  - [ ] `NEXT_PUBLIC_APP_URL` is the real https domain; `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` set (the rate limiter is per-instance memory without them); `CRON_SECRET` set (lapsed holds are swept by the cron).
+  - [ ] Cashfree dashboard: webhook URL `https://<domain>/api/payments/cashfree/webhook` registered (version 2023-08-01); the app also sends it per order.
+  - [ ] Receipt details: `CALVY_LEGAL_NAME`, `CALVY_ADDRESS`, `CALVY_GSTIN`, `CALVY_GST_RATE` (default 18) set; confirm with the accountant whether the Rs 10 fee is a tax invoice.
+  - [ ] `npm run db:deploy` against the production database (follow-ups, credit reversal and onboarding migrations included).
+  - [ ] Super admin opens `/api/admin/payments-health`: `ready: true`, mode `production`, no problems.
+  - [ ] Then `FEATURE_ONLINE_PAYMENTS=1` and redeploy; make one real Rs 10 booking and refund it; check the receipt email, the fee ledger and the webhook log.
+  - [ ] Open Low items from the payments security review: public status endpoint keyed by order id, webhook timestamp freshness check.
 - [ ] Turn `PLAN_ENFORCEMENT` on in production (`PLAN_ENFORCEMENT=1`). It is off by default, which gives every business every feature and no limits; see `docs/feature-flags.md`.
 
 ---

@@ -12,10 +12,10 @@ const mocks = vi.hoisted(() => {
     $executeRaw: vi.fn(async () => 0),
   };
   db.$transaction = vi.fn(async (fn: (tx: unknown) => unknown) => fn(db));
-  return { db, notify: vi.fn(async (..._items: unknown[]) => {}), push: vi.fn(async (..._a: unknown[]) => {}), whatsapp: vi.fn(async (..._a: unknown[]) => {}) };
+  return { db, notify: vi.fn(async (..._items: unknown[]) => {}), enqueue: vi.fn(async (_tx: unknown, _items: unknown[]) => ["row1"]), sendSoon: vi.fn(async (..._a: unknown[]) => {}), push: vi.fn(async (..._a: unknown[]) => {}), whatsapp: vi.fn(async (..._a: unknown[]) => {}) };
 });
 vi.mock("@/lib/prisma", () => ({ prisma: mocks.db }));
-vi.mock("@/lib/notifications/enqueue", () => ({ notify: mocks.notify }));
+vi.mock("@/lib/notifications/enqueue", () => ({ notify: mocks.notify, enqueue: mocks.enqueue, sendSoon: mocks.sendSoon }));
 vi.mock("@/lib/push", () => ({ sendPushToBusiness: mocks.push }));
 vi.mock("@/lib/whatsapp", () => ({ sendBookingConfirmationWhatsApp: mocks.whatsapp }));
 // Owner alerts: a tagged stand-in, so the tests can tell them from the customer's messages.
@@ -49,7 +49,7 @@ describe("sendConfirmationFor", () => {
     await sendConfirmationFor("a1");
     const [first, second] = sent();
     expect(first).toMatchObject({ event: "booking.created", template: "confirmation", payload: { businessName: "Sunrise", serviceName: "Checkup", ics: { appointmentId: "cmgx1ab2c0000xyz1234" } } });
-    expect(second).toBeNull();
+    expect(second).toBeUndefined(); // no receipt
     expect(mocks.push).toHaveBeenCalledTimes(1);
   });
 
@@ -89,14 +89,21 @@ describe("settlePaidPayment", () => {
   const payment = { id: "pay1", appointmentId: "a1", businessId: "biz1", status: "PAID", amountMinor: 50000, platformFeeMinor: 0, paymentRef: "cf_pay_1" };
   const held = (status: string) => ({ id: "a1", status, holdExpiresAt: status === "pending_payment" ? new Date(Date.now() + 600_000) : null, clientId: "c1", date: new Date("2026-11-02T04:30:00Z") });
 
-  it("confirming a held booking queues the confirmation and the receipt once", async () => {
+  it("confirming a held booking queues the confirmation and the receipt once, in the same transaction that marks it paid", async () => {
     mocks.db.payment.findUnique.mockResolvedValue(payment);
     mocks.db.appointment.findUnique.mockResolvedValueOnce(held("pending_payment")).mockResolvedValue(booking());
     expect(await settlePaidPayment("pay1")).toBe("confirmed");
-    expect(sent().map((n) => n?.event)).toEqual(["booking.created", "booking.paid"]);
-    expect(sent()[1]).toMatchObject({ version: "pay1", payload: { paymentRef: "cf_pay_1", price: 500 } });
+    // The rows are written on the transaction client (not through notify after the commit).
+    expect(mocks.notify).not.toHaveBeenCalled();
+    expect(mocks.enqueue).toHaveBeenCalledTimes(1);
+    const [client, items] = mocks.enqueue.mock.calls[0] as [unknown, Queued[]];
+    expect(client).toBe(mocks.db);
+    const customer = items.filter((q) => !isAlert(q));
+    expect(customer.map((n) => n?.event)).toEqual(["booking.created", "booking.paid"]);
+    expect(customer[1]).toMatchObject({ version: "pay1", payload: { paymentRef: "cf_pay_1", price: 500 } });
     // The business: a new-booking alert and a payment alert keyed on the same payment.
-    expect(alerts()).toMatchObject([{ event: "alert.booking.created" }, { event: "alert.booking.paid", version: "pay1", payload: { price: 500 } }]);
+    expect(items.filter(isAlert)).toMatchObject([{ event: "alert.booking.created" }, { event: "alert.booking.paid", version: "pay1", payload: { price: 500 } }]);
+    expect(mocks.sendSoon).toHaveBeenCalledWith(["row1"]);
   });
 
   it("the gateway calling again (webhook retry, return page) queues nothing more", async () => {
@@ -104,5 +111,6 @@ describe("settlePaidPayment", () => {
     mocks.db.appointment.findUnique.mockResolvedValue(held("confirmed"));
     expect(await settlePaidPayment("pay1")).toBe("noop");
     expect(mocks.notify).not.toHaveBeenCalled();
+    expect(mocks.enqueue).not.toHaveBeenCalled();
   });
 });

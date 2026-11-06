@@ -200,6 +200,8 @@ export interface InvoiceProps extends BookingProps {
   invoiceNumber: string;
   clientEmail: string;
   paymentRef?: string;
+  /** Calvy's booking fee on this receipt: company details, GST split and a note (see lib/receiptTax). */
+  tax?: { issuer: { legalName: string; address: string; gstin: string | null } | null; split: { baseLabel: string; gstLabel: string; ratePercent: number } | null; note: string; feeLabel: string };
 }
 
 export function InvoiceEmail(p: InvoiceProps) {
@@ -226,8 +228,13 @@ export function InvoiceEmail(p: InvoiceProps) {
       {p.staffName ? <DetailRow label="With" value={p.staffName} /> : null}
       <DetailRow label="Date" value={`${p.date}, ${p.time}`} />
       <Hairline />
+      {p.tax?.split ? <DetailRow label={`Booking fee before GST`} value={p.tax.split.baseLabel} /> : null}
+      {p.tax?.split ? <DetailRow label={`GST (${p.tax.split.ratePercent}%)`} value={p.tax.split.gstLabel} /> : null}
       <DetailRow label="Total paid" value={total} strong />
       {p.paymentRef ? <P>Payment reference: {p.paymentRef}</P> : <Section style={{ height: "8px" }} />}
+      {p.tax ? <Hairline /> : null}
+      {p.tax?.issuer ? <Text style={{ fontSize: "12px", color: brand.muted, margin: 0 }}>Booking fee charged by {p.tax.issuer.legalName}, {p.tax.issuer.address}{p.tax.issuer.gstin ? `. GSTIN ${p.tax.issuer.gstin}` : ""}.</Text> : null}
+      {p.tax ? <Text style={{ fontSize: "12px", color: brand.muted, margin: "4px 0 0" }}>{p.tax.note}</Text> : null}
     </EmailLayout>
   );
 }

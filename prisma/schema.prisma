@@ -692,6 +692,8 @@ enum CreditKind {
   MISSED
   CANCELLED
   USED
+  /// Credit spent on a booking that then lapsed, failed or was cancelled: handed back once per booking.
+  USED_REVERSED
   REFUND_REMOVED
   ADJUSTMENT
 }

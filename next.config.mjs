@@ -25,6 +25,20 @@ const securityHeaders = [
   { key: "Content-Security-Policy-Report-Only", value: csp },
 ];
 
+// Pages and redirects whose URL can carry a one-hour credit / follow-up ticket or a payment order id never leak it
+// through the Referer header: no-referrer. Everything else keeps the site-wide policy above. Later rules win.
+// (A tenant subdomain request arrives as /book-now, before the proxy rewrites it, so that path is listed too.)
+const noReferrer = [{ key: "Referrer-Policy", value: "no-referrer" }];
+const noReferrerSources = [
+  "/:slug/book-now",
+  "/book-now",
+  "/b/:slug",
+  "/booking/:path*",
+  "/api/customer/use-credit",
+  "/api/customer/follow-up",
+  "/api/payments/:path*",
+];
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   poweredByHeader: false,
@@ -39,7 +53,10 @@ const nextConfig = {
     ],
   },
   async headers() {
-    return [{ source: "/:path*", headers: securityHeaders }];
+    return [
+      { source: "/:path*", headers: securityHeaders },
+      ...noReferrerSources.map((source) => ({ source, headers: noReferrer })),
+    ];
   },
 };
 

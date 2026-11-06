@@ -14,6 +14,7 @@ const db = vi.hoisted(() => {
     timeOff: { findMany: vi.fn() },
     appointment: { findMany: vi.fn(), findFirst: vi.fn(), update: vi.fn() },
     payment: { findFirst: vi.fn() },
+    customerCredit: { findMany: vi.fn(async () => []), create: vi.fn() },
     $executeRaw: vi.fn(),
   };
   d.$transaction = vi.fn(async (fn: (tx: unknown) => unknown) => fn(d));

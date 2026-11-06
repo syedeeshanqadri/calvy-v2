@@ -15,19 +15,21 @@ export async function creditClosedBooking(
   tx: Prisma.TransactionClient,
   p: { businessId: string; clientId: string; appointmentId: string; kind: Extract<CreditKind, "MISSED" | "CANCELLED">; note?: string },
 ): Promise<{ amountMinor: number; currency: string } | null> {
+  // Credit this booking spent comes back too (a booking paid with wallet credit that is missed or cancelled).
+  const restored = await restoreUsedCredit(tx, p);
   const existing = await tx.customerCredit.findUnique({ where: { appointmentId_kind: { appointmentId: p.appointmentId, kind: p.kind } } });
-  if (existing) return { amountMinor: existing.amountMinor, currency: existing.currency };
+  if (existing) return { amountMinor: existing.amountMinor + (restored?.amountMinor ?? 0), currency: existing.currency };
 
   const found = await tx.payment.findFirst({ where: { appointmentId: p.appointmentId, status: "PAID" }, orderBy: { createdAt: "desc" }, select: { id: true } });
-  if (!found) return null;
+  if (!found) return restored;
   // Same lock as refundPayment: either the refund wins (then nothing is left to credit) or the
   // credit wins (then the refund is refused). Never both.
   await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${paymentLockKey(found.id)}, 0))`;
   // Re-read under the lock: a refund that committed while we waited has changed the status.
   const payment = await tx.payment.findFirst({ where: { id: found.id, status: "PAID", refundedMinor: 0 } });
-  if (!payment) return null;
+  if (!payment) return restored;
   const amountMinor = creditForPayment(payment);
-  if (amountMinor <= 0) return null;
+  if (amountMinor <= 0) return restored;
 
   await tx.customerCredit.create({
     data: {
@@ -36,7 +38,7 @@ export async function creditClosedBooking(
       note: p.note ?? (p.kind === "MISSED" ? "Missed appointment" : "Cancelled at reception"),
     },
   });
-  return { amountMinor, currency: payment.currency };
+  return { amountMinor: amountMinor + (restored?.amountMinor ?? 0), currency: payment.currency };
 }
 
 /** A customer's wallet balance at one clinic. */
@@ -67,6 +69,28 @@ export async function spendCredit(
   await tx.customerCredit.create({
     data: { businessId: p.businessId, clientId: p.clientId, kind: "USED", amountMinor: -p.amountMinor, currency: p.currency, appointmentId: p.appointmentId, note: "Used on a booking" },
   });
+}
+
+/**
+ * Hand back credit that a booking spent when that booking will never happen (hold lapsed, checkout failed, cancelled
+ * or missed). One reversal per booking (unique index), under the wallet lock, so it can never be given back twice.
+ * Returns the amount restored (0 when nothing was spent or it was already restored).
+ */
+export async function restoreUsedCredit(
+  tx: Prisma.TransactionClient,
+  p: { businessId: string; clientId: string; appointmentId: string },
+): Promise<{ amountMinor: number; currency: string } | null> {
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${walletLockKey(p.businessId, p.clientId)}, 0))`;
+  const entries = await tx.customerCredit.findMany({ where: { appointmentId: p.appointmentId, businessId: p.businessId }, select: { kind: true, amountMinor: true, currency: true } });
+  if (entries.some((e) => e.kind === "USED_REVERSED")) return null;
+  const used = entries.filter((e) => e.kind === "USED");
+  const amountMinor = -used.reduce((n, e) => n + e.amountMinor, 0);
+  if (amountMinor <= 0) return null;
+  const currency = used[0].currency;
+  await tx.customerCredit.create({
+    data: { businessId: p.businessId, clientId: p.clientId, kind: "USED_REVERSED", amountMinor, currency, appointmentId: p.appointmentId, note: "Credit returned: the booking did not go ahead" },
+  });
+  return { amountMinor, currency };
 }
 
 /**
