@@ -13,7 +13,7 @@ import { loadAvailability, type AvailabilityQuery } from "@/lib/availability";
 import { safeTimeZone, formatDateLabel, formatTimeLabel, zonedTimeToUtc, utcToZoned } from "@/lib/time";
 import { settleCancellation } from "@/lib/holds";
 import { refundPayment } from "@/lib/onlinePayment";
-import { removeCreditForReturn } from "@/lib/creditDb";
+import { removeCreditForReturn, restoreUsedCredit } from "@/lib/creditDb";
 import { meetingUrlFor } from "@/lib/online";
 import { ownerAlert, reviewRequestFor } from "@/lib/notifications/business";
 
@@ -172,6 +172,11 @@ async function PATCH_handler(req: NextRequest, props: { params: Promise<{ id: st
   // A fee returned by hand takes the matching credit out of the customer's wallet, so they are not paid twice.
   if (willReturnFee) {
     await prisma.$transaction((tx) => removeCreditForReturn(tx, { businessId, clientId: appointment.clientId, appointmentId: appointment.id }));
+  }
+
+  // The business cancelling a booking gives back any wallet credit it was paid with.
+  if (willCancel) {
+    await prisma.$transaction((tx) => restoreUsedCredit(tx, { businessId, clientId: appointment.clientId, appointmentId: appointment.id }));
   }
 
   // The business cancelling a booking paid online refunds it in full, platform fee included.

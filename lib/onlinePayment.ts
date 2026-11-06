@@ -24,6 +24,7 @@ import { trackingUrl } from "@/lib/tracking";
 import { bookingForLabel } from "@/lib/patients";
 import { meetingUrlFor } from "@/lib/online";
 import { receiptTax } from "@/lib/receiptTax";
+import { restoreUsedCredit } from "@/lib/creditDb";
 
 const APP_URL = () => process.env.NEXT_PUBLIC_APP_URL ?? `http://localhost:${process.env.PORT ?? 3000}`;
 
@@ -105,10 +106,12 @@ export async function startCheckout(p: {
     return { ok: true, checkout: { provider: provider.name, orderId: order.providerOrderId, sessionId: order.sessionId, env } };
   } catch (e) {
     logger.error("[Payments] createOrder failed", { err: e, orderId });
-    await prisma.$transaction([
-      prisma.payment.update({ where: { id: payment.id }, data: { status: "FAILED" } }),
-      prisma.appointment.updateMany({ where: { id: p.appointmentId, status: PENDING_PAYMENT }, data: { status: EXPIRED } }),
-    ]);
+    await prisma.$transaction(async (tx) => {
+      await tx.payment.update({ where: { id: payment.id }, data: { status: "FAILED" } });
+      // The booking will not happen: free its follow-up lock and hand back any wallet credit it spent.
+      const freed = await tx.appointment.updateMany({ where: { id: p.appointmentId, status: PENDING_PAYMENT }, data: { status: EXPIRED, followUpOfId: null } });
+      if (freed.count > 0) await restoreUsedCredit(tx, { businessId: p.businessId, clientId: p.client.id, appointmentId: p.appointmentId });
+    });
     return { ok: false, error: "We couldn't start the online payment. Please try again." };
   }
 }
@@ -241,7 +244,8 @@ export async function settlePaidPayment(paymentId: string): Promise<SettleResult
         });
       }
     } else if (action === "refund" && appt.status === PENDING_PAYMENT) {
-      await tx.appointment.update({ where: { id: appt.id }, data: { status: EXPIRED } });
+      await tx.appointment.update({ where: { id: appt.id }, data: { status: EXPIRED, followUpOfId: null } });
+      await restoreUsedCredit(tx, { businessId: payment.businessId, clientId: appt.clientId, appointmentId: appt.id });
     }
     return { action, appointmentId: appt.id, amountMinor: payment.amountMinor, paymentRef: payment.paymentRef, platformFeeMinor: payment.platformFeeMinor };
   }, BOOKING_TX_OPTIONS);
@@ -261,14 +265,17 @@ export async function settlePaidPayment(paymentId: string): Promise<SettleResult
 export async function releaseExpiredHolds(now: Date = new Date()): Promise<number> {
   const lapsed = await prisma.appointment.findMany({
     where: { status: PENDING_PAYMENT, holdExpiresAt: { lte: now } },
-    select: { id: true },
+    select: { id: true, businessId: true, clientId: true },
   });
   if (!lapsed.length) return 0;
   const ids = lapsed.map((a) => a.id);
-  await prisma.$transaction([
-    prisma.appointment.updateMany({ where: { id: { in: ids }, status: PENDING_PAYMENT }, data: { status: EXPIRED } }),
-    prisma.payment.updateMany({ where: { appointmentId: { in: ids }, status: { in: ["CREATED", "FAILED"] } }, data: { status: "EXPIRED" } }),
-  ]);
+  await prisma.$transaction(async (tx) => {
+    // Free the follow-up lock of a booking that never happened.
+    await tx.appointment.updateMany({ where: { id: { in: ids }, status: PENDING_PAYMENT }, data: { status: EXPIRED, followUpOfId: null } });
+    await tx.payment.updateMany({ where: { appointmentId: { in: ids }, status: { in: ["CREATED", "FAILED"] } }, data: { status: "EXPIRED" } });
+    // Wallet credit spent on a hold that lapsed goes back (once per booking).
+    for (const a of lapsed) await restoreUsedCredit(tx, { businessId: a.businessId, clientId: a.clientId, appointmentId: a.id });
+  }, BOOKING_TX_OPTIONS);
   return ids.length;
 }
 

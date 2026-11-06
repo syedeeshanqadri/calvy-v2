@@ -2,7 +2,7 @@
 // balance = sum of entries. Credit is per customer per clinic and never expires.
 import { formatCurrencyAmount } from "@/lib/currency";
 
-export type CreditKind = "MISSED" | "CANCELLED" | "USED" | "REFUND_REMOVED" | "ADJUSTMENT";
+export type CreditKind = "MISSED" | "CANCELLED" | "USED" | "USED_REVERSED" | "REFUND_REMOVED" | "ADJUSTMENT";
 
 /**
  * What a missed or cancelled booking turns into: everything the customer paid online and that has
