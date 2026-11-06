@@ -11,7 +11,8 @@ import { BOOKING_TX_OPTIONS } from "@/lib/booking";
 import { getPaymentProvider, type PaymentProvider } from "@/lib/payments";
 import { applyPaymentEvent } from "@/lib/payments/events";
 import { prismaPaymentEventStore } from "@/lib/payments/db";
-import { notify } from "@/lib/notifications/enqueue";
+import type { Prisma } from "@prisma/client";
+import { enqueue, notify, sendSoon, type NotificationInput } from "@/lib/notifications/enqueue";
 import { confirmation, noticeFrom, receipt, serviceLabel } from "@/lib/notifications/events";
 import { ownerAlert } from "@/lib/notifications/business";
 import { sendBookingConfirmationWhatsApp } from "@/lib/whatsapp";
@@ -25,8 +26,8 @@ import { bookingForLabel } from "@/lib/patients";
 import { meetingUrlFor } from "@/lib/online";
 import { receiptTax } from "@/lib/receiptTax";
 import { restoreUsedCredit } from "@/lib/creditDb";
+import { returnUrlFor, webhookUrlFor } from "@/lib/paymentUrls";
 
-const APP_URL = () => process.env.NEXT_PUBLIC_APP_URL ?? `http://localhost:${process.env.PORT ?? 3000}`;
 
 /** What the booking page needs to show and compute the online charge (safe to send to the browser). */
 export interface PayConfig {
@@ -93,12 +94,13 @@ export async function startCheckout(p: {
     },
   });
   try {
-    const appUrl = APP_URL();
+    // Cashfree only calls public https URLs; locally the return page reconciles instead. On a Vercel preview both
+    // URLs are the preview's own, and the webhook carries the Deployment Protection bypass (see lib/paymentUrls).
+    const notifyUrl = webhookUrlFor();
     const order = await provider.createOrder({
       orderId, amountMinor: p.charge.chargeMinor, currency: p.currency, customer: p.client,
-      returnUrl: `${appUrl}/booking/return?order_id={order_id}`,
-      // Cashfree only calls public https URLs; locally the return page reconciles instead.
-      ...(appUrl.startsWith("https://") ? { notifyUrl: `${appUrl}/api/payments/cashfree/webhook` } : {}),
+      returnUrl: returnUrlFor(),
+      ...(notifyUrl ? { notifyUrl } : {}),
       expiresAt: p.holdExpiresAt, note: `${p.note} · ${p.businessName}`,
       tags: { appointmentId: p.appointmentId, businessId: p.businessId },
     });
@@ -116,20 +118,20 @@ export async function startCheckout(p: {
   }
 }
 
+type ConfirmOpts = { paid?: boolean; contactMessages?: boolean; payment?: { id: string; amountMinor: number; ref?: string | null; platformFeeMinor?: number } };
+type Db = typeof prisma | Prisma.TransactionClient;
+
 /**
- * Customer confirmation (email through the outbox, WhatsApp direct) and owner push for a confirmed appointment.
- * `payment` is set when it was paid online: the customer also gets a receipt for what was actually paid, which
- * can be less than the price (a booking fee).
+ * Everything a confirmed appointment announces: the outbox rows (owner alerts, customer confirmation, receipt) and the
+ * side effects that are not outbox rows (owner push, WhatsApp). Building touches the database only to read, so it can run
+ * inside the transaction that confirms the booking: the rows then commit together with the PAID status.
  */
-export async function sendConfirmationFor(
-  appointmentId: string,
-  opts: { paid?: boolean; contactMessages?: boolean; payment?: { id: string; amountMinor: number; ref?: string | null; platformFeeMinor?: number } } = {},
-): Promise<void> {
-  const a = await prisma.appointment.findUnique({
+export async function buildConfirmation(db: Db, appointmentId: string, opts: ConfirmOpts = {}): Promise<{ owner: NotificationInput[]; customer: NotificationInput[]; afterCommit: () => void } | null> {
+  const a = await db.appointment.findUnique({
     where: { id: appointmentId },
     include: { client: true, service: true, staff: true, business: true, tokenSession: true },
   });
-  if (!a) return;
+  if (!a) return null;
   const tz = safeTimeZone(a.business.timezone);
   const serviceName = serviceLabel(a.service.name, a.notes);
   const dateLabel = formatDateLabel(a.date, tz);
@@ -138,52 +140,61 @@ export async function sendConfirmationFor(
     ? { number: a.tokenNumber, estimatedTime: time, sessionName: a.tokenSession.name }
     : undefined;
 
-  sendPushToBusiness(a.businessId, {
-    title: opts.paid ? "New paid booking" : "New booking received",
-    body: `${bookingForLabel(a)} — ${token ? `Token #${token.number} (${token.sessionName}) ` : ""}${serviceName} on ${dateLabel}${token ? "" : ` at ${time}`}`,
-    url: "/dashboard/appointments",
-    tag: "new-booking",
-  }).catch(() => {});
-
   const notice = noticeFrom(a);
   const paid = opts.payment;
   const paidMajor = paid ? paid.amountMinor / 100 : undefined;
   // The business is always told, by email too (its own switches decide), even when the contact is not messaged.
-  try {
-    await notify(
-      await ownerAlert(notice, "created"),
-      paid ? await ownerAlert(notice, "paid", { version: paid.id, price: paidMajor }) : null,
-    );
-  } catch (e) {
-    logger.error("[Notifications] business alert failed:", { err: e });
-  }
+  const owner = [
+    await ownerAlert(notice, "created"),
+    paid ? await ownerAlert(notice, "paid", { version: paid.id, price: paidMajor }) : null,
+  ].filter((n): n is NotificationInput => !!n);
+  // Over the contact's daily quota (flood protection): the business was told, the contact is not messaged.
+  const customer = opts.contactMessages === false ? [] : [
+    confirmation(notice, a.date),
+    paid ? receipt(notice, {
+      price: paidMajor, paymentRef: paid.ref ?? undefined, version: paid.id,
+      // Calvy's booking fee: company details and the GST split come from the environment.
+      tax: paid.platformFeeMinor && paid.platformFeeMinor > 0 ? receiptTax(paid.platformFeeMinor, a.business.currency ?? "INR") : undefined,
+      // A booking fee is not the price of the service: say so on the receipt.
+      serviceName: paidMajor !== undefined && Math.abs(paidMajor - a.price) > 0.005 ? `${notice.payload.serviceName} (online payment)` : undefined,
+    }) : null,
+  ].filter((n): n is NotificationInput => !!n);
 
-  if (opts.contactMessages === false) return; // flood protection: the business was told, the contact is not messaged
-
-  try {
-    await notify(
-      confirmation(notice, a.date),
-      paid ? receipt(notice, {
-        price: paidMajor, paymentRef: paid.ref ?? undefined, version: paid.id,
-        // Calvy's booking fee: company details and the GST split come from the environment.
-        tax: paid.platformFeeMinor && paid.platformFeeMinor > 0 ? receiptTax(paid.platformFeeMinor, a.business.currency ?? "INR") : undefined,
-        // A booking fee is not the price of the service: say so on the receipt.
-        serviceName: paidMajor !== undefined && Math.abs(paidMajor - a.price) > 0.005 ? `${notice.payload.serviceName} (online payment)` : undefined,
-      }) : null,
-    );
-  } catch (e) {
-    logger.error("[Notifications] confirmation failed:", { err: e });
-  }
-  if (a.client.phone) {
-    try {
-      await sendBookingConfirmationWhatsApp({
+  const afterCommit = () => {
+    sendPushToBusiness(a.businessId, {
+      title: opts.paid ? "New paid booking" : "New booking received",
+      body: `${bookingForLabel(a)} — ${token ? `Token #${token.number} (${token.sessionName}) ` : ""}${serviceName} on ${dateLabel}${token ? "" : ` at ${time}`}`,
+      url: "/dashboard/appointments",
+      tag: "new-booking",
+    }).catch(() => {});
+    if (opts.contactMessages !== false && a.client.phone) {
+      sendBookingConfirmationWhatsApp({
         to: a.client.phone, clientName: a.client.name, serviceName, businessName: a.business.name,
         date: dateLabel, time: token ? `${time} (Token #${token.number})` : time,
-      });
-    } catch (e) {
-      logger.error("[WhatsApp] Failed:", { err: e });
+      }).catch((e) => logger.error("[WhatsApp] Failed:", { err: e }));
     }
+  };
+  return { owner, customer, afterCommit };
+}
+
+/**
+ * Customer confirmation (email through the outbox, WhatsApp direct) and owner push for a confirmed appointment.
+ * `payment` is set when it was paid online: the customer also gets a receipt for what was actually paid, which
+ * can be less than the price (a booking fee).
+ */
+export async function sendConfirmationFor(appointmentId: string, opts: ConfirmOpts = {}): Promise<void> {
+  let built;
+  try {
+    built = await buildConfirmation(prisma, appointmentId, opts);
+  } catch (e) {
+    logger.error("[Notifications] confirmation failed:", { err: e });
+    return;
   }
+  if (!built) return;
+  // Two separate sends, as before: the business alert never depends on the customer's messages.
+  try { await notify(...built.owner); } catch (e) { logger.error("[Notifications] business alert failed:", { err: e }); }
+  try { await notify(...built.customer); } catch (e) { logger.error("[Notifications] confirmation failed:", { err: e }); }
+  built.afterCommit();
 }
 
 /**
@@ -228,6 +239,11 @@ export type SettleResult = "confirmed" | "refunded" | "noop";
  * it when the hold already lapsed. Safe to call repeatedly (webhook retries, return page).
  */
 export async function settlePaidPayment(paymentId: string): Promise<SettleResult> {
+  // The confirmation email rows are written in THIS transaction, so "paid" and "email queued" commit together:
+  // a crash right after the commit can no longer leave a paid booking without its confirmation and receipt.
+  let built: Awaited<ReturnType<typeof buildConfirmation>> = null;
+  let queuedIds: string[] = [];
+  let buildFailed = false;
   const decision = await prisma.$transaction(async (tx) => {
     const payment = await tx.payment.findUnique({ where: { id: paymentId } });
     if (!payment?.appointmentId || payment.status !== "PAID") return { action: "noop" as const };
@@ -243,6 +259,14 @@ export async function settlePaidPayment(paymentId: string): Promise<SettleResult
           data: { businessId: payment.businessId, appointmentId: appt.id, paymentId, kind: "CHARGED", amountMinor: payment.platformFeeMinor },
         });
       }
+      try {
+        built = await buildConfirmation(tx, appt.id, { paid: true, payment: { id: paymentId, amountMinor: payment.amountMinor, ref: payment.paymentRef, platformFeeMinor: payment.platformFeeMinor } });
+      } catch (e) {
+        // Building the emails must never undo a confirmed payment: fall back to queueing after the commit.
+        buildFailed = true;
+        logger.error("[Notifications] confirmation could not be built in the settle transaction", { err: e, paymentId });
+      }
+      if (built) queuedIds = await enqueue(tx, [...built.owner, ...built.customer]);
     } else if (action === "refund" && appt.status === PENDING_PAYMENT) {
       await tx.appointment.update({ where: { id: appt.id }, data: { status: EXPIRED, followUpOfId: null } });
       await restoreUsedCredit(tx, { businessId: payment.businessId, clientId: appt.clientId, appointmentId: appt.id });
@@ -251,7 +275,13 @@ export async function settlePaidPayment(paymentId: string): Promise<SettleResult
   }, BOOKING_TX_OPTIONS);
 
   if (decision.action === "confirm") {
-    await sendConfirmationFor(decision.appointmentId, { paid: true, payment: { id: paymentId, amountMinor: decision.amountMinor, ref: decision.paymentRef, platformFeeMinor: decision.platformFeeMinor } });
+    if (built) {
+      // Rows are already committed: just try to send them now, and run the push / WhatsApp side effects.
+      await sendSoon(queuedIds).catch((e) => logger.error("[Notifications] send after settle failed", { err: e }));
+      (built as { afterCommit: () => void }).afterCommit();
+    } else if (buildFailed) {
+      await sendConfirmationFor(decision.appointmentId, { paid: true, payment: { id: paymentId, amountMinor: decision.amountMinor, ref: decision.paymentRef, platformFeeMinor: decision.platformFeeMinor } });
+    }
     return "confirmed";
   }
   if (decision.action === "refund") {
