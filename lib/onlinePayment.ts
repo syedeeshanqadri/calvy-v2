@@ -23,6 +23,7 @@ import { formatDateLabel, formatTimeLabel, safeTimeZone } from "@/lib/time";
 import { trackingUrl } from "@/lib/tracking";
 import { bookingForLabel } from "@/lib/patients";
 import { meetingUrlFor } from "@/lib/online";
+import { receiptTax } from "@/lib/receiptTax";
 
 const APP_URL = () => process.env.NEXT_PUBLIC_APP_URL ?? `http://localhost:${process.env.PORT ?? 3000}`;
 
@@ -119,7 +120,7 @@ export async function startCheckout(p: {
  */
 export async function sendConfirmationFor(
   appointmentId: string,
-  opts: { paid?: boolean; contactMessages?: boolean; payment?: { id: string; amountMinor: number; ref?: string | null } } = {},
+  opts: { paid?: boolean; contactMessages?: boolean; payment?: { id: string; amountMinor: number; ref?: string | null; platformFeeMinor?: number } } = {},
 ): Promise<void> {
   const a = await prisma.appointment.findUnique({
     where: { id: appointmentId },
@@ -161,6 +162,8 @@ export async function sendConfirmationFor(
       confirmation(notice, a.date),
       paid ? receipt(notice, {
         price: paidMajor, paymentRef: paid.ref ?? undefined, version: paid.id,
+        // Calvy's booking fee: company details and the GST split come from the environment.
+        tax: paid.platformFeeMinor && paid.platformFeeMinor > 0 ? receiptTax(paid.platformFeeMinor, a.business.currency ?? "INR") : undefined,
         // A booking fee is not the price of the service: say so on the receipt.
         serviceName: paidMajor !== undefined && Math.abs(paidMajor - a.price) > 0.005 ? `${notice.payload.serviceName} (online payment)` : undefined,
       }) : null,
@@ -240,11 +243,11 @@ export async function settlePaidPayment(paymentId: string): Promise<SettleResult
     } else if (action === "refund" && appt.status === PENDING_PAYMENT) {
       await tx.appointment.update({ where: { id: appt.id }, data: { status: EXPIRED } });
     }
-    return { action, appointmentId: appt.id, amountMinor: payment.amountMinor, paymentRef: payment.paymentRef };
+    return { action, appointmentId: appt.id, amountMinor: payment.amountMinor, paymentRef: payment.paymentRef, platformFeeMinor: payment.platformFeeMinor };
   }, BOOKING_TX_OPTIONS);
 
   if (decision.action === "confirm") {
-    await sendConfirmationFor(decision.appointmentId, { paid: true, payment: { id: paymentId, amountMinor: decision.amountMinor, ref: decision.paymentRef } });
+    await sendConfirmationFor(decision.appointmentId, { paid: true, payment: { id: paymentId, amountMinor: decision.amountMinor, ref: decision.paymentRef, platformFeeMinor: decision.platformFeeMinor } });
     return "confirmed";
   }
   if (decision.action === "refund") {

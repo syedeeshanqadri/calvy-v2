@@ -123,7 +123,7 @@ export function meetingLink(n: Notice, url: string, updated: boolean): Notificat
  * booking.paid: the receipt. `price` is what was actually paid (an online booking fee can be less than the
  * service price). `version` separates payments of one booking; manual mark-paid has none, so it is once.
  */
-export function receipt(n: Notice, paid: { price?: number; paymentRef?: string; version?: string; serviceName?: string } = {}): NotificationInput | null {
+export function receipt(n: Notice, paid: { price?: number; paymentRef?: string; version?: string; serviceName?: string; tax?: InvoicePayload["tax"] } = {}): NotificationInput | null {
   if (!n.to) return null;
   const payload: InvoicePayload = {
     ...n.payload,
@@ -132,6 +132,7 @@ export function receipt(n: Notice, paid: { price?: number; paymentRef?: string; 
     invoiceNumber: `INV-${n.appointmentId.slice(-8).toUpperCase()}`,
     clientEmail: n.to,
     paymentRef: paid.paymentRef,
+    tax: paid.tax,
   };
   return { ...base(n), event: "booking.paid", template: "invoice", version: paid.version, payload };
 }

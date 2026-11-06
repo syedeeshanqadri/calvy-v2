@@ -14,6 +14,7 @@ import { PackSettings } from "@/components/packs/PackSettings";
 import type { PackId } from "@/lib/packs/types";
 import { BookingModeSettings, type TokenSessionRow } from "@/components/tokens/BookingModeSettings";
 import { LinkGoogle } from "@/components/settings/LinkGoogle";
+import { PaymentsSettings, type PaymentsSettingsProps } from "@/components/settings/PaymentsSettings";
 import { t as term } from "@/lib/terms";
 import { DEFAULT_MAX_PEOPLE_PER_BOOKER, MAX_PEOPLE_PER_BOOKER_LIMIT } from "@/lib/patients";
 
@@ -69,9 +70,9 @@ interface BusinessData {
   bookingMode?: "SLOT" | "TOKEN"; termsOverride?: unknown;
 }
 
-type Tab = "profile" | "availability" | "booking" | "payout";
+type Tab = "profile" | "availability" | "booking" | "payments" | "payout";
 
-export function SettingsClient({ business, customSlotInterval = false, stripePayments = false, tokenSessions = [], staff = [] }: { business: BusinessData; customSlotInterval?: boolean; stripePayments?: boolean; tokenSessions?: TokenSessionRow[]; staff?: { id: string; name: string }[] }) {
+export function SettingsClient({ business, customSlotInterval = false, stripePayments = false, tokenSessions = [], staff = [], payments }: { business: BusinessData; customSlotInterval?: boolean; stripePayments?: boolean; tokenSessions?: TokenSessionRow[]; staff?: { id: string; name: string }[]; payments?: PaymentsSettingsProps }) {
   const router = useRouter();
   const { payments: paymentsEnabled } = useFlags();
   const [tab, setTab] = useState<Tab>("profile");
@@ -199,6 +200,7 @@ export function SettingsClient({ business, customSlotInterval = false, stripePay
     { key: "profile", label: "Business Profile", icon: Globe },
     { key: "availability", label: "Availability", icon: Phone },
     { key: "booking", label: "Booking", icon: Check },
+    ...(payments ? [{ key: "payments" as Tab, label: "Online payments", icon: Wallet }] : []),
     ...(paymentsEnabled ? [{ key: "payout" as Tab, label: "Payout Settings", icon: Wallet }] : []),
   ];
 
@@ -340,6 +342,8 @@ export function SettingsClient({ business, customSlotInterval = false, stripePay
             </Card>
           </div>
         )}
+
+        {tab === "payments" && payments && <PaymentsSettings {...payments} />}
 
         {/* Availability tab */}
         {tab === "availability" && (

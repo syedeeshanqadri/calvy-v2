@@ -27,14 +27,20 @@ describe("FULL_ONLINE stays unreachable until chunk 12", () => {
     expect(cfg?.mode).toBe("BOOKING_FEE_ONLY");
     expect(chargeFor(cfg, 500)).toEqual({ chargeMinor: 1000, platformFeeMinor: 1000, businessShareMinor: 0 });
   }, 30_000); // the first import of the payment module is slow on a busy machine
-  it("no route or screen can set onlinePayMode", () => {
+  it("the settings route and its schema refuse FULL_ONLINE while it is parked", async () => {
+    const { paymentSettingsSchema } = await import("@/lib/paymentSettings");
+    expect(paymentSettingsSchema.safeParse({ onlinePayMode: "FULL_ONLINE" }).success).toBe(false);
+    expect(paymentSettingsSchema.safeParse({ onlinePayMode: "BOOKING_FEE_ONLY", feePayer: "BUSINESS" }).success).toBe(true);
+  });
+  it("no other route or screen can set onlinePayMode", () => {
     const hits: string[] = [];
     const walk = (dir: string) => {
       for (const name of readdirSync(dir)) {
         const p = join(dir, name);
         if (statSync(p).isDirectory()) { if (name !== "node_modules") walk(p); continue; }
         if (!/\.(ts|tsx)$/.test(name)) continue;
-        if (/onlinePayMode\s*:/.test(readFileSync(p, "utf8")) && !p.endsWith("onlinePayment.ts")) hits.push(p);
+        // The owner-only settings route is the one place that may save it, and it refuses FULL_ONLINE while parked (tested below).
+        if (/onlinePayMode\s*:/.test(readFileSync(p, "utf8")) && !p.endsWith("onlinePayment.ts") && !p.endsWith("settings/payments/route.ts") && !p.endsWith("dashboard/settings/page.tsx")) hits.push(p); // the page only READS it for the form
       }
     };
     walk("app");

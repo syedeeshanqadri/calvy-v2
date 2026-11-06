@@ -5,6 +5,9 @@ import { redirect } from "next/navigation";
 import { SettingsClient } from "./SettingsClient";
 import { getBusinessFeatures } from "@/lib/getFeatures";
 import { serializeSession } from "@/lib/tokenSessionsDb";
+import { getEffectiveLimits } from "@/lib/getFeatures";
+import { isFeatureEnabled } from "@/lib/flags";
+import { FULL_ONLINE_ENABLED, countryFromCurrency } from "@/lib/fees";
 
 export const dynamic = 'force-dynamic';
 
@@ -26,6 +29,7 @@ export default async function SettingsPage() {
         panNumber: true, gstNumber: true,
         addressStreet: true, addressCity: true, addressState: true, addressPostalCode: true,
         routeStatus: true, razorpayConnectAccountId: true,
+        plan: true, planStatus: true, trialEndsAt: true, onlinePayMode: true, feePayer: true,
       },
     }),
     getBusinessFeatures(session.user.businessId),
@@ -34,6 +38,7 @@ export default async function SettingsPage() {
   ]);
 
   if (!business) redirect("/login");
+  const limits = await getEffectiveLimits(business);
 
   return (
     <SettingsClient
@@ -68,6 +73,11 @@ export default async function SettingsPage() {
       }}
       tokenSessions={tokenRows.map(serializeSession)}
       staff={staff}
+      payments={{
+        mode: business.onlinePayMode, payer: business.feePayer, feeMinorIN: limits.platformFeeMinorIN,
+        currency: business.currency ?? "INR", isIndia: countryFromCurrency(business.currency) === "IN",
+        live: isFeatureEnabled("onlinePayments"), fullOnlineAvailable: FULL_ONLINE_ENABLED,
+      }}
       customSlotInterval={features.customSlotInterval}
       stripePayments={features.stripePayments}
     />
