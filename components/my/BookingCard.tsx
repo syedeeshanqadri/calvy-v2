@@ -78,7 +78,7 @@ export function BookingCard({ b, highlight = false }: { b: BookingView; highligh
             )}
             {b.reviewUrl && <a href={b.reviewUrl} target="_blank" rel="noopener noreferrer" className={primary}><Star size={15} aria-hidden />Review us on Google</a>}
             {b.followUp && <a href={b.followUp.href} className={primary}><Repeat size={15} aria-hidden />Book free follow-up</a>}
-            {!live && <Link href={b.bookAgainHref} className={ghost}><Repeat size={15} aria-hidden />Book again</Link>}
+            {!live && <a href={b.bookAgainHref} className={ghost}><Repeat size={15} aria-hidden />Book again</a>}
           </div>
           {live && canManage && b.moveBlocked && <p className="mt-3 text-xs text-[#6b6b80]">{b.moveBlocked}</p>}
           {live && !b.manage.ok && (

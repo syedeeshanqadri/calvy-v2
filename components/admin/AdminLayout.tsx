@@ -15,7 +15,7 @@ import { Logo } from "@/components/ui/Logo";
 
 const NAV: { label: string; href: string; icon: typeof LayoutDashboard; exact?: boolean; flag?: FeatureFlag }[] = [
   { label: "Overview", href: "/admin", icon: LayoutDashboard, exact: true },
-  { label: "Tenants", href: "/admin/tenants", icon: Building2 },
+  { label: "Businesses", href: "/admin/businesses", icon: Building2 },
   { label: "Plans & Pricing", href: "/admin/plans", icon: CreditCard },
   { label: "Revenue", href: "/admin/revenue", icon: TrendingUp },
   { label: "Withdrawals", href: "/admin/withdrawals", icon: ArrowDownToLine, flag: "wallet" },
@@ -24,16 +24,18 @@ const NAV: { label: string; href: string; icon: typeof LayoutDashboard; exact?: 
   { label: "Blog", href: "/admin/blog", icon: Newspaper },
   { label: "CRM (Leads)", href: "/crm", icon: Contact },
   { label: "Support", href: "/admin/support", icon: LifeBuoy },
+  { label: "Audit log", href: "/admin/audit", icon: ScrollText },
+  { label: "Settings", href: "/admin/settings", icon: ShieldCheck },
 ];
 
-export function AdminLayout({ children }: { children: React.ReactNode }) {
+export function AdminLayout({ children, adminEmail }: { children: React.ReactNode; adminEmail?: string }) {
   const pathname = usePathname();
   const flags = useFlags();
   const { data: session } = useSession();
   const [showNotifications, setShowNotifications] = useState(false);
   const [toast, setToast] = useState("");
   const userName = session?.user?.name ?? "Admin";
-  const userEmail = session?.user?.email ?? "";
+  const userEmail = adminEmail ?? session?.user?.email ?? "";
   const initials = userName.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase();
 
   return (
@@ -109,7 +111,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
             <Bell size={18} />
           </button>
           <button
-            onClick={() => signOut({ callbackUrl: "/login" })}
+            onClick={async () => { await fetch("/api/admin/logout", { method: "POST" }).catch(() => {}); await signOut({ callbackUrl: "/login" }); }}
             className="p-2 rounded-xl text-[#6b6b80] hover:bg-[#f8f7f4] hover:text-red-500 transition-colors"
             title="Sign out"
           >

@@ -66,7 +66,7 @@ export default async function MyOverviewPage() {
               <div className="bg-white rounded-2xl border border-dashed border-[#d8d5cc] p-8 text-center">
                 <p className="font-semibold">Nothing coming up</p>
                 <p className="text-sm text-[#6b6b80] mt-1">Book your next visit with any business you have used.</p>
-                {data.past[0] && <Link href={data.past[0].bookAgainHref} className="inline-flex mt-4 min-h-10 items-center rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-sm font-semibold px-5">Book at {data.past[0].businessName}</Link>}
+                {data.past[0] && <a href={data.past[0].bookAgainHref} className="inline-flex mt-4 min-h-10 items-center rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-sm font-semibold px-5">Book at {data.past[0].businessName}</a>}
               </div>
             )}
           </section>

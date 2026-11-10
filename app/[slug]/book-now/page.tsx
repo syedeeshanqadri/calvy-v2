@@ -1,3 +1,4 @@
+import { Unavailable } from "@/components/site/Unavailable";
 import { notFound } from "next/navigation";
 import { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
@@ -39,6 +40,7 @@ export default async function BookNowPage(props: { params: Promise<{ slug: strin
   const host = (await headers()).get("host");
   const business = await getBusiness(params.slug);
   if (!business) notFound();
+  if (business.suspendedAt) return <Unavailable name={business.name} />;
 
   const data = {
     slug: business.slug,

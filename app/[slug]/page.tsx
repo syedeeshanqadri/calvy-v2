@@ -1,4 +1,5 @@
 import { jsonLdString } from "@/lib/jsonLd";
+import { Unavailable } from "@/components/site/Unavailable";
 import { notFound } from "next/navigation";
 import { Metadata } from "next";
 import Link from "next/link";
@@ -85,6 +86,7 @@ export default async function TenantWebsitePage(props: { params: Promise<{ slug:
   const params = await props.params;
   const business = await getBusiness(params.slug);
   if (!business) notFound();
+  if (business.suspendedAt) return <Unavailable name={business.name} />;
 
   const cfg: WebsiteConfig =
     parseWebsiteConfig(business.websiteJson) ??

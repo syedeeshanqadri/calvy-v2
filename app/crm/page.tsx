@@ -1,7 +1,4 @@
-import { getServerSession } from "next-auth";
-import { isAdminUser } from "@/lib/adminAuth";
-import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth";
+import { requireAdminPage } from "@/lib/admin/auth";
 import { prisma } from "@/lib/prisma";
 import { CrmBoard } from "./CrmBoard";
 
@@ -9,12 +6,7 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "CRM · Calvy", robots: { index: false } };
 
 export default async function CrmPage() {
-  const session = await getServerSession(authOptions);
-  const isAdmin =
-    isAdminUser(session?.user);
-
-  if (!session?.user) redirect("/login");
-  if (!isAdmin) redirect("/dashboard");
+  await requireAdminPage();
 
   const leads = await prisma.lead.findMany({ orderBy: { createdAt: "desc" } });
 

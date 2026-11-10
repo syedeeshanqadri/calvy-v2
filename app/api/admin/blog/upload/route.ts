@@ -1,17 +1,16 @@
+import { requireAdminApi } from "@/lib/admin/auth";
 import { safeRoute } from "@/lib/api";
 import { put } from "@vercel/blob";
 import { NextRequest, NextResponse } from "next/server";
 import { checkImageUpload, MAX_UPLOAD_BYTES } from "@/lib/validation/upload";
-import { isAdminSession } from "@/lib/adminAuth";
 import { logger, getRequestId } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
 
 // Admin-only cover-image upload. Saves to Vercel Blob under the `blog/` folder.
 async function POST_handler(req: NextRequest) {
-  if (!(await isAdminSession())) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const gate = await requireAdminApi();
+  if (!gate.ok) return gate.res;
   if (!process.env.BLOB_READ_WRITE_TOKEN) {
     return NextResponse.json({ error: "Image upload is not available right now." }, { status: 503 });
   }

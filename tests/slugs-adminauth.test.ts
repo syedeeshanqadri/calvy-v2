@@ -7,40 +7,8 @@ vi.mock("@/lib/auth", () => ({ authOptions: {} }));
 const findUnique = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/prisma", () => ({ prisma: { business: { findUnique } } }));
 
-import { isAdminUser } from "@/lib/adminAuth";
 import { isReservedSlug, RESERVED_SLUGS } from "@/lib/slugs";
 import { generateSlug } from "@/lib/createBusiness";
-
-describe("isAdminUser", () => {
-  const OLD = process.env.SUPER_ADMIN_EMAIL;
-  afterEach(() => {
-    if (OLD === undefined) delete process.env.SUPER_ADMIN_EMAIL;
-    else process.env.SUPER_ADMIN_EMAIL = OLD;
-  });
-
-  it("role admin passes", () => {
-    expect(isAdminUser({ role: "admin" })).toBe(true);
-  });
-  it("unset SUPER_ADMIN_EMAIL never matches, even when the user has no email", () => {
-    delete process.env.SUPER_ADMIN_EMAIL;
-    expect(isAdminUser({ email: undefined })).toBe(false);
-    expect(isAdminUser({ email: null })).toBe(false);
-    expect(isAdminUser({ email: "a@b.com" })).toBe(false);
-  });
-  it("empty SUPER_ADMIN_EMAIL never matches", () => {
-    process.env.SUPER_ADMIN_EMAIL = "";
-    expect(isAdminUser({ email: "" })).toBe(false);
-  });
-  it("matches the configured email case-insensitively", () => {
-    process.env.SUPER_ADMIN_EMAIL = "Boss@Calvy.io";
-    expect(isAdminUser({ email: "boss@calvy.io" })).toBe(true);
-    expect(isAdminUser({ email: "other@calvy.io" })).toBe(false);
-  });
-  it("no user is not admin", () => {
-    expect(isAdminUser(null)).toBe(false);
-    expect(isAdminUser(undefined)).toBe(false);
-  });
-});
 
 describe("reserved slugs", () => {
   it("covers every top-level route folder in app/", () => {

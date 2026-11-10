@@ -1,4 +1,5 @@
 import { safeRoute } from "@/lib/api";
+import { suspended, suspendedResponse } from "@/lib/suspension";
 import { NextRequest, NextResponse } from "next/server";
 import { accessSession, appointmentWhere, scopeOf } from "@/lib/access";
 import { ForbiddenError } from "@/lib/permissions";
@@ -88,9 +89,10 @@ async function POST_handler(request: NextRequest) {
 
   const business = await prisma.business.findUnique({
     where: { id: businessId },
-    select: { name: true, plan: true, planStatus: true, trialEndsAt: true, currency: true, timezone: true, packId: true, termsOverride: true },
+    select: { name: true, plan: true, planStatus: true, trialEndsAt: true, currency: true, timezone: true, packId: true, termsOverride: true, suspendedAt: true },
   });
   if (!business) return NextResponse.json({ error: "Business not found" }, { status: 404 });
+  if (suspended(business)) return suspendedResponse(business.name);
 
   const allServices = await prisma.service.findMany({
     where: { id: { in: serviceIds }, businessId },

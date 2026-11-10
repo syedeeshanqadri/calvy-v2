@@ -1,4 +1,5 @@
 import { safeRoute } from "@/lib/api";
+import { suspended, suspendedResponse } from "@/lib/suspension";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { loadTokenDay } from "@/lib/tokenBooking";
@@ -22,9 +23,10 @@ async function GET_handler(request: NextRequest) {
 
   const business = await prisma.business.findUnique({
     where: { slug },
-    select: { id: true, timezone: true, maxAdvanceDays: true, bookingMode: true },
+    select: { id: true, name: true, timezone: true, maxAdvanceDays: true, bookingMode: true, suspendedAt: true },
   });
   if (!business) return NextResponse.json({ error: "Business not found" }, { status: 404 });
+  if (suspended(business)) return suspendedResponse(business.name);
   if (business.bookingMode !== "TOKEN") return NextResponse.json({ error: "This business books by time slot." }, { status: 400 });
 
   const result = await loadTokenDay({ id: business.id, timezone: safeTimeZone(business.timezone), maxAdvanceDays: business.maxAdvanceDays }, date, serviceIds);

@@ -1,3 +1,4 @@
+import { Unavailable } from "@/components/site/Unavailable";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getPayConfig } from "@/lib/onlinePayment";
@@ -21,6 +22,7 @@ export default async function BusinessBookingPage(props: { params: Promise<{ slu
   });
 
   if (!business) notFound();
+  if (business.suspendedAt) return <Unavailable name={business.name} />;
 
   const data = {
     slug: business.slug,

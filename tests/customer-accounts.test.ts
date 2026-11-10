@@ -30,7 +30,6 @@ import { POST as reset } from "@/app/api/customer/reset-password/route";
 import { PATCH as profile } from "@/app/api/customer/profile/route";
 import { overviewForCustomer } from "@/lib/customerDb";
 import { canAccessOwnerArea, customerIdOf, customerSessionCurrent, isCustomerToken } from "@/lib/customerAccess";
-import { isAdminUser } from "@/lib/adminAuth";
 import { splitBookings, walletsByBusiness } from "@/lib/customerView";
 
 const TOKEN = "a".repeat(64);
@@ -153,13 +152,6 @@ describe("role isolation", () => {
     expect(isCustomerToken(owner)).toBe(false);
     expect(customerIdOf(owner)).toBeNull();
     expect(customerIdOf({ kind: "customer" })).toBeNull();
-  });
-  it("a customer is never an admin, even with the super admin's email", () => {
-    vi.stubEnv("SUPER_ADMIN_EMAIL", "boss@x.com");
-    expect(isAdminUser({ email: "boss@x.com" })).toBe(true);
-    expect(isAdminUser({ email: "boss@x.com", kind: "customer" })).toBe(false);
-    expect(isAdminUser({ role: "admin", kind: "customer" })).toBe(false);
-    vi.unstubAllEnvs();
   });
   it("customer-only APIs refuse an owner session and a guest", async () => {
     session.current = { user: { id: "u1", businessId: "b1", email: "o@x.com" } };

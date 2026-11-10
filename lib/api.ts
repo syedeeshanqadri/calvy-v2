@@ -2,6 +2,7 @@
 // with a readable message and the right status, never an empty 500.
 import { NextResponse } from "next/server";
 import { logger } from "@/lib/logger";
+import type { WriteTrace } from "@/lib/admin/guard";
 import { ForbiddenError } from "@/lib/permissions";
 
 interface ErrorLike { code?: unknown; name?: unknown; digest?: unknown }
@@ -38,7 +39,19 @@ export function errorResponse(err: unknown): NextResponse {
 export function safeRoute<A extends unknown[], R extends Response>(handler: (...args: A) => Promise<R>) {
   return async (...args: A): Promise<R | NextResponse> => {
     try {
-      return await handler(...args);
+      // Calvy admin rules (read-only view-as, act-as and admin audit): see lib/admin/guard.ts. Free for normal traffic.
+      const req = args[0] instanceof Request ? args[0] : null;
+      let trace: WriteTrace | null = null;
+      // Only a request that carries the admin cookie loads any of it (normal traffic pays nothing).
+      const adminRequest = !!req && !["GET", "HEAD", "OPTIONS"].includes(req.method) && (req.headers.get("cookie") ?? "").includes("calvy_admin=");
+      if (adminRequest) {
+        const gate = await (await import("@/lib/admin/guard")).adminWriteGate(req!);
+        if ("block" in gate) return gate.block;
+        trace = gate.trace;
+      }
+      const res = await handler(...args);
+      if (trace) await (await import("@/lib/admin/guard")).recordAdminWrite(trace, res.status);
+      return res;
     } catch (err) {
       if (err instanceof ForbiddenError) return NextResponse.json({ error: err.message, code: "FORBIDDEN" }, { status: 403 });
       const digest = (err as ErrorLike)?.digest;

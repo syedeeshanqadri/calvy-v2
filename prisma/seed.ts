@@ -37,11 +37,12 @@ async function seedTestAccounts() {
   }
   const password = await bcrypt.hash(TEST_PASSWORD, 12);
 
-  // Super admin: the app treats role === "admin" as admin (lib/adminAuth.ts), no env var needed.
+  // Super admin (dev/test only): a database flag, like in production where only `npm run admin:grant` sets it. The admin area
+  // still needs 2FA: enroll at /admin on first use.
   await prisma.user.upsert({
     where: { email: "admin@calvy.test" },
-    update: { role: "admin", emailVerified: new Date() },
-    create: { name: "Test Admin", email: "admin@calvy.test", password, role: "admin", emailVerified: new Date() },
+    update: { role: "admin", emailVerified: new Date(), isSuperAdmin: true },
+    create: { name: "Test Admin", email: "admin@calvy.test", password, role: "admin", emailVerified: new Date(), isSuperAdmin: true },
   });
 
   // Verified owner with NO business: lands on /onboarding.

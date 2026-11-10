@@ -1,8 +1,6 @@
 import { safeRoute } from "@/lib/api";
 import { NextRequest, NextResponse } from "next/server";
-import { isAdminUser } from "@/lib/adminAuth";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { requireAdminApi } from "@/lib/admin/auth";
 import { prisma } from "@/lib/prisma";
 import { sendPushToAll, sendPushToBusinessIds } from "@/lib/push";
 
@@ -13,11 +11,8 @@ import { logger } from "@/lib/logger";
 export const dynamic = "force-dynamic";
 
 async function POST_handler(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  const isAdmin = isAdminUser(session?.user);
-  if (!isAdmin) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const gate = await requireAdminApi();
+  if (!gate.ok) return gate.res;
 
   const parsed = await parseBody(req, adminNotificationSchema);
   if (!parsed.ok) return parsed.res;

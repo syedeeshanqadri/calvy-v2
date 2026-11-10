@@ -1,8 +1,6 @@
+import { requireAdminApi } from "@/lib/admin/auth";
 import { safeRoute } from "@/lib/api";
 import { NextRequest, NextResponse } from "next/server";
-import { isAdminUser } from "@/lib/adminAuth";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 import { parseBody } from "@/lib/validation/common";
@@ -10,14 +8,11 @@ import { planPatchSchema } from "@/lib/validation/admin";
 
 export const dynamic = 'force-dynamic';
 
-function isAdmin(session: Awaited<ReturnType<typeof getServerSession>> & { user?: { role?: string; email?: string | null } } | null) {
-  return isAdminUser(session?.user);
-}
 
 async function PATCH_handler(req: NextRequest, props: { params: Promise<{ planId: string }> }) {
   const params = await props.params;
-  const session = await getServerSession(authOptions) as Awaited<ReturnType<typeof getServerSession>> & { user?: { role?: string; email?: string | null } } | null;
-  if (!isAdmin(session)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const gate = await requireAdminApi();
+  if (!gate.ok) return gate.res;
 
   const parsed = await parseBody(req, planPatchSchema);
   if (!parsed.ok) return parsed.res;

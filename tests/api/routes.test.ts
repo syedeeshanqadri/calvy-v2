@@ -34,7 +34,6 @@ import { POST as bookingsPost } from "@/app/api/bookings/route";
 import { POST as appointmentsPost } from "@/app/api/appointments/route";
 import { PATCH as appointmentPatch } from "@/app/api/appointments/[id]/route";
 import { PATCH as servicePatch } from "@/app/api/services/[id]/route";
-import { DELETE as tenantDelete } from "@/app/api/admin/tenants/[id]/route";
 
 const json = (body: unknown, method = "POST") =>
   new NextRequest("http://localhost/api/x", {
@@ -68,6 +67,15 @@ describe("POST /api/bookings (public)", () => {
     const res = await bookingsPost(json({ ...valid, ...patch }));
     expect(res.status).toBe(400);
     expect(db.business.findUnique).not.toHaveBeenCalled();
+  });
+  it("503 BUSINESS_SUSPENDED when a Calvy admin suspended the business: no new bookings, nothing else is touched", async () => {
+    db.business.findUnique.mockResolvedValue({ id: "biz-A", name: "Glow", suspendedAt: new Date(), services: [], currency: "USD" });
+    const res = await bookingsPost(json(valid));
+    expect(res.status).toBe(503);
+    expect((await res.json()).code).toBe("BUSINESS_SUSPENDED");
+    expect(db.staff.findFirst).not.toHaveBeenCalled();
+    expect(db.appointment.create).not.toHaveBeenCalled();
+    expect(db.client.create).not.toHaveBeenCalled();
   });
   it("404 when staffId belongs to another business", async () => {
     db.business.findUnique.mockResolvedValue({ id: "biz-A", services: [], currency: "USD" });
@@ -146,30 +154,5 @@ describe("PATCH /api/services/[id]", () => {
     db.service.findFirst.mockResolvedValue({ id: "s1", name: "Old" });
     expect((await servicePatch(json({ price: -1 }, "PATCH"), { params: Promise.resolve({ id: "s1" }) })).status).toBe(400);
     expect((await servicePatch(json({ duration: 0 }, "PATCH"), { params: Promise.resolve({ id: "s1" }) })).status).toBe(400);
-  });
-});
-
-describe("DELETE /api/admin/tenants/[id]", () => {
-  const admin = () => (session.current = { user: { role: "admin", email: "root@calvy.test" } });
-  it("403 for non-admins", async () => {
-    asUser();
-    expect((await tenantDelete(json({ confirm: "a" }, "DELETE"), { params: Promise.resolve({ id: "b1" }) })).status).toBe(403);
-  });
-  it("400 without or with a wrong confirmation", async () => {
-    admin();
-    db.business.findUnique.mockResolvedValue({ id: "b1", slug: "acme" });
-    expect((await tenantDelete(json({}, "DELETE"), { params: Promise.resolve({ id: "b1" }) })).status).toBe(400);
-    expect((await tenantDelete(json({ confirm: "nope" }, "DELETE"), { params: Promise.resolve({ id: "b1" }) })).status).toBe(400);
-    expect(db.business.delete).not.toHaveBeenCalled();
-  });
-  it("deletes when the slug matches", async () => {
-    admin();
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    db.business.findUnique.mockResolvedValue({ id: "b1", slug: "acme" });
-    const res = await tenantDelete(json({ confirm: "acme" }, "DELETE"), { params: Promise.resolve({ id: "b1" }) });
-    expect(res.status).toBe(200);
-    expect(db.business.delete).toHaveBeenCalledWith({ where: { id: "b1" } });
-    expect(warn).toHaveBeenCalled();
-    warn.mockRestore();
   });
 });

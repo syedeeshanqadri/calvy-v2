@@ -2,6 +2,8 @@ import { safeRoute } from "@/lib/api";
 import { isCronAuthorized } from "@/lib/cronAuth";
 import { NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/logger";
+import { expirePlanOverrides } from "@/lib/planOverride";
+import { prisma } from "@/lib/prisma";
 import { releaseExpiredHolds } from "@/lib/onlinePayment";
 import { runOutbox } from "@/lib/notifications/process";
 import { enqueueDueReminders } from "@/lib/notifications/reminders";
@@ -24,9 +26,10 @@ async function GET_handler(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const expiredHolds = await step("hold sweep", () => releaseExpiredHolds());
+  const expiredOverrides = await step("plan overrides", () => expirePlanOverrides(prisma));
   const remindersQueued = await step("reminder sweep", () => enqueueDueReminders());
   const summariesQueued = await step("daily summaries", () => enqueueDailySummaries());
-  return NextResponse.json({ ok: true, expiredHolds, remindersQueued, summariesQueued, ...(await runOutbox()) });
+  return NextResponse.json({ ok: true, expiredHolds, expiredOverrides, remindersQueued, summariesQueued, ...(await runOutbox()) });
 }
 
 export const GET = safeRoute(GET_handler);
