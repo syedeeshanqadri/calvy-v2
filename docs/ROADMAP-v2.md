@@ -6,22 +6,17 @@ Rule: keep ALL features open during the build (PLAN_ENFORCEMENT off). Plan restr
 
 | # | Work | Notes |
 |---|---|---|
-| 1 | Google sign-up + onboarding wizard | Shipped (PR #65): passwordless sign-up (name, email, phone required in India, business type), emailed link verifies and sets the password, 7-step resumable wizard, Google sign-in without silent linking |
-| 2 | Dependency maintenance |  |
-| 3 | Customer accounts | Shipped on top of #42: Google sign-in for customers (verified email, no silent linking, Link Google on Profile), Book again with the service chosen, delete account. Using credit at booking and the follow-up booking belong to items 4 and 5 |
-| 4 | Follow-ups | Built (owner decisions Nov 4): business sets the window in Settings → Booking (days, 0 = off, default off). After a COMPLETED appointment the customer signs in to My bookings and books one free follow-up with the same doctor, same service, same person, within the window. Different doctor, later date or another person = a normal paid booking. One follow-up per appointment (DB-unique). A cancelled follow-up is not restored |
-| 5 | Clinic records + credit at booking | Built: clinic businesses get plain Consultation (Done/Pending/Missed/Cancelled) and Fee (Paid online/Paid at clinic/Not paid/Returned) columns with one-click controls, built on the existing status and payment status. A fee returned by hand removes the matching wallet credit once. Credit at booking: My wallet → "Book with this credit" (signed ticket, verified customer only); credit reduces the online charge (platform fee and share shrink proportionally; confirm the fee policy at the Cashfree split chunk). Runs only while online payments are on |
-| 6 | Payment settings | Built: Settings → Online payments (owner only; booking-fee-only live, full online "coming soon" until payouts), worked examples, GST receipt for the Rs 10 (from CALVY_* env vars), admin go-live check `/api/admin/payments-health`. Sandbox end-to-end verified with Cashfree test keys. Security review done: no Critical/High; credit-return bug fixed. Sandbox only until Pre-launch (`docs/payments-sandbox-test.md`). Fixed after review: Referrer-Policy on booking/payment pages, confirmation email committed in the same transaction as PAID. Open Low items: status endpoint keyed by order id, webhook timestamp freshness |
-| 7 | Cashfree Easy Split | Moved out of Parked (was chunk 12) |
-| 8 | Plan subscriptions on Cashfree (remove Razorpay) | Moved out of Parked (was chunk 13) |
-| 9 | WhatsApp integration settings | Each business uses its OWN credentials: Meta Cloud API or third-party/OpenWA. Stored encrypted, owner-only, mid+ plans |
-| 10 | WhatsApp alerts | Every email alert also on WhatsApp, transactional only, email fallback |
-| 11 | Admin panel (super user) | All businesses, view-as (audited), manual create/edit/suspend, plans, operations, payments/credit overview |
-| 12 | Business mobile app (businesses only) | PWA first (installable, push alerts, full dashboard), then Play Store via TWA wrapper; Flutter only if PWA proves insufficient |
-| 13 | Pre-launch | **Includes the production payments go-live checklist (docs/PLAN.md, Pre-launch security checklist)**; payments are verified in the Cashfree sandbox only until then. Security pass, production env (Asia Neon, R2, Upstash, Sentry, fresh secrets, domain), honest landing page, plan restrictions ON |
+| 1 | Admin panel (super user) | Super admin = DB flag set only by script (never UI/API); TOTP 2FA, re-auth for sensitive actions, 30 min idle; businesses list/detail, view-as (read-only by default, reason, 30 min), actions with reason + audit log, suspend, plan override, verified-customer booking limits. Plan in review |
+| 2 | Business mobile app (businesses only) | PWA first (installable, push alerts, full dashboard), then Play Store via TWA wrapper; Flutter only if PWA proves insufficient |
+| 3 | Cashfree Easy Split | Moved out of Parked (was chunk 12). Unlocks "Full online payment" in Settings → Online payments |
+| 4 | Plan subscriptions on Cashfree (remove Razorpay) | Moved out of Parked (was chunk 13) |
+| 5 | WhatsApp integration settings | Each business uses its OWN credentials: Meta Cloud API or third-party/OpenWA. Stored encrypted, owner-only, mid+ plans |
+| 6 | WhatsApp alerts | Every email alert also on WhatsApp, transactional only, email fallback |
+| 7 | Pre-launch | **Includes the production payments go-live checklist (docs/PLAN.md, Pre-launch security checklist)** and the Low payment items: public payment-status route keyed by order id, webhook timestamp freshness, **GST receipt on the customer's booking page** (email-only today). Security pass, production env (Asia Neon, R2, Upstash, Sentry, fresh secrets, domain), honest landing page, plan restrictions ON |
 
 ## Done
-- Housekeeping; Playwright fixes + smoke tests in CI; Notifications system (outbox, templates per pack, preferences); Website editor sections; Reviews (Google review link + Place ID helper, post-visit email); Identity & roles (Owner/member team roles, PR #64).
+- Housekeeping; Playwright fixes + smoke tests in CI; Notifications system; Website editor sections; Reviews; Team roles (#64).
+- Google sign-up + onboarding wizard (#65); dependency maintenance (#67); customer accounts (#68); follow-ups (#69); clinic records + credit at booking (#70); payment settings + sandbox-ready Cashfree payments (#71).
 
 ## Parked (build later, owner's decision)
 - Pay-links. FULL_ONLINE unreachable.
