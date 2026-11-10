@@ -62,6 +62,20 @@ export default async function middleware(req: NextRequest) {
       return NextResponse.json({ error: "Not found" }, { status: 404, headers: { "x-request-id": requestId } });
     }
 
+    // Calvy admin view-as: a read-only view-as refuses EVERY write here, in front of every route (also routes that are
+    // not wrapped in safeRoute), and acting never reaches owner-only areas. Only requests carrying the admin cookie
+    // cost anything; the rule itself lives in lib/admin/guard.ts (viewAsBlock).
+    if (!["GET", "HEAD", "OPTIONS"].includes(req.method) && req.cookies.get("calvy_admin")?.value) {
+      const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+      if (token?.sa && typeof token.uid === "string") {
+        const { viewAsForToken } = await import("@/lib/admin/viewAs");
+        const { viewAsBlock } = await import("@/lib/admin/guard");
+        const v = await viewAsForToken(token.uid, req.cookies.get("calvy_admin")?.value).catch(() => null);
+        const blocked = viewAsBlock(v?.mode, req.method, pathname);
+        if (blocked) return blocked;
+      }
+    }
+
     // API routes skip auth middleware and subdomain rewrites.
     const headers = new Headers(req.headers);
     headers.set("x-request-id", requestId);
@@ -81,10 +95,10 @@ export default async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // Apply auth only for dashboard/admin/crm routes on main domain
+  // Apply auth only for dashboard/crm routes on main domain. /admin is NOT redirected to login: its layout answers
+  // everyone who is not a signed-in super admin with the same 404 as a page that does not exist (lib/admin/auth.ts).
   if (
     pathname.startsWith("/dashboard") ||
-    pathname.startsWith("/admin") ||
     pathname.startsWith("/crm")
   ) {
     // Team members: only the pages that some permission can open. The page itself then checks the exact

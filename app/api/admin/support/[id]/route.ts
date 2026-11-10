@@ -1,8 +1,6 @@
+import { requireAdminApi } from "@/lib/admin/auth";
 import { safeRoute } from "@/lib/api";
 import { NextRequest, NextResponse } from "next/server";
-import { isAdminUser } from "@/lib/adminAuth";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 import { parseBody } from "@/lib/validation/common";
@@ -10,14 +8,11 @@ import { adminMessageSchema, adminTicketPatchSchema } from "@/lib/validation/adm
 
 export const dynamic = 'force-dynamic';
 
-function isAdmin(session: Awaited<ReturnType<typeof getServerSession>> & { user?: { role?: string; email?: string | null } } | null) {
-  return isAdminUser(session?.user);
-}
 
 async function GET_handler(_req: NextRequest, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
-  const session = await getServerSession(authOptions) as Awaited<ReturnType<typeof getServerSession>> & { user?: { role?: string; email?: string | null } } | null;
-  if (!isAdmin(session)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const gate = await requireAdminApi();
+  if (!gate.ok) return gate.res;
 
   const ticket = await prisma.supportTicket.findUnique({
     where: { id: params.id },
@@ -39,8 +34,8 @@ async function GET_handler(_req: NextRequest, props: { params: Promise<{ id: str
 
 async function POST_handler(req: NextRequest, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
-  const session = await getServerSession(authOptions) as Awaited<ReturnType<typeof getServerSession>> & { user?: { role?: string; email?: string | null } } | null;
-  if (!isAdmin(session)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const gate = await requireAdminApi();
+  if (!gate.ok) return gate.res;
 
   const ticket = await prisma.supportTicket.findUnique({ where: { id: params.id } });
   if (!ticket) return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -70,8 +65,8 @@ async function POST_handler(req: NextRequest, props: { params: Promise<{ id: str
 
 async function PATCH_handler(req: NextRequest, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
-  const session = await getServerSession(authOptions) as Awaited<ReturnType<typeof getServerSession>> & { user?: { role?: string; email?: string | null } } | null;
-  if (!isAdmin(session)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const gate = await requireAdminApi();
+  if (!gate.ok) return gate.res;
 
   const ticket = await prisma.supportTicket.findUnique({ where: { id: params.id } });
   if (!ticket) return NextResponse.json({ error: "Not found" }, { status: 404 });

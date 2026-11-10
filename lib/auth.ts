@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { rateLimit } from "@/lib/ratelimit";
 import { revalidateBusinessClaims } from "@/lib/sessionBusiness";
 import { cookies } from "next/headers";
+import { activeViewAs } from "@/lib/admin/viewAs";
 import { verifyTicket } from "@/lib/signedTicket";
 import { SIGNUP_TICKET_PURPOSE } from "@/lib/signupTicket";
 import { decideGoogleSignIn, verifyLinkIntent, verifyCustomerLinkIntent, LINK_COOKIE, CUSTOMER_LINK_COOKIE } from "@/lib/googleLink";
@@ -232,6 +233,7 @@ export const authOptions: NextAuthOptions = {
           token.businessId = dbUser.business?.id;
           token.businessSlug = dbUser.business?.slug;
           token.businessName = dbUser.business?.name;
+          token.sa = dbUser.isSuperAdmin || undefined;
         }
       }
       // Every request: re-validate the business claims against the DB (throttled), so a
@@ -254,6 +256,18 @@ export const authOptions: NextAuthOptions = {
         session.user.businessId = token.businessId as string | undefined;
         session.user.businessSlug = token.businessSlug as string | undefined;
         session.user.businessName = token.businessName as string | undefined;
+        // A Calvy super admin in a view-as session sees the viewed business through the same session every page already
+        // reads. The database decides (admin flag, live admin session, not expired); the token only hints.
+        if (token.sa && session.user.kind !== "customer") {
+          const v = await activeViewAs(session.user.id).catch(() => null);
+          if (v) {
+            session.user.businessId = v.businessId;
+            session.user.businessSlug = v.slug;
+            session.user.businessName = v.name;
+            session.user.role = "user";
+            session.user.viewAs = { mode: v.mode, expiresAt: v.expiresAt.toISOString(), businessName: v.name };
+          }
+        }
       }
       return session;
     },

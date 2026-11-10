@@ -1,6 +1,6 @@
 import { safeRoute } from "@/lib/api";
 import { NextResponse } from "next/server";
-import { isAdminSession } from "@/lib/adminAuth";
+import { requireAdminApi } from "@/lib/admin/auth";
 import { prisma } from "@/lib/prisma";
 import { isFeatureEnabled } from "@/lib/flags";
 import { getPaymentProvider } from "@/lib/payments";
@@ -18,7 +18,8 @@ const set = (v: string | undefined) => !!v?.trim();
  * Names and yes/no only: never a key, a secret or a customer detail.
  */
 async function GET_handler() {
-  if (!(await isAdminSession())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const gate = await requireAdminApi();
+  if (!gate.ok) return gate.res;
 
   const provider = getPaymentProvider();
   const now = new Date();

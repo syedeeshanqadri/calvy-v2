@@ -342,6 +342,7 @@ export function BookingClient({ business, fontClasses, homeHref = "/", followUp 
           ...(needsModeChoice && bookingMode ? { mode: bookingMode } : {}),
           ...(followUp ? { followUpTicket: followUp.ticket } : {}),
           ...(credit ? { creditTicket: credit.ticket } : {}),
+          ...(searchParams?.get("vt") ? { verifiedTicket: searchParams.get("vt") } : {}),
         }),
       });
       const data = await res.json();

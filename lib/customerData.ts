@@ -90,7 +90,7 @@ export const getCustomerData = cache(async () => {
       moveBlocked: tokenMoveBlocker(a),
       isFollowUp: !!a.followUpOfId,
       followUp: followUpFor(a, tz, now),
-      bookAgainHref: `/${a.business.slug}/book-now?service=${encodeURIComponent(a.serviceId)}`,
+      bookAgainHref: `/api/customer/book-again?business=${encodeURIComponent(a.business.slug)}&service=${encodeURIComponent(a.serviceId)}`,
       reviewUrl: a.status === "completed" ? safeReviewLink(a.business.googleReviewUrl) : null,
     };
   };

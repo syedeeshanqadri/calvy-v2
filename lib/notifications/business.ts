@@ -105,8 +105,8 @@ export function ownerWelcome(b: OwnerInfo): NotificationInput {
 }
 
 /** business.live: sent once, when the owner finishes the onboarding wizard. */
-export function ownerLive(b: OwnerInfo): NotificationInput {
-  return { ...ownerCommon(b), event: "business.live", template: "business_live", payload: { name: b.ownerName, businessName: b.businessName, websiteUrl: ownerLinks(b).websiteUrl } };
+export function ownerLive(b: OwnerInfo, version?: string | number): NotificationInput {
+  return { ...ownerCommon(b), ...(version !== undefined ? { version } : {}), event: "business.live", template: "business_live", payload: { name: b.ownerName, businessName: b.businessName, websiteUrl: ownerLinks(b).websiteUrl } };
 }
 
 /** Both owner emails (idempotent per business). Kept for callers that want the pair. */

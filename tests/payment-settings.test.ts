@@ -15,6 +15,8 @@ const session = vi.hoisted(() => ({ current: null as unknown }));
 vi.mock("@/lib/prisma", () => ({ prisma: db }));
 vi.mock("next-auth", () => ({ getServerSession: vi.fn(async () => session.current) }));
 vi.mock("@/lib/auth", () => ({ authOptions: {} }));
+const adminGate = vi.hoisted(() => ({ result: null as unknown }));
+vi.mock("@/lib/admin/auth", () => ({ requireAdminApi: vi.fn(async () => adminGate.result) }));
 
 import { payExample, paymentSettingsSchema } from "@/lib/paymentSettings";
 import { gstSplit, receiptTax } from "@/lib/receiptTax";
@@ -99,14 +101,12 @@ describe("go-live health check", () => {
     db.payment.findFirst.mockResolvedValue(null);
     db.appointment.count.mockResolvedValue(0);
   });
-  it("only the super admin may read it", async () => {
-    session.current = null;
-    expect((await health()).status).toBe(401);
-    session.current = { user: { id: "u1", businessId: "b1", role: "user", email: "owner@x.co" }, expires: "" };
-    expect((await health()).status).toBe(401);
+  it("only the super admin may read it: everyone else gets the 404 the admin gate returns", async () => {
+    adminGate.result = { ok: false, res: new Response(JSON.stringify({ error: "Not found" }), { status: 404 }) };
+    expect((await health()).status).toBe(404);
   });
   it("lists what is missing and never returns a key or secret", async () => {
-    session.current = { user: { id: "a1", role: "admin", email: "admin@x.co" }, expires: "" };
+    adminGate.result = { ok: true, ctx: { user: { id: "a1", email: "admin@x.co", name: "A" }, sessionId: "s1", reauthAt: new Date(), viewAs: null } };
     const saved = { ...process.env };
     process.env.CASHFREE_APP_ID = "TESTAPPID123"; process.env.CASHFREE_SECRET_KEY = "cfsk_secret_value_xyz";
     delete process.env.CALVY_LEGAL_NAME; delete process.env.CRON_SECRET;

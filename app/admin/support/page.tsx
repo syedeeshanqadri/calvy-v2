@@ -1,17 +1,12 @@
-import { getServerSession } from "next-auth";
-import { isAdminUser } from "@/lib/adminAuth";
-import { authOptions } from "@/lib/auth";
+import { requireAdminPage } from "@/lib/admin/auth";
 import { prisma } from "@/lib/prisma";
-import { redirect } from "next/navigation";
 import { normalizePlanId } from "@/lib/plans";
 import { AdminSupportClient } from "./AdminSupportClient";
 
 export const dynamic = 'force-dynamic';
 
 export default async function AdminSupportPage() {
-  const session = await getServerSession(authOptions);
-  const isAdmin = isAdminUser(session?.user);
-  if (!isAdmin) redirect("/login");
+  await requireAdminPage();
 
   const tickets = await prisma.supportTicket.findMany({
     orderBy: { updatedAt: "desc" },

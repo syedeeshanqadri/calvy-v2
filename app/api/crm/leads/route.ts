@@ -1,7 +1,7 @@
 import { safeRoute } from "@/lib/api";
+import { requireAdminApi } from "@/lib/admin/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { isAdminSession } from "@/lib/adminAuth";
 
 import { parseQuery } from "@/lib/validation/common";
 import { adminPageQuery } from "@/lib/validation/admin";
@@ -9,7 +9,8 @@ import { adminPageQuery } from "@/lib/validation/admin";
 export const dynamic = "force-dynamic";
 
 async function GET_handler(req: NextRequest) {
-  if (!(await isAdminSession())) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const gate = await requireAdminApi();
+  if (!gate.ok) return gate.res;
   const q = parseQuery(req.url, adminPageQuery);
   if (!q.ok) return q.res;
   const { page, limit } = q.data;

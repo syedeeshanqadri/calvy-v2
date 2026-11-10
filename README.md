@@ -259,8 +259,7 @@ VAPID_SUBJECT="mailto:support@calvy.io"
 BLOB_READ_WRITE_TOKEN="..."
 
 # Admin
-SUPER_ADMIN_EMAIL="admin@calvy.io"
-ADMIN_SETUP_SECRET="..."
+# Calvy super admins are a database flag, set only with: npm run admin:grant -- <email> (see docs/admin-panel.md)
 ```
 
 ---

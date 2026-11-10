@@ -1,4 +1,5 @@
 import { safeRoute } from "@/lib/api";
+import { suspended, suspendedResponse } from "@/lib/suspension";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { loadAvailability } from "@/lib/availability";
@@ -21,8 +22,9 @@ async function GET_handler(request: NextRequest) {
     );
   }
 
-  const business = await prisma.business.findUnique({ where: { slug }, select: { id: true } });
+  const business = await prisma.business.findUnique({ where: { slug }, select: { id: true, name: true, suspendedAt: true } });
   if (!business) return NextResponse.json({ error: "Business not found" }, { status: 404 });
+  if (suspended(business)) return suspendedResponse(business.name);
 
   const serviceIds = serviceIdsCsv?.length ? serviceIdsCsv : serviceId ? [serviceId] : [];
   const result = await loadAvailability(prisma, {

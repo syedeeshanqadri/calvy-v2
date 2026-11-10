@@ -33,6 +33,8 @@ import { effectivePayMode } from "@/lib/fees";
 import { resolveBookingMode, resolveMeetingUrl } from "@/lib/online";
 import { loadMeetingUrl } from "@/lib/onlineDb";
 import { Prisma } from "@prisma/client";
+import { suspended, suspendedResponse } from "@/lib/suspension";
+import { checkVerifiedLimits, getVerifiedLimits, isVerifiedBooker } from "@/lib/verifiedLimits";
 import { FollowUpTicketError, resolveFollowUp } from "@/lib/followUpDb";
 import { CreditTicketError, InsufficientCreditError, creditForTicket, spendCredit } from "@/lib/creditDb";
 import { applyCredit, reduceCharge } from "@/lib/credit";
@@ -79,6 +81,12 @@ async function bookingHandler(req: NextRequest) {
     include: { services: true },
   });
   if (!business) return NextResponse.json({ error: "Business not found." }, { status: 404 });
+  if (suspended(business)) return suspendedResponse(business.name);
+  // A verified customer (proved by one of their own signed links) is held to the admin-set limits; guests keep the guest rules below.
+  if (await isVerifiedBooker(prisma, [parsed.data.verifiedTicket, parsed.data.creditTicket, parsed.data.followUpTicket], clientEmail)) {
+    const verdict = await checkVerifiedLimits(prisma, { businessId: business.id, businessName: business.name, email: clientEmail, limits: await getVerifiedLimits(prisma) });
+    if (!verdict.ok) return NextResponse.json({ error: verdict.message, code: verdict.code }, { status: verdict.status });
+  }
   // Who the booking is for: relation for anyone else; age and gender only where the clinic pack asks for them.
   const patientDetails = bookingForOther
     ? {

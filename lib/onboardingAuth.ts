@@ -12,7 +12,8 @@ export type WizardOwner = { user: { id: string; name: string; email: string }; b
 export async function wizardOwner(): Promise<WizardOwner | null> {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id || session.user.kind === "customer") return null;
-  const user = await prisma.user.findUnique({ where: { id: session.user.id }, select: { id: true, name: true, email: true, teamMember: { select: { id: true } } } });
-  if (!user || user.teamMember) return null;
+  const user = await prisma.user.findUnique({ where: { id: session.user.id }, select: { id: true, name: true, email: true, isSuperAdmin: true, teamMember: { select: { id: true } } } });
+  // Team members and Calvy admins never enter the wizard (an admin must not get a business created for them).
+  if (!user || user.teamMember || user.isSuperAdmin) return null;
   return { user, business: await getOrCreateDraft(user) };
 }

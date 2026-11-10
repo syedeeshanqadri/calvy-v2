@@ -1,17 +1,13 @@
+import { requireAdminApi } from "@/lib/admin/auth";
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = 'force-dynamic';
 
 export async function PATCH(req: NextRequest, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
-  const session = await getServerSession(authOptions);
-  if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  const isAdmin = session.user.kind !== "customer" && (session.user.role === "admin" || session.user.email === process.env.SUPER_ADMIN_EMAIL);
-  if (!isAdmin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const gate = await requireAdminApi();
+  if (!gate.ok) return gate.res;
 
   const { status, adminNotes } = await req.json();
   const validStatuses = ["approved", "rejected", "released"];

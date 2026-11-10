@@ -1,26 +1,3 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-
-type AdminCandidate = { role?: string | null; email?: string | null; kind?: string | null } | null | undefined;
-
-/**
- * The single admin check. An unset or empty SUPER_ADMIN_EMAIL never matches,
- * and a missing user email never matches.
- */
-export function isAdminUser(user: AdminCandidate): boolean {
-  if (!user) return false;
-  // A customer account is never an admin, whatever its email says.
-  if (user.kind === "customer") return false;
-  if (user.role === "admin") return true;
-  const superEmail = process.env.SUPER_ADMIN_EMAIL?.trim().toLowerCase();
-  const email = user.email?.trim().toLowerCase();
-  return !!superEmail && !!email && email === superEmail;
-}
-
-export async function isAdminSession(): Promise<boolean> {
-  const session = await getServerSession(authOptions);
-  return isAdminUser(session?.user);
-}
 
 // Normalize an FAQ array from request input into a stored JSON string.
 export function normalizeFaq(input: unknown): string {

@@ -1,7 +1,8 @@
 import { safeRoute } from "@/lib/api";
+import { requireAdminApi } from "@/lib/admin/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { isAdminSession, slugifyTitle, normalizeFaq } from "@/lib/adminAuth";
+import { slugifyTitle, normalizeFaq } from "@/lib/adminAuth";
 import { submitToIndexNow } from "@/lib/indexnow";
 
 import { parseBody } from "@/lib/validation/common";
@@ -13,7 +14,8 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://calvy.io";
 
 async function PATCH_handler(req: NextRequest, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
-  if (!(await isAdminSession())) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const gate = await requireAdminApi();
+  if (!gate.ok) return gate.res;
 
   const existing = await prisma.post.findUnique({ where: { id: params.id } });
   if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -61,7 +63,8 @@ async function PATCH_handler(req: NextRequest, props: { params: Promise<{ id: st
 
 async function DELETE_handler(_req: NextRequest, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
-  if (!(await isAdminSession())) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const gate = await requireAdminApi();
+  if (!gate.ok) return gate.res;
   await prisma.post.delete({ where: { id: params.id } }).catch(() => {});
   return NextResponse.json({ ok: true });
 }

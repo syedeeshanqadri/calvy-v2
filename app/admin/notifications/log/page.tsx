@@ -1,7 +1,6 @@
+import { requireAdminPage } from "@/lib/admin/auth";
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { isAdminSession } from "@/lib/adminAuth";
 import { LogFilters, LogPager } from "@/components/notifications/LogFilters";
 import { LogTable } from "@/components/notifications/LogTable";
 import { adminLogWhere, failureRate, listLog, parseLogFilters, since } from "@/lib/notifications/log";
@@ -12,7 +11,7 @@ const pct = (r: number) => `${(r * 100).toFixed(r && r < 0.1 ? 1 : 0)}%`;
 
 /** Super-admin delivery log across every business and platform mail. Recipients masked, no payloads (chunk 6). */
 export default async function AdminNotificationLogPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
-  if (!(await isAdminSession())) redirect("/login");
+  await requireAdminPage();
   const filters = parseLogFilters(await searchParams);
   const now = new Date();
   const matched = filters.q

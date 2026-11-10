@@ -569,7 +569,7 @@ calvy.io/dashboard    → withAuth (requires session)
 ### Super Admin (role: "admin")
 - Access to `/admin/*` (platform management)
 - Can view all tenants, manage plans, approve withdrawals, respond to support tickets
-- Granted via `SUPER_ADMIN_EMAIL` env var or `POST /api/admin/make-admin`
+- Super admin is a database flag granted only by `npm run admin:grant -- <email>` (see `docs/admin-panel.md`); no page or API can grant it
 
 ### Public (unauthenticated)
 - Can view `{slug}.calvy.io` (tenant website)
@@ -988,7 +988,6 @@ Accessible at `/admin` — restricted to `role = "admin"`.
 | GET | `/api/admin/tenants` | List all businesses |
 | POST/DELETE | `/api/admin/tenants/[id]` | Update / delete tenant |
 | GET/POST | `/api/admin/withdrawals/[id]` | List / process withdrawals |
-| POST | `/api/admin/make-admin` | Grant admin role |
 | GET | `/api/admin/support` | List all support tickets |
 | GET/POST | `/api/admin/support/[id]` | View ticket / reply + update status |
 
@@ -1076,8 +1075,7 @@ VAPID_SUBJECT="mailto:support@calvy.io"
 BLOB_READ_WRITE_TOKEN="..."
 
 # Admin
-SUPER_ADMIN_EMAIL="admin@calvy.io"
-ADMIN_SETUP_SECRET="..."
+# super admins: npm run admin:grant -- <email> (docs/admin-panel.md)
 ```
 
 ---

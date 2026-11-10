@@ -1,7 +1,8 @@
 import { safeRoute } from "@/lib/api";
+import { requireAdminApi } from "@/lib/admin/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { isAdminSession, slugifyTitle, normalizeFaq } from "@/lib/adminAuth";
+import { slugifyTitle, normalizeFaq } from "@/lib/adminAuth";
 import { submitToIndexNow } from "@/lib/indexnow";
 
 import { parseBody, parseQuery } from "@/lib/validation/common";
@@ -23,7 +24,8 @@ async function uniqueSlug(base: string): Promise<string> {
 
 // List all posts (admin)
 async function GET_handler(req: NextRequest) {
-  if (!(await isAdminSession())) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const gate = await requireAdminApi();
+  if (!gate.ok) return gate.res;
   const q = parseQuery(req.url, adminPageQuery);
   if (!q.ok) return q.res;
   const { page, limit } = q.data;
@@ -33,7 +35,8 @@ async function GET_handler(req: NextRequest) {
 
 // Create a post
 async function POST_handler(req: NextRequest) {
-  if (!(await isAdminSession())) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const gate = await requireAdminApi();
+  if (!gate.ok) return gate.res;
 
   const parsed = await parseBody(req, postCreateSchema);
   if (!parsed.ok) return parsed.res;

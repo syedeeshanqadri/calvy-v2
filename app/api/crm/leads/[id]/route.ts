@@ -1,7 +1,7 @@
 import { safeRoute } from "@/lib/api";
+import { requireAdminApi } from "@/lib/admin/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { isAdminSession } from "@/lib/adminAuth";
 
 import { parseBody } from "@/lib/validation/common";
 import { leadPatchSchema } from "@/lib/validation/admin";
@@ -10,7 +10,8 @@ export const dynamic = "force-dynamic";
 
 async function PATCH_handler(req: NextRequest, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
-  if (!(await isAdminSession())) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const gate = await requireAdminApi();
+  if (!gate.ok) return gate.res;
 
   const parsed = await parseBody(req, leadPatchSchema);
   if (!parsed.ok) return parsed.res;
@@ -25,7 +26,8 @@ async function PATCH_handler(req: NextRequest, props: { params: Promise<{ id: st
 
 async function DELETE_handler(_req: NextRequest, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
-  if (!(await isAdminSession())) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const gate = await requireAdminApi();
+  if (!gate.ok) return gate.res;
   await prisma.lead.delete({ where: { id: params.id } }).catch(() => {});
   return NextResponse.json({ ok: true });
 }

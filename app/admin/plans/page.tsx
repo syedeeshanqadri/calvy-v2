@@ -1,17 +1,12 @@
-import { getServerSession } from "next-auth";
-import { isAdminUser } from "@/lib/adminAuth";
-import { authOptions } from "@/lib/auth";
+import { requireAdminPage } from "@/lib/admin/auth";
 import { prisma } from "@/lib/prisma";
-import { redirect } from "next/navigation";
 import { ensureSeededPlans, PLAN_IDS } from "@/lib/planConfigDb";
 import { PlansClient } from "./PlansClient";
 
 export const dynamic = 'force-dynamic';
 
 export default async function AdminPlansPage() {
-  const session = await getServerSession(authOptions);
-  const isAdmin = isAdminUser(session?.user);
-  if (!isAdmin) redirect("/login");
+  await requireAdminPage();
 
   const [plans, planCounts] = await Promise.all([
     ensureSeededPlans(),

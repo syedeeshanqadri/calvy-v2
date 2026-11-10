@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { SettingsClient } from "./SettingsClient";
 import { getBusinessFeatures } from "@/lib/getFeatures";
+import { redactSecrets } from "@/lib/admin/redact";
 import { serializeSession } from "@/lib/tokenSessionsDb";
 import { getEffectiveLimits } from "@/lib/getFeatures";
 import { isFeatureEnabled } from "@/lib/flags";
@@ -43,7 +44,8 @@ export default async function SettingsPage() {
   return (
     <SettingsClient
       business={{
-        ...business,
+        // A Calvy admin viewing this business never sees bank, PAN or gateway account details.
+        ...(session.user.viewAs ? redactSecrets(business) : business),
         phone: business.phone ?? "",
         email: business.email ?? "",
         address: business.address ?? "",

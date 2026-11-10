@@ -17,6 +17,15 @@ model User {
   password            String? // null for OAuth-only accounts (Google/Facebook)
   /// Google account id (profile.sub). Set only on a verified Google sign-up or an explicit "Link Google" by the logged-in owner; never linked silently by email.
   googleId            String?              @unique
+  /// Calvy super admin. Set ONLY by `npm run admin:grant` (never by any page or API).
+  isSuperAdmin        Boolean              @default(false)
+  /// Authenticator-app secret, encrypted (lib/notifications/secret). Null until the admin enrolls.
+  adminTotpSecret     String?
+  adminTotpEnabledAt  DateTime?
+  /// The last TOTP time-step accepted, so a code cannot be used twice.
+  adminTotpLastStep   Int?
+  /// SHA-256 hashes of the unused one-time recovery codes (shown once, at enrollment).
+  adminRecoveryHashes String[]             @default([])
   image               String?
   role                String               @default("user")
   emailVerified       DateTime?
@@ -129,6 +138,15 @@ model Business {
   cancellationCutoffHours  Int                 @default(0)
   /// Days after a completed appointment during which one free follow-up with the same doctor is allowed. 0 = off.
   followUpDays             Int                 @default(0)
+  /// Set by a Calvy admin: no NEW bookings; existing bookings and reminders carry on.
+  suspendedAt              DateTime?
+  suspendedReason          String?
+  /// Calvy admin plan override. While set, `plan`/`planStatus` hold the override and these remember what to go back to.
+  /// The cron (and getBusinessFeatures) put the original back at the end date; until null = until an admin clears it.
+  planOverridePlan         String?
+  planOverrideUntil        DateTime?
+  planOverrideFromPlan     String?
+  planOverrideFromStatus   String?
   workingHours             WorkingHours[]
   timeOff                  TimeOff[]
   tokenSessions            TokenSession[]
@@ -799,4 +817,43 @@ model AuditLog {
   createdAt  DateTime @default(now())
 
   @@index([businessId, createdAt])
+}
+
+/// One signed-in admin browser session: 2FA state, idle timeout and the current view-as. The cookie holds a random token; only its hash is stored.
+model AdminSession {
+  id                String    @id @default(cuid())
+  userId            String
+  tokenHash         String    @unique
+  createdAt         DateTime  @default(now())
+  /// Idle timeout: 30 minutes after this.
+  lastSeenAt        DateTime  @default(now())
+  /// Last fresh TOTP check: sensitive actions need it within 5 minutes.
+  reauthAt          DateTime
+  endedAt           DateTime?
+  viewAsBusinessId  String?
+  /// "READ" or "ACT".
+  viewAsMode        String?
+  viewAsReason      String?
+  viewAsStartedAt   DateTime?
+  viewAsExpiresAt   DateTime?
+  /// The AdminAuditLog row that opened this view-as, so the end row can be linked.
+  viewAsAuditId     String?
+
+  @@index([userId])
+}
+
+/// Everything a Calvy admin does, plus view-as sessions. APPEND-ONLY: a database trigger refuses UPDATE and DELETE.
+model AdminAuditLog {
+  id         String   @id @default(cuid())
+  adminId    String
+  adminEmail String
+  action     String
+  businessId String?
+  reason     String?
+  detail     String?
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([businessId, createdAt])
+  @@index([action, createdAt])
 }

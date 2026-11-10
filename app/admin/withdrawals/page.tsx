@@ -1,7 +1,6 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { requireAdminPage } from "@/lib/admin/auth";
 import { prisma } from "@/lib/prisma";
-import { redirect, notFound } from "next/navigation";
+import { notFound } from "next/navigation";
 import { getFlags } from "@/lib/flags";
 import { CURRENCIES } from "@/lib/currency";
 import { WithdrawalsClient } from "./WithdrawalsClient";
@@ -10,11 +9,7 @@ export const dynamic = 'force-dynamic';
 
 export default async function AdminWithdrawalsPage() {
   if (!getFlags().wallet) notFound();
-  const session = await getServerSession(authOptions);
-  if (!session?.user) redirect("/login");
-
-  const isAdmin = session.user.kind !== "customer" && (session.user.role === "admin" || session.user.email === process.env.SUPER_ADMIN_EMAIL);
-  if (!isAdmin) redirect("/dashboard");
+  await requireAdminPage();
 
   const withdrawals = await prisma.withdrawalRequest.findMany({
     include: {

@@ -1,11 +1,17 @@
 import { prisma } from "@/lib/prisma";
+import { expirePlanOverrides, overrideExpired } from "@/lib/planOverride";
 import { getLimitsFromDB, isActivePlan, type PlanLimits } from "@/lib/plans";
 
 export async function getBusinessFeatures(businessId: string): Promise<PlanLimits> {
-  const business = await prisma.business.findUnique({
+  let business = await prisma.business.findUnique({
     where: { id: businessId },
-    select: { plan: true },
+    select: { plan: true, planOverridePlan: true, planOverrideUntil: true },
   });
+  // Safety net: an admin plan override that has ended is undone here too, so a late cron never leaves extra features on.
+  if (business && overrideExpired(business, new Date())) {
+    await expirePlanOverrides(prisma, new Date(), businessId);
+    business = await prisma.business.findUnique({ where: { id: businessId }, select: { plan: true, planOverridePlan: true, planOverrideUntil: true } });
+  }
   return getLimitsFromDB(business?.plan ?? "free");
 }
 
