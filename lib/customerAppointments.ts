@@ -6,6 +6,7 @@ import { notify } from "@/lib/notifications/enqueue";
 import { cancellation, noticeFrom, reschedule } from "@/lib/notifications/events";
 import { ownerAlert } from "@/lib/notifications/business";
 import { sendPushToBusiness } from "@/lib/push";
+import { shortName } from "@/lib/pushRouting";
 import { bookExclusive, SlotConflictError, conflictMessage, isPastBooking } from "@/lib/booking";
 import { loadAvailability, type AvailabilityQuery } from "@/lib/availability";
 import { creditClosedBooking } from "@/lib/creditDb";
@@ -133,9 +134,9 @@ export async function rescheduleByCustomer(verifiedEmail: string, id: string, da
   // Business: the booking itself moved, so its dashboard shows it at once; plus a notification.
   sendPushToBusiness(a.businessId, {
     title: "Appointment rescheduled by the customer",
-    body: `${a.client.name} moved ${a.service.name} from ${formatDateLabel(oldDate, tz)} ${formatTimeLabel(oldDate, tz)} to ${dateLabel} ${timeLabel}`,
+    body: `${shortName(a.client.name)} · ${a.service.name} · now ${dateLabel} ${timeLabel}`,
     url: "/dashboard/appointments", tag: "customer-reschedule",
-  }).catch(() => {});
+  }, { kind: "booking_rescheduled", staffId: a.staffId, subjectId: a.id, version: start.getTime() }).catch(() => {});
   // Customer: email with the new time (once per move, so a double click is still one email).
   try {
     const n = noticeFrom({ ...a, date: start });
@@ -173,9 +174,9 @@ export async function cancelByCustomer(verifiedEmail: string, id: string): Promi
   const tz = safeTimeZone(a.business.timezone);
   sendPushToBusiness(a.businessId, {
     title: "Appointment cancelled by the customer",
-    body: `${a.client.name} cancelled ${a.service.name} on ${formatDateLabel(a.date, tz)} at ${formatTimeLabel(a.date, tz)}`,
+    body: `${shortName(a.client.name)} · ${a.service.name} · ${formatDateLabel(a.date, tz)} ${formatTimeLabel(a.date, tz)}`,
     url: "/dashboard/appointments", tag: "customer-cancel",
-  }).catch(() => {});
+  }, { kind: "booking_cancelled", staffId: a.staffId, subjectId: a.id, version: "cancelled" }).catch(() => {});
   try {
     const n = noticeFrom(a);
     await notify(cancellation(n, `${appUrl()}/${a.business.slug}`), await ownerAlert(n, "cancelled", { byCustomer: true }));

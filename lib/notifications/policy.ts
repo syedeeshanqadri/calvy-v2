@@ -1,6 +1,6 @@
 /** Pure rules of the outbox: retry timing, error classes and the idempotency key. */
 
-export type NotifChannelName = "EMAIL" | "WHATSAPP";
+export type NotifChannelName = "EMAIL" | "WHATSAPP" | "PUSH";
 
 /** Delay after each failed attempt: 1m, 5m, 30m, 2h, 6h. The attempt after that is the last. */
 const BACKOFF_MS = [60_000, 300_000, 1_800_000, 7_200_000, 21_600_000];
@@ -24,6 +24,7 @@ export function isRetryableStatus(status: number | null | undefined): boolean {
 
 export function normalizeRecipient(channel: NotifChannelName, recipient: string): string {
   const value = recipient.trim();
+  if (channel === "PUSH") return value; // a device id
   return channel === "EMAIL" ? value.toLowerCase() : value.replace(/\D/g, "");
 }
 

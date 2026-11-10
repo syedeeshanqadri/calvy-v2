@@ -17,6 +17,7 @@ import { confirmation, noticeFrom, receipt, serviceLabel } from "@/lib/notificat
 import { ownerAlert } from "@/lib/notifications/business";
 import { sendBookingConfirmationWhatsApp } from "@/lib/whatsapp";
 import { sendPushToBusiness } from "@/lib/push";
+import { shortName } from "@/lib/pushRouting";
 import { DEFAULT_CURRENCY } from "@/lib/currency";
 import { logger } from "@/lib/logger";
 import { t } from "@/lib/terms";
@@ -163,10 +164,10 @@ export async function buildConfirmation(db: Db, appointmentId: string, opts: Con
   const afterCommit = () => {
     sendPushToBusiness(a.businessId, {
       title: opts.paid ? "New paid booking" : "New booking received",
-      body: `${bookingForLabel(a)} — ${token ? `Token #${token.number} (${token.sessionName}) ` : ""}${serviceName} on ${dateLabel}${token ? "" : ` at ${time}`}`,
+      body: `${shortName(a.patientName?.trim() || a.client.name)} · ${token ? `Token #${token.number} · ` : ""}${serviceName} · ${dateLabel}${token ? "" : ` ${time}`}`,
       url: "/dashboard/appointments",
       tag: "new-booking",
-    }).catch(() => {});
+    }, { kind: "booking_new", staffId: a.staffId, subjectId: a.id, version: opts.paid ? "paid" : "created" }).catch(() => {});
     if (opts.contactMessages !== false && a.client.phone) {
       sendBookingConfirmationWhatsApp({
         to: a.client.phone, clientName: a.client.name, serviceName, businessName: a.business.name,

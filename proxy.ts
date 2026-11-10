@@ -3,7 +3,7 @@ import { getToken } from "next-auth/jwt";
 import { NextResponse, type NextRequest } from "next/server";
 import { featureForApiPath, isFeatureEnabled } from "@/lib/flags";
 import { canAccessOwnerArea, isCustomerToken } from "@/lib/customerAccess";
-import { ROUTE_PERMISSIONS } from "@/lib/permissions";
+import { ALWAYS_OPEN, ROUTE_PERMISSIONS } from "@/lib/permissions";
 
 const ROOT_DOMAIN = process.env.NEXT_PUBLIC_ROOT_DOMAIN ?? "calvy.io";
 
@@ -105,7 +105,7 @@ export default async function middleware(req: NextRequest) {
     // permission against the database (lib/access.ts); this is the coarse first wall for owner-only areas.
     const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
     if (token?.role === "member") {
-      const listed = pathname === "/dashboard" || ROUTE_PERMISSIONS.some((r) => pathname === r.prefix || pathname.startsWith(r.prefix + "/"));
+      const listed = pathname === "/dashboard" || ALWAYS_OPEN.includes(pathname) || ROUTE_PERMISSIONS.some((r) => pathname === r.prefix || pathname.startsWith(r.prefix + "/"));
       if (!listed) {
         const url = req.nextUrl.clone();
         url.pathname = "/dashboard";

@@ -1,3 +1,4 @@
+import { currentPushDeviceId } from "@/lib/pushDeviceCookie";
 import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
@@ -270,6 +271,17 @@ export const authOptions: NextAuthOptions = {
         }
       }
       return session;
+    },
+  },
+  events: {
+    // Reception phones and tablets are shared: signing out ends phone alerts on THIS device only (the browser's own cookie names it),
+    // never on the person's other devices. Server side, so it holds even if the page's own JavaScript fails.
+    async signOut({ token }) {
+      const uid = (token as { uid?: string } | undefined)?.uid;
+      if (!uid) return;
+      const deviceId = await currentPushDeviceId();
+      if (!deviceId) return;
+      try { await prisma.pushDevice.deleteMany({ where: { id: deviceId, userId: uid } }); } catch { /* best effort */ }
     },
   },
   pages: { signIn: "/login" },

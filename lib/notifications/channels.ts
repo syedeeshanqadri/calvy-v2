@@ -33,11 +33,27 @@ const sendEmail: Channel = async (message, to, idempotencyKey) => {
   }
 };
 
+/** Phone alerts: the recipient is a PushDevice id. A subscription the browser dropped (404/410) deletes the device. */
+const sendPush: Channel = async (message, deviceId) => {
+  const { prisma } = await import("@/lib/prisma");
+  const { deliverPush } = await import("@/lib/push");
+  const device = await prisma.pushDevice.findUnique({ where: { id: deviceId } });
+  if (!device) return { kind: "skipped", error: "device removed" };
+  const out = await deliverPush(device, { title: message.subject, body: message.text, url: message.push?.url, tag: message.push?.tag });
+  if (out.kind === "sent") return { kind: "sent" };
+  if (out.kind === "expired") {
+    await prisma.pushDevice.deleteMany({ where: { id: device.id } });
+    return { kind: "skipped", error: "subscription expired: device removed" };
+  }
+  return out;
+};
+
 /** A channel with no provider behind it yet: its rows are kept as SKIPPED so the log says why nothing went. */
 const notSetUp: Channel = async () => ({ kind: "skipped", error: "channel not set up" });
 
 /** WhatsApp gets a real adapter later (per-business sessions, roadmap item 9); it plugs in here and sends `message.text`. */
-export const CHANNELS: Record<"EMAIL" | "WHATSAPP", Channel> = {
+export const CHANNELS: Record<"EMAIL" | "WHATSAPP" | "PUSH", Channel> = {
   EMAIL: sendEmail,
   WHATSAPP: notSetUp,
+  PUSH: sendPush,
 };

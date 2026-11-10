@@ -4,6 +4,7 @@ import { z } from "zod";
 import { accessSession } from "@/lib/access";
 import { prisma } from "@/lib/prisma";
 import { PERMISSIONS, sanitizePermissions } from "@/lib/permissions";
+import { removeUserDevices } from "@/lib/pushQueue";
 import { id, parseBody, text } from "@/lib/validation/common";
 import { audit } from "@/lib/audit";
 import { removeMember, serializeMember } from "@/lib/teamDb";
@@ -46,6 +47,11 @@ async function PATCH_handler(req: NextRequest, { params }: Ctx) {
       ...(b.staffId !== undefined && { staffId: b.staffId }),
     },
   });
+  // Taking a permission away (or moving them to another staff record) ends their phone alerts at once: they turn them on again
+  // and only get what they may now see. (The send-time check refuses them anyway; this also clears shared devices.)
+  const revoked = !!nextPerms && existing.permissions.some((p) => !nextPerms.includes(p as never));
+  const staffChanged = b.staffId !== undefined && b.staffId !== existing.staffId;
+  if (existing.userId && (revoked || staffChanged)) await removeUserDevices(existing.userId);
   if (nextPerms) {
     await audit({ businessId, actorId: s.user.id, action: "team.permissions_changed", target: existing.email, detail: { from: existing.permissions, to: nextPerms } });
   }

@@ -1,4 +1,5 @@
 "use client";
+import { releaseThisDevice } from "@/components/dashboard/PushSetup";
 import { Bell, X, HelpCircle, LogOut, Calendar, CreditCard } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
 import { useSession, signOut } from "next-auth/react";
@@ -127,7 +128,7 @@ export function Header({ title, subtitle }: HeaderProps) {
 
           {/* Sign out — desktop only */}
           <button
-            onClick={() => signOut({ callbackUrl: "/login" })}
+            onClick={async () => { await releaseThisDevice(); await signOut({ callbackUrl: "/login" }); }}
             className="hidden lg:flex p-2 rounded-xl text-[#6b6b80] hover:bg-[#f8f7f4] hover:text-red-500 transition-colors"
             title="Sign out"
           >

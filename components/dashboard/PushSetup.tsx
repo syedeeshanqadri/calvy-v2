@@ -1,38 +1,50 @@
 "use client";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
+/**
+ * Registers the service worker for the installed business app and shows "New version available" when an update is waiting.
+ * It does NOT subscribe to push by itself: phone alerts are turned on per person, on purpose (reception devices are shared).
+ */
 export function PushSetup() {
+  const [waiting, setWaiting] = useState<ServiceWorker | null>(null);
+
   useEffect(() => {
-    if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
-    if (!process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY) return;
+    if (!("serviceWorker" in navigator)) return;
+    let cancelled = false;
+    let reloading = false;
+    const onChange = () => { if (reloading) window.location.reload(); };
+    navigator.serviceWorker.addEventListener("controllerchange", onChange);
+    (window as unknown as { __calvyReload?: () => void }).__calvyReload = () => { reloading = true; };
 
-    async function setup() {
-      try {
-        const reg = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
-        await navigator.serviceWorker.ready;
-
-        // Only subscribe if permission is already granted — don't auto-prompt
-        if (Notification.permission !== "granted") return;
-
-        const existing = await reg.pushManager.getSubscription();
-        if (existing) {
-          // Always re-sync to ensure DB has the subscription (handles stale JWT refresh)
-          await syncSubscription(existing);
-          return;
-        }
-
-        const sub = await reg.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!) as BufferSource,
+    navigator.serviceWorker.register("/sw.js", { scope: "/" }).then((reg) => {
+      if (cancelled) return;
+      if (reg.waiting && navigator.serviceWorker.controller) setWaiting(reg.waiting);
+      reg.addEventListener("updatefound", () => {
+        const w = reg.installing;
+        w?.addEventListener("statechange", () => {
+          if (w.state === "installed" && navigator.serviceWorker.controller) setWaiting(w);
         });
-        await syncSubscription(sub);
-      } catch {}
-    }
-
-    setup();
+      });
+      // Look for a new version whenever the app comes back to the front.
+      const check = () => { if (document.visibilityState === "visible") reg.update().catch(() => {}); };
+      document.addEventListener("visibilitychange", check);
+    }).catch(() => {});
+    return () => { cancelled = true; navigator.serviceWorker.removeEventListener("controllerchange", onChange); };
   }, []);
 
-  return null;
+  if (!waiting) return null;
+  return (
+    <div role="status" className="fixed bottom-20 lg:bottom-6 left-1/2 -translate-x-1/2 z-[70] flex items-center gap-3 rounded-xl bg-[#0f0f1a] text-white text-sm px-4 py-3 shadow-xl" data-testid="update-bar">
+      <span>New version available</span>
+      <button
+        type="button"
+        className="rounded-lg bg-sky-500 px-3 py-1.5 text-xs font-semibold hover:bg-sky-400"
+        onClick={() => { (window as unknown as { __calvyReload?: () => void }).__calvyReload?.(); waiting.postMessage({ type: "SKIP_WAITING" }); }}
+      >
+        Refresh
+      </button>
+    </div>
+  );
 }
 
 export interface PushResult { ok: boolean; error?: string }
@@ -77,6 +89,33 @@ export async function requestPushPermission(): Promise<PushResult> {
   } catch (e) {
     return { ok: false, error: `Couldn't subscribe: ${(e as Error).message}` };
   }
+}
+
+/** Turn phone alerts off on THIS device (and tell the server). */
+export async function disablePush(): Promise<boolean> {
+  try {
+    const reg = await navigator.serviceWorker.getRegistration("/");
+    const sub = await reg?.pushManager.getSubscription();
+    if (sub) {
+      await fetch("/api/push/subscribe", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ endpoint: sub.endpoint }) });
+      await sub.unsubscribe();
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Before signing out: drop THIS browser's phone-alert device only (other devices of the person keep theirs). Never throws. */
+export async function releaseThisDevice(): Promise<void> {
+  try {
+    if (!("serviceWorker" in navigator)) return;
+    const reg = await navigator.serviceWorker.getRegistration("/");
+    const sub = await reg?.pushManager.getSubscription();
+    if (!sub) return; // nothing registered here; never send an "all devices" delete
+    await fetch("/api/push/subscribe", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ endpoint: sub.endpoint }) });
+    await sub.unsubscribe();
+  } catch { /* the server-side sign-out event is the fallback */ }
 }
 
 async function syncSubscription(sub: PushSubscription): Promise<boolean> {

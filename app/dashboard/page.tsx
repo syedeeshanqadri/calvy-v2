@@ -2,6 +2,8 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { resolveAccess } from "@/lib/access";
 import { MemberHome } from "@/components/dashboard/MemberHome";
+import { TodayList } from "@/components/dashboard/TodayList";
+import { loadToday } from "@/lib/today";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { logger } from "@/lib/logger";
@@ -28,13 +30,14 @@ const MONTHS_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "S
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
   const access = await resolveAccess(session);
-  if (access && !access.isOwner) return <MemberHome name={session?.user?.name ?? ""} roleName={access.roleName} permissions={access.permissions} />;
+  if (access && !access.isOwner) return <MemberHome name={session?.user?.name ?? ""} roleName={access.roleName} permissions={access.permissions} today={await loadToday(access)} />;
   if (!session?.user?.businessId) redirect("/login");
 
   const businessId = session.user.businessId;
   const firstName = session.user.name?.split(" ")[0] ?? "there";
 
   const biz = await prisma.business.findUnique({ where: { id: businessId }, select: { timezone: true, packId: true, termsOverride: true } });
+  const todayData = access ? await loadToday(access) : null;
   const tz = safeTimeZone(biz?.timezone);
   const now = new Date();
   const hour = utcToZoned(now, tz).minutes / 60;
@@ -167,6 +170,7 @@ export default async function DashboardPage() {
 
   return (
     <DashboardLayout title={`${greeting}, ${firstName} 👋`} subtitle={`${dateStr} · You have ${todayAppts.length} ${t(biz ?? {}, "appointment", { plural: todayAppts.length !== 1 })} today`}>
+      {todayData && <TodayList data={todayData} appointmentWord={t(biz ?? {}, "appointment", { plural: true })} />}
       <DashboardKPIStats
         todayApptsCount={todayAppts.length}
         todayRevenue={todayRevenue}

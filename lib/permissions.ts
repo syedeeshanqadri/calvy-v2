@@ -90,9 +90,12 @@ export const ROUTE_PERMISSIONS: { prefix: string; any: Permission[] }[] = [
   { prefix: "/dashboard/settings/notifications", any: ["notifications.settings"] },
 ];
 
+/** Personal pages every signed-in person (owner or member) may open: their own phone alerts. */
+export const ALWAYS_OPEN: readonly string[] = ["/dashboard/alerts"];
+
 /** Pages a member may open; "/dashboard" itself is always fine (a landing screen). */
 export function pathAllowed(perms: readonly string[], pathname: string): boolean {
-  if (pathname === "/dashboard") return true;
+  if (pathname === "/dashboard" || ALWAYS_OPEN.includes(pathname)) return true;
   const rule = ROUTE_PERMISSIONS.find((r) => pathname === r.prefix || pathname.startsWith(r.prefix + "/"));
   return !!rule && can(perms, rule.any);
 }

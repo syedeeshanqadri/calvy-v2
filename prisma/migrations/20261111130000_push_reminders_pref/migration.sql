@@ -1,0 +1,1 @@
+ALTER TABLE "PushPreference" ADD COLUMN "reminders" BOOLEAN NOT NULL DEFAULT true;

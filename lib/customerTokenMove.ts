@@ -6,6 +6,7 @@ import { notify } from "@/lib/notifications/enqueue";
 import { noticeFrom, reschedule } from "@/lib/notifications/events";
 import { ownerAlert } from "@/lib/notifications/business";
 import { sendPushToBusiness } from "@/lib/push";
+import { shortName } from "@/lib/pushRouting";
 import { manageability, tokenMoveBlocker } from "@/lib/customerView";
 import { beforeCancellationCutoff } from "@/lib/holds";
 import { loadTokenDay, type TokenDayOption } from "@/lib/tokenBooking";
@@ -137,9 +138,9 @@ export async function moveTokenByCustomer(
 
   sendPushToBusiness(a.businessId, {
     title: "Token moved by the customer",
-    body: `${a.client.name} moved ${oldLabel} to ${dateLabel}, ${session.name}, token #${number}`,
+    body: `${shortName(a.client.name)} · ${oldLabel} → ${dateLabel}, ${session.name}, token #${number}`,
     url: "/dashboard/queue", tag: "customer-token-move",
-  }).catch(() => {});
+  }, { kind: "queue", staffId: a.staffId, subjectId: a.id, version: `${dateLabel}:${number}` }).catch(() => {});
   try {
     const n = noticeFrom({ ...a, date: estimatedAt, estimatedAt, tokenNumber: number, tokenSession: { name: session.name } });
     const move = { from: old.date, to: estimatedAt, oldDate: formatDateLabel(old.date, tz), oldTime: `token #${old.number}, about ${formatTimeLabel(a.estimatedAt ?? old.date, tz)}` };

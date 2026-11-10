@@ -47,7 +47,7 @@ export async function enqueueDueReminders(now: Date = new Date()): Promise<numbe
 
   const limitsByBusiness = new Map<string, Promise<PlanLimits>>();
   const items: NotificationInput[] = [];
-  const pushes = new Map<string, { businessId: string; title: string; body: string; tag: string }>();
+  const pushes = new Map<string, { businessId: string; staffId: string | null; title: string; body: string; tag: string }>();
 
   for (const a of bookings) {
     const tz = safeTimeZone(a.business.timezone);
@@ -70,6 +70,7 @@ export async function enqueueDueReminders(now: Date = new Date()): Promise<numbe
       if (forBooking.length) {
         pushes.set(`${a.id}:${lead}`, {
           businessId: a.businessId,
+          staffId: a.staffId ?? null,
           title: `${t(a.business, "appointment", { cap: true })} reminder`,
           tag: `reminder-${a.id}`,
           body: `${bookingForLabel(a)}: ${notice.payload.serviceName}, ${formatDateLabel(anchor.at, tz)} at ${formatTimeLabel(anchor.at, tz)}`,
@@ -94,7 +95,7 @@ export async function enqueueDueReminders(now: Date = new Date()): Promise<numbe
     [...pushed].map((k) => {
       const p = pushes.get(k);
       return p
-        ? sendPushToBusiness(p.businessId, { title: p.title, body: p.body, url: "/dashboard/appointments", tag: p.tag })
+        ? sendPushToBusiness(p.businessId, { title: p.title, body: p.body, url: "/dashboard/appointments", tag: p.tag }, { kind: "reminder", staffId: p.staffId, subjectId: `reminder:${k}`, version: "reminder" })
             .catch((err) => logger.error("reminder push failed", { err }))
         : undefined;
     }),
