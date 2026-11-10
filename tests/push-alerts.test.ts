@@ -20,6 +20,8 @@ const enqueued = vi.hoisted(() => ({ rows: [] as any[] }));
 vi.mock("@/lib/prisma", () => ({ prisma: db }));
 vi.mock("next-auth", () => ({ getServerSession: vi.fn(async () => session.current) }));
 vi.mock("@/lib/auth", () => ({ authOptions: {} }));
+const thisDevice = vi.hoisted(() => ({ id: null as string | null }));
+vi.mock("@/lib/pushDeviceCookie", async () => ({ ...(await vi.importActual<object>("@/lib/pushDeviceCookie")), currentPushDeviceId: async () => thisDevice.id }));
 vi.mock("next/navigation", () => ({ redirect: (to: string) => { throw new Error(`REDIRECT:${to}`); } }));
 vi.mock("@/lib/ratelimit", () => ({ rateLimit: vi.fn(async () => ({ ok: true, retryAfter: 0 })), clientIp: () => "1.1.1.1" }));
 vi.mock("@/lib/notifications/enqueue", () => ({
@@ -30,7 +32,7 @@ vi.mock("@/lib/notifications/enqueue", () => ({
 const deliver = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/push", async () => ({ ...(await vi.importActual<object>("@/lib/push")), deliverPush: deliver }));
 
-import { DEFAULT_PREFS, mayReceive, scrubContact, shortName, wants, type PushRecipient } from "@/lib/pushRouting";
+import { DEFAULT_PREFS, KIND_PREF, PREF_FIELDS, mayReceive, scrubContact, shortName, wants, type PushRecipient } from "@/lib/pushRouting";
 import { pushSendBlocker, queuePush, removeUserDevices } from "@/lib/pushQueue";
 import { CHANNELS } from "@/lib/notifications/channels";
 import { idempotencyKey, normalizeRecipient } from "@/lib/notifications/policy";
@@ -57,7 +59,7 @@ beforeEach(() => {
 
 describe("who may get which alert (permissions)", () => {
   it("the owner gets every kind; Calvy announcements go to owners only", () => {
-    for (const k of ["booking_new", "booking_cancelled", "booking_rescheduled", "queue", "payment", "summary", "announcement"] as const) expect(mayReceive(k, owner)).toBe(true);
+    for (const k of ["booking_new", "booking_cancelled", "booking_rescheduled", "queue", "payment", "summary", "reminder", "announcement"] as const) expect(mayReceive(k, owner)).toBe(true);
     expect(mayReceive("announcement", member(["appointments.view_all", "queue.control", "reports.view"]))).toBe(false);
   });
   it("booking alerts need appointment access: all of them, or only their own with the matching staff record", () => {
@@ -79,7 +81,7 @@ describe("who may get which alert (permissions)", () => {
     expect(wants("booking_new", { newBooking: false })).toBe(false);
     expect(wants("queue", { newBooking: false })).toBe(true);
     expect(wants("announcement", { newBooking: false, summary: false })).toBe(true); // no preference exists for announcements
-    expect(DEFAULT_PREFS).toEqual({ newBooking: true, cancellation: true, reschedule: true, queue: true, payment: true, summary: true });
+    expect(DEFAULT_PREFS).toEqual({ newBooking: true, cancellation: true, reschedule: true, queue: true, payment: true, summary: true, reminders: true });
   });
   it("alert text carries a name, a time and a service: never a full phone number or email", () => {
     expect(shortName("Riya Kapoor")).toBe("Riya K.");
@@ -234,16 +236,40 @@ describe("registering a device", () => {
 });
 
 describe("a person's devices are removed when they sign out, are removed, or lose a permission", () => {
-  it("sign out removes that user's devices (server-side event)", async () => {
+  it("sign out removes only THIS browser's device, never the person's other devices", async () => {
     const { authOptions } = await vi.importActual<typeof import("@/lib/auth")>("@/lib/auth");
-    // the real options (the file mocks `@/lib/auth` above for the routes): the event must exist and delete by user id
     const events = (authOptions as { events?: { signOut?: (m: { token: unknown }) => Promise<void> } }).events;
     expect(typeof events?.signOut).toBe("function");
+    thisDevice.id = "dev-phone-1";
     await events!.signOut!({ token: { uid: "u2" } });
-    expect(db.pushDevice.deleteMany).toHaveBeenCalledWith({ where: { userId: "u2" } });
+    expect(db.pushDevice.deleteMany).toHaveBeenCalledWith({ where: { id: "dev-phone-1", userId: "u2" } });
     db.pushDevice.deleteMany.mockClear();
+    thisDevice.id = null; // no cookie on this browser: nothing is deleted, in particular not the other devices
+    await events!.signOut!({ token: { uid: "u2" } });
     await events!.signOut!({ token: {} });
     expect(db.pushDevice.deleteMany).not.toHaveBeenCalled();
+  });
+  it("subscribing names this browser's device in a cookie; unsubscribing one endpoint clears it", async () => {
+    session.current = { user: { id: "owner1", businessId: "b1" }, expires: "" };
+    db.business.findUnique.mockResolvedValue({ id: "b1", ownerId: "owner1" });
+    db.pushDevice.upsert.mockResolvedValue({ id: "dev-abc12345" });
+    const res = await subscribe(req("/api/push/subscribe", body(SUB)));
+    expect(res.status).toBe(200);
+    expect(res.headers.get("set-cookie")).toMatch(/calvy_push_device=dev-abc12345.*HttpOnly/i);
+    const del = await unsubscribe(req("/api/push/subscribe", { method: "DELETE", headers: { "content-type": "application/json" }, body: JSON.stringify({ endpoint: SUB.endpoint }) }));
+    expect(db.pushDevice.deleteMany).toHaveBeenCalledWith({ where: { userId: "owner1", endpoint: SUB.endpoint } });
+    expect(del.headers.get("set-cookie")).toMatch(/calvy_push_device=;/i);
+  });
+  it("reminders are their own alert type: separate preference, booking-level permission, own-only staff match", () => {
+    expect(PREF_FIELDS).toContain("reminders");
+    expect(KIND_PREF.reminder).toBe("reminders");
+    expect(wants("reminder", { summary: true, reminders: false })).toBe(false);
+    expect(wants("summary", { summary: true, reminders: false })).toBe(true);
+    expect(wants("reminder", {})).toBe(true);
+    expect(mayReceive("reminder", member(["appointments.view_all"]))).toBe(true);
+    expect(mayReceive("reminder", member(["reports.view"]))).toBe(false);
+    expect(mayReceive("reminder", member(["appointments.view_own"], "s1"), "s1")).toBe(true);
+    expect(mayReceive("reminder", member(["appointments.view_own"], "s1"), "s2")).toBe(false);
   });
   it("removing a member removes their devices", async () => {
     db.teamMember.findFirst.mockResolvedValue({ id: "m1", userId: "u2", email: "m@x.co" });

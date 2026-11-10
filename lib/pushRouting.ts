@@ -5,21 +5,21 @@ import { can, type Permission } from "@/lib/permissions";
  * allow, and with "own appointments only" only the bookings of their linked staff record. Each person can also switch a kind
  * off for themselves (PushPreference); the two checks are separate: permission is what you MAY get, preference is what you WANT.
  */
-export const PUSH_KINDS = ["booking_new", "booking_cancelled", "booking_rescheduled", "queue", "payment", "summary", "announcement"] as const;
+export const PUSH_KINDS = ["booking_new", "booking_cancelled", "booking_rescheduled", "queue", "payment", "summary", "reminder", "announcement"] as const;
 export type PushKind = (typeof PUSH_KINDS)[number];
 
-export const PREF_FIELDS = ["newBooking", "cancellation", "reschedule", "queue", "payment", "summary"] as const;
+export const PREF_FIELDS = ["newBooking", "cancellation", "reschedule", "queue", "payment", "summary", "reminders"] as const;
 export type PrefField = (typeof PREF_FIELDS)[number];
 export type PushPrefs = Record<PrefField, boolean>;
-export const DEFAULT_PREFS: PushPrefs = { newBooking: true, cancellation: true, reschedule: true, queue: true, payment: true, summary: true };
+export const DEFAULT_PREFS: PushPrefs = { newBooking: true, cancellation: true, reschedule: true, queue: true, payment: true, summary: true, reminders: true };
 
 export const KIND_PREF: Record<PushKind, PrefField | null> = {
   booking_new: "newBooking", booking_cancelled: "cancellation", booking_rescheduled: "reschedule",
-  queue: "queue", payment: "payment", summary: "summary", announcement: null,
+  queue: "queue", payment: "payment", summary: "summary", reminder: "reminders", announcement: null,
 };
 
 export const PREF_LABELS: Record<PrefField, string> = {
-  newBooking: "New booking", cancellation: "Cancellation", reschedule: "Reschedule", queue: "Token queue events", payment: "Payment received", summary: "Daily summary",
+  newBooking: "New booking", cancellation: "Cancellation", reschedule: "Reschedule", queue: "Token queue events", payment: "Payment received", summary: "Daily summary", reminders: "Reminders",
 };
 
 export interface PushRecipient { isOwner: boolean; permissions: readonly Permission[]; staffId: string | null }
@@ -28,7 +28,7 @@ export interface PushRecipient { isOwner: boolean; permissions: readonly Permiss
 export function mayReceive(kind: PushKind, r: PushRecipient, bookingStaffId?: string | null): boolean {
   if (r.isOwner) return true;
   switch (kind) {
-    case "booking_new": case "booking_cancelled": case "booking_rescheduled":
+    case "booking_new": case "booking_cancelled": case "booking_rescheduled": case "reminder":
       if (can(r.permissions, "appointments.view_all")) return true;
       return can(r.permissions, "appointments.view_own") && !!r.staffId && r.staffId === (bookingStaffId ?? null);
     case "queue": return can(r.permissions, "queue.control");

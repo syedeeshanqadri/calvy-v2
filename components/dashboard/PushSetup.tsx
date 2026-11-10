@@ -106,6 +106,18 @@ export async function disablePush(): Promise<boolean> {
   }
 }
 
+/** Before signing out: drop THIS browser's phone-alert device only (other devices of the person keep theirs). Never throws. */
+export async function releaseThisDevice(): Promise<void> {
+  try {
+    if (!("serviceWorker" in navigator)) return;
+    const reg = await navigator.serviceWorker.getRegistration("/");
+    const sub = await reg?.pushManager.getSubscription();
+    if (!sub) return; // nothing registered here; never send an "all devices" delete
+    await fetch("/api/push/subscribe", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ endpoint: sub.endpoint }) });
+    await sub.unsubscribe();
+  } catch { /* the server-side sign-out event is the fallback */ }
+}
+
 async function syncSubscription(sub: PushSubscription): Promise<boolean> {
   try {
     const json = sub.toJSON();

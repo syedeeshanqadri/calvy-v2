@@ -1,4 +1,5 @@
 "use client";
+import { releaseThisDevice } from "@/components/dashboard/PushSetup";
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -114,7 +115,7 @@ export function BottomNav() {
 
         <div className="px-4 pb-3 pt-1 border-t border-[#f0ede8] mx-4 rounded-xl">
           <button
-            onClick={() => signOut({ callbackUrl: "/login" })}
+            onClick={async () => { await releaseThisDevice(); await signOut({ callbackUrl: "/login" }); }}
             className="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-sm text-red-500 hover:bg-red-50 transition-colors font-medium"
           >
             <LogOut size={16} />

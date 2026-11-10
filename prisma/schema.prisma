@@ -396,6 +396,7 @@ model PushPreference {
   queue        Boolean  @default(true)
   payment      Boolean  @default(true)
   summary      Boolean  @default(true)
+  reminders    Boolean  @default(true)
   updatedAt    DateTime @updatedAt
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
