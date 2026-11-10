@@ -34,6 +34,8 @@ model User {
   updatedAt           DateTime             @updatedAt
   business            Business?
   teamMember          TeamMember?
+  pushDevices         PushDevice[]
+  pushPreference      PushPreference?
   passwordResetTokens PasswordResetToken[]
 }
 
@@ -161,7 +163,7 @@ model Business {
   services                 Service[]
   staff                    Staff[]
   withdrawalRequests       WithdrawalRequest[]
-  pushSubscriptions        PushSubscription[]
+  pushDevices              PushDevice[]
   broadcasts               Broadcast[]
   expenses                 Expense[]
   notifications            Notification[]
@@ -318,6 +320,8 @@ model Appointment {
   /// The earlier booking this one was carried over from ("Not coming"); at most one carry-over per booking.
   /// Who the appointment is for (a booker can book for others). Null on older bookings: then the contact's name.
   patientName        String?
+  /// When reception marked the customer as arrived (slot bookings) or present when called (token). Just a timestamp: the queue keeps its own states.
+  arrivedAt          DateTime?
   /// Set when this booking is the free follow-up of an earlier, completed appointment. Unique: one follow-up per appointment.
   followUpOfId       String?            @unique
   followUpOf         Appointment?       @relation("FollowUp", fields: [followUpOfId], references: [id], onDelete: SetNull)
@@ -365,14 +369,35 @@ model WithdrawalRequest {
   business    Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
 }
 
-model PushSubscription {
+/// One browser/phone that agreed to push, for one signed-in user. Deleted on logout, member removal, permission revoke, and when the push service answers 404/410.
+model PushDevice {
   id         String   @id @default(cuid())
+  userId     String
   businessId String
   endpoint   String   @unique
   p256dh     String
   auth       String
+  userAgent  String?
   createdAt  DateTime @default(now())
+  lastSeenAt DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([businessId])
+}
+
+/// A user's own choices for phone alerts (all on by default). What they are ALLOWED to receive still comes from their permissions.
+model PushPreference {
+  userId       String   @id
+  newBooking   Boolean  @default(true)
+  cancellation Boolean  @default(true)
+  reschedule   Boolean  @default(true)
+  queue        Boolean  @default(true)
+  payment      Boolean  @default(true)
+  summary      Boolean  @default(true)
+  updatedAt    DateTime @updatedAt
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model AppSetting {
@@ -486,6 +511,7 @@ enum NotifStatus {
 enum NotifChannel {
   EMAIL
   WHATSAPP
+  PUSH
 }
 
 /// One message to one recipient on one channel; also the delivery log (docs/notifications-design.md).

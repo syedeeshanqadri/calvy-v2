@@ -10,6 +10,7 @@ import { ownerAlert } from "@/lib/notifications/business";
 import { t } from "@/lib/terms";
 import { findOrCreateClient } from "@/lib/clients";
 import { sendPushToBusiness } from "@/lib/push";
+import { shortName } from "@/lib/pushRouting";
 import { parseBody, parseQuery } from "@/lib/validation/common";
 import { appointmentCreateSchema, appointmentListQuery } from "@/lib/validation/appointments";
 import { logger } from "@/lib/logger";
@@ -240,10 +241,10 @@ async function POST_handler(request: NextRequest) {
 
   sendPushToBusiness(businessId, {
     title: "New appointment booked",
-    body: `${clientName} — ${serviceNamesLabel} on ${dateLabel} at ${time}`,
+    body: `${shortName(clientName)} · ${serviceNamesLabel} · ${dateLabel} ${time}`,
     url: "/dashboard/appointments",
     tag: "new-booking",
-  }).catch(() => {});
+  }, { kind: "booking_new", staffId: chosenStaffId, subjectId: appointment.id, version: "created" }).catch(() => {});
 
   try {
     const notice: Notice = {

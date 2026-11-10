@@ -14,6 +14,8 @@ import { safeTimeZone, formatDateLabel, formatTimeLabel, zonedTimeToUtc, utcToZo
 import { settleCancellation } from "@/lib/holds";
 import { refundPayment } from "@/lib/onlinePayment";
 import { removeCreditForReturn, restoreUsedCredit } from "@/lib/creditDb";
+import { queuePush } from "@/lib/pushQueue";
+import { shortName } from "@/lib/pushRouting";
 import { meetingUrlFor } from "@/lib/online";
 import { ownerAlert, reviewRequestFor } from "@/lib/notifications/business";
 
@@ -205,6 +207,8 @@ async function PATCH_handler(req: NextRequest, props: { params: Promise<{ id: st
         const n = noticeFrom(full);
         const rebookUrl = `${APP_URL}/${full.business.slug}`;
         const move = willReschedule ? { from: appointment.date, to: full.date, oldDate: fmtDate(appointment.date), oldTime: fmtTime(appointment.date) } : null;
+        // A phone alert for money received at the desk (to people who may see reports and want it).
+        if (willPay && !willCancel) await queuePush({ businessId, kind: "payment", subjectId: full.id, version: "paid", message: { title: "Payment received", body: `${shortName(full.patientName?.trim() || full.client.name)} · ${full.service.name}`, url: "/dashboard/appointments", tag: "payment" } });
         await notify(
           willCancel ? await ownerAlert(n, "cancelled")
             : move ? await ownerAlert(n, "rescheduled", { version: `${move.from.getTime()}>${move.to.getTime()}`, oldDate: move.oldDate, oldTime: move.oldTime })

@@ -6,17 +6,21 @@ import { requestPushPermission } from "./PushSetup";
 export function PushBanner() {
   const [visible, setVisible] = useState(false);
 
+  // Shown while THIS signed-in person has no phone registered. (Older business-wide subscriptions were dropped, and signing
+  // out removes the person's phones, so everyone sees it again once and turns alerts on for themselves.)
   useEffect(() => {
     if (!("Notification" in window) || !("PushManager" in window)) return;
-    if (Notification.permission !== "default") return;
-    if (localStorage.getItem("push-banner-dismissed")) return;
-    setVisible(true);
+    if (Notification.permission === "denied") return;
+    if (localStorage.getItem("push-banner-v2-dismissed")) return;
+    let live = true;
+    fetch("/api/push/preferences").then((r) => (r.ok ? r.json() : null)).then((d) => { if (live && d && d.devices === 0) setVisible(true); }).catch(() => {});
+    return () => { live = false; };
   }, []);
 
   if (!visible) return null;
 
   function dismiss() {
-    localStorage.setItem("push-banner-dismissed", "1");
+    localStorage.setItem("push-banner-v2-dismissed", "1");
     setVisible(false);
   }
 
@@ -30,7 +34,7 @@ export function PushBanner() {
     <div className="mx-4 sm:mx-6 mt-3 flex items-center gap-3 bg-sky-50 border border-sky-200 rounded-xl px-4 py-3">
       <Bell size={16} className="text-sky-600 flex-shrink-0" />
       <p className="flex-1 text-xs text-sky-800">
-        <span className="font-semibold">Enable push notifications</span> to get instant alerts for new bookings and updates.
+        <span className="font-semibold">Turn on phone alerts</span> for new bookings and changes. You choose which ones in Settings → Phone alerts.
       </p>
       <button
         onClick={enable}

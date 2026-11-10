@@ -9,7 +9,7 @@ export const RESERVED_SLUGS: ReadonlySet<string> = new Set([
   "login", "my", "logout", "onboarding", "privacy", "refund-policy", "reset-password", "accept-invite", "signup", "signin",
   "terms", "unsubscribe", "verify-email",
   // static / framework
-  "_next", "static", "assets", "public", "favicon", "favicon.ico", "icon", "apple-icon", "robots", "robots.txt",
+  "_next", "static", "assets", "public", ".well-known", "icons", "favicon", "favicon.ico", "icon", "apple-icon", "robots", "robots.txt",
   "sitemap", "sitemap.xml", "calvy", "offline", "blog-covers", "manifest", "sw", "service-worker",
   // marketing / generic
   "about", "contact", "pricing", "features", "docs", "support", "status", "billing", "settings", "account",

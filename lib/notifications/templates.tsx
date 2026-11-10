@@ -20,7 +20,7 @@ export interface FormNotificationPayload {
   at: string;
 }
 
-export interface Rendered { subject: string; html: string; text: string; attachments?: Attachment[]; headers?: Record<string, string> }
+export interface Rendered { subject: string; html: string; text: string; attachments?: Attachment[]; headers?: Record<string, string>; /** Push only: where a tap opens, and the tag that replaces an older alert. */ push?: { url: string; tag: string } }
 
 /** Unsubscribe links for optional mail: `page` goes in the footer, `oneClick` in the List-Unsubscribe header. */
 export interface UnsubscribeLinks { page: string; oneClick: string }

@@ -8,6 +8,7 @@ import { ownerAlert } from "@/lib/notifications/business";
 import { t } from "@/lib/terms";
 import { sendBookingConfirmationWhatsApp } from "@/lib/whatsapp";
 import { sendPushToBusiness } from "@/lib/push";
+import { shortName } from "@/lib/pushRouting";
 import { DEFAULT_CURRENCY } from "@/lib/currency";
 import { rateLimit, clientIp } from "@/lib/ratelimit";
 import { findOrCreateClient } from "@/lib/clients";
@@ -54,7 +55,7 @@ async function notifyLimitReached(businessId: string, limit: number) {
     body: `You have reached the ${limit} appointments included in your plan this month, so customers cannot book online. Upgrade to reopen your booking page.`,
     url: "/dashboard/billing",
     tag: "booking-limit",
-  }).catch(() => {});
+  }, { kind: "announcement", subjectId: `booking-limit:${businessId}:${new Date().toISOString().slice(0, 10)}` }).catch(() => {});
 }
 
 async function bookingHandler(req: NextRequest) {
@@ -366,10 +367,10 @@ async function bookingHandler(req: NextRequest) {
 
     sendPushToBusiness(business!.id, {
       title: "New booking received",
-      body: `${bookingForOther ? `${patientName} (booked by ${clientName})` : patientName} — ${serviceNamesLabel} on ${dateLabel} at ${time}`,
+      body: `${shortName(patientName)} · ${serviceNamesLabel} · ${dateLabel} ${time}`,
       url: "/dashboard/appointments",
       tag: "new-booking",
-    }).catch(() => {});
+    }, { kind: "booking_new", staffId: chosenStaffId, subjectId: appointmentId, version: "created" }).catch(() => {});
 
     try {
       const notice: Notice = {

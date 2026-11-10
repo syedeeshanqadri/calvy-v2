@@ -6,6 +6,7 @@ import { TrialBanner } from "./TrialBanner";
 import { BottomNav } from "./BottomNav";
 import { PushSetup } from "./PushSetup";
 import { PushBanner } from "./PushBanner";
+import { InstallPrompt } from "./InstallPrompt";
 import { cn } from "@/lib/utils";
 
 interface DashboardLayoutProps {
@@ -28,6 +29,7 @@ export function DashboardLayout({ children, title, subtitle }: DashboardLayoutPr
       <div className="flex flex-col flex-1 min-w-0 overflow-clip">
         <Header title={title} subtitle={subtitle} />
         <TrialBanner />
+        <InstallPrompt />
         <PushBanner />
         <main className="flex-1 overflow-y-auto overscroll-contain">
           <div className="p-4 sm:p-6 pb-28 lg:pb-6 max-w-[1600px] mx-auto">

@@ -272,6 +272,14 @@ export const authOptions: NextAuthOptions = {
       return session;
     },
   },
+  events: {
+    // Reception phones and tablets are shared: signing out ends this person's phone alerts. (Server side, so it holds even if the page's own JavaScript fails.)
+    async signOut({ token }) {
+      const uid = (token as { uid?: string } | undefined)?.uid;
+      if (!uid) return;
+      try { await prisma.pushDevice.deleteMany({ where: { userId: uid } }); } catch { /* best effort: the send-time check still refuses a signed-out user */ }
+    },
+  },
   pages: { signIn: "/login" },
   secret: process.env.NEXTAUTH_SECRET,
 };

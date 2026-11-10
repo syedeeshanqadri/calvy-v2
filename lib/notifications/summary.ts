@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { DEFAULT_CURRENCY } from "@/lib/currency";
 import { bookingForLabel } from "@/lib/patients";
+import { queuePush } from "@/lib/pushQueue";
 import { enqueue, type NotificationInput } from "@/lib/notifications/enqueue";
 import { alertRecipient } from "@/lib/notifications/business";
 import { idempotencyKey } from "@/lib/notifications/policy";
@@ -53,6 +54,12 @@ export async function enqueueDailySummaries(now: Date = new Date()): Promise<num
   const items: NotificationInput[] = [];
   for (const { b, day, to } of fresh) items.push(await summaryFor(b, day, to, now));
   if (items.length) await enqueue(prisma, items);
+  // The same morning, a short phone alert ("N appointments today") to those who want it. Same idempotency: once per business per day.
+  for (const { b, day } of fresh) {
+    const today = zonedDayRange(day, safeTimeZone(b.timezone));
+    const n = await prisma.appointment.count({ where: { businessId: b.id, date: { gte: today.start, lt: today.end }, status: { in: ["confirmed", "pending"] } } });
+    await queuePush({ businessId: b.id, kind: "summary", subjectId: `summary:${b.id}`, version: day, message: { title: "Today's schedule", body: `${n} ${n === 1 ? "appointment" : "appointments"} today`, url: "/dashboard", tag: "daily-summary" } });
+  }
   return items.length;
 }
 

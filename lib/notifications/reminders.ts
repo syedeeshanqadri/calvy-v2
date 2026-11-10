@@ -94,7 +94,7 @@ export async function enqueueDueReminders(now: Date = new Date()): Promise<numbe
     [...pushed].map((k) => {
       const p = pushes.get(k);
       return p
-        ? sendPushToBusiness(p.businessId, { title: p.title, body: p.body, url: "/dashboard/appointments", tag: p.tag })
+        ? sendPushToBusiness(p.businessId, { title: p.title, body: p.body, url: "/dashboard/appointments", tag: p.tag }, { kind: "summary", subjectId: `reminder:${k}`, version: "reminder" })
             .catch((err) => logger.error("reminder push failed", { err }))
         : undefined;
     }),

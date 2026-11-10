@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { ROUTE_PERMISSIONS, can, type Permission } from "@/lib/permissions";
+import { TodayList } from "@/components/dashboard/TodayList";
+import type { TodayData } from "@/lib/today";
 
 const LABELS: Record<string, string> = {
   "/dashboard/appointments": "Appointments", "/dashboard/queue": "Token queue", "/dashboard/calendar": "Calendar",
@@ -9,10 +11,11 @@ const LABELS: Record<string, string> = {
 };
 
 /** What a team member lands on: only the areas their permissions open. */
-export function MemberHome({ name, roleName, permissions }: { name: string; roleName: string; permissions: Permission[] }) {
+export function MemberHome({ name, roleName, permissions, today }: { name: string; roleName: string; permissions: Permission[]; today?: TodayData }) {
   const links = ROUTE_PERMISSIONS.filter((r) => can(permissions, r.any));
   return (
     <DashboardLayout title={`Hello, ${name.split(" ")[0] || "there"}`} subtitle={roleName}>
+      {today && today.can.viewAny && <TodayList data={today} />}
       {links.length === 0 ? (
         <p className="text-sm text-[#6b6b80]" data-testid="member-empty">No areas have been enabled for you yet. Ask the business owner to update your access.</p>
       ) : (

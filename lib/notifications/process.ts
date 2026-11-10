@@ -8,6 +8,7 @@ import { OPTIONAL_EVENTS, skipReasons, unsubscribeLinks } from "@/lib/notificati
 import { REVIEW_EVENT } from "@/lib/notifications/prefs";
 import { reviewSendBlocker } from "@/lib/notifications/reviewThrottle";
 import { REMINDER_EVENT, reminderSendCheck } from "@/lib/notifications/reminderRules";
+import { pushSendBlocker } from "@/lib/pushQueue";
 import { decryptSecret } from "@/lib/notifications/secret";
 import { renderTemplate } from "@/lib/notifications/templates";
 
@@ -60,6 +61,13 @@ async function purgeOldPayloads(now: Date): Promise<number> {
 async function attemptSend(row: NotificationOutbox, channels: Record<string, Channel>, now: Date): Promise<SendOutcome> {
   if (row.expiresAt && row.expiresAt <= now) return { kind: "skipped", error: "expired" };
   try {
+    if (row.channel === "PUSH") {
+      // A phone alert: the device must still exist and its owner must still be allowed (and want) it. No template: title and body are the payload.
+      const blocked = await pushSendBlocker(row);
+      if (blocked) return { kind: "skipped", error: blocked };
+      const p = row.payload as { title?: string; body?: string; url?: string; tag?: string };
+      return await channels.PUSH({ subject: p.title ?? "Calvy", text: p.body ?? "", html: "", push: { url: p.url ?? "/dashboard", tag: p.tag ?? "calvy" } }, row.recipient, row.id);
+    }
     // Checked again here: the recipient may have unsubscribed, or the business switched it off, since it was queued.
     const skip = (await skipReasons(prisma, [{ businessId: row.businessId, event: row.event, recipient: row.recipient }])).get(0);
     if (skip) return { kind: "skipped", error: skip };

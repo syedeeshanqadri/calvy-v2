@@ -6,7 +6,7 @@ import { signOut } from "next-auth/react";
 import {
   LayoutDashboard, CalendarDays, Calendar, Users, MoreHorizontal, X,
   UserCog, CreditCard, Wallet, BarChart2, Wrench, Link2, Globe,
-  Sparkles, SlidersHorizontal, LogOut, Megaphone, Receipt, ListOrdered,
+  Sparkles, SlidersHorizontal, LogOut, Megaphone, Receipt, ListOrdered, Bell,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAccess } from "@/components/providers/AccessProvider";
@@ -16,9 +16,8 @@ import { useTerms } from "@/components/providers/TermsProvider";
 import type { TermKey } from "@/lib/packs/types";
 
 const PRIMARY: { label: string; href: string; icon: typeof LayoutDashboard; exact?: boolean; term?: TermKey }[] = [
-  { label: "Home", href: "/dashboard", icon: LayoutDashboard, exact: true },
+  { label: "Today", href: "/dashboard", icon: LayoutDashboard, exact: true },
   { label: "Calendar", href: "/dashboard/calendar", icon: CalendarDays },
-  { term: "appointment", label: "Bookings", href: "/dashboard/appointments", icon: Calendar },
   { term: "client", label: "Clients", href: "/dashboard/clients", icon: Users },
 ];
 
@@ -27,6 +26,7 @@ const QUEUE_ITEM = { label: "Queue", href: "/dashboard/queue", icon: ListOrdered
 const CALENDAR_ITEM = PRIMARY[1];
 
 const ALL_MORE_ITEMS: { label: string; href: string; icon: typeof UserCog; flag?: FeatureFlag; term?: TermKey }[] = [
+  { term: "appointment", label: "Bookings", href: "/dashboard/appointments", icon: Calendar },
   { label: "Staff", href: "/dashboard/staff", icon: UserCog },
   { label: "Payments", href: "/dashboard/payments", icon: CreditCard, flag: "payments" },
   { label: "Wallet", href: "/dashboard/wallet", icon: Wallet, flag: "wallet" },
@@ -37,6 +37,7 @@ const ALL_MORE_ITEMS: { label: string; href: string; icon: typeof UserCog; flag?
   { label: "Booking Page", href: "/dashboard/booking-page", icon: Link2 },
   { label: "Website", href: "/dashboard/website", icon: Globe },
   { label: "Billing", href: "/dashboard/billing", icon: Sparkles, flag: "payments" },
+  { label: "Phone alerts", href: "/dashboard/alerts", icon: Bell },
   { label: "Settings", href: "/dashboard/settings", icon: SlidersHorizontal },
 ];
 

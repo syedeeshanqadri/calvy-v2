@@ -1,107 +1,97 @@
-const CACHE = "calvy-v2";
+// Calvy Business service worker.
+//
+// Static files only. It NEVER stores a signed-in page or an API answer: those carry customer data, so they are always fetched
+// from the network. What it keeps: the hashed build files (/_next/static), the app icons, and one static "you're offline" page
+// that contains no business or customer data.
+const CACHE = "calvy-static-v3";
 const OFFLINE = "/offline.html";
+const PRECACHE = [OFFLINE, "/icons/icon-192.png", "/icons/icon-512.png"];
+const LEGACY_CACHE = "calvy-v2"; // the first service worker cached signed-in dashboard pages here: it must go
 
-const PRECACHE = [
-  OFFLINE,
-  "/calvy.svg",
-  "/manifest.json",
-];
+// Only these paths are ever put in the cache.
+const STATIC = /^\/(_next\/static\/|icons\/)/;
 
-// ─── Lifecycle ────────────────────────────────────────────────────────────────
+const purgeOthers = () =>
+  caches.keys().then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))));
 
-self.addEventListener("install", (e) => {
-  e.waitUntil(
-    caches.open(CACHE).then((cache) => cache.addAll(PRECACHE))
-  );
-  self.skipWaiting();
-});
-
-self.addEventListener("activate", (e) => {
-  e.waitUntil(
-    caches.keys()
-      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
-      .then(() => self.clients.claim())
+self.addEventListener("install", (event) => {
+  event.waitUntil(
+    (async () => {
+      const hadLegacy = await caches.has(LEGACY_CACHE);
+      await purgeOthers(); // wipes every old cache, including cached dashboard HTML, as soon as this worker is installed
+      const cache = await caches.open(CACHE);
+      await cache.addAll(PRECACHE).catch(() => {});
+      // Replacing the old worker: take over at once, so it cannot cache another page. Otherwise wait until the person taps "Refresh".
+      if (hadLegacy) await self.skipWaiting();
+    })(),
   );
 });
 
-// ─── Fetch strategy ───────────────────────────────────────────────────────────
+self.addEventListener("activate", (event) => {
+  event.waitUntil(purgeOthers().then(() => self.clients.claim()));
+});
 
-self.addEventListener("fetch", (e) => {
-  const { request } = e;
+self.addEventListener("message", (event) => {
+  if (event.data && event.data.type === "SKIP_WAITING") self.skipWaiting();
+});
+
+self.addEventListener("fetch", (event) => {
+  const request = event.request;
+  if (request.method !== "GET") return;
   const url = new URL(request.url);
-
-  // Only handle same-origin
   if (url.origin !== self.location.origin) return;
+  if (url.pathname.startsWith("/api/")) return; // never cached, never touched: network only
 
-  // API routes — always network, never cache
-  if (url.pathname.startsWith("/api/")) return;
-
-  // Static assets — cache-first
-  if (
-    url.pathname.startsWith("/_next/static/") ||
-    url.pathname.startsWith("/_next/image") ||
-    /\.(svg|png|jpg|jpeg|gif|ico|woff2?|ttf|otf)$/.test(url.pathname)
-  ) {
-    e.respondWith(
-      caches.match(request).then((cached) => {
-        if (cached) return cached;
+  if (STATIC.test(url.pathname)) {
+    event.respondWith(
+      caches.match(request).then((hit) => {
+        if (hit) return hit;
         return fetch(request).then((res) => {
-          if (res.ok) {
-            const clone = res.clone();
-            caches.open(CACHE).then((c) => c.put(request, clone));
+          if (res.ok && res.type === "basic") {
+            const copy = res.clone();
+            caches.open(CACHE).then((c) => c.put(request, copy));
           }
           return res;
         });
-      })
+      }),
     );
     return;
   }
 
-  // Navigation (HTML pages) — network-first, fallback to offline page
+  // Pages: always the network. Offline, the static offline page. A page is never written to the cache.
   if (request.mode === "navigate") {
-    e.respondWith(
-      fetch(request)
-        .then((res) => {
-          if (res.ok) {
-            const clone = res.clone();
-            caches.open(CACHE).then((c) => c.put(request, clone));
-          }
-          return res;
-        })
-        .catch(() =>
-          caches.match(request).then((cached) => cached ?? caches.match(OFFLINE))
-        )
-    );
-    return;
+    event.respondWith(fetch(request).catch(() => caches.match(OFFLINE).then((r) => r || new Response("Offline", { status: 503 }))));
   }
 });
 
-// ─── Push notifications ───────────────────────────────────────────────────────
-
-self.addEventListener("push", (e) => {
-  let data = { title: "Calvy", body: "You have a new notification", icon: "/calvy.svg", url: "/dashboard" };
-  try { if (e.data) data = { ...data, ...e.data.json() }; } catch {}
-
-  e.waitUntil(
-    self.registration.showNotification(data.title, {
-      body: data.body,
-      icon: data.icon ?? "/calvy.svg",
-      badge: "/calvy.svg",
-      tag: data.tag ?? "calvy-notification",
-      data: { url: data.url ?? "/dashboard" },
-      requireInteraction: false,
-    })
+// ─── Push ─────────────────────────────────────────────────────────────────────
+// Only a path inside this app is ever opened from an alert ("//host" and "/\\host" would leave the site).
+const safePath = (u) => (typeof u === "string" && u.startsWith("/") && !u.startsWith("//") && !u.startsWith("/\\") ? u : "/dashboard");
+self.addEventListener("push", (event) => {
+  let data = {};
+  try { if (event.data) data = event.data.json(); } catch (e) { /* not JSON: show the default */ }
+  const title = typeof data.title === "string" && data.title ? data.title : "Calvy";
+  const body = typeof data.body === "string" ? data.body : "You have a new notification";
+  const url = safePath(data.url);
+  event.waitUntil(
+    self.registration.showNotification(title, {
+      body,
+      icon: "/icons/icon-192.png",
+      badge: "/icons/icon-192.png",
+      tag: typeof data.tag === "string" ? data.tag : "calvy",
+      data: { url },
+    }),
   );
 });
 
-self.addEventListener("notificationclick", (e) => {
-  e.notification.close();
-  const url = e.notification.data?.url ?? "/dashboard";
-  e.waitUntil(
-    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
-      const existing = clients.find((c) => c.url.includes(self.location.origin));
-      if (existing) { existing.focus(); existing.navigate(url); }
-      else self.clients.openWindow(url);
-    })
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const url = safePath(event.notification.data && event.notification.data.url);
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((list) => {
+      const existing = list.find((c) => c.url.startsWith(self.location.origin));
+      if (existing) { existing.focus(); return existing.navigate(url); }
+      return self.clients.openWindow(url);
+    }),
   );
 });

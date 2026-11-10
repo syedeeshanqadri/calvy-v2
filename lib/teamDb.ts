@@ -59,6 +59,8 @@ export async function removeMember(memberId: string, businessId: string): Promis
   const m = await prisma.teamMember.findFirst({ where: { id: memberId, businessId } });
   if (!m) return null;
   await prisma.$transaction([
+    // Their phones stop getting alerts at once (also covered by the cascade when the login is deleted).
+    ...(m.userId ? [prisma.pushDevice.deleteMany({ where: { userId: m.userId } })] : []),
     prisma.teamMember.delete({ where: { id: m.id } }),
     ...(m.userId ? [prisma.user.deleteMany({ where: { id: m.userId, role: "member" } })] : []),
   ]);
