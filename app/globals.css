@@ -64,6 +64,8 @@ body {
   .safe-pb-4 { padding-bottom: max(1rem, env(safe-area-inset-bottom)); }
   .safe-pt { padding-top: env(safe-area-inset-top); }
   .safe-pb { padding-bottom: env(safe-area-inset-bottom); }
+  /* Scroll content clears the fixed bottom tab bar: bar height (3.5rem) + the home-indicator inset + a little air. */
+  .pb-mobile-nav { padding-bottom: calc(3.5rem + env(safe-area-inset-bottom) + 1rem); }
   .safe-pb-plus-4 { padding-bottom: calc(env(safe-area-inset-bottom) + 1rem); }
   .safe-header-14 { padding-top: env(safe-area-inset-top); min-height: calc(3.5rem + env(safe-area-inset-top)); }
   .safe-header-16 { padding-top: env(safe-area-inset-top); min-height: calc(4rem + env(safe-area-inset-top)); }

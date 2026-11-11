@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { Card } from "@/components/ui/Card";
@@ -30,6 +30,8 @@ export function ClientsClient({ clients, canEdit = true, canExport = true, csvEx
   const { formatPrice } = useCurrency();
   const [search, setSearch] = useState("");
   const [view, setView] = useState<"grid" | "list">("grid");
+  // Phones (< 640px) start in the compact list; desktop keeps the grid. A tap on Grid/List afterwards is respected.
+  useEffect(() => { if (window.matchMedia("(max-width: 639px)").matches) setView("list"); }, []);
   const [showModal, setShowModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -63,7 +65,7 @@ export function ClientsClient({ clients, canEdit = true, canExport = true, csvEx
 
   return (
     <DashboardLayout title={CliN} subtitle={`${clients.length} total ${cliN}`}>
-      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between mb-4 sm:mb-6">
         <div className="flex gap-2 w-full sm:w-auto">
           <div className="relative flex-1 sm:flex-none">
             <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#6b6b80]" />
@@ -86,12 +88,12 @@ export function ClientsClient({ clients, canEdit = true, canExport = true, csvEx
       </div>
 
       {view === "grid" ? (
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
           {filtered.map((client, i) => (
             // Stretched-link card: the Link overlays the card and the mailto/tel
             // anchors sit above it, so no <a> is nested inside another <a>.
             <div key={client.id} className="relative">
-            <Card hover className="p-5 h-full">
+            <Card hover className="p-4 sm:p-5 h-full">
               <Link
                 href={`/dashboard/clients/${client.id}`}
                 aria-label={`View ${client.name}`}
@@ -131,7 +133,25 @@ export function ClientsClient({ clients, canEdit = true, canExport = true, csvEx
           )}
         </div>
       ) : (
-        <Card>
+        <>
+        {/* Phones: one compact row per person, no sideways scrolling */}
+        <Card className="sm:hidden divide-y divide-[#f0ede8] overflow-hidden">
+          {filtered.map((client, i) => (
+            <Link key={client.id} href={`/dashboard/clients/${client.id}`} className="flex items-center gap-3 px-3 py-2.5 active:bg-[#fafaf8]">
+              <Avatar name={client.name} color={COLORS[i % COLORS.length]} size="sm" />
+              <div className="flex-1 min-w-0">
+                <div className="font-medium text-sm truncate">{client.name}</div>
+                <div className="text-xs text-[#6b6b80] truncate">{client.phone || client.email || "No contact details"}</div>
+              </div>
+              <div className="text-right flex-shrink-0">
+                <div className="text-xs font-semibold">{client.totalAppointments} {client.totalAppointments === 1 ? "visit" : "visits"}</div>
+                <div className="text-[11px] text-[#6b6b80]">{formatPrice(client.totalSpent)}</div>
+              </div>
+            </Link>
+          ))}
+          {filtered.length === 0 && <div className="text-center py-10 text-[#6b6b80] text-sm">No {cliN} found</div>}
+        </Card>
+        <Card className="hidden sm:block">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
@@ -164,6 +184,7 @@ export function ClientsClient({ clients, canEdit = true, canExport = true, csvEx
             </table>
           </div>
         </Card>
+        </>
       )}
 
       <Modal isOpen={showModal} onClose={() => setShowModal(false)} title={`Add New ${Cli1}`} size="md">

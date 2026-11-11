@@ -54,7 +54,7 @@ export function AlertsClient({ offered, configured }: { offered: { field: string
               ? <Button variant="outline" size="sm" onClick={disable} disabled={busy}>Turn off on this device</Button>
               : <Button size="sm" onClick={enable} disabled={busy || !configured}>Turn on for this device</Button>}
           </div>
-          <p className="text-xs text-[#6b6b80]">Signing out turns alerts off for you on every device, so a shared phone never shows someone else&apos;s alerts. On iPhone, install the app first (Share → Add to Home Screen).</p>
+          <p className="text-xs text-[#6b6b80]">Signing out turns alerts off on this device only, so a shared phone never shows someone else&apos;s alerts. Your other devices keep theirs. On iPhone, install the app first (Share → Add to Home Screen).</p>
           {msg && <p role="status" className="text-sm text-green-700">{msg}</p>}
           {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
         </CardContent>
