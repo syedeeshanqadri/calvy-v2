@@ -8,7 +8,7 @@ Rule: keep ALL features open during the build (PLAN_ENFORCEMENT off). Plan restr
 |---|---|---|
 | 1 | Admin panel (super user) | Super admin = DB flag set only by script (never UI/API); TOTP 2FA, re-auth for sensitive actions, 30 min idle; businesses list/detail, view-as (read-only by default, reason, 30 min), actions with reason + audit log, suspend, plan override, verified-customer booking limits. Plan in review |
 | 2 | Business mobile app (businesses only) | PWA built (docs/business-app.md): installable, safe service worker, per-user web push with preferences and permissions, phone-first Today, TWA prep (docs/twa-playstore.md; real Android build at Pre-launch). Then Play Store via TWA wrapper; PWA first (installable, push alerts, full dashboard), then Play Store via TWA wrapper; Flutter only if PWA proves insufficient |
-| 3 | Cashfree Easy Split | Moved out of Parked (was chunk 12). Unlocks "Full online payment" in Settings → Online payments |
+| 3 | Cashfree Easy Split | Moved out of Parked (was chunk 12). Unlocks "Full online payment" in Settings → Online payments. **Easy Split blocked on Cashfree sandbox enablement (support ticket raised).** |
 | 4 | Plan subscriptions on Cashfree (remove Razorpay) | Moved out of Parked (was chunk 13) |
 | 5 | WhatsApp integration settings | Each business uses its OWN credentials: Meta Cloud API or third-party/OpenWA. Stored encrypted, owner-only, mid+ plans |
 | 6 | WhatsApp alerts | Every email alert also on WhatsApp, transactional only, email fallback |
