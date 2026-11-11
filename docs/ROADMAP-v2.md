@@ -12,7 +12,7 @@ Rule: keep ALL features open during the build (PLAN_ENFORCEMENT off). Plan restr
 | 4 | Plan subscriptions on Cashfree (remove Razorpay) | Moved out of Parked (was chunk 13) |
 | 5 | WhatsApp integration settings | Each business uses its OWN credentials: Meta Cloud API or third-party/OpenWA. Stored encrypted, owner-only, mid+ plans |
 | 6 | WhatsApp alerts | Every email alert also on WhatsApp, transactional only, email fallback |
-| 7 | Pre-launch | **Includes the production payments go-live checklist (docs/PLAN.md, Pre-launch security checklist)** and the Low payment items: public payment-status route keyed by order id, webhook timestamp freshness, **GST receipt on the customer's booking page** (email-only today). Security pass, production env (Asia Neon, R2, Upstash, Sentry, fresh secrets, domain), honest landing page, plan restrictions ON |
+| 7 | Pre-launch | **Includes the production payments go-live checklist (docs/PLAN.md, Pre-launch security checklist)** and the Low payment items: public payment-status route keyed by order id, webhook timestamp freshness, **GST receipt on the customer's booking page** (email-only today). Security pass, production env (Asia Neon, R2, Upstash, Sentry, fresh secrets, domain), honest landing page, plan restrictions ON. **Also: verify phone push end to end on the production domain (VAPID vars in Production env, iPhone installed app + Android)** |
 
 ## Done
 - Housekeeping; Playwright fixes + smoke tests in CI; Notifications system; Website editor sections; Reviews; Team roles (#64).
