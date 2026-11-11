@@ -127,8 +127,9 @@ export function BottomNav() {
       </div>
 
       {/* Bottom tab bar */}
-      <nav className="fixed bottom-0 left-0 right-0 z-30 bg-white/95 backdrop-blur-md border-t border-[#e8e6e0] lg:hidden">
-        <div className="flex items-stretch h-16">
+      {/* The home-indicator inset is added ONCE, as padding on the nav itself; the bar's own height is fixed at 3.5rem. */}
+      <nav className="fixed bottom-0 left-0 right-0 z-30 bg-white border-t border-[#e8e6e0] lg:hidden" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
+        <div className="flex items-stretch h-14">
           {bar.map(item => {
             const isActive = "exact" in item && item.exact ? pathname === item.href : pathname.startsWith(item.href);
             return (
@@ -136,7 +137,7 @@ export function BottomNav() {
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  "flex flex-col items-center justify-center gap-1 flex-1 transition-colors active:scale-95",
+                  "flex flex-col items-center justify-center gap-0.5 flex-1 basis-0 min-w-0 transition-colors active:scale-95",
                   isActive ? "text-sky-600" : "text-[#b0b0c0]"
                 )}
               >
@@ -151,7 +152,7 @@ export function BottomNav() {
           <button
             onClick={() => setShowMore(true)}
             className={cn(
-              "flex flex-col items-center justify-center gap-1 flex-1 transition-colors active:scale-95",
+              "flex flex-col items-center justify-center gap-0.5 flex-1 basis-0 min-w-0 transition-colors active:scale-95",
               isMoreActive ? "text-sky-600" : "text-[#b0b0c0]"
             )}
           >
@@ -161,7 +162,6 @@ export function BottomNav() {
             </span>
           </button>
         </div>
-        <div className="safe-pb" />
       </nav>
     </>
   );

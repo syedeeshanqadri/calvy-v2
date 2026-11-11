@@ -32,7 +32,7 @@ export function DashboardLayout({ children, title, subtitle }: DashboardLayoutPr
         <InstallPrompt />
         <PushBanner />
         <main className="flex-1 overflow-y-auto overscroll-contain">
-          <div className="p-4 sm:p-6 pb-28 lg:pb-6 max-w-[1600px] mx-auto">
+          <div className="p-4 sm:p-6 pb-mobile-nav lg:pb-6 max-w-[1600px] mx-auto">
             {children}
           </div>
         </main>
