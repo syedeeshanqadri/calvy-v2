@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { Card } from "@/components/ui/Card";
@@ -29,9 +29,9 @@ export function ClientsClient({ clients, canEdit = true, canExport = true, csvEx
   const CliN = t("client", { plural: true, cap: true });
   const { formatPrice } = useCurrency();
   const [search, setSearch] = useState("");
-  const [view, setView] = useState<"grid" | "list">("grid");
-  // Phones (< 640px) start in the compact list; desktop keeps the grid. A tap on Grid/List afterwards is respected.
-  useEffect(() => { if (window.matchMedia("(max-width: 639px)").matches) setView("list"); }, []);
+  // "auto" = list on phones (< 640px), grid from sm up, decided by CSS alone so the server HTML is already right (no jump after load).
+  // Tapping Grid or List switches to that view on every screen size.
+  const [view, setView] = useState<"auto" | "grid" | "list">("auto");
   const [showModal, setShowModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -72,8 +72,8 @@ export function ClientsClient({ clients, canEdit = true, canExport = true, csvEx
             <input className="w-full sm:w-60 h-10 pl-9 pr-4 rounded-xl bg-white border border-[#e8e6e0] text-sm outline-none focus:border-accent/40 transition-all" placeholder={`Search ${cliN}...`} value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
           <div className="flex gap-1 bg-white border border-[#e8e6e0] rounded-xl p-1">
-            <button onClick={() => setView("grid")} className={`px-3 py-1.5 rounded-lg text-xs transition-all ${view === "grid" ? "bg-[#f8f7f4] text-brand-900" : "text-[#6b6b80]"}`}>Grid</button>
-            <button onClick={() => setView("list")} className={`px-3 py-1.5 rounded-lg text-xs transition-all ${view === "list" ? "bg-[#f8f7f4] text-brand-900" : "text-[#6b6b80]"}`}>List</button>
+            <button onClick={() => setView("grid")} className={`px-3 py-1.5 rounded-lg text-xs transition-all ${view === "grid" ? "bg-[#f8f7f4] text-brand-900" : view === "auto" ? "text-[#6b6b80] sm:bg-[#f8f7f4] sm:text-brand-900" : "text-[#6b6b80]"}`}>Grid</button>
+            <button onClick={() => setView("list")} className={`px-3 py-1.5 rounded-lg text-xs transition-all ${view === "list" ? "bg-[#f8f7f4] text-brand-900" : view === "auto" ? "text-brand-900 bg-[#f8f7f4] sm:bg-transparent sm:text-[#6b6b80]" : "text-[#6b6b80]"}`}>List</button>
           </div>
         </div>
         <div className="flex gap-2">
@@ -87,8 +87,9 @@ export function ClientsClient({ clients, canEdit = true, canExport = true, csvEx
         </div>
       </div>
 
-      {view === "grid" ? (
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
+      {/* Both layouts are in the HTML; CSS shows the right one. */}
+      <>
+        <div className={`${view === "grid" ? "grid" : view === "auto" ? "hidden sm:grid" : "hidden"} sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4`}>
           {filtered.map((client, i) => (
             // Stretched-link card: the Link overlays the card and the mailto/tel
             // anchors sit above it, so no <a> is nested inside another <a>.
@@ -132,10 +133,8 @@ export function ClientsClient({ clients, canEdit = true, canExport = true, csvEx
             <div className="col-span-full text-center py-16 text-[#6b6b80] text-sm">No {cliN} found</div>
           )}
         </div>
-      ) : (
-        <>
         {/* Phones: one compact row per person, no sideways scrolling */}
-        <Card className="sm:hidden divide-y divide-[#f0ede8] overflow-hidden">
+        <Card className={`${view === "grid" ? "hidden" : "sm:hidden"} divide-y divide-[#f0ede8] overflow-hidden`}>
           {filtered.map((client, i) => (
             <Link key={client.id} href={`/dashboard/clients/${client.id}`} className="flex items-center gap-3 px-3 py-2.5 active:bg-[#fafaf8]">
               <Avatar name={client.name} color={COLORS[i % COLORS.length]} size="sm" />
@@ -151,7 +150,7 @@ export function ClientsClient({ clients, canEdit = true, canExport = true, csvEx
           ))}
           {filtered.length === 0 && <div className="text-center py-10 text-[#6b6b80] text-sm">No {cliN} found</div>}
         </Card>
-        <Card className="hidden sm:block">
+        <Card className={view === "list" ? "hidden sm:block" : "hidden"}>
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
@@ -184,8 +183,7 @@ export function ClientsClient({ clients, canEdit = true, canExport = true, csvEx
             </table>
           </div>
         </Card>
-        </>
-      )}
+      </>
 
       <Modal isOpen={showModal} onClose={() => setShowModal(false)} title={`Add New ${Cli1}`} size="md">
         <div className="space-y-4">

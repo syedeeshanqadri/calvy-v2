@@ -391,6 +391,7 @@ Complete every item before the first real customer (see also S1-01, S9-02, S9-10
   - [ ] Super admin opens `/api/admin/payments-health`: `ready: true`, mode `production`, no problems.
   - [ ] Then `FEATURE_ONLINE_PAYMENTS=1` and redeploy; make one real Rs 10 booking and refund it; check the receipt email, the fee ledger and the webhook log.
   - [ ] Open Low items from the payments security review: public status endpoint keyed by order id, webhook timestamp freshness check.
+- [ ] **Verify phone push end to end on the production domain**: VAPID variables (`NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`) set in the Production environment; test on an iPhone with the installed app and on Android.
 - [ ] Turn `PLAN_ENFORCEMENT` on in production (`PLAN_ENFORCEMENT=1`). It is off by default, which gives every business every feature and no limits; see `docs/feature-flags.md`.
 
 ---

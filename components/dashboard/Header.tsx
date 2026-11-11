@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useSession, signOut } from "next-auth/react";
 import Link from "next/link";
 import { requestPushPermission } from "./PushSetup";
-import Image from "next/image";
+import { Logo } from "@/components/ui/Logo";
 
 interface Notification {
   id: string;
@@ -88,9 +88,8 @@ export function Header({ title, subtitle }: HeaderProps) {
     <>
       <header className="bg-white border-b border-[#e8e6e0] flex items-center px-4 sm:px-6 gap-3 sticky top-0 z-30 safe-header-14">
         {/* Mobile: logo */}
-        {/* The full wordmark is an SVG <img>: it cannot load the page's fonts, so on iPhone its "alvy" falls back to another font and sits apart from the C. The phone header shows the mark alone. */}
-        <Link href="/dashboard" className="lg:hidden flex-shrink-0 flex items-center" aria-label="Calvy home">
-          <Image src="/icon.svg" alt="Calvy" width={26} height={28} priority className="h-7 w-auto" />
+        <Link href="/dashboard" className="lg:hidden flex-shrink-0" aria-label="Calvy home">
+          <Logo width={64} priority />
         </Link>
 
         {/* Title */}
