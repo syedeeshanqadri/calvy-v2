@@ -17,7 +17,7 @@ For business owners and their team members only (customers use the booking pages
 - Sent through the notification outbox as channel `PUSH` (retries, idempotent per device per event, delivery log). A 404/410 from the push service deletes the device.
 - Who gets what (checked when queued **and** again when sent): the owner gets everything; a member only what their permissions allow (booking alerts: all appointments, or only their own with "own only"; queue alerts: queue control; payment and daily summary: reports).
 - Text is a name (first name + initial), a time and a service. Phone numbers and emails are scrubbed.
-- A person's devices are removed when they **sign out**, are **removed** from the team, or **lose a permission** (shared reception phones). The old business-wide subscriptions were dropped; the opt-in banner shows again.
+- Signing out removes only THIS device's alert registration; all of a person's devices are removed when they are **removed** from the team, **lose a permission** or change staff link (shared reception phones). The old business-wide subscriptions were dropped; the opt-in banner shows again.
 
 ## Today (phone-first)
 Bottom bar: Today, Calendar (or Queue for token businesses), Customers, More. Today shows the day's appointments or tokens with Arrived / Completed / No-show, Call next token, Add walk-in, and call / WhatsApp links (only for people who may see customer details). "Arrived" only stamps `arrivedAt`; for tokens it applies to the one being served ("Present") and "Not present" is the queue's own action.
