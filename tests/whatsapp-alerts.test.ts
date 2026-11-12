@@ -119,7 +119,7 @@ describe("consent and E.164", () => {
   it("records consent only when the typed number is the client's own (normalized, +91 default)", async () => {
     const now = new Date("2026-11-12T10:00:00Z");
     expect(await recordWhatsAppConsent({ client: { update: db.clientUpdate } } as never, { id: "c1", phone: "+919876543210" }, "98765 43210", "Asia/Kolkata", "booking_form", now)).toBe(true);
-    expect(db.clientUpdate).toHaveBeenCalledWith({ where: { id: "c1" }, data: { whatsappConsent: true, whatsappConsentAt: now, whatsappConsentSource: "booking_form" } });
+    expect(db.clientUpdate).toHaveBeenCalledWith({ where: { id: "c1" }, data: { whatsappConsent: true, whatsappConsentAt: now, whatsappConsentSource: "booking_form", whatsappConsentBy: null } });
   });
   it("does not opt in a number the booking could not claim (spoofed or someone else's)", async () => {
     const tx = { client: { update: db.clientUpdate } } as never;

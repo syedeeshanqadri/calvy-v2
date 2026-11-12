@@ -4,6 +4,7 @@ import { pageAccess } from "@/lib/access";
 import { prisma } from "@/lib/prisma";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { safeTimeZone, utcToZoned } from "@/lib/time";
+import { whatsappOffered } from "@/lib/whatsapp/consent";
 import { QueueClient } from "./QueueClient";
 
 export const dynamic = "force-dynamic";
@@ -32,7 +33,7 @@ export default async function QueuePage() {
   const today = utcToZoned(new Date(), safeTimeZone(business.timezone)).date;
   return (
     <DashboardLayout title="Queue" subtitle="Call the next token, handle no-shows, add walk-ins">
-      <QueueClient today={today} services={services} />
+      <QueueClient today={today} services={services} whatsappOffered={await whatsappOffered(session.user.businessId)} />
     </DashboardLayout>
   );
 }

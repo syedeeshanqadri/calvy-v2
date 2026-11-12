@@ -41,7 +41,7 @@ export async function enqueue(db: Prisma.TransactionClient, input: NotificationI
   const skips = await skipReasons(db, items.map((n) => ({ businessId: n.businessId ?? null, event: n.event, recipient: n.recipient })));
   const rows = items.map((n, i) => {
     const channel = n.channel ?? "EMAIL";
-    const skip = n.skipReason ?? skips.get(i);
+    const skip = n.skipReason ?? (channel === "EMAIL" && !n.recipient.trim() ? "no email address" : skips.get(i));
     return {
       idempotencyKey: idempotencyKey({ event: n.event, subjectId: n.subjectId, version: n.version, recipient: n.recipient, channel }),
       businessId: n.businessId ?? null,

@@ -7,9 +7,11 @@ import { prisma } from "@/lib/prisma";
 import { findOrCreateClient } from "@/lib/clients";
 import { notify } from "@/lib/notifications/enqueue";
 import { ownerAlert } from "@/lib/notifications/business";
-import { queueClosed, queueMovedBack, queueNext, type Notice } from "@/lib/notifications/events";
+import { queueClosed, queueMovedBack, queueNext, whatsappReachable, type Notice } from "@/lib/notifications/events";
 import { resolvePrefs } from "@/lib/notifications/prefs";
 import { planNear } from "@/lib/queueNear";
+import { notifyTokenVisitCompleted } from "@/lib/notifications/completion";
+import { recordWhatsAppConsent, whatsappOffered } from "@/lib/whatsapp/consent";
 import { DEFAULT_CURRENCY } from "@/lib/currency";
 import { creditLabel } from "@/lib/credit";
 import { creditClosedBooking } from "@/lib/creditDb";
@@ -79,7 +81,7 @@ export function assertRealDate(date: string): void {
 }
 
 const rowInclude = {
-  client: { select: { name: true, email: true, phone: true } },
+  client: { select: { name: true, email: true, phone: true, whatsappConsent: true } },
   service: { select: { name: true, meetingUrl: true } },
   staff: { select: { meetingUrl: true } },
 } satisfies Prisma.AppointmentInclude;
@@ -263,7 +265,7 @@ export async function runQueueAction(
   const { plan, subject, etas, credit, session } = done;
 
   // Customer emails are queued after the transaction; a failed one never undoes the queue action.
-  if (subject?.client.email && plan.subjectId) {
+  if (subject && plan.subjectId && (subject.client.email || whatsappReachable(subject.client))) {
     const full = await prisma.business.findUnique({ where: { id: biz.id }, select: { name: true, slug: true, packId: true, termsOverride: true, currency: true } });
     if (full) {
       try {
@@ -274,6 +276,7 @@ export async function runQueueAction(
           appointmentId: subject.id,
           businessId: biz.id,
           to: subject.client.email,
+          whatsapp: whatsappReachable(subject.client),
           payload: {
             clientName: subject.client.name, patientName: subject.patientName ?? undefined, businessName: full.name, serviceName: subject.service.name,
             staffName, date: formatDateLabel(zonedToUtc(input.date, session.startMin, tz), tz), time,
@@ -300,6 +303,9 @@ export async function runQueueAction(
       }
     }
   }
+
+  // Serving the next token completes the one before it: the same "visit completed" notices as marking it completed.
+  if (plan.outcome === "advanced" && plan.subjectId) await notifyTokenVisitCompleted(plan.subjectId, biz.id);
 
   await notifyComingUp(biz, session, input.date, plan, done.rows, etas, tz);
 
@@ -352,7 +358,7 @@ export async function notifyComingUp(
       if (!r) return [];
       const eta = etas[d.id] ? utcToZoned(etas[d.id], tz).time : "";
       const notice: Notice = {
-        appointmentId: r.id, businessId: biz.id, to: r.client.email,
+        appointmentId: r.id, businessId: biz.id, to: r.client.email, whatsapp: whatsappReachable(r.client),
         payload: {
           clientName: r.client.name, patientName: r.patientName ?? undefined, businessName: full.name, serviceName: r.service.name,
           staffName, date: formatDateLabel(zonedToUtc(date, session.startMin, tz), tz), time: eta || minToHhmm(session.startMin),
@@ -373,7 +379,7 @@ export async function notifyComingUp(
 /** Reception adds a customer who walked in: name + phone, no email needed, no fee, last in the queue. */
 export async function addWalkIn(
   biz: QueueBusiness & { plan: string; planStatus: string; trialEndsAt: Date | null },
-  input: { sessionId: string; date: string; name: string; phone: string; serviceId?: string },
+  input: { sessionId: string; date: string; name: string; phone: string; serviceId?: string; whatsappConsent?: boolean; consentBy?: string },
 ): Promise<{ tokenNumber: number; etaTime: string }> {
   assertRealDate(input.date);
   const tz = biz.timezone;
@@ -395,6 +401,15 @@ export async function addWalkIn(
   });
   if (!service) throw new QueueRequestError("No service available for this session.");
   const client = await findOrCreateClient(prisma, biz.id, { name: input.name, phone: input.phone }, tz, { trusted: true });
+  // Desk consent: the customer said yes at the counter. Same gate as the booking form (WhatsApp connected, plan allows),
+  // and it records who asked and when. Never opts anyone in silently.
+  if (input.whatsappConsent && input.consentBy) {
+    try {
+      if (await whatsappOffered(biz.id)) await recordWhatsAppConsent(prisma, client, input.phone, tz, "DESK", new Date(), input.consentBy);
+    } catch (err) {
+      logger.error("[WhatsApp] desk consent not recorded:", { err });
+    }
+  }
   const monthStart = startOfBusinessMonth(tz);
 
   try {

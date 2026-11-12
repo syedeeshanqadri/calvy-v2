@@ -3,7 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { getBusinessFeatures } from "@/lib/getFeatures";
 import { normalizePhone } from "@/lib/phone";
 
-export const CONSENT_SOURCES = ["booking_form", "chat_widget"] as const;
+/** DESK: staff recorded that the customer agreed verbally (walk-in form), with the staff user id. */
+export const CONSENT_SOURCES = ["booking_form", "chat_widget", "DESK"] as const;
 export type ConsentSource = (typeof CONSENT_SOURCES)[number];
 
 /**
@@ -18,10 +19,11 @@ export async function recordWhatsAppConsent(
   tz: string | null | undefined,
   source: ConsentSource,
   now: Date = new Date(),
+  by?: string,
 ): Promise<boolean> {
   const typed = normalizePhone(typedPhone, tz);
   if (!typed || !client.phone || client.phone !== typed) return false;
-  await db.client.update({ where: { id: client.id }, data: { whatsappConsent: true, whatsappConsentAt: now, whatsappConsentSource: source } });
+  await db.client.update({ where: { id: client.id }, data: { whatsappConsent: true, whatsappConsentAt: now, whatsappConsentSource: source, whatsappConsentBy: source === "DESK" ? by ?? null : null } });
   return true;
 }
 

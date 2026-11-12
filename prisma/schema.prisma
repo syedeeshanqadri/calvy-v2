@@ -249,6 +249,8 @@ model Client {
   whatsappConsentAt     DateTime?        @db.Timestamptz(3)
   /// Where it was given: booking_form | chat_widget
   whatsappConsentSource String?
+  /// Desk consent only: the staff user who recorded that the customer agreed verbally.
+  whatsappConsentBy     String?
   createdAt             DateTime         @default(now())
   appointments          Appointment[]
   credits               CustomerCredit[]
