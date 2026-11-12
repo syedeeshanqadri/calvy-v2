@@ -73,9 +73,9 @@ const goodWorld = () => {
 beforeEach(() => { vi.resetAllMocks(); });
 
 describe("every customer email event maps to a template", () => {
-  const EVENTS = ["booking.created", "booking.rescheduled", "booking.cancelled", "booking.meeting_link", "booking.paid", "booking.completed", "booking.no_show", REMINDER_EVENT, "booking.queue_moved_back", "booking.queue_closed", "booking.review_request"];
+  const EVENTS = ["booking.created", "booking.rescheduled", "booking.cancelled", "booking.meeting_link", "booking.paid", "booking.completed", "booking.no_show", REMINDER_EVENT, "booking.queue_moved_back", "booking.queue_closed", "booking.queue_next", "booking.review_request"];
   const full = { ...PAYLOAD, token: { number: 14, estimatedTime: "4:30 PM", sessionName: "Morning" }, trackUrl: "https://calvy.io/sunrise/q/a1.sig", meetingUrl: "https://meet.example.test/x", reviewUrl: "https://g.page/r/abc/review", place: 5 };
-  it("all 11 events are mapped, produce the exact variable count, and a button suffix only when the template has a button", () => {
+  it("all 12 events are mapped, produce the exact variable count, and a button suffix only when the template has a button", () => {
     expect(Object.keys(WA_EVENTS).sort()).toEqual([...EVENTS].sort());
     for (const event of EVENTS) {
       const m = buildWhatsAppMessage(event, full, "CUSTOMER");
@@ -102,7 +102,7 @@ describe("every customer email event maps to a template", () => {
   it("variables are cleaned the way Meta needs; review request is off by default, the rest on", () => {
     expect(clean("a\nb\t c   d")).toBe("a b c d");
     expect(clean("   ", "x")).toBe("x");
-    expect(WA_PREF_DEFAULTS).toEqual({ confirmations: true, changes: true, reminders: true, token: true, receipts: true, thanks: true, reviewRequest: false });
+    expect(WA_PREF_DEFAULTS).toEqual({ confirmations: true, changes: true, reminders: true, token: true, turnSoon: true, receipts: true, thanks: true, followUp: true, reviewRequest: false });
     expect(resolvePrefs(null).whatsapp.reviewRequest).toBe(false);
     expect(resolvePrefs({ whatsapp: { reviewRequest: true, reminders: false } }).whatsapp).toMatchObject({ reviewRequest: true, reminders: false, confirmations: true });
   });
@@ -194,6 +194,17 @@ describe("send-time gates (no send without consent, STOP, approval, connection)"
     const f = vi.fn();
     expect(await sendWhatsAppRow(waRow(), f as never)).toEqual({ kind: "skipped", error: reason });
     expect(f).not.toHaveBeenCalled(); // never reaches Meta
+  });
+  it("follow-up switch off: the combined thank-you falls back to the plain one; on: combined, with the deadline", async () => {
+    goodWorld();
+    const row = waRow({ event: "booking.completed", payload: { ...PAYLOAD, followUpUntil: "2 Dec" } });
+    const f = vi.fn(async () => json({ messages: [{ id: "wamid.1" }] }));
+    await sendWhatsAppRow(row, f as never);
+    expect(JSON.parse((f.mock.calls[0] as unknown as [string, RequestInit])[1].body as string).template.name).toBe("calvy_visit_thanks_follow_up_v1");
+    db.bizFindUnique.mockResolvedValue({ ownerId: "u-owner", name: "Sunrise Clinic", notificationPrefs: { whatsapp: { followUp: false } } });
+    const g = vi.fn(async () => json({ messages: [{ id: "wamid.2" }] }));
+    await sendWhatsAppRow(row, g as never);
+    expect(JSON.parse((g.mock.calls[0] as unknown as [string, RequestInit])[1].body as string).template.name).toBe("calvy_visit_thanks_v1");
   });
   it("template not APPROVED -> skipped, Meta never called", async () => {
     goodWorld(); db.tplFindMany.mockResolvedValue([]);

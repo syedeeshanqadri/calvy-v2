@@ -39,12 +39,17 @@ Meta's test number can message only recipients added to the allowed list (WhatsA
 | booking.queue_moved_back | token_moved_back | Token |
 | booking.queue_closed | token_closed | Token |
 | booking.paid | payment_received | Receipts |
-| booking.completed | visit_thanks | Thank-you |
+| booking.completed | visit_thanks, or visit_thanks_follow_up when the visit earns a free follow-up (one message) | Thank-you (+ "Free follow-up deadline" switch) |
+| booking.queue_next (new: "your turn is coming up") | token_next | Token: your turn is coming up (ON) |
 | booking.review_request | review_request | Review request (OFF by default) |
 | push alerts to owner/members | staff_alert | the person's own alert choices |
 
-Templates `token_next` and `follow_up_offer` exist but have no email event to hang on yet. `booking_confirmed`, `booking_reminder` and `booking_rescheduled` are `_v2`: v1 had a "View booking" button that only token bookings have a page for. After upgrading, press **Install Calvy templates** again: it only creates what is missing.
+`booking_confirmed`, `booking_reminder` and `booking_rescheduled` are `_v2`: v1 had a "View booking" button that only token bookings have a page for. After upgrading, press **Install Calvy templates** again: it only creates what is missing.
 
 **Owner and team.** Alerts > WhatsApp alerts (any signed-in person): enter your number, a `connection_test` message is sent to it, then switch alerts on. Rules are exactly the phone-alert rules (`lib/pushRouting.ts`): permissions decide what you MAY get (own-only members only their own bookings), your alert choices decide what you WANT; both are re-checked when the message is sent.
 
 **Delivery log.** WhatsApp rows show Queued, Sent, Delivered, Read or Failed (with Meta's reason) from the webhook.
+
+**Turn coming up (token queue).** After each reception action (Next, Not present, Not coming), a waiting token with N or fewer open tokens ahead of it (N = Settings > Notifications, 1 to 5, default 3; the token being served counts) gets one short email and, if they opted in, `token_next` on WhatsApp. Once per booking per move-back epoch (epoch = times moved back): a token moved back while still within N does not get a second message; one moved back beyond N and reaching N again gets one more; never more than two per booking. Skipped at send if the token is no longer waiting.
+
+**Follow-up deadline.** When a clinic visit is marked completed and follow-ups are on (and the visit has a doctor, is not itself a follow-up, and none was used), the thank-you email and the WhatsApp `visit_thanks_follow_up` template carry the free follow-up deadline. It is never a separate message. Turn the "Free follow-up deadline" switch off to send the plain thank-you on WhatsApp.

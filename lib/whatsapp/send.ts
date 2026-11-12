@@ -68,8 +68,11 @@ export async function sendWhatsAppRow(row: NotificationOutbox, fetcher?: Fetcher
   if (blocked) return { kind: "skipped", error: blocked };
   const businessId = row.businessId as string;
 
-  const business = await prisma.business.findUnique({ where: { id: businessId }, select: { name: true } });
-  const message = buildWhatsAppMessage(row.event, { ...(row.payload as object), businessName: business?.name }, row.audience);
+  const business = await prisma.business.findUnique({ where: { id: businessId }, select: { name: true, notificationPrefs: true } });
+  const payload = { ...(row.payload as { followUpUntil?: string }), businessName: business?.name };
+  // "Free follow-up deadline" switched off: the plain thank-you goes out instead of the combined one.
+  if (!resolvePrefs(business?.notificationPrefs).whatsapp.followUp) delete payload.followUpUntil;
+  const message = buildWhatsAppMessage(row.event, payload, row.audience);
   if (!message) return { kind: "skipped", error: "nothing to say on WhatsApp for this message" };
 
   const name = templateName(message.key);

@@ -7,7 +7,9 @@ import { prisma } from "@/lib/prisma";
 import { findOrCreateClient } from "@/lib/clients";
 import { notify } from "@/lib/notifications/enqueue";
 import { ownerAlert } from "@/lib/notifications/business";
-import { queueClosed, queueMovedBack, type Notice } from "@/lib/notifications/events";
+import { queueClosed, queueMovedBack, queueNext, type Notice } from "@/lib/notifications/events";
+import { resolvePrefs } from "@/lib/notifications/prefs";
+import { planNear } from "@/lib/queueNear";
 import { DEFAULT_CURRENCY } from "@/lib/currency";
 import { creditLabel } from "@/lib/credit";
 import { creditClosedBooking } from "@/lib/creditDb";
@@ -299,6 +301,8 @@ export async function runQueueAction(
     }
   }
 
+  await notifyComingUp(biz, session, input.date, plan, done.rows, etas, tz);
+
   const calledId = Object.entries(plan.updates).find(([, u]) => u.state === "SERVING")?.[0];
   const called = calledId ? done.rows.find((r) => r.id === calledId) : undefined;
   return {
@@ -312,6 +316,58 @@ export async function runQueueAction(
       emailed: !!subject?.client.email,
     }),
   };
+}
+
+/**
+ * "Your turn is coming up" to the waiting tokens that are now `tokenNextAhead` or fewer places from the front
+ * (business setting, default 3). Once per booking per move-back epoch, at most twice (lib/queueNear.ts); the
+ * outbox key (event + booking + epoch) makes a repeat of the same action add nothing. Never fails the queue action.
+ */
+export async function notifyComingUp(
+  biz: QueueBusiness,
+  session: { startMin: number; minutesPerToken: number; name: string; staffId: string | null },
+  date: string,
+  plan: QueuePlan,
+  rows: RowWithRelations[],
+  etas: Record<string, Date>,
+  tz: string,
+) {
+  try {
+    if (plan.outcome === "idle" || plan.order.length < 2) return;
+    const full = await prisma.business.findUnique({ where: { id: biz.id }, select: { name: true, slug: true, packId: true, termsOverride: true, currency: true, notificationPrefs: true } });
+    if (!full) return;
+    const byId = new Map(rows.map((r) => [r.id, r]));
+    const info: Record<string, { waiting: boolean; notPresentCount: number }> = {};
+    for (const id of plan.order) {
+      const r = byId.get(id);
+      if (!r) continue;
+      const state = plan.updates[id]?.state ?? stateOf({ state: r.queueState });
+      info[id] = { waiting: state === "WAITING" && r.status === "confirmed", notPresentCount: plan.updates[id]?.notPresentCount ?? r.notPresentCount };
+    }
+    const decisions = planNear({ order: plan.order, n: resolvePrefs(full.notificationPrefs).customer.tokenNextAhead, info, movedBackId: plan.outcome === "moved_back" ? plan.subjectId : undefined });
+    if (!decisions.length) return;
+    const staffName = session.staffId ? (await prisma.staff.findUnique({ where: { id: session.staffId }, select: { name: true } }))?.name ?? "" : `Your ${t(full, "staff")}`;
+    const items = decisions.flatMap((d) => {
+      const r = byId.get(d.id);
+      if (!r) return [];
+      const eta = etas[d.id] ? utcToZoned(etas[d.id], tz).time : "";
+      const notice: Notice = {
+        appointmentId: r.id, businessId: biz.id, to: r.client.email,
+        payload: {
+          clientName: r.client.name, patientName: r.patientName ?? undefined, businessName: full.name, serviceName: r.service.name,
+          staffName, date: formatDateLabel(zonedToUtc(date, session.startMin, tz), tz), time: eta || minToHhmm(session.startMin),
+          duration: session.minutesPerToken, price: r.price, currency: full.currency ?? DEFAULT_CURRENCY,
+          token: { number: r.tokenNumber ?? 0, estimatedTime: eta, sessionName: session.name },
+          trackUrl: trackingUrl(full.slug, r.id) ?? undefined,
+        },
+      };
+      const item = queueNext(notice, d.ahead, d.epoch, d.markOnly);
+      return item ? [item] : [];
+    });
+    if (items.length) await notify(...items);
+  } catch (e) {
+    logger.error("[Queue] coming-up notification failed:", { err: e });
+  }
 }
 
 /** Reception adds a customer who walked in: name + phone, no email needed, no fee, last in the queue. */

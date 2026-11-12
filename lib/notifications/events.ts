@@ -138,9 +138,22 @@ export function receipt(n: Notice, paid: { price?: number; paymentRef?: string; 
 }
 
 /** booking.completed (optional mail) or booking.no_show (transactional): once per booking. */
-export function statusChange(n: Notice, status: "completed" | "no_show", rebookUrl?: string): NotificationInput | null {
+export function statusChange(n: Notice, status: "completed" | "no_show", rebookUrl?: string, followUpUntil?: string): NotificationInput | null {
   if (!n.to) return null;
-  return { ...base(n), event: `booking.${status}`, template: "status_change", payload: { ...n.payload, status, rebookUrl } };
+  // `followUpUntil` (a date label) is set only for a completed clinic visit that earns a free follow-up: the same
+  // message carries the deadline, on email and on WhatsApp.
+  return { ...base(n), event: `booking.${status}`, template: "status_change", payload: { ...n.payload, status, rebookUrl, ...(followUpUntil && status === "completed" ? { followUpUntil } : {}) } };
+}
+
+export const QUEUE_NEXT_EVENT = "booking.queue_next";
+
+/**
+ * "Your turn is coming up": a token customer with `ahead` tokens in front of them. `epoch` is how many times they were
+ * moved back (the version), so it goes out once per epoch. A `skipReason` records the epoch as used without sending.
+ */
+export function queueNext(n: Notice, ahead: number, epoch: number, skipReason?: string): NotificationInput | null {
+  if (!n.to) return null;
+  return { ...base(n), event: QUEUE_NEXT_EVENT, template: "queue_next", version: epoch, payload: { ...n.payload, ahead }, ...(skipReason ? { skipReason } : {}) };
 }
 
 /**

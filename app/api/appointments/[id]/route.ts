@@ -1,3 +1,4 @@
+import { followUpDeadlineLabel } from "@/lib/notifications/followUpNotice";
 import { safeRoute } from "@/lib/api";
 import { NextRequest, NextResponse } from "next/server";
 import { accessSession, appointmentWhere, scopeOf } from "@/lib/access";
@@ -221,7 +222,7 @@ async function PATCH_handler(req: NextRequest, props: { params: Promise<{ id: st
         await notify(
           willCancel ? cancellation(n, rebookUrl)
             : move ? reschedule(n, move)
-            : willComplete ? statusChange(n, "completed", rebookUrl)
+            : willComplete ? statusChange(n, "completed", rebookUrl, await followUpDeadlineLabel(full))
             : willNoShow ? statusChange(n, "no_show", rebookUrl)
             : null,
           willPay && !willCancel ? receipt(n) : null,

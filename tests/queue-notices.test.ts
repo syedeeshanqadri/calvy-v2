@@ -31,7 +31,8 @@ const token = (n: number, over: Record<string, unknown> = {}) => ({
 });
 const act = (action: "not_present" | "not_coming", id = "a1") => runQueueAction(biz, { sessionId: "s1", date: "2026-11-02", action, appointmentId: id });
 type Queued = { event: string; template: string; subjectId: string; recipient: string; version?: number; payload: Record<string, any> };
-const queued = () => mocks.notify.mock.calls.flatMap((c) => c).filter(Boolean) as Queued[];
+// "Your turn is coming up" notices are covered in tests/queue-coming-up.test.ts; this file is about moved-back and closed.
+const queued = () => (mocks.notify.mock.calls.flatMap((c) => c).filter(Boolean) as Queued[]).filter((q) => q.event !== "booking.queue_next");
 
 beforeEach(() => {
   vi.clearAllMocks();

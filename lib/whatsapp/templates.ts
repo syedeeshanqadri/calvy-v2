@@ -144,11 +144,11 @@ export const TEMPLATE_DEFS: TemplateDef[] = [
     },
   },
   {
-    key: "follow_up_offer",
-    params: [FIRST, BUSINESS, SERVICE, { name: "last day", example: "30 Nov" }],
+    key: "visit_thanks_follow_up",
+    params: [FIRST, BUSINESS, SERVICE, WHEN, { name: "last day", example: "30 Nov" }],
     body: {
-      en: "Hi {{1}}, {{2}} offers you one free follow-up for your {{3}} until {{4}}. You can book it from your bookings page.",
-      hi: "नमस्ते {{1}}, {{2}} आपकी {{3}} के लिए {{4}} तक एक मुफ़्त फॉलो-अप दे रहा है। आप इसे अपनी बुकिंग पेज से बुक कर सकते हैं।",
+      en: "Hi {{1}}, thank you for visiting {{2}} for your {{3}} on {{4}}. You can book one free follow-up until {{5}} from your bookings page.",
+      hi: "नमस्ते {{1}}, {{4}} को {{2}} में {{3}} के लिए आने का धन्यवाद। आप {{5}} तक अपनी बुकिंग पेज से एक मुफ़्त फॉलो-अप बुक कर सकते हैं।",
     },
   },
   {

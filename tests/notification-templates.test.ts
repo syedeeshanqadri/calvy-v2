@@ -16,6 +16,7 @@ const FIXTURES: Record<TemplateId, object> = {
   cancellation: { ...booking, rebookUrl: "https://x.test/sunrise" },
   meeting_link: { ...booking, meetingUrl: "https://meet.test/abc", updated: false },
   queue_moved_back: { ...booking, place: 3 },
+  queue_next: { ...booking, ahead: 3 },
   queue_closed: { ...booking, reason: "missed", creditLabel: "₹500" },
   invoice: { ...booking, invoiceNumber: "INV-1", clientEmail: "r@x.test" },
   status_change: { ...booking, status: "completed" },

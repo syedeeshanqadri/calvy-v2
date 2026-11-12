@@ -128,6 +128,15 @@ export function NotificationsClient({ initial, terms }: { initial: NotificationS
                 className={selectCls} value={prefs.customer.reviewDelayHours}
                 onChange={(e) => setCustomer("reviewDelayHours", Math.min(48, Math.max(1, Math.round(Number(e.target.value) || 1))))} />
             </div>
+            {(
+              <div>
+                <label htmlFor="n-token-next" className="block text-sm font-medium text-[#0f0f1a] mb-1.5">Token queue: tell the customer when their turn is near</label>
+                <select id="n-token-next" className={selectCls} value={prefs.customer.tokenNextAhead} onChange={(e) => setCustomer("tokenNextAhead", Number(e.target.value))}>
+                  {[1, 2, 3, 4, 5].map((n) => <option key={n} value={n}>{n === 1 ? "When 1 token is ahead" : `When ${n} tokens are ahead`}{n === 3 ? " (default)" : ""}</option>)}
+                </select>
+                <p className="text-xs text-[#6b6b80] mt-1">Sent once per booking by email, and on WhatsApp if they opted in. Again only if they were moved back and reach this point again (never more than twice).</p>
+              </div>
+            )}
           </CardContent>
         </Card>
 

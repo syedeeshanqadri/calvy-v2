@@ -1,22 +1,24 @@
 // Which email event becomes which WhatsApp template, and how its variables are filled (pure, unit-tested).
 // Customer messages are cloned from the email's payload, so a WhatsApp message can never say more than the email did.
 
-export const WA_PREF_KEYS = ["confirmations", "changes", "reminders", "token", "receipts", "thanks", "reviewRequest"] as const;
+export const WA_PREF_KEYS = ["confirmations", "changes", "reminders", "token", "turnSoon", "receipts", "thanks", "followUp", "reviewRequest"] as const;
 export type WaPrefKey = (typeof WA_PREF_KEYS)[number];
 
 export const WA_PREF_LABELS: Record<WaPrefKey, string> = {
   confirmations: "Booking confirmations and joining links",
   changes: "Rescheduled, cancelled and missed bookings",
   reminders: "Reminders",
-  token: "Token queue updates",
+  token: "Token queue: moved back or closed",
+  turnSoon: "Token queue: your turn is coming up",
   receipts: "Payment receipts",
   thanks: "Thank-you after a visit",
+  followUp: "Free follow-up deadline inside the thank-you (clinics)",
   reviewRequest: "Review request",
 };
 
 /** Review requests are off until the business turns them on (Meta may treat them as marketing). Everything else is on. */
 export const WA_PREF_DEFAULTS: Record<WaPrefKey, boolean> = {
-  confirmations: true, changes: true, reminders: true, token: true, receipts: true, thanks: true, reviewRequest: false,
+  confirmations: true, changes: true, reminders: true, token: true, turnSoon: true, receipts: true, thanks: true, followUp: true, reviewRequest: false,
 };
 
 export interface WaMessage { key: string; params: string[]; buttonSuffix?: string }
@@ -24,7 +26,7 @@ export interface WaMessage { key: string; params: string[]; buttonSuffix?: strin
 interface BookingLike {
   clientName?: string; businessName?: string; serviceName?: string; date?: string; time?: string;
   token?: { number: number; estimatedTime: string; sessionName: string; sessionStart?: string };
-  trackUrl?: string; meetingUrl?: string; reviewUrl?: string; place?: number;
+  trackUrl?: string; meetingUrl?: string; reviewUrl?: string; place?: number; followUpUntil?: string;
 }
 
 /** Meta rejects empty variables and variables with newlines, tabs or runs of spaces. */
@@ -59,7 +61,21 @@ export const WA_EVENTS: Record<string, Mapping> = {
   "booking.no_show": { pref: "changes", build: (p) => ({ key: "booking_no_show", params: [first(p.clientName), clean(p.businessName), clean(p.serviceName), when(p)] }) },
   "booking.reminder": { pref: "reminders", build: (p) => booking("booking_reminder", p) },
   "booking.paid": { pref: "receipts", build: (p) => booking("payment_received", p) },
-  "booking.completed": { pref: "thanks", build: (p) => ({ key: "visit_thanks", params: [first(p.clientName), clean(p.businessName), clean(p.serviceName), when(p)] }) },
+  // One message: the thank-you carries the free follow-up deadline when there is one (never a separate follow-up message).
+  "booking.completed": {
+    pref: "thanks",
+    build: (p) => {
+      const base = [first(p.clientName), clean(p.businessName), clean(p.serviceName), when(p)];
+      return p.followUpUntil ? { key: "visit_thanks_follow_up", params: [...base, clean(p.followUpUntil)] } : { key: "visit_thanks", params: base };
+    },
+  },
+  "booking.queue_next": {
+    pref: "turnSoon",
+    build: (p) => {
+      const suffix = trackCode(p.trackUrl);
+      return p.token && suffix ? { key: "token_next", params: [first(p.clientName), clean(p.businessName), clean(p.token.number)], buttonSuffix: suffix } : null;
+    },
+  },
   "booking.queue_moved_back": {
     pref: "token",
     build: (p) => {

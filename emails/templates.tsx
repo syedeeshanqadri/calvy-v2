@@ -170,6 +170,18 @@ export function QueueMovedBackEmail(p: BookingProps & { place: number }) {
   );
 }
 
+/** A token customer is a few places from the front: short, one line, the tracking link. */
+export function QueueNextEmail(p: BookingProps & { ahead: number }) {
+  return (
+    <EmailLayout tenant={p.tenant} preview={`Your turn is coming up at ${p.businessName}`}>
+      <Badge text="Almost your turn" color={brand.green} bg="#e7f7ec" />
+      <H>Your turn is coming up</H>
+      <P>Hi {p.clientName.split(" ")[0]}, {p.ahead} {p.ahead === 1 ? "person is" : "people are"} ahead of you at <strong style={{ color: brand.ink }}>{p.businessName}</strong>. Please be ready.</P>
+      {p.trackUrl ? <CTA color={p.tenant?.color} fg={p.tenant?.fg} href={p.trackUrl} label="Track your place in line" /> : null}
+    </EmailLayout>
+  );
+}
+
 /** A token was closed at the clinic (missed four calls, or cancelled). What was paid is in their wallet. */
 export function QueueClosedEmail(p: BookingProps & { reason: "missed" | "cancelled"; creditLabel?: string; loginUrl?: string }) {
   const missed = p.reason === "missed";
@@ -240,13 +252,14 @@ export function InvoiceEmail(p: InvoiceProps) {
 }
 
 /** A booking was marked completed or missed at the business. */
-export function StatusChangeEmail(p: BookingProps & { status: "completed" | "no_show"; rebookUrl?: string }) {
+export function StatusChangeEmail(p: BookingProps & { status: "completed" | "no_show"; rebookUrl?: string; followUpUntil?: string }) {
   const done = p.status === "completed";
   return (
     <EmailLayout tenant={p.tenant} unsubscribeUrl={p.unsubscribeUrl} preview={done ? `Thanks for visiting ${p.businessName}` : `Your ${appt(p)} at ${p.businessName} was marked as missed`}>
       <Badge text={done ? "Completed" : "Missed"} color={done ? brand.green : "#b91c1c"} bg={done ? "#e7f7ec" : "#fdeaea"} />
       <H>{done ? `Thanks for visiting ${p.businessName}` : `We missed you at ${p.businessName}`}</H>
       <P>Hi {p.clientName.split(" ")[0]}, {done ? `your ${appt(p)} is marked as completed.` : `your ${appt(p)} was marked as missed.`}</P>
+      {done && p.followUpUntil ? <P>You can book <strong style={{ color: brand.ink }}>one free follow-up until {p.followUpUntil}</strong>. Sign in to My bookings to use it.</P> : null}
       <BookingDetails p={p} />
       {p.rebookUrl ? <CTA color={p.tenant?.color} fg={p.tenant?.fg} href={p.rebookUrl} label="Book again" /> : null}
     </EmailLayout>

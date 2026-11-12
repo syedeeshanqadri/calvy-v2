@@ -1,7 +1,7 @@
 import * as React from "react";
 import { render } from "@react-email/render";
 import {
-  BookingCancellationEmail, BookingConfirmationEmail, BookingReminderEmail, BookingRescheduleEmail, BusinessAlertEmail, BusinessLiveEmail,
+  BookingCancellationEmail, QueueNextEmail, BookingConfirmationEmail, BookingReminderEmail, BookingRescheduleEmail, BusinessAlertEmail, BusinessLiveEmail,
   CustomerAccountSetupEmail, CustomerResetEmail, CustomerVerifyEmail, DailySummaryEmail, EmailVerificationEmail, InvoiceEmail, LeadAcknowledgmentEmail, MeetingLinkEmail,
   PasswordResetEmail, OwnerAccountSetupEmail, TeamInviteEmail, QueueClosedEmail, QueueMovedBackEmail, ReviewRequestEmail, StatusChangeEmail, WelcomeEmail, businessAlertHeadline,
   type BookingProps, type BusinessAlertProps, type DailySummaryProps, type InvoiceProps,
@@ -145,10 +145,15 @@ export const TEMPLATES = {
     Email: (p) => <InvoiceEmail {...p} />,
     text: (p) => lines(`Receipt #${p.invoiceNumber} from ${p.businessName}`, `Billed to: ${p.clientName}`, `${p.serviceName}, ${p.date}, ${p.time}`, `Total paid: ${formatCurrencyAmount(p.price ?? 0, p.currency ?? "INR")}`, p.paymentRef && `Payment reference: ${p.paymentRef}`),
   }),
-  status_change: define<BookingPayload & { status: "completed" | "no_show"; rebookUrl?: string }>({
+  queue_next: define<BookingPayload & { ahead: number }>({
+    subject: (p) => `Your turn is coming up at ${p.businessName}`,
+    Email: (p) => <QueueNextEmail {...p} />,
+    text: (p) => lines(`Hi ${first(p.clientName)}, your turn at ${p.businessName} is coming up: ${p.ahead} ${p.ahead === 1 ? "person is" : "people are"} ahead of you. Please be ready.`, p.token && `Your number is #${p.token.number}.`, p.trackUrl && `Track your place in line: ${p.trackUrl}`),
+  }),
+  status_change: define<BookingPayload & { status: "completed" | "no_show"; rebookUrl?: string; followUpUntil?: string }>({
     subject: (p) => (p.status === "completed" ? `Thanks for visiting ${p.businessName}` : `Your ${appt(p)} at ${p.businessName} was marked as missed`),
     Email: (p) => <StatusChangeEmail {...p} />,
-    text: (p) => lines(`Hi ${first(p.clientName)}, your ${appt(p)} at ${p.businessName} is marked as ${p.status === "completed" ? "completed" : "missed"}.`, detailsText(p), p.rebookUrl && `Book again: ${p.rebookUrl}`),
+    text: (p) => lines(`Hi ${first(p.clientName)}, your ${appt(p)} at ${p.businessName} is marked as ${p.status === "completed" ? "completed" : "missed"}.`, p.followUpUntil && `You can book one free follow-up until ${p.followUpUntil}. Sign in to My bookings to use it.`, detailsText(p), p.rebookUrl && `Book again: ${p.rebookUrl}`),
   }),
   review_request: define<{ clientName: string; businessName: string; reviewUrl: string }>({
     subject: (p) => `How was your visit to ${p.businessName}?`,

@@ -12,6 +12,8 @@ import { pushSendBlocker } from "@/lib/pushQueue";
 import { decryptSecret } from "@/lib/notifications/secret";
 import { renderTemplate } from "@/lib/notifications/templates";
 import { sendWhatsAppRow } from "@/lib/whatsapp/send";
+import { queueNextSendCheck } from "@/lib/notifications/queueNextRules";
+import { QUEUE_NEXT_EVENT } from "@/lib/notifications/events";
 import { whatsappStopLinkFor } from "@/lib/whatsapp/stopLink";
 
 const LOCK_MS = 5 * 60_000;
@@ -78,6 +80,9 @@ async function attemptSend(row: NotificationOutbox, channels: Record<string, Cha
     // A reminder is only right if its booking is still on, at the same time.
     const stale = row.event === REMINDER_EVENT ? await reminderSendCheck(row) : null;
     if (stale) return { kind: "skipped", error: stale };
+    // "Your turn is coming up" only makes sense while the token is still waiting.
+    const served = row.event === QUEUE_NEXT_EVENT ? await queueNextSendCheck(row) : null;
+    if (served) return { kind: "skipped", error: served };
     // WhatsApp has its own gates (consent, STOP, template, connection, permissions); it needs the whole row, not rendered email.
     if (row.channel === "WHATSAPP" && channels.WHATSAPP === CHANNELS.WHATSAPP) return await sendWhatsAppRow(row);
     const payload = row.secret ? { ...(row.payload as object), secret: decryptSecret(row.secret) } : row.payload;
