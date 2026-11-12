@@ -8,6 +8,7 @@ import { releaseExpiredHolds } from "@/lib/onlinePayment";
 import { runOutbox } from "@/lib/notifications/process";
 import { enqueueDueReminders } from "@/lib/notifications/reminders";
 import { enqueueDailySummaries } from "@/lib/notifications/summary";
+import { runWhatsAppHealth } from "@/lib/whatsapp/health";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -29,7 +30,8 @@ async function GET_handler(req: NextRequest) {
   const expiredOverrides = await step("plan overrides", () => expirePlanOverrides(prisma));
   const remindersQueued = await step("reminder sweep", () => enqueueDueReminders());
   const summariesQueued = await step("daily summaries", () => enqueueDailySummaries());
-  return NextResponse.json({ ok: true, expiredHolds, expiredOverrides, remindersQueued, summariesQueued, ...(await runOutbox()) });
+  const whatsappChecked = await step("whatsapp health", () => runWhatsAppHealth());
+  return NextResponse.json({ ok: true, expiredHolds, expiredOverrides, remindersQueued, summariesQueued, whatsappChecked, ...(await runOutbox()) });
 }
 
 export const GET = safeRoute(GET_handler);

@@ -534,6 +534,9 @@ model NotificationOutbox {
   attempts       Int          @default(0)
   error          String?
   providerId     String?
+  /// WhatsApp only: the last delivery status Meta reported (sent | delivered | read | failed), and why it failed.
+  deliveryStatus String?
+  deliveryError  String?
   nextAttemptAt  DateTime     @default(now()) @db.Timestamptz(3)
   lockedUntil    DateTime?    @db.Timestamptz(3)
   expiresAt      DateTime?    @db.Timestamptz(3)
@@ -543,6 +546,7 @@ model NotificationOutbox {
   @@index([status, nextAttemptAt])
   @@index([businessId, createdAt])
   @@index([appointmentId])
+  @@index([providerId])
 }
 
 /// A recipient who unsubscribed from one business's optional emails. Transactional mail ignores it.
@@ -848,23 +852,23 @@ model AuditLog {
 
 /// One signed-in admin browser session: 2FA state, idle timeout and the current view-as. The cookie holds a random token; only its hash is stored.
 model AdminSession {
-  id                String    @id @default(cuid())
-  userId            String
-  tokenHash         String    @unique
-  createdAt         DateTime  @default(now())
+  id               String    @id @default(cuid())
+  userId           String
+  tokenHash        String    @unique
+  createdAt        DateTime  @default(now())
   /// Idle timeout: 30 minutes after this.
-  lastSeenAt        DateTime  @default(now())
+  lastSeenAt       DateTime  @default(now())
   /// Last fresh TOTP check: sensitive actions need it within 5 minutes.
-  reauthAt          DateTime
-  endedAt           DateTime?
-  viewAsBusinessId  String?
+  reauthAt         DateTime
+  endedAt          DateTime?
+  viewAsBusinessId String?
   /// "READ" or "ACT".
-  viewAsMode        String?
-  viewAsReason      String?
-  viewAsStartedAt   DateTime?
-  viewAsExpiresAt   DateTime?
+  viewAsMode       String?
+  viewAsReason     String?
+  viewAsStartedAt  DateTime?
+  viewAsExpiresAt  DateTime?
   /// The AdminAuditLog row that opened this view-as, so the end row can be linked.
-  viewAsAuditId     String?
+  viewAsAuditId    String?
 
   @@index([userId])
 }
@@ -883,4 +887,58 @@ model AdminAuditLog {
   @@index([createdAt])
   @@index([businessId, createdAt])
   @@index([action, createdAt])
+}
+
+enum WhatsAppStatus {
+  PENDING
+  CONNECTED
+  ERROR
+}
+
+/// One business's own WhatsApp Business Account (official Meta Cloud API). Secrets are AES-GCM encrypted
+/// (lib/notifications/secret.ts) and never returned to the browser. No foreign key, like the outbox.
+model WhatsAppConfig {
+  id              String         @id @default(cuid())
+  businessId      String         @unique
+  phoneNumberId   String
+  wabaId          String
+  accessTokenEnc  String
+  appSecretEnc    String
+  /// Random, unguessable path segment of this business's webhook URL (/api/whatsapp/webhook/[key]).
+  webhookKey      String         @unique
+  verifyTokenEnc  String
+  status          WhatsAppStatus @default(PENDING)
+  statusReason    String?
+  displayPhone    String?
+  verifiedName    String?
+  qualityRating   String? // GREEN | YELLOW | RED | UNKNOWN
+  messagingTier   String? // TIER_250 | TIER_1K | TIER_10K | TIER_100K | TIER_UNLIMITED
+  lastCheckedAt   DateTime?      @db.Timestamptz(3)
+  /// Set when the owner was emailed about the current ERROR; cleared on reconnect, so one email per failure.
+  errorNotifiedAt DateTime?      @db.Timestamptz(3)
+  createdAt       DateTime       @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime       @updatedAt @db.Timestamptz(3)
+}
+
+/// Our message templates as installed on a business's WABA, with Meta's approval status.
+model WhatsAppTemplate {
+  id         String   @id @default(cuid())
+  businessId String
+  name       String // calvy_<event>_v1
+  language   String // en | hi
+  status     String   @default("PENDING") // PENDING | APPROVED | REJECTED | PAUSED | DISABLED ...
+  reason     String?
+  metaId     String?
+  updatedAt  DateTime @updatedAt @db.Timestamptz(3)
+
+  @@unique([businessId, name, language])
+}
+
+/// A customer who replied STOP to one business: no WhatsApp from that business to that number. E.164.
+model WhatsAppOptOut {
+  businessId String
+  phone      String
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+
+  @@id([businessId, phone])
 }

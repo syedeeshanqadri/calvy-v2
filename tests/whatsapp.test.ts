@@ -1,0 +1,228 @@
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { createHmac } from "crypto";
+import { NextRequest } from "next/server";
+
+const db = vi.hoisted(() => ({
+  cfgFindUnique: vi.fn(), cfgFindMany: vi.fn(), cfgUpdate: vi.fn(), cfgCreate: vi.fn(),
+  tplUpdateMany: vi.fn(), tplUpsert: vi.fn(),
+  outFindFirst: vi.fn(), outUpdate: vi.fn(),
+  optUpsert: vi.fn(), optFind: vi.fn(),
+  notify: vi.fn(), alertTo: vi.fn(),
+  access: vi.fn(), limits: vi.fn(),
+}));
+vi.mock("@/lib/prisma", () => ({
+  prisma: {
+    whatsAppConfig: { findUnique: db.cfgFindUnique, findMany: db.cfgFindMany, update: db.cfgUpdate, create: db.cfgCreate },
+    whatsAppTemplate: { updateMany: db.tplUpdateMany, upsert: db.tplUpsert, findMany: async () => [] },
+    notificationOutbox: { findFirst: db.outFindFirst, update: db.outUpdate },
+    whatsAppOptOut: { upsert: db.optUpsert, findUnique: db.optFind },
+  },
+}));
+vi.mock("@/lib/ratelimit", () => ({ rateLimit: vi.fn(async () => ({ ok: true, retryAfter: 0 })) }));
+vi.mock("@/lib/notifications/enqueue", () => ({ notify: db.notify }));
+vi.mock("@/lib/notifications/business", () => ({ alertRecipient: db.alertTo }));
+vi.mock("@/lib/access", () => ({ accessSession: db.access }));
+vi.mock("@/lib/getFeatures", () => ({ getBusinessFeatures: db.limits }));
+
+import { encryptSecret } from "@/lib/notifications/secret";
+import { isStopMessage, maskSecret, verifyMetaSignature } from "@/lib/whatsapp/signature";
+import { GRAPH_VERSION, verifyConnection } from "@/lib/whatsapp/graph";
+import { TEMPLATE_DEFS, buildTemplatePayload, templateName } from "@/lib/whatsapp/templates";
+import { publicView, saveConfig } from "@/lib/whatsapp/store";
+import { handleWebhook } from "@/lib/whatsapp/webhook";
+import { runWhatsAppHealth } from "@/lib/whatsapp/health";
+import { GET as webhookGET, POST as webhookPOST } from "@/app/api/whatsapp/webhook/[key]/route";
+import { GET as settingsGET } from "@/app/api/settings/whatsapp/route";
+import { ForbiddenError } from "@/lib/permissions";
+
+process.env.NEXTAUTH_SECRET = "test-secret";
+const SECRET = "app-secret-123";
+const TOKEN = "EAAG-super-secret-token-9999";
+const sign = (body: string, s = SECRET) => `sha256=${createHmac("sha256", s).update(body).digest("hex")}`;
+const cfgRow = (over: Record<string, unknown> = {}) => ({
+  businessId: "b1", phoneNumberId: "111", wabaId: "222", accessTokenEnc: encryptSecret(TOKEN), appSecretEnc: encryptSecret(SECRET),
+  webhookKey: "key1", verifyTokenEnc: encryptSecret("verify-me"), status: "CONNECTED", statusReason: null, displayPhone: "+1 555", verifiedName: "Shop",
+  qualityRating: "GREEN", messagingTier: "TIER_1K", lastCheckedAt: null, errorNotifiedAt: null, ...over,
+});
+const json = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status });
+
+beforeEach(() => { vi.clearAllMocks(); });
+
+describe("encryption and masking", () => {
+  it("masks to the last four characters", () => {
+    expect(maskSecret(TOKEN)).toBe("••••••••9999");
+    expect(maskSecret("short")).toBe("••••");
+    expect(maskSecret(null)).toBeNull();
+  });
+  it("stores credentials encrypted, never plain", async () => {
+    db.cfgFindUnique.mockResolvedValue(null);
+    await saveConfig("b1", { phoneNumberId: "111", wabaId: "222", accessToken: TOKEN, appSecret: SECRET });
+    const data = db.cfgCreate.mock.calls[0][0].data;
+    expect(JSON.stringify(data)).not.toContain(TOKEN);
+    expect(JSON.stringify(data)).not.toContain(SECRET);
+    expect(data.webhookKey).toMatch(/^[A-Za-z0-9_-]{30,}$/);
+  });
+  it("requires token and secret on first save, keeps stored ones when blank later", async () => {
+    db.cfgFindUnique.mockResolvedValue(null);
+    expect((await saveConfig("b1", { phoneNumberId: "1", wabaId: "2" })).ok).toBe(false);
+    db.cfgFindUnique.mockResolvedValue(cfgRow());
+    await saveConfig("b1", { phoneNumberId: "1", wabaId: "2", accessToken: "", appSecret: "" });
+    const data = db.cfgUpdate.mock.calls[0][0].data;
+    expect(data.accessTokenEnc).toBeUndefined();
+    expect(data.status).toBe("PENDING");
+  });
+  it("the browser view holds masked secrets only", () => {
+    const view = publicView(cfgRow() as never);
+    expect(JSON.stringify(view)).not.toContain(TOKEN);
+    expect(JSON.stringify(view)).not.toContain(SECRET);
+    expect(view?.callbackUrl).toContain("/api/whatsapp/webhook/key1");
+  });
+});
+
+describe("signature verification", () => {
+  it("accepts the right HMAC, rejects wrong, missing and malformed", () => {
+    const body = '{"a":1}';
+    expect(verifyMetaSignature(body, sign(body), SECRET)).toBe(true);
+    expect(verifyMetaSignature(body, sign(body, "other"), SECRET)).toBe(false);
+    expect(verifyMetaSignature(body, null, SECRET)).toBe(false);
+    expect(verifyMetaSignature(body, "abc", SECRET)).toBe(false);
+    expect(verifyMetaSignature(body + " ", sign(body), SECRET)).toBe(false);
+  });
+  it("webhook POST: 401 when unsigned or wrong, 200 when signed", async () => {
+    db.cfgFindUnique.mockResolvedValue(cfgRow());
+    const body = JSON.stringify({ entry: [] });
+    const mk = (sig?: string) => new NextRequest("http://x/api/whatsapp/webhook/key1", { method: "POST", body, headers: sig ? { "x-hub-signature-256": sig } : {} });
+    const ctx = { params: Promise.resolve({ key: "key1" }) };
+    expect((await webhookPOST(mk(), ctx)).status).toBe(401);
+    expect((await webhookPOST(mk(sign(body, "wrong")), ctx)).status).toBe(401);
+    expect((await webhookPOST(mk(sign(body)), ctx)).status).toBe(200);
+    db.cfgFindUnique.mockResolvedValue(null);
+    expect((await webhookPOST(mk(sign(body)), ctx)).status).toBe(401);
+  });
+  it("webhook GET handshake echoes the challenge only with the right token", async () => {
+    db.cfgFindUnique.mockResolvedValue(cfgRow());
+    const ctx = { params: Promise.resolve({ key: "key1" }) };
+    const url = (t: string) => new NextRequest(`http://x/api/whatsapp/webhook/key1?hub.mode=subscribe&hub.verify_token=${t}&hub.challenge=42`);
+    const ok = await webhookGET(url("verify-me"), ctx);
+    expect(ok.status).toBe(200);
+    expect(await ok.text()).toBe("42");
+    expect((await webhookGET(url("nope"), ctx)).status).toBe(403);
+  });
+});
+
+describe("webhook events", () => {
+  const msg = (body: string, from = "919876543210") => ({ entry: [{ changes: [{ field: "messages", value: { metadata: { phone_number_id: "111" }, messages: [{ from, type: "text", text: { body } }] } }] }] });
+  it("STOP / UNSUBSCRIBE records an opt-out for that business only", async () => {
+    expect(isStopMessage(" Stop. ")).toBe(true);
+    expect(isStopMessage("UNSUBSCRIBE")).toBe(true);
+    expect(isStopMessage("don't stop by today")).toBe(false);
+    const r = await handleWebhook("b1", "111", msg("STOP"));
+    expect(r.optOuts).toBe(1);
+    expect(db.optUpsert.mock.calls[0][0].create).toEqual({ businessId: "b1", phone: "+919876543210" });
+    await handleWebhook("b1", "111", msg("thanks!"));
+    expect(db.optUpsert).toHaveBeenCalledTimes(1);
+  });
+  it("ignores traffic for another phone number", async () => {
+    const p = msg("STOP"); p.entry[0].changes[0].value.metadata.phone_number_id = "999";
+    expect((await handleWebhook("b1", "111", p)).optOuts).toBe(0);
+  });
+  it("delivery status updates the log, never goes backwards, failed records the reason", async () => {
+    const st = (status: string, errors?: { code?: number; title?: string }[]) => ({ entry: [{ changes: [{ value: { metadata: { phone_number_id: "111" }, statuses: [{ id: "wamid.1", status, errors }] } }] }] });
+    db.outFindFirst.mockResolvedValue({ id: "o1", deliveryStatus: "delivered" });
+    await handleWebhook("b1", "111", st("sent"));
+    expect(db.outUpdate).not.toHaveBeenCalled();
+    await handleWebhook("b1", "111", st("read"));
+    expect(db.outUpdate.mock.calls[0][0].data.deliveryStatus).toBe("read");
+    await handleWebhook("b1", "111", st("failed", [{ code: 131026, title: "Message undeliverable" }]));
+    expect(db.outUpdate.mock.calls[1][0].data).toEqual({ deliveryStatus: "failed", deliveryError: "131026 Message undeliverable" });
+    expect(db.outFindFirst.mock.calls[0][0].where.businessId).toBe("b1");
+  });
+  it("template status updates land on our template rows", async () => {
+    db.tplUpdateMany.mockResolvedValue({ count: 1 });
+    await handleWebhook("b1", "111", { entry: [{ changes: [{ field: "message_template_status_update", value: { event: "REJECTED", message_template_name: "calvy_booking_confirmed_v1", message_template_language: "en", reason: "INVALID_FORMAT" } }] }] });
+    expect(db.tplUpdateMany.mock.calls[0][0].data).toEqual({ status: "REJECTED", reason: "INVALID_FORMAT" });
+  });
+});
+
+describe("Graph client and templates", () => {
+  it("uses one pinned version constant and the business's own token", async () => {
+    const f = vi.fn(async () => json({ display_phone_number: "+1 555", verified_name: "Shop", quality_rating: "GREEN", messaging_limit_tier: "TIER_1K", id: "222" }));
+    const out = await verifyConnection({ phoneNumberId: "111", wabaId: "222", accessToken: TOKEN }, f as never);
+    expect(out.ok).toBe(true);
+    const [url, init] = f.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toContain(`/${GRAPH_VERSION}/111`);
+    expect((init.headers as Record<string, string>).Authorization).toBe(`Bearer ${TOKEN}`);
+    expect(url).not.toContain(TOKEN);
+  });
+  it("401 / code 190 is an auth failure with a plain reason that never echoes the token", async () => {
+    const f = vi.fn(async () => json({ error: { code: 190, message: `Invalid OAuth access token ${TOKEN}` } }, 401));
+    const out = await verifyConnection({ phoneNumberId: "111", wabaId: "222", accessToken: TOKEN }, f as never);
+    expect(out).toMatchObject({ ok: false, authFailure: true });
+    expect(JSON.stringify(out)).not.toContain(TOKEN);
+  });
+  it("templates are UTILITY, en + hi, variables only, URL button with a dynamic suffix", () => {
+    const names = new Set(TEMPLATE_DEFS.map((d) => templateName(d.key)));
+    expect(names.size).toBe(TEMPLATE_DEFS.length);
+    for (const d of TEMPLATE_DEFS) for (const lang of ["en", "hi"] as const) {
+      const p = buildTemplatePayload(d, lang, { tracking: "https://calvy.io/shop/q/", dashboard: "https://calvy.io/dashboard/" });
+      expect(p.category).toBe("UTILITY");
+      expect(p.name).toMatch(/^calvy_[a-z_]+_v1$/);
+      const body = d.body[lang];
+      expect(body).not.toMatch(/@|https?:|\d{6,}/);
+      const vars = [...body.matchAll(/\{\{(\d+)\}\}/g)].map((m) => Number(m[1]));
+      expect(new Set(vars).size).toBe(d.params.length);
+    }
+    const t = TEMPLATE_DEFS.find((d) => d.key === "booking_confirmed")!;
+    const btn = (buildTemplatePayload(t, "en", { tracking: "https://calvy.io/shop/q/", dashboard: "" }).components[1] as { buttons: { url: string }[] }).buttons[0];
+    expect(btn.url).toBe("https://calvy.io/shop/q/{{1}}");
+  });
+});
+
+describe("daily health check", () => {
+  const bad = () => vi.fn(async () => json({ error: { code: 190, message: "revoked" } }, 401));
+  beforeEach(() => {
+    db.cfgFindMany.mockResolvedValue([{ businessId: "b1" }]);
+    db.alertTo.mockResolvedValue("owner@example.test");
+  });
+  it("revoked token: ERROR, one email, and no second email on the next day", async () => {
+    let row = cfgRow();
+    db.cfgFindUnique.mockImplementation(async () => row);
+    db.cfgUpdate.mockImplementation(async ({ data }: { data: Record<string, unknown> }) => { row = { ...row, ...data } as never; return row; });
+    await runWhatsAppHealth(new Date("2026-11-12T00:00:00Z"), bad() as never);
+    expect(row.status).toBe("ERROR");
+    expect(db.notify).toHaveBeenCalledTimes(1);
+    await runWhatsAppHealth(new Date("2026-11-13T00:00:00Z"), bad() as never);
+    expect(db.notify).toHaveBeenCalledTimes(1);
+  });
+  it("RED quality rating: ERROR and one email", async () => {
+    let row = cfgRow();
+    db.cfgFindUnique.mockImplementation(async () => row);
+    db.cfgUpdate.mockImplementation(async ({ data }: { data: Record<string, unknown> }) => { row = { ...row, ...data } as never; return row; });
+    const f = vi.fn(async () => json({ display_phone_number: "+1", verified_name: "S", quality_rating: "RED", messaging_limit_tier: "TIER_1K", id: "1" }));
+    await runWhatsAppHealth(new Date(), f as never);
+    expect(row.status).toBe("ERROR");
+    expect(db.notify).toHaveBeenCalledTimes(1);
+  });
+  it("a Meta outage (5xx) flips to ERROR but does not email the owner", async () => {
+    let row = cfgRow();
+    db.cfgFindUnique.mockImplementation(async () => row);
+    db.cfgUpdate.mockImplementation(async ({ data }: { data: Record<string, unknown> }) => { row = { ...row, ...data } as never; return row; });
+    await runWhatsAppHealth(new Date(), vi.fn(async () => json({ error: { message: "oops" } }, 500)) as never);
+    expect(db.notify).not.toHaveBeenCalled();
+  });
+});
+
+describe("owner-only and plan gate", () => {
+  it("a team member is refused (accessSession('owner') -> 403)", async () => {
+    db.access.mockRejectedValue(new ForbiddenError());
+    expect((await settingsGET()).status).toBe(403);
+    expect(db.access).toHaveBeenCalledWith("owner");
+  });
+  it("free plan gets 403 UPGRADE_REQUIRED", async () => {
+    db.access.mockResolvedValue({ user: { businessId: "b1" } });
+    db.limits.mockResolvedValue({ whatsappReminders: false });
+    const res = await settingsGET();
+    expect(res.status).toBe(403);
+    expect((await res.json()).code).toBe("UPGRADE_REQUIRED");
+  });
+});

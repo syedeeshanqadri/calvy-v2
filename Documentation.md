@@ -885,7 +885,7 @@ services → date → time → details → confirm → success
 
 ### WhatsApp (Meta Cloud API)
 - Booking confirmation + reminder sent to client's phone number if provided
-- Requires `WHATSAPP_PHONE_NUMBER_ID` + `WHATSAPP_ACCESS_TOKEN`
+- Per-business credentials in Settings > WhatsApp (docs/whatsapp-setup.md); no env vars
 - Gracefully skipped if not configured
 
 ---
@@ -1063,8 +1063,6 @@ RESEND_API_KEY="re_..."
 EMAIL_FROM="Calvy <noreply@calvy.io>"
 
 # WhatsApp (Meta Cloud API)
-WHATSAPP_PHONE_NUMBER_ID="..."
-WHATSAPP_ACCESS_TOKEN="..."
 
 # Web Push (VAPID)
 NEXT_PUBLIC_VAPID_PUBLIC_KEY="..."

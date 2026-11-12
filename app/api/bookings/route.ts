@@ -6,7 +6,6 @@ import { notify as queueNotification } from "@/lib/notifications/enqueue";
 import { confirmation, type Notice } from "@/lib/notifications/events";
 import { ownerAlert } from "@/lib/notifications/business";
 import { t } from "@/lib/terms";
-import { sendBookingConfirmationWhatsApp } from "@/lib/whatsapp";
 import { sendPushToBusiness } from "@/lib/push";
 import { shortName } from "@/lib/pushRouting";
 import { DEFAULT_CURRENCY } from "@/lib/currency";
@@ -395,21 +394,6 @@ async function bookingHandler(req: NextRequest) {
       await queueNotification(suppressContactMessages ? null : confirmation(notice, appointmentStart), await ownerAlert(notice, "created"));
     } catch (err) {
       logger.error("[Notifications] confirmation failed:", { err });
-    }
-
-    if (clientPhone && !suppressContactMessages) {
-      try {
-        await sendBookingConfirmationWhatsApp({
-          to: clientPhone,
-          clientName,
-          serviceName: serviceNamesLabel,
-          businessName: business!.name,
-          date: dateLabel,
-          time,
-        });
-      } catch (err) {
-        logger.error("[WhatsApp] Failed:", { err });
-      }
     }
   }
 

@@ -25,7 +25,6 @@ const push = vi.hoisted(() => vi.fn(async () => {}));
 
 vi.mock("@/lib/prisma", () => ({ prisma: db }));
 vi.mock("@/lib/notifications/enqueue", () => ({ notify: vi.fn(async () => {}) }));
-vi.mock("@/lib/whatsapp", () => ({ sendBookingConfirmationWhatsApp: vi.fn() }));
 vi.mock("@/lib/push", () => ({ sendPushToBusiness: push }));
 vi.mock("@/lib/razorpay", () => ({ razorpay: {} }));
 vi.mock("@/lib/ratelimit", () => ({
@@ -36,7 +35,6 @@ vi.mock("@/lib/ratelimit", () => ({
 import { POST } from "@/app/api/bookings/route";
 import { rateLimit } from "@/lib/ratelimit";
 import { notify as queueNotification } from "@/lib/notifications/enqueue";
-import { sendBookingConfirmationWhatsApp } from "@/lib/whatsapp";
 
 const req = (body: unknown) =>
   new NextRequest("http://localhost/api/bookings", {
@@ -353,7 +351,6 @@ describe("POST /api/bookings: contact details and booking for someone else", () 
     expect(db.appointment.create).toHaveBeenCalled();
     // No customer message; the call carries only the owner alert slot (null here: no business email in the mock).
     expect(vi.mocked(queueNotification).mock.calls.flat().filter((q) => (q as { audience?: string } | null)?.audience === "CUSTOMER")).toEqual([]);
-    expect(sendBookingConfirmationWhatsApp).not.toHaveBeenCalled();
     expect(push).toHaveBeenCalled(); // the business still hears about it
     expect((await res.json()).confirmationWithheld).toBe(true); // and the booker is told, not left waiting
   });

@@ -3,7 +3,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { transferPaymentToAccount } from "@/lib/razorpay";
 import { sendBookingConfirmation, sendInvoice } from "@/lib/email";
-import { sendBookingConfirmationWhatsApp } from "@/lib/whatsapp";
 import { sendPushToBusiness } from "@/lib/push";
 import { DEFAULT_CURRENCY } from "@/lib/currency";
 import crypto from "crypto";
@@ -188,21 +187,6 @@ export async function POST(req: NextRequest) {
     });
   } catch (err) {
     console.error("[Email] Failed:", err);
-  }
-
-  if (meta.clientPhone) {
-    try {
-      await sendBookingConfirmationWhatsApp({
-        to: meta.clientPhone,
-        clientName: meta.clientName,
-        serviceName: serviceNamesLabel,
-        businessName: business.name,
-        date: dateLabel,
-        time: meta.time,
-      });
-    } catch (err) {
-      console.error("[WhatsApp] Failed:", err);
-    }
   }
 
   return NextResponse.json({ received: true });

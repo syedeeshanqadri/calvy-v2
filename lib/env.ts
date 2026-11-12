@@ -23,8 +23,6 @@ const optionalVars = {
   NOTIFY_EMAIL: optional,
   GOOGLE_CLIENT_ID: optional,
   GOOGLE_CLIENT_SECRET: optional,
-  WHATSAPP_PHONE_NUMBER_ID: optional,
-  WHATSAPP_ACCESS_TOKEN: optional,
   BLOB_READ_WRITE_TOKEN: optional,
   S3_ENDPOINT: optional,
   S3_BUCKET: optional,
@@ -62,7 +60,6 @@ export const S3_ENV = ["S3_ENDPOINT", "S3_BUCKET", "S3_ACCESS_KEY_ID", "S3_SECRE
 /** What each group of optional variables switches on (for startup logging). */
 export const OPTIONAL_SERVICES: Record<string, string[]> = {
   email: ["RESEND_API_KEY"],
-  whatsapp: ["WHATSAPP_PHONE_NUMBER_ID", "WHATSAPP_ACCESS_TOKEN"],
   razorpay: ["RAZORPAY_KEY_ID", "RAZORPAY_KEY_SECRET"],
   "razorpay-webhooks": ["RAZORPAY_WEBHOOK_SECRET", "RAZORPAY_BILLING_WEBHOOK_SECRET"],
   "web-push": ["NEXT_PUBLIC_VAPID_PUBLIC_KEY", "VAPID_PRIVATE_KEY", "VAPID_SUBJECT"],
