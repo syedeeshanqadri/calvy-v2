@@ -1,4 +1,4 @@
-import { paymentBaseUrl } from "@/lib/paymentUrls";
+import { webhookBaseUrl } from "@/lib/paymentUrls";
 import type { UrlBases } from "@/lib/whatsapp/templates";
 
 type Env = Record<string, string | undefined>;
@@ -9,7 +9,7 @@ type Env = Record<string, string | undefined>;
  * Protection; never in production. The signature is still checked, so the bypass proves nothing by itself.
  */
 export function whatsappCallbackUrl(key: string, env: Env = process.env): string {
-  const url = `${paymentBaseUrl(env)}/api/whatsapp/webhook/${key}`;
+  const url = `${webhookBaseUrl(env)}/api/whatsapp/webhook/${key}`;
   const bypass = env.VERCEL_ENV === "preview" ? env.VERCEL_AUTOMATION_BYPASS_SECRET?.trim() : "";
   return bypass ? `${url}?x-vercel-protection-bypass=${encodeURIComponent(bypass)}` : url;
 }

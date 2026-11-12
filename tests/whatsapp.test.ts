@@ -33,6 +33,8 @@ import { handleWebhook } from "@/lib/whatsapp/webhook";
 import { runWhatsAppHealth } from "@/lib/whatsapp/health";
 import { GET as webhookGET, POST as webhookPOST } from "@/app/api/whatsapp/webhook/[key]/route";
 import { GET as settingsGET } from "@/app/api/settings/whatsapp/route";
+import { whatsappCallbackUrl } from "@/lib/whatsapp/urls";
+import { webhookBaseUrl, webhookUrlFor } from "@/lib/paymentUrls";
 import { ForbiddenError } from "@/lib/permissions";
 
 process.env.NEXTAUTH_SECRET = "test-secret";
@@ -224,5 +226,21 @@ describe("owner-only and plan gate", () => {
     const res = await settingsGET();
     expect(res.status).toBe(403);
     expect((await res.json()).code).toBe("UPGRADE_REQUIRED");
+  });
+});
+
+describe("webhook base URL on previews", () => {
+  const base = { NEXT_PUBLIC_APP_URL: "https://calvy.io", VERCEL_AUTOMATION_BYPASS_SECRET: "BYP" };
+  it("preview uses the stable branch alias for WhatsApp and Cashfree, falling back to VERCEL_URL", () => {
+    const env = { ...base, VERCEL_ENV: "preview", VERCEL_BRANCH_URL: "calvy-v2-git-x-q3labs.vercel.app", VERCEL_URL: "calvy-v2-abc123.vercel.app" };
+    expect(whatsappCallbackUrl("K", env)).toBe("https://calvy-v2-git-x-q3labs.vercel.app/api/whatsapp/webhook/K?x-vercel-protection-bypass=BYP");
+    expect(webhookUrlFor(env)).toBe("https://calvy-v2-git-x-q3labs.vercel.app/api/payments/cashfree/webhook?x-vercel-protection-bypass=BYP");
+    const noAlias = { ...env, VERCEL_BRANCH_URL: undefined };
+    expect(webhookBaseUrl(noAlias)).toBe("https://calvy-v2-abc123.vercel.app");
+  });
+  it("production is unchanged: configured app URL, no bypass", () => {
+    const env = { ...base, VERCEL_ENV: "production", VERCEL_BRANCH_URL: "alias.vercel.app", VERCEL_URL: "dep.vercel.app" };
+    expect(whatsappCallbackUrl("K", env)).toBe("https://calvy.io/api/whatsapp/webhook/K");
+    expect(webhookUrlFor(env)).toBe("https://calvy.io/api/payments/cashfree/webhook");
   });
 });

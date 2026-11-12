@@ -10,6 +10,19 @@ export function paymentBaseUrl(env: Env = process.env): string {
   return (env.NEXT_PUBLIC_APP_URL ?? `http://localhost:${env.PORT ?? 3000}`).replace(/\/+$/, "");
 }
 
+/**
+ * Where a provider (Cashfree, Meta) calls webhooks. On a Vercel PREVIEW it is the stable branch alias (VERCEL_BRANCH_URL),
+ * so the address registered with the provider survives new pushes; falls back to the per-deployment VERCEL_URL when the
+ * alias is missing. Everywhere else it is the same as paymentBaseUrl (production unchanged).
+ */
+export function webhookBaseUrl(env: Env = process.env): string {
+  if (env.VERCEL_ENV === "preview") {
+    const host = env.VERCEL_BRANCH_URL?.trim() || env.VERCEL_URL?.trim();
+    if (host) return `https://${host}`.replace(/\/+$/, "");
+  }
+  return paymentBaseUrl(env);
+}
+
 export const returnUrlFor = (env: Env = process.env) => `${paymentBaseUrl(env)}/booking/return?order_id={order_id}`;
 
 /**
@@ -20,7 +33,7 @@ export const returnUrlFor = (env: Env = process.env) => `${paymentBaseUrl(env)}/
  * checked on the raw body, so the secret opens the door but proves nothing about the payment.
  */
 export function webhookUrlFor(env: Env = process.env): string | undefined {
-  const base = paymentBaseUrl(env);
+  const base = webhookBaseUrl(env);
   if (!base.startsWith("https://")) return undefined;
   const url = `${base}/api/payments/cashfree/webhook`;
   const bypass = env.VERCEL_ENV === "preview" ? env.VERCEL_AUTOMATION_BYPASS_SECRET?.trim() : "";
@@ -29,6 +42,6 @@ export function webhookUrlFor(env: Env = process.env): string | undefined {
 
 /** The webhook URL to register in Cashfree's dashboard, shown without any secret. */
 export function webhookUrlForDisplay(env: Env = process.env): string | null {
-  const base = paymentBaseUrl(env);
+  const base = webhookBaseUrl(env);
   return base ? `${base}/api/payments/cashfree/webhook` : null;
 }
