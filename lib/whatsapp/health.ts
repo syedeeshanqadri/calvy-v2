@@ -20,13 +20,12 @@ export async function runWhatsAppHealth(now: Date = new Date(), fetcher?: Fetche
   let checked = 0;
   for (const { businessId } of due) {
     try {
-      const out = await verifyAndStore(businessId, fetcher);
+      const out = await verifyAndStore(businessId, fetcher, { keepOnTransient: true });
       checked++;
       if (!out || out.ok) continue;
-      // A passing Meta fault (timeout, 5xx) must not page the owner: only a real auth failure or RED quality does.
-      const cfg = await prisma.whatsAppConfig.findUnique({ where: { businessId }, select: { errorNotifiedAt: true, statusReason: true, qualityRating: true } });
+      // A passing Meta fault (timeout, 5xx) keeps the status and never pages the owner (verifyAndStore returns ok for it).
+      const cfg = await prisma.whatsAppConfig.findUnique({ where: { businessId }, select: { errorNotifiedAt: true, statusReason: true } });
       if (!cfg || cfg.errorNotifiedAt) continue;
-      if (!out.authFailure && cfg.qualityRating !== "RED") continue;
       const to = await alertRecipient(businessId);
       if (to) {
         await notify({

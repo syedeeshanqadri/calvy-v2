@@ -42,6 +42,8 @@ export async function graph<T = Record<string, unknown>>(
 }
 
 /** True when Meta says the token is bad (expired, revoked, wrong app) rather than a passing fault. */
+export const isTransient = (r: GraphResult): boolean => !r.ok && (r.status === 0 || r.status === 429 || r.status >= 500);
+
 export function isAuthFailure(r: GraphResult): boolean {
   return !r.ok && (r.status === 401 || r.error?.code === 190);
 }
@@ -57,7 +59,7 @@ export interface ConnectionInfo {
 
 export type VerifyOutcome =
   | { ok: true; info: ConnectionInfo }
-  | { ok: false; reason: string; authFailure: boolean };
+  | { ok: false; reason: string; authFailure: boolean; /** Network failure or Meta 5xx / 429: says nothing about the credentials. */ transient: boolean };
 
 /** Confirm the number (name, quality, messaging limit) and that the token can also reach the WABA. */
 export async function verifyConnection(c: Credentials, fetcher: Fetcher = fetch): Promise<VerifyOutcome> {
@@ -65,11 +67,11 @@ export async function verifyConnection(c: Credentials, fetcher: Fetcher = fetch)
     c.accessToken, c.phoneNumberId, { query: { fields: "display_phone_number,verified_name,quality_rating,messaging_limit_tier" } }, fetcher,
   );
   if (!phone.ok) {
-    return { ok: false, authFailure: isAuthFailure(phone), reason: isAuthFailure(phone) ? "Meta rejected the access token (invalid or revoked). Create a new System User token and reconnect." : `Phone number ID: ${phone.error?.message}` };
+    return { ok: false, authFailure: isAuthFailure(phone), transient: isTransient(phone), reason: isAuthFailure(phone) ? "Meta rejected the access token (invalid or revoked). Create a new System User token and reconnect." : `Phone number ID: ${phone.error?.message}` };
   }
   const waba = await graph(c.accessToken, c.wabaId, { query: { fields: "id" } }, fetcher);
   if (!waba.ok) {
-    return { ok: false, authFailure: isAuthFailure(waba), reason: isAuthFailure(waba) ? "Meta rejected the access token (invalid or revoked)." : `WhatsApp Business Account ID: ${waba.error?.message}. The token needs the whatsapp_business_management permission.` };
+    return { ok: false, authFailure: isAuthFailure(waba), transient: isTransient(waba), reason: isAuthFailure(waba) ? "Meta rejected the access token (invalid or revoked)." : `WhatsApp Business Account ID: ${waba.error?.message}. The token needs the whatsapp_business_management permission.` };
   }
   return {
     ok: true,
@@ -105,8 +107,9 @@ export async function listTemplates(c: Credentials, fetcher: Fetcher = fetch): P
 export async function createTemplate(c: Credentials, body: Record<string, unknown>, fetcher: Fetcher = fetch): Promise<{ ok: true; id: string; status: string } | { ok: false; reason: string; duplicate: boolean }> {
   const r = await graph<{ id?: string; status?: string }>(c.accessToken, `${c.wabaId}/message_templates`, { method: "POST", body }, fetcher);
   if (r.ok) return { ok: true, id: r.data.id ?? "", status: r.data.status ?? "PENDING" };
-  // 2388023: a template with this name and language already exists (also "being deleted" cases).
-  return { ok: false, reason: r.error?.message ?? "Meta refused the template", duplicate: r.error?.code === 2388023 };
+  // 2388024 / "already exists": this name and language is already on the WABA (we just sync its status).
+  const msg = r.error?.message ?? "Meta refused the template";
+  return { ok: false, reason: msg, duplicate: r.error?.code === 2388024 || /already exist/i.test(msg) };
 }
 
 /** What the outbox adapter and the "send test" button call: one template message to one number (digits, no plus). */

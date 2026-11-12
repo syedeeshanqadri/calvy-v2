@@ -65,7 +65,7 @@ export function publicView(c: ConfigRow | null) {
 }
 
 /** Call Meta, store the outcome. `markError` false is for health checks that should not flip status on a Meta hiccup. */
-export async function verifyAndStore(businessId: string, fetcher?: Fetcher) {
+export async function verifyAndStore(businessId: string, fetcher?: Fetcher, opts: { keepOnTransient?: boolean } = {}) {
   const c = await prisma.whatsAppConfig.findUnique({ where: { businessId } });
   if (!c) return null;
   const out = await verifyConnection(credentialsOf(c), fetcher);
@@ -76,10 +76,15 @@ export async function verifyAndStore(businessId: string, fetcher?: Fetcher) {
       where: { businessId },
       data: { ...out.info, lastCheckedAt: now, status: bad ? "ERROR" : "CONNECTED", statusReason: bad ? "Quality rating is RED: Meta may restrict this number. Sending is paused until it recovers." : null, ...(bad ? {} : { errorNotifiedAt: null }) },
     });
-    return { ok: !bad, authFailure: false, reason: bad ? "Quality rating is RED" : null };
+    return { ok: !bad, authFailure: false, transient: false, reason: bad ? "Quality rating is RED" : null };
+  }
+  if (out.transient && opts.keepOnTransient) {
+    // Background check hit a Meta/network hiccup: leave the status alone, look again next time.
+    await prisma.whatsAppConfig.update({ where: { businessId }, data: { lastCheckedAt: now } });
+    return { ok: true, authFailure: false, transient: true, reason: out.reason };
   }
   await prisma.whatsAppConfig.update({ where: { businessId }, data: { lastCheckedAt: now, status: "ERROR", statusReason: out.reason } });
-  return { ok: false, authFailure: out.authFailure, reason: out.reason };
+  return { ok: false, authFailure: out.authFailure, transient: false, reason: out.reason };
 }
 
 /** Pull template statuses from Meta into our table. */

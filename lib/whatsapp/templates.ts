@@ -27,7 +27,7 @@ export const TEMPLATE_DEFS: TemplateDef[] = [
     params: [FIRST, SERVICE, BUSINESS, WHEN],
     body: {
       en: "Hi {{1}}, your {{2}} at {{3}} is confirmed for {{4}}. You can view your booking below.",
-      hi: "नमस्ते {{1}}, {{3}} में आपकी {{2}} {{4}} के लिए पक्की हो गई है। अपनी बुकिंग नीचे देखें।",
+      hi: "नमस्ते {{1}}, {{3}} में आपकी {{2}}, {{4}} के लिए पक्की हो गई है। अपनी बुकिंग नीचे देखें।",
     },
     button: { text: { en: "View booking", hi: "बुकिंग देखें" }, path: "tracking", example: "abc123def456" },
   },
@@ -88,7 +88,7 @@ export const TEMPLATE_DEFS: TemplateDef[] = [
     params: [BUSINESS, SERVICE, FIRST, WHEN],
     body: {
       en: "New booking at {{1}}: {{2}} for {{3}} on {{4}}. Open Calvy to manage it.",
-      hi: "{{1}} में नई बुकिंग: {{3}} के लिए {{2}}, {{4}} को। इसे प्रबंधित करने के लिए Calvy खोलें।",
+      hi: "नई बुकिंग: {{1}} में {{3}} के लिए {{2}}, {{4}} को। इसे प्रबंधित करने के लिए Calvy खोलें।",
     },
     button: { text: { en: "Open Calvy", hi: "Calvy खोलें" }, path: "dashboard", example: "appointments" },
   },

@@ -146,6 +146,8 @@ describe("webhook events", () => {
   });
 });
 
+const def_btn = (d: (typeof TEMPLATE_DEFS)[number], lang: "en" | "hi") => d.button?.text[lang].length ?? 0;
+
 describe("Graph client and templates", () => {
   it("uses one pinned version constant and the business's own token", async () => {
     const f = vi.fn(async () => json({ display_phone_number: "+1 555", verified_name: "Shop", quality_rating: "GREEN", messaging_limit_tier: "TIER_1K", id: "222" }));
@@ -171,6 +173,10 @@ describe("Graph client and templates", () => {
       expect(p.name).toMatch(/^calvy_[a-z_]+_v1$/);
       const body = d.body[lang];
       expect(body).not.toMatch(/@|https?:|\d{6,}/);
+      // Meta rejects a body that starts or ends with a variable, or has two variables side by side.
+      expect(body.trim()).not.toMatch(/^\{\{\d+\}\}|\{\{\d+\}\}[.!\s]*$/);
+      expect(body).not.toMatch(/\}\}\s*\{\{/);
+      expect(def_btn(d, lang)).toBeLessThanOrEqual(25);
       const vars = [...body.matchAll(/\{\{(\d+)\}\}/g)].map((m) => Number(m[1]));
       expect(new Set(vars).size).toBe(d.params.length);
     }
@@ -205,12 +211,30 @@ describe("daily health check", () => {
     expect(row.status).toBe("ERROR");
     expect(db.notify).toHaveBeenCalledTimes(1);
   });
-  it("a Meta outage (5xx) flips to ERROR but does not email the owner", async () => {
+  it("a Meta outage (5xx) keeps CONNECTED and does not email the owner", async () => {
     let row = cfgRow();
     db.cfgFindUnique.mockImplementation(async () => row);
     db.cfgUpdate.mockImplementation(async ({ data }: { data: Record<string, unknown> }) => { row = { ...row, ...data } as never; return row; });
     await runWhatsAppHealth(new Date(), vi.fn(async () => json({ error: { message: "oops" } }, 500)) as never);
+    expect(row.status).toBe("CONNECTED");
+    expect(row.lastCheckedAt).toBeInstanceOf(Date);
     expect(db.notify).not.toHaveBeenCalled();
+  });
+  it("a deleted/invalid phone number (400) is a real failure: ERROR and one email", async () => {
+    let row = cfgRow();
+    db.cfgFindUnique.mockImplementation(async () => row);
+    db.cfgUpdate.mockImplementation(async ({ data }: { data: Record<string, unknown> }) => { row = { ...row, ...data } as never; return row; });
+    await runWhatsAppHealth(new Date(), vi.fn(async () => json({ error: { code: 100, message: "Unsupported get request" } }, 400)) as never);
+    expect(row.status).toBe("ERROR");
+    expect(db.notify).toHaveBeenCalledTimes(1);
+  });
+  it("recovery: a later good check returns to CONNECTED and re-arms the one-email rule", async () => {
+    let row = cfgRow({ status: "ERROR", errorNotifiedAt: new Date() });
+    db.cfgFindUnique.mockImplementation(async () => row);
+    db.cfgUpdate.mockImplementation(async ({ data }: { data: Record<string, unknown> }) => { row = { ...row, ...data } as never; return row; });
+    await runWhatsAppHealth(new Date(), vi.fn(async () => json({ display_phone_number: "+1", verified_name: "S", quality_rating: "GREEN", messaging_limit_tier: "TIER_1K", id: "1" })) as never);
+    expect(row.status).toBe("CONNECTED");
+    expect(row.errorNotifiedAt).toBeNull();
   });
 });
 
