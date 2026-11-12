@@ -7,6 +7,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { t, type TermsSource } from "@/lib/terms";
 import type { NotificationPrefs } from "@/lib/notifications/prefs";
+import { WA_PREF_KEYS, WA_PREF_LABELS } from "@/lib/whatsapp/events";
 import type { NotificationSettings } from "@/lib/notifications/settings";
 
 const LEADS: { value: number; label: string }[] = [
@@ -129,6 +130,20 @@ export function NotificationsClient({ initial, terms }: { initial: NotificationS
             </div>
           </CardContent>
         </Card>
+
+        {settings.whatsappSetUp && (
+          <Card>
+            <CardHeader><CardTitle>WhatsApp to your customers</CardTitle></CardHeader>
+            <CardContent>
+              <p className="text-sm text-[#6b6b80] mb-2">Sent in addition to the email, only to customers who ticked &quot;Get updates on WhatsApp&quot; when booking, and never after they reply STOP. If a message cannot go on WhatsApp (template not approved, connection paused), they still get the email.</p>
+              {WA_PREF_KEYS.map((k) => (
+                <Toggle key={k} id={`wa-${k}`} label={WA_PREF_LABELS[k]}
+                  hint={k === "reviewRequest" ? "Off by default. Meta may treat review requests as marketing." : undefined}
+                  checked={prefs.whatsapp[k]} onChange={(v) => update({ ...prefs, whatsapp: { ...prefs.whatsapp, [k]: v } })} />
+              ))}
+            </CardContent>
+          </Card>
+        )}
 
         <div className="flex items-center gap-3">
           <Button onClick={save} loading={saving}>Save</Button>

@@ -170,7 +170,7 @@ describe("Graph client and templates", () => {
     for (const d of TEMPLATE_DEFS) for (const lang of ["en", "hi"] as const) {
       const p = buildTemplatePayload(d, lang, { tracking: "https://calvy.io/shop/q/", dashboard: "https://calvy.io/dashboard/" });
       expect(p.category).toBe("UTILITY");
-      expect(p.name).toMatch(/^calvy_[a-z_]+_v1$/);
+      expect(p.name).toMatch(/^calvy_[a-z_]+_v[12]$/);
       const body = d.body[lang];
       expect(body).not.toMatch(/@|https?:|\d{6,}/);
       // Meta rejects a body that starts or ends with a variable, or has two variables side by side.
@@ -180,7 +180,7 @@ describe("Graph client and templates", () => {
       const vars = [...body.matchAll(/\{\{(\d+)\}\}/g)].map((m) => Number(m[1]));
       expect(new Set(vars).size).toBe(d.params.length);
     }
-    const t = TEMPLATE_DEFS.find((d) => d.key === "booking_confirmed")!;
+    const t = TEMPLATE_DEFS.find((d) => d.key === "token_issued")!;
     const btn = (buildTemplatePayload(t, "en", { tracking: "https://calvy.io/shop/q/", dashboard: "" }).components[1] as { buttons: { url: string }[] }).buttons[0];
     expect(btn.url).toBe("https://calvy.io/shop/q/{{1}}");
   });

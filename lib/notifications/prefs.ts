@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { Prisma } from "@prisma/client";
 import { normalizeRecipient } from "@/lib/notifications/policy";
 import { sign, verifySignature } from "@/lib/notifications/secret";
+import { WA_PREF_DEFAULTS, WA_PREF_KEYS, type WaPrefKey } from "@/lib/whatsapp/events";
 
 /**
  * Which notifications a business and its customers can switch off (docs/notifications-design.md).
@@ -37,6 +38,7 @@ const prefsSchema = z.object({
   }).optional(),
   dailySummary: z.boolean().optional(),
   reminderLeadMinutes: z.array(z.number()).optional(),
+  whatsapp: z.record(z.string(), z.boolean()).optional(),
 });
 
 export interface NotificationPrefs {
@@ -54,6 +56,8 @@ export interface NotificationPrefs {
   dailySummary: boolean;
   /** Up to two reminders, longest lead first (24h + 2h, say). Empty means the business sends no reminders. */
   reminderLeadMinutes: number[];
+  /** Per-event WhatsApp switches (WhatsApp goes out in addition to email, only to customers who ticked the box). */
+  whatsapp: Record<WaPrefKey, boolean>;
 }
 
 export const REVIEW_DELAY_DEFAULT_HOURS = 2;
@@ -80,6 +84,7 @@ export function resolvePrefs(raw: unknown): NotificationPrefs {
     business: { created: b.created ?? true, rescheduled: b.rescheduled ?? true, cancelled: b.cancelled ?? true, paid: b.paid ?? true, status: b.status ?? false },
     dailySummary: data.dailySummary ?? false,
     reminderLeadMinutes: resolveReminderLeads(data.reminderLeadMinutes),
+    whatsapp: Object.fromEntries(WA_PREF_KEYS.map((k) => [k, data.whatsapp?.[k] ?? WA_PREF_DEFAULTS[k]])) as Record<WaPrefKey, boolean>,
   };
 }
 
@@ -88,6 +93,7 @@ export const prefsInputSchema = z.object({
   customer: z.object({ completed: z.boolean(), reviewRequest: z.boolean(), reviewDelayHours: z.number().int().min(1).max(48).default(REVIEW_DELAY_DEFAULT_HOURS) }).strict(),
   business: z.object({ created: z.boolean(), rescheduled: z.boolean(), cancelled: z.boolean(), paid: z.boolean(), status: z.boolean() }).strict(),
   dailySummary: z.boolean(),
+  whatsapp: z.object(Object.fromEntries(WA_PREF_KEYS.map((k) => [k, z.boolean().optional()]))).strict().optional(),
   reminderLeadMinutes: z.array(z.number().refine((m) => (REMINDER_LEADS as readonly number[]).includes(m), "Not an allowed reminder time"))
     .max(MAX_REMINDERS)
     .refine((l) => new Set(l).size === l.length, "The two reminders must be at different times"),

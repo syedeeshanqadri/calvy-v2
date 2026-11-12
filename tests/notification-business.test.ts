@@ -14,6 +14,7 @@ const fake = vi.hoisted(() => {
   };
   const f = {
     state,
+    whatsAppConfig: { findUnique: async () => null, findMany: async () => [] },
     business: {
       findUnique: vi.fn(async ({ where }: any) => state.businesses[where.id] ?? null),
       findMany: vi.fn(async ({ where }: any) => {
@@ -68,7 +69,8 @@ const notice: Notice = {
 };
 const fullPrefs = (over: Record<string, any> = {}) => ({
   customer: { completed: true, reviewRequest: true, reviewDelayHours: 2 }, business: { created: true, rescheduled: true, cancelled: true, paid: true, status: false },
-  dailySummary: false, reminderLeadMinutes: [1440], ...over,
+  dailySummary: false, reminderLeadMinutes: [1440],
+  whatsapp: { confirmations: true, changes: true, reminders: true, token: true, receipts: true, thanks: true, reviewRequest: false }, ...over,
 });
 
 beforeEach(() => {

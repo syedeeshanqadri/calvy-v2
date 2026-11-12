@@ -5,6 +5,49 @@ import { Button } from "@/components/ui/Button";
 import { disablePush, requestPushPermission } from "@/components/dashboard/PushSetup";
 
 type Prefs = Record<string, boolean>;
+interface WaState { available: boolean; phoneMasked: string | null; verified: boolean; optIn: boolean }
+
+/** Your own WhatsApp number for the same alerts: verify with a test message, then opt in. What you get follows your access. */
+function WhatsAppCard() {
+  const [st, setSt] = useState<WaState | null>(null);
+  const [phone, setPhone] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const [note, setNote] = useState("");
+  useEffect(() => { void fetch("/api/account/whatsapp").then((r) => (r.ok ? r.json() : null)).then(setSt); }, []);
+  if (!st || !st.available) return null;
+
+  async function call(method: string, body?: unknown) {
+    setBusy(true); setErr(""); setNote("");
+    const r = await fetch("/api/account/whatsapp", { method, headers: { "Content-Type": "application/json" }, body: body ? JSON.stringify(body) : undefined });
+    const j = await r.json().catch(() => ({}));
+    setBusy(false);
+    if (!r.ok) { setErr(j.error ?? "Something went wrong."); return false; }
+    setSt(j); return true;
+  }
+  return (
+    <Card>
+      <CardHeader><CardTitle>WhatsApp alerts</CardTitle></CardHeader>
+      <CardContent className="space-y-3">
+        <p className="text-sm text-[#6b6b80]">Get the same alerts on your own WhatsApp number. You only get what your access allows, and the choices below apply here too.</p>
+        {st.phoneMasked && <p className="text-sm">Number: <span className="font-mono">{st.phoneMasked}</span> {st.verified ? "(test message sent)" : ""}</p>}
+        <div className="flex gap-2">
+          <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+91 98765 43210" inputMode="tel" autoComplete="off" className="w-full h-10 px-3 rounded-xl bg-white border border-[#e8e6e0] text-sm" />
+          <Button size="sm" disabled={busy || phone.trim().length < 5} onClick={async () => { if (await call("POST", { phone })) { setPhone(""); setNote("Test message sent. Check WhatsApp, then turn alerts on."); } }}>Send test</Button>
+        </div>
+        {st.verified && (
+          <label className="flex items-center justify-between text-sm font-medium">
+            Send my alerts on WhatsApp
+            <input type="checkbox" role="switch" className="size-5 accent-sky-600" checked={st.optIn} disabled={busy} onChange={(e) => void call("PUT", { optIn: e.target.checked })} />
+          </label>
+        )}
+        {st.phoneMasked && <button className="text-xs text-red-600 underline" disabled={busy} onClick={() => void call("DELETE")}>Remove my number</button>}
+        {note && <p role="status" className="text-sm text-green-700">{note}</p>}
+        {err && <p role="alert" className="text-sm text-red-600">{err}</p>}
+      </CardContent>
+    </Card>
+  );
+}
 
 export function AlertsClient({ offered, configured }: { offered: { field: string; label: string }[]; configured: boolean }) {
   const [prefs, setPrefs] = useState<Prefs>({});
@@ -76,6 +119,8 @@ export function AlertsClient({ offered, configured }: { offered: { field: string
           <p className="text-xs text-[#6b6b80] mt-3">Alerts show a name, a time and a service. Never a phone number or email.</p>
         </CardContent>
       </Card>
+
+      <WhatsAppCard />
     </div>
   );
 }

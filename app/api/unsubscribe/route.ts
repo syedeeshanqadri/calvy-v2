@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { rateLimit, clientIp } from "@/lib/ratelimit";
 import { isValidUnsubscribe } from "@/lib/notifications/prefs";
 import { parseUnsubscribeParams } from "@/lib/notifications/unsubscribe";
+import { stopWhatsAppFor } from "@/lib/whatsapp/optout";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +18,11 @@ async function POST_handler(req: NextRequest) {
   }
   const link = parseUnsubscribeParams(new URL(req.url).searchParams, isValidUnsubscribe);
   if (!link) return NextResponse.json({ error: "This link is not valid." }, { status: 400 });
+
+  if (new URL(req.url).searchParams.get("ch") === "wa") {
+    await stopWhatsAppFor(link.businessId, link.recipient);
+    return NextResponse.json({ ok: true });
+  }
 
   await prisma.notificationOptOut.upsert({
     where: { businessId_recipient: { businessId: link.businessId, recipient: link.recipient } },

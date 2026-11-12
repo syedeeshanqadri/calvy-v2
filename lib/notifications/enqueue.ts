@@ -5,6 +5,7 @@ import { attemptNow } from "@/lib/notifications/process";
 import { idempotencyKey, normalizeRecipient, type NotifChannelName } from "@/lib/notifications/policy";
 import { skipReasons } from "@/lib/notifications/prefs";
 import { encryptSecret } from "@/lib/notifications/secret";
+import { withWhatsApp } from "@/lib/whatsapp/derive";
 
 export interface NotificationInput {
   event: string;
@@ -24,6 +25,8 @@ export interface NotificationInput {
   /** Not before this time (a delayed review request, say). */
   notBefore?: Date;
   expiresAt?: Date;
+  /** Record the row as SKIPPED with this reason instead of sending it (the delivery log explains why). */
+  skipReason?: string;
 }
 
 /**
@@ -31,12 +34,14 @@ export interface NotificationInput {
  * A message the business switched off, or whose recipient unsubscribed, is still recorded, as SKIPPED with the
  * reason, so the delivery log explains why nothing arrived. Returns the ids of the rows that are due to send.
  */
-export async function enqueue(db: Prisma.TransactionClient, items: NotificationInput[]): Promise<string[]> {
-  if (!items.length) return [];
+export async function enqueue(db: Prisma.TransactionClient, input: NotificationInput[]): Promise<string[]> {
+  if (!input.length) return [];
+  // Customer emails also become WhatsApp rows where the business has WhatsApp and the client consented (lib/whatsapp/derive.ts).
+  const items = await withWhatsApp(db, input);
   const skips = await skipReasons(db, items.map((n) => ({ businessId: n.businessId ?? null, event: n.event, recipient: n.recipient })));
   const rows = items.map((n, i) => {
     const channel = n.channel ?? "EMAIL";
-    const skip = skips.get(i);
+    const skip = n.skipReason ?? skips.get(i);
     return {
       idempotencyKey: idempotencyKey({ event: n.event, subjectId: n.subjectId, version: n.version, recipient: n.recipient, channel }),
       businessId: n.businessId ?? null,

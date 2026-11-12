@@ -1,3 +1,4 @@
+import { whatsappOffered } from "@/lib/whatsapp/consent";
 import { Unavailable } from "@/components/site/Unavailable";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
@@ -35,6 +36,7 @@ export default async function BusinessBookingPage(props: { params: Promise<{ slu
     packId: business.packId,
     bookingMode: business.bookingMode,
     phoneRequired: contactRequirements(business.currency).phone,
+    whatsappOffered: await whatsappOffered(business.id),
     payConfig: await getPayConfig(business),
     termsOverride: business.termsOverride,
     description: business.description ?? "",

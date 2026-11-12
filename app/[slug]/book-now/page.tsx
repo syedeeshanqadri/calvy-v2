@@ -1,3 +1,4 @@
+import { whatsappOffered } from "@/lib/whatsapp/consent";
 import { Unavailable } from "@/components/site/Unavailable";
 import { notFound } from "next/navigation";
 import { Metadata } from "next";
@@ -53,6 +54,7 @@ export default async function BookNowPage(props: { params: Promise<{ slug: strin
     packId: business.packId,
     bookingMode: business.bookingMode,
     phoneRequired: contactRequirements(business.currency).phone,
+    whatsappOffered: await whatsappOffered(business.id),
     payConfig: await getPayConfig(business),
     termsOverride: business.termsOverride,
     description: business.description ?? "",

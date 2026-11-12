@@ -11,6 +11,8 @@ import { REMINDER_EVENT, reminderSendCheck } from "@/lib/notifications/reminderR
 import { pushSendBlocker } from "@/lib/pushQueue";
 import { decryptSecret } from "@/lib/notifications/secret";
 import { renderTemplate } from "@/lib/notifications/templates";
+import { sendWhatsAppRow } from "@/lib/whatsapp/send";
+import { whatsappStopLinkFor } from "@/lib/whatsapp/stopLink";
 
 const LOCK_MS = 5 * 60_000;
 const BATCH = 5;
@@ -76,10 +78,12 @@ async function attemptSend(row: NotificationOutbox, channels: Record<string, Cha
     // A reminder is only right if its booking is still on, at the same time.
     const stale = row.event === REMINDER_EVENT ? await reminderSendCheck(row) : null;
     if (stale) return { kind: "skipped", error: stale };
+    // WhatsApp has its own gates (consent, STOP, template, connection, permissions); it needs the whole row, not rendered email.
+    if (row.channel === "WHATSAPP" && channels.WHATSAPP === CHANNELS.WHATSAPP) return await sendWhatsAppRow(row);
     const payload = row.secret ? { ...(row.payload as object), secret: decryptSecret(row.secret) } : row.payload;
     const brand = row.businessId ? await loadBrand(row.businessId) : undefined;
     const links = row.businessId && OPTIONAL_EVENTS.has(row.event) ? unsubscribeLinks(row.businessId, row.recipient) : undefined;
-    const message = await renderTemplate(row.template, payload, brand, links);
+    const message = await renderTemplate(row.template, payload, brand, links, await whatsappStopLinkFor(row));
     return await channels[row.channel](message, row.recipient, row.id);
   } catch (err) {
     return { kind: "retry", error: err instanceof Error ? err.message : "send error" };

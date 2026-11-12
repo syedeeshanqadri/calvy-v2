@@ -22,3 +22,29 @@ Each business connects its OWN WhatsApp Business Account; the business pays Meta
 
 ## Preview / test number
 Meta's test number can message only recipients added to the allowed list (WhatsApp > API Setup > To). Use the same list for the live test.
+
+## Alerts (PR B)
+**Customers.** The booking form and chat widget show an unticked "Get updates on WhatsApp" box, only when the business is CONNECTED and its plan allows it. Consent, timestamp and source (`booking_form` | `chat_widget`) are stored on the client, and only when the number typed is the number saved on that client (nobody can opt in someone else's number). STOP, or the "Stop WhatsApp updates" link in booking emails, ends it; a STOP opt-out is sticky.
+
+**Email is never replaced.** Every customer email is still sent. When the client consented, `enqueue()` also queues a WhatsApp row (`lib/whatsapp/derive.ts`). At send time (`lib/whatsapp/send.ts`) every gate must pass: consent, not opted out, config CONNECTED, plan, the per-event switch, template APPROVED. Any failure is a SKIPPED row with the reason, so the customer simply gets the email. Meta 5xx/429 retry like email; a rejected token pauses WhatsApp for the business.
+
+| Email event | WhatsApp template (calvy_*_v1 unless noted) | Switch (Settings > Notifications) |
+|---|---|---|
+| booking.created | booking_confirmed (v2) / token_issued for token bookings | Confirmations |
+| booking.meeting_link | booking_meeting_link | Confirmations |
+| booking.rescheduled | booking_rescheduled (v2) | Changes |
+| booking.cancelled | booking_cancelled | Changes |
+| booking.no_show | booking_no_show | Changes |
+| booking.reminder | booking_reminder (v2) | Reminders |
+| booking.queue_moved_back | token_moved_back | Token |
+| booking.queue_closed | token_closed | Token |
+| booking.paid | payment_received | Receipts |
+| booking.completed | visit_thanks | Thank-you |
+| booking.review_request | review_request | Review request (OFF by default) |
+| push alerts to owner/members | staff_alert | the person's own alert choices |
+
+Templates `token_next` and `follow_up_offer` exist but have no email event to hang on yet. `booking_confirmed`, `booking_reminder` and `booking_rescheduled` are `_v2`: v1 had a "View booking" button that only token bookings have a page for. After upgrading, press **Install Calvy templates** again: it only creates what is missing.
+
+**Owner and team.** Alerts > WhatsApp alerts (any signed-in person): enter your number, a `connection_test` message is sent to it, then switch alerts on. Rules are exactly the phone-alert rules (`lib/pushRouting.ts`): permissions decide what you MAY get (own-only members only their own bookings), your alert choices decide what you WANT; both are re-checked when the message is sent.
+
+**Delivery log.** WhatsApp rows show Queued, Sent, Delivered, Read or Failed (with Meta's reason) from the webhook.

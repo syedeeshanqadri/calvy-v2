@@ -243,14 +243,22 @@ export const TEMPLATES = {
 export type TemplateId = keyof typeof TEMPLATES;
 
 /** Pure: everything comes in as arguments, so a retry renders the same message unless the brand changed. */
-export async function renderTemplate(template: string, payload: unknown, brand?: RenderBrand, unsubscribe?: UnsubscribeLinks): Promise<Rendered> {
+export async function renderTemplate(template: string, payload: unknown, brand?: RenderBrand, unsubscribe?: UnsubscribeLinks, whatsappStopUrl?: string): Promise<Rendered> {
   const entry = Object.hasOwn(TEMPLATES, template) ? TEMPLATES[template as TemplateId] : undefined;
   if (!entry) throw new Error(`Unknown notification template: ${template}`);
   const p = { ...(payload as object), ...brand, unsubscribeUrl: unsubscribe?.page };
+  let html = await render(entry.Email(p));
+  let text = unsubscribe ? `${entry.text(p)}\n\nStop these emails: ${unsubscribe.page}` : entry.text(p);
+  // Customers who opted in to WhatsApp can stop it from any email we send them about their booking.
+  if (whatsappStopUrl) {
+    const href = whatsappStopUrl.replace(/&/g, "&amp;");
+    html = html.replace("</body>", `<p style="text-align:center;font-size:12px;color:#6b6b80;font-family:Arial,sans-serif;margin:12px 0"><a href="${href}" style="color:#6b6b80;text-decoration:underline">Stop WhatsApp updates</a></p></body>`);
+    text = `${text}\n\nStop WhatsApp updates: ${whatsappStopUrl}`;
+  }
   return {
     subject: entry.subject(p),
-    html: await render(entry.Email(p)),
-    text: unsubscribe ? `${entry.text(p)}\n\nStop these emails: ${unsubscribe.page}` : entry.text(p),
+    html,
+    text,
     attachments: entry.attachments?.(p),
     ...(unsubscribe ? { headers: { "List-Unsubscribe": `<${unsubscribe.oneClick}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" } } : {}),
   };

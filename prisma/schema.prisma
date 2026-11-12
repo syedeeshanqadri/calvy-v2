@@ -36,6 +36,10 @@ model User {
   teamMember          TeamMember?
   pushDevices         PushDevice[]
   pushPreference      PushPreference?
+  /// Own WhatsApp number for business alerts (E.164). Alerts need opt-in AND a verified test message.
+  whatsappPhone       String?
+  whatsappOptIn       Boolean              @default(false)
+  whatsappVerifiedAt  DateTime?            @db.Timestamptz(3)
   passwordResetTokens PasswordResetToken[]
 }
 
@@ -231,19 +235,24 @@ model StaffService {
 }
 
 model Client {
-  id                String           @id @default(cuid())
-  businessId        String
-  name              String
-  email             String?
-  phone             String?
-  notes             String?
-  totalAppointments Int              @default(0)
-  totalSpent        Float            @default(0)
-  lastVisit         DateTime?
-  createdAt         DateTime         @default(now())
-  appointments      Appointment[]
-  credits           CustomerCredit[]
-  business          Business         @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  id                    String           @id @default(cuid())
+  businessId            String
+  name                  String
+  email                 String?
+  phone                 String?
+  notes                 String?
+  totalAppointments     Int              @default(0)
+  totalSpent            Float            @default(0)
+  lastVisit             DateTime?
+  /// Ticked "Get updates on WhatsApp" (never pre-ticked). Without it no WhatsApp message is ever sent to this client.
+  whatsappConsent       Boolean          @default(false)
+  whatsappConsentAt     DateTime?        @db.Timestamptz(3)
+  /// Where it was given: booking_form | chat_widget
+  whatsappConsentSource String?
+  createdAt             DateTime         @default(now())
+  appointments          Appointment[]
+  credits               CustomerCredit[]
+  business              Business         @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
   @@unique([businessId, email])
   @@unique([businessId, phone])

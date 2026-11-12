@@ -137,13 +137,24 @@ export function failureRate(sent: number, failed: number): number {
 
 const LOG_SELECT = {
   id: true, businessId: true, event: true, audience: true, channel: true, recipient: true, status: true,
-  attempts: true, error: true, createdAt: true, sentAt: true, expiresAt: true,
+  attempts: true, error: true, createdAt: true, sentAt: true, expiresAt: true, deliveryStatus: true, deliveryError: true,
 } satisfies Prisma.NotificationOutboxSelect;
 
 export interface LogRow {
   id: string; businessId: string | null; event: string; eventLabel: string; audience: string; channel: string;
   recipient: string; status: string; attempts: number; error: string | null; createdAt: string; sentAt: string | null;
   resendable: boolean;
+}
+
+/**
+ * What the log shows as the status. WhatsApp keeps counting after "sent": Meta reports delivered, read or failed
+ * through the webhook, so a sent WhatsApp row shows that later state (and the failure reason).
+ */
+export function shownStatus(r: { channel: string; status: string; deliveryStatus: string | null; error: string | null; deliveryError: string | null }): { status: string; error: string | null } {
+  if (r.channel === "WHATSAPP" && r.status === "SENT" && r.deliveryStatus) {
+    return { status: r.deliveryStatus.toUpperCase(), error: r.deliveryStatus === "failed" ? r.deliveryError : null };
+  }
+  return { status: r.status, error: r.error };
 }
 
 export async function listLog(where: Prisma.NotificationOutboxWhereInput, page: number, opts: { mask: boolean; now: Date }) {
@@ -156,7 +167,7 @@ export async function listLog(where: Prisma.NotificationOutboxWhereInput, page: 
     rows: rows.slice(0, LOG_PAGE_SIZE).map((r): LogRow => ({
       id: r.id, businessId: r.businessId, event: r.event, eventLabel: eventLabel(r.event), audience: r.audience,
       channel: r.channel, recipient: opts.mask ? maskRecipient(r.channel, r.recipient) : r.recipient,
-      status: r.status, attempts: r.attempts, error: redactError(r.error),
+      status: shownStatus(r).status, attempts: r.attempts, error: redactError(shownStatus(r).error),
       createdAt: r.createdAt.toISOString(), sentAt: r.sentAt?.toISOString() ?? null,
       resendable: resendBlocker(r, opts.now) === null,
     })),

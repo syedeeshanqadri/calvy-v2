@@ -6,7 +6,9 @@ const STATUS_STYLE: Record<string, { label: string; cls: string }> = {
   SENT: { label: "Sent", cls: "bg-emerald-50 text-emerald-700" },
   FAILED: { label: "Failed", cls: "bg-red-50 text-red-700" },
   SKIPPED: { label: "Skipped", cls: "bg-amber-50 text-amber-800" },
-  PENDING: { label: "Waiting", cls: "bg-sky-50 text-sky-700" },
+  PENDING: { label: "Queued", cls: "bg-sky-50 text-sky-700" },
+  DELIVERED: { label: "Delivered", cls: "bg-emerald-50 text-emerald-700" },
+  READ: { label: "Read", cls: "bg-emerald-100 text-emerald-800" },
   SENDING: { label: "Sending", cls: "bg-sky-50 text-sky-700" },
 };
 

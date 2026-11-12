@@ -10,9 +10,11 @@ const fake = vi.hoisted(() => {
     appointments: [] as Row[],
     optouts: [] as { businessId: string; recipient: string }[],
     limits: { emailReminders: true, whatsappReminders: false },
+    whatsappOn: false,
   };
   const f = {
     state,
+    whatsAppConfig: { findUnique: async () => null, findMany: async () => (state.whatsappOn ? [{ businessId: "b1" }] : []) },
     appointment: {
       findMany: vi.fn(async (..._a: unknown[]) => state.appointments),
       findUnique: vi.fn(async ({ where }: any) => state.appointments.find((a) => a.id === where.id) ?? null),
@@ -53,7 +55,7 @@ const at = (hoursFromNow: number) => new Date(NOW.getTime() + hoursFromNow * H);
 const booking = (over: Record<string, any> = {}) => ({
   id: "a1", businessId: "b1", date: at(20), duration: 30, price: 500, notes: null, patientName: null, isOnline: false, meetingUrl: null,
   status: "confirmed", reminderSent: false, createdAt: at(-72), tokenNumber: null, estimatedAt: null, sessionDate: null, tokenSession: null,
-  client: { name: "Riya Kapoor", email: "Riya@Example.test", phone: "+91 98765 43210" },
+  client: { name: "Riya Kapoor", email: "Riya@Example.test", phone: "+91 98765 43210", whatsappConsent: true },
   service: { name: "Consultation", meetingUrl: null },
   staff: { name: "Dr Rao", meetingUrl: null },
   business: {
@@ -133,6 +135,11 @@ describe("the sweep", () => {
     expect(await enqueueDueReminders(NOW)).toBe(0);
     expect(push).not.toHaveBeenCalled();
     fake.state.limits = { emailReminders: false, whatsappReminders: true };
+    // WhatsApp rows exist only where the business has WhatsApp set up AND the client consented.
+    fake.state.whatsappOn = false;
+    await enqueueDueReminders(NOW);
+    expect(fake.state.rows).toHaveLength(0);
+    fake.state.whatsappOn = true;
     expect(await enqueueDueReminders(NOW)).toBe(1);
     expect(fake.state.rows[0]).toMatchObject({ channel: "WHATSAPP", recipient: "919876543210" });
   });
