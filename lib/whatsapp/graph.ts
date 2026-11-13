@@ -110,7 +110,7 @@ export async function createTemplate(c: Credentials, body: Record<string, unknow
   if (r.ok) return { ok: true, id: r.data.id ?? "", status: r.data.status ?? "PENDING" };
   // 2388024 / "already exists": this name and language is already on the WABA (we just sync its status).
   const msg = r.error?.message ?? "Meta refused the template";
-  return { ok: false, reason: msg, duplicate: r.error?.code === 2388024 || /already exist/i.test(msg), authFailure: isAuthFailure(r) };
+  return { ok: false, reason: msg, duplicate: r.error?.code === 2388024 || /already exist|already (?:\w+ )?content for this template/i.test(msg), authFailure: isAuthFailure(r) };
 }
 
 /** What the outbox adapter and the "send test" button call: one template message to one number (digits, no plus). */

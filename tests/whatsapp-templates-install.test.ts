@@ -101,3 +101,26 @@ describe("Refresh status (sync from Meta)", () => {
     expect((out as { missing: string[] }).missing).toEqual([`${name} (en)`]);
   });
 });
+
+describe("Install: templates that already exist", () => {
+  it("'There is already English content for this template' is ALREADY_EXISTS: no failure, row kept, status fetched", async () => {
+    const msg = "There is already English content for this template";
+    const f = vi.fn(async (_u: string, init?: RequestInit) => (init?.method === "POST" ? json({ error: { code: 100, message: msg } }, 400) : json({ data: [] })));
+    const out = await installTemplates("b1", bases, f as never);
+    expect(out).toMatchObject({ ok: true, failures: [] });
+    for (const u of db.tplUpsert.mock.calls.map((c) => c[0])) expect(u.update).toEqual({});
+    expect(f.mock.calls.some((c) => !(c[1] as RequestInit | undefined)?.method || (c[1] as RequestInit).method === "GET")).toBe(true);
+  });
+  it("code 2388024 is also ALREADY_EXISTS", async () => {
+    const f = vi.fn(async (_u: string, init?: RequestInit) => (init?.method === "POST" ? json({ error: { code: 2388024, message: "x" } }, 400) : json({ data: [] })));
+    expect(await installTemplates("b1", bases, f as never)).toMatchObject({ ok: true, failures: [] });
+  });
+  it("skips templates that already have a row with a Meta id", async () => {
+    const name = templateName("token_issued");
+    db.tplFindMany.mockResolvedValue([{ name, language: "en" }, { name, language: "hi" }]);
+    const f = vi.fn(async (_u: string, init?: RequestInit) => (init?.method === "POST" ? json({ id: "m", status: "PENDING" }) : json({ data: [] })));
+    await installTemplates("b1", bases, f as never);
+    const posts = f.mock.calls.filter((c) => (c[1] as RequestInit | undefined)?.method === "POST").length;
+    expect(posts).toBe(TOTAL - 2);
+  });
+});

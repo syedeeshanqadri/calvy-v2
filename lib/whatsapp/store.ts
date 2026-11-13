@@ -115,9 +115,12 @@ export async function installTemplates(businessId: string, bases: UrlBases, fetc
   if (c.status !== "CONNECTED") return { ok: false as const, error: "Verify the connection first." };
   const creds = credentialsOf(c);
   const failures: string[] = [];
+  // Already on Meta (we hold its id): nothing to create.
+  const have = new Set((await prisma.whatsAppTemplate.findMany({ where: { businessId, metaId: { not: null } }, select: { name: true, language: true } })).map((t) => `${t.name}/${t.language}`));
   for (const def of TEMPLATE_DEFS) {
     for (const lang of TEMPLATE_LANGUAGES) {
       const name = templateName(def.key);
+      if (have.has(`${name}/${lang}`)) continue;
       const r = await createTemplate(creds, buildTemplatePayload(def, lang, bases), fetcher);
       if (r.ok) {
         await prisma.whatsAppTemplate.upsert({
