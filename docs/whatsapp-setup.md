@@ -45,7 +45,7 @@ Meta's test number can message only recipients added to the allowed list (WhatsA
 
 `booking_confirmed`, `booking_reminder` and `booking_rescheduled` are `_v2`: v1 had a "View booking" button that only token bookings have a page for. After upgrading, press **Install Calvy templates** again: it only creates what is missing.
 
-**Owner and team.** Alerts > WhatsApp alerts (any signed-in person): enter your number, a `connection_test` message is sent to it, then switch alerts on. Rules are exactly the phone-alert rules (`lib/pushRouting.ts`): permissions decide what you MAY get (own-only members only their own bookings), your alert choices decide what you WANT; both are re-checked when the message is sent.
+**Owner and team.** Alerts > WhatsApp alerts (any signed-in person): enter your number, a test message (the approved `staff_alert` template, text "WhatsApp connection test for <business>") is sent to it, then switch alerts on. Rules are exactly the phone-alert rules (`lib/pushRouting.ts`): permissions decide what you MAY get (own-only members only their own bookings), your alert choices decide what you WANT; both are re-checked when the message is sent.
 
 **Delivery log.** WhatsApp rows show Queued, Sent, Delivered, Read or Failed (with Meta's reason) from the webhook.
 
@@ -73,3 +73,8 @@ Meta reclassified `connection_test`, `visit_thanks`, `visit_thanks_follow_up`, `
 - **Category is stored** from Meta on Refresh and from the `template_category_update` webhook field (subscribe to it next to `message_template_status_update`). A template Meta marks MARKETING is never sent (the email goes instead) and Settings shows "Reclassified as marketing by Meta".
 - **`allow_category_change` is not sent:** Meta has deprecated it and reclassifies on its own, so the send gate is the protection.
 - **Migration:** `20261115120000_whatsapp_template_category` (additive column). Run `npm run db:migrate` locally; `npm run db:deploy` for production before merging.
+
+## connection_test dropped, token templates English only
+
+- `connection_test` was reclassified as MARKETING twice. It is no longer defined, installed or listed. **Settings > WhatsApp > Send test message** and **Alerts > verify my number** now send the approved `calvy_staff_alert_v1` (English): variables are the business name and "WhatsApp connection test for <business>.", with its Open Calvy button. If `staff_alert` is not approved (or Meta marks it MARKETING) the test says so.
+- `token_issued`, `token_moved_back`, `token_next` and `token_closed` are English only (`languages: ["en"]`). Hindi rows are no longer created and their rejected rows are hidden; every customer gets the English token message. Hindi rows still on Meta are harmless and unused.

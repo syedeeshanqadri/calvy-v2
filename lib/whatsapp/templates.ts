@@ -9,7 +9,7 @@ export interface TemplateDef {
   key: string;
   /** Bumped (to 2) only when a template had to change after it may already be on a WABA: Meta will not edit-by-name here. */
   version?: number;
-  /** Languages to create (default: all). Only English where Hindi was reclassified by Meta. */
+  /** Languages to create (default: all). Only English where Meta rejected or reclassified the Hindi version; the `hi` text is then unused. */
   languages?: TemplateLanguage[];
   /** Body parameters in {{1}}.. order, with a sample value Meta needs for review. */
   params: { name: string; example: string }[];
@@ -65,6 +65,7 @@ export const TEMPLATE_DEFS: TemplateDef[] = [
   },
   {
     key: "token_issued",
+    languages: ["en"], // Hindi version was rejected by Meta: English is the fallback
     version: 2,
     params: [FIRST, BUSINESS, { name: "token number", example: "14" }, { name: "estimated time", example: "4:30 PM" }],
     body: {
@@ -75,6 +76,7 @@ export const TEMPLATE_DEFS: TemplateDef[] = [
   },
   {
     key: "token_next",
+    languages: ["en"], // Hindi version was rejected by Meta: English is the fallback
     params: [FIRST, BUSINESS, { name: "token number", example: "14" }],
     body: {
       en: "Hi {{1}}, your turn is coming up at {{2}}. Token {{3}} will be called shortly. Please be ready.",
@@ -127,6 +129,7 @@ export const TEMPLATE_DEFS: TemplateDef[] = [
   },
   {
     key: "token_moved_back",
+    languages: ["en"], // Hindi version was rejected by Meta: English is the fallback
     version: 2,
     params: [FIRST, BUSINESS, { name: "token number", example: "14" }, { name: "place in line", example: "5" }],
     body: {
@@ -137,6 +140,7 @@ export const TEMPLATE_DEFS: TemplateDef[] = [
   },
   {
     key: "token_closed",
+    languages: ["en"], // Hindi version was rejected by Meta: English is the fallback
     params: [FIRST, BUSINESS, { name: "token number", example: "14" }],
     body: {
       en: "Hi {{1}}, your token {{3}} at {{2}} has been closed because it was missed or cancelled. You can book a new one any time.",
@@ -161,15 +165,6 @@ export const TEMPLATE_DEFS: TemplateDef[] = [
       hi: "Calvy अलर्ट, {{1}}: {{2}} विवरण के लिए Calvy खोलें।",
     },
     button: { text: { en: "Open Calvy", hi: "Calvy खोलें" }, path: "dashboard", example: "appointments" },
-  },
-  {
-    key: "connection_test",
-    version: 2,
-    params: [BUSINESS],
-    body: {
-      en: "Hello, WhatsApp updates for {{1}} are now connected. Booking confirmations and reminders will be sent from this number.",
-      hi: "नमस्ते, {{1}} के लिए WhatsApp अपडेट अब जुड़ गए हैं। बुकिंग की पुष्टि और रिमाइंडर इसी नंबर से भेजे जाएंगे।",
-    },
   },
 ];
 

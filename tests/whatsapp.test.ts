@@ -27,7 +27,7 @@ vi.mock("@/lib/getFeatures", () => ({ getBusinessFeatures: db.limits }));
 import { encryptSecret } from "@/lib/notifications/secret";
 import { isStopMessage, maskSecret, verifyMetaSignature } from "@/lib/whatsapp/signature";
 import { GRAPH_VERSION, verifyConnection } from "@/lib/whatsapp/graph";
-import { TEMPLATE_DEFS, buildTemplatePayload, templateName } from "@/lib/whatsapp/templates";
+import { TEMPLATE_DEFS, buildTemplatePayload, languagesOf, templateName } from "@/lib/whatsapp/templates";
 import { publicView, saveConfig } from "@/lib/whatsapp/store";
 import { handleWebhook } from "@/lib/whatsapp/webhook";
 import { runWhatsAppHealth } from "@/lib/whatsapp/health";
@@ -169,7 +169,7 @@ const ratio = (text: string) => {
   const words = text.replace(/\{\{\d+\}\}/g, " ").split(/\s+/).filter((w) => /[\p{L}\p{N}]/u.test(w)).length;
   return words / Math.max(1, vars);
 };
-const weakest = (d: (typeof TEMPLATE_DEFS)[number]) => Math.min(ratio(d.body.en), ratio(d.body.hi));
+const weakest = (d: (typeof TEMPLATE_DEFS)[number]) => Math.min(...languagesOf(d).map((l) => ratio(d.body[l])));
 
 describe("template length vs variables (Meta: 'too many variables for its length')", () => {
   const id = (d: (typeof TEMPLATE_DEFS)[number]) => `${d.key}@${d.version ?? 1}`;

@@ -99,3 +99,9 @@ export function buildWhatsAppMessage(event: string, payload: unknown, audience: 
   }
   return WA_EVENTS[event]?.build((payload ?? {}) as BookingLike) ?? null;
 }
+
+/** The "Send test message" / "verify my number" message. connection_test was reclassified as MARKETING twice, so it rides on the approved staff_alert template. */
+export function connectionTestMessage(businessName: string): WaMessage {
+  const name = clean(businessName, "your business");
+  return { key: "staff_alert", params: [name, `WhatsApp connection test for ${name}.`], buttonSuffix: "appointments" };
+}
