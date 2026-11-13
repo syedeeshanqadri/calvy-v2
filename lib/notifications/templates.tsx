@@ -28,7 +28,8 @@ export interface UnsubscribeLinks { page: string; oneClick: string }
 /** Read at render, not stored in the payload: the business's look and its pack wording. */
 export interface RenderBrand { tenant?: TenantBrand; terms?: TermsSource }
 
-export type BookingPayload = Omit<BookingProps, "terms" | "tenant" | "unsubscribeUrl">;
+/** `providerName` is the real staff member's name only (never the "Your doctor" fallback that staffName carries). */
+export type BookingPayload = Omit<BookingProps, "terms" | "tenant" | "unsubscribeUrl"> & { providerName?: string };
 /** Attaches a calendar invite; the start is an ISO string because payloads are JSON. */
 export type ConfirmationPayload = BookingPayload & { ics?: { appointmentId: string; start: string; durationMinutes: number } };
 export type InvoicePayload = Omit<InvoiceProps, "terms" | "tenant" | "unsubscribeUrl">;

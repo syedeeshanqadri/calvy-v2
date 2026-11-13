@@ -145,8 +145,8 @@ export const TEMPLATE_DEFS: TemplateDef[] = [
   },
   {
     key: "visit_thanks_follow_up",
-    version: 2,
-    params: [FIRST, BUSINESS, WHEN, BUSINESS, { name: "last day", example: "30 Nov" }],
+    version: 3, // v2 filled {{4}} with the business name; v3 uses the doctor / staff member of the visit
+    params: [FIRST, BUSINESS, WHEN, { name: "doctor or staff name", example: "Dr. Mehta" }, { name: "last day", example: "30 Nov" }],
     body: {
       en: "Hello {{1}}, your visit to {{2}} on {{3}} has been marked as completed. Your free follow-up with {{4}} is valid until {{5}}. This is an update for your records. No action is needed.",
       hi: "नमस्ते {{1}}, {{3}} को {{2}} में आपकी विज़िट को पूर्ण के रूप में दर्ज किया गया है। {{4}} के साथ आपका निःशुल्क फॉलो-अप {{5}} तक मान्य है। यह आपके रिकॉर्ड के लिए एक अपडेट है। किसी कार्रवाई की आवश्यकता नहीं है।",

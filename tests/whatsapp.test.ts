@@ -217,7 +217,7 @@ describe("Graph client and templates", () => {
     for (const d of TEMPLATE_DEFS) for (const lang of ["en", "hi"] as const) {
       const p = buildTemplatePayload(d, lang, { tracking: "https://calvy.io/shop/q/", dashboard: "https://calvy.io/dashboard/" });
       expect(p.category).toBe("UTILITY");
-      expect(p.name).toMatch(/^calvy_[a-z_]+_v[12]$/);
+      expect(p.name).toMatch(/^calvy_[a-z_]+_v[123]$/);
       const body = d.body[lang];
       expect(body).not.toMatch(/@|https?:|\d{6,}/);
       // Meta rejects a body that starts or ends with a variable, or has two variables side by side.

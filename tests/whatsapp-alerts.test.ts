@@ -200,7 +200,7 @@ describe("send-time gates (no send without consent, STOP, approval, connection)"
     const row = waRow({ event: "booking.completed", payload: { ...PAYLOAD, followUpUntil: "2 Dec" } });
     const f = vi.fn(async () => json({ messages: [{ id: "wamid.1" }] }));
     await sendWhatsAppRow(row, f as never);
-    expect(JSON.parse((f.mock.calls[0] as unknown as [string, RequestInit])[1].body as string).template.name).toBe("calvy_visit_thanks_follow_up_v2");
+    expect(JSON.parse((f.mock.calls[0] as unknown as [string, RequestInit])[1].body as string).template.name).toBe("calvy_visit_thanks_follow_up_v3");
     db.bizFindUnique.mockResolvedValue({ ownerId: "u-owner", name: "Sunrise Clinic", notificationPrefs: { whatsapp: { followUp: false } } });
     const g = vi.fn(async () => json({ messages: [{ id: "wamid.2" }] }));
     await sendWhatsAppRow(row, g as never);

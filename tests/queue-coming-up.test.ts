@@ -210,13 +210,19 @@ describe("free follow-up deadline rides on the thank-you", () => {
     mocks.db.appointment.findFirst.mockResolvedValue(null);
     expect(await followUpDeadlineLabel(visit({}, 5), new Date("2026-12-30T10:00:00Z"))).toBeUndefined();
   });
-  const notice: Notice = { appointmentId: "v1", businessId: "biz1", to: "c@example.com", payload: { clientName: "Riya Kapoor", businessName: "Sunrise", serviceName: "Checkup", date: "Mon 2 Nov", time: "10:30 AM" } as never };
+  const notice: Notice = { appointmentId: "v1", businessId: "biz1", to: "c@example.com", payload: { clientName: "Riya Kapoor", businessName: "Sunrise", serviceName: "Checkup", date: "Mon 2 Nov", time: "10:30 AM", providerName: "Dr. Rao" } as never };
   it("one message: the completed notice carries the deadline on email and WhatsApp, no separate follow-up message", async () => {
     const item = statusChange(notice, "completed", "https://calvy.io/sunrise", "2 Dec")!;
     expect(item.payload).toMatchObject({ followUpUntil: "2 Dec" });
     expect((await renderTemplate(item.template, item.payload)).text).toContain("one free follow-up until 2 Dec");
-    expect(buildWhatsAppMessage("booking.completed", item.payload, "CUSTOMER")).toEqual({ key: "visit_thanks_follow_up", params: ["Riya", "Sunrise", "Mon 2 Nov, 10:30 AM", "Sunrise", "2 Dec"] });
+    expect(buildWhatsAppMessage("booking.completed", item.payload, "CUSTOMER")).toEqual({ key: "visit_thanks_follow_up", params: ["Riya", "Sunrise", "Mon 2 Nov, 10:30 AM", "Dr. Rao", "2 Dec"] });
     expect(TEMPLATE_DEFS.some((d) => d.key === "follow_up_offer")).toBe(false);
+  });
+  it("follow-up {{4}} is the visit's doctor; the business name only when there was no staff member", () => {
+    const withDoc = statusChange(notice, "completed", "https://calvy.io/sunrise", "2 Dec")!;
+    expect(buildWhatsAppMessage("booking.completed", withDoc.payload, "CUSTOMER")?.params[3]).toBe("Dr. Rao");
+    const noStaff = statusChange({ ...notice, payload: { ...notice.payload, providerName: undefined } }, "completed", "https://calvy.io/sunrise", "2 Dec")!;
+    expect(buildWhatsAppMessage("booking.completed", noStaff.payload, "CUSTOMER")?.params[3]).toBe("Sunrise");
   });
   it("without a deadline: the plain thank-you, on both channels", async () => {
     const item = statusChange(notice, "completed", "https://calvy.io/sunrise")!;

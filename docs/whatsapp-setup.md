@@ -68,7 +68,7 @@ Meta's test number can message only recipients added to the allowed list (WhatsA
 Meta reclassified `connection_test`, `visit_thanks`, `visit_thanks_follow_up`, `booking_no_show` (en + hi), `review_request` (en) and `staff_alert` (hi) as MARKETING.
 
 - **Review requests are email only.** `review_request` and its WhatsApp switch are gone.
-- **Rewritten as plain transactional v2s** (en + hi): `visit_thanks`, `visit_thanks_follow_up` (adds the follow-up deadline), `booking_no_show`, `connection_test`. No thank-you, no "we miss you", no invitation to return.
+- **Rewritten as plain transactional v2s** (en + hi): `visit_thanks`, `visit_thanks_follow_up` (adds the follow-up deadline; v3 fills "follow-up with {{4}}" with the visit's doctor/staff name, the business name only when the booking had no staff), `booking_no_show`, `connection_test`. No thank-you, no "we miss you", no invitation to return.
 - **`staff_alert` is English only.** Add `languages: ["en"]` to any template whose Hindi version gets flagged.
 - **Category is stored** from Meta on Refresh and from the `template_category_update` webhook field (subscribe to it next to `message_template_status_update`). A template Meta marks MARKETING is never sent (the email goes instead) and Settings shows "Reclassified as marketing by Meta".
 - **`allow_category_change` is not sent:** Meta has deprecated it and reclassifies on its own, so the send gate is the protection.

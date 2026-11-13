@@ -68,6 +68,7 @@ export function noticeFrom(a: BookingSource): Notice {
       businessName: a.business.name,
       serviceName: serviceLabel(a.service.name, a.notes),
       staffName: a.staff?.name ?? `Your ${t(a.business, "staff")}`,
+      providerName: a.staff?.name,
       date: formatDateLabel(a.date, tz),
       time,
       duration: a.duration,

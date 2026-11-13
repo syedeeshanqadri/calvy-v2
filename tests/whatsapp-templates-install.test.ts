@@ -157,7 +157,7 @@ describe("MARKETING reclassification and the rewritten set", () => {
     expect(TEMPLATE_DEFS.some((d) => d.key === "review_request")).toBe(false);
     for (const k of ["visit_thanks", "visit_thanks_follow_up", "booking_no_show", "connection_test"]) {
       const d = TEMPLATE_DEFS.find((x) => x.key === k)!;
-      expect(d.version).toBe(2);
+      expect(d.version).toBe(k === "visit_thanks_follow_up" ? 3 : 2);
       for (const l of ["en", "hi"] as const) expect(d.body[l], `${k} ${l}`).not.toMatch(/thank|miss(ed)? you|again|धन्यवाद|कमी खली|फिर/i);
     }
     expect(TEMPLATE_DEFS.find((d) => d.key === "visit_thanks")!.body.en).toBe("Hello {{1}}, your visit to {{2}} on {{3}} has been marked as completed. This is an update for your records. No action is needed.");

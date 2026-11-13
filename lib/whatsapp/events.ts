@@ -23,7 +23,7 @@ export const WA_PREF_DEFAULTS: Record<WaPrefKey, boolean> = {
 export interface WaMessage { key: string; params: string[]; buttonSuffix?: string }
 
 interface BookingLike {
-  clientName?: string; businessName?: string; serviceName?: string; date?: string; time?: string;
+  clientName?: string; businessName?: string; providerName?: string; serviceName?: string; date?: string; time?: string;
   token?: { number: number; estimatedTime: string; sessionName: string; sessionStart?: string };
   trackUrl?: string; meetingUrl?: string; place?: number; followUpUntil?: string;
 }
@@ -65,7 +65,7 @@ export const WA_EVENTS: Record<string, Mapping> = {
     pref: "thanks",
     build: (p) => {
       const base = [first(p.clientName), clean(p.businessName), when(p)];
-      return p.followUpUntil ? { key: "visit_thanks_follow_up", params: [...base, clean(p.businessName), clean(p.followUpUntil)] } : { key: "visit_thanks", params: base };
+      return p.followUpUntil ? { key: "visit_thanks_follow_up", params: [...base, clean(p.providerName ?? p.businessName), clean(p.followUpUntil)] } : { key: "visit_thanks", params: base };
     },
   },
   "booking.queue_next": {
