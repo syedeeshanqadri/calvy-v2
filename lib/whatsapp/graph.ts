@@ -129,5 +129,12 @@ export async function sendTemplateMessage(
     fetcher,
   );
   if (r.ok) return { ok: true, messageId: r.data.messages?.[0]?.id ?? "" };
-  return { ok: false, reason: r.error?.message ?? "WhatsApp send failed", status: r.status, authFailure: isAuthFailure(r) };
+  return { ok: false, reason: friendlySendError(r.error?.code, r.error?.message), status: r.status, authFailure: isAuthFailure(r) };
+}
+
+/** Meta error 131030: the number is not on the allowed-recipient list (a test number can only message people added in Meta's API Setup). */
+export const NOT_ALLOWED_RECIPIENT = 131030;
+function friendlySendError(code: number | undefined, message: string | undefined): string {
+  if (code === NOT_ALLOWED_RECIPIENT) return "This number is not on your WhatsApp recipient list (Meta error 131030). Add it under API Setup > To in your Meta app, or use a live WhatsApp number, then try again.";
+  return message ?? "WhatsApp send failed";
 }

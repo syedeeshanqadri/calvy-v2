@@ -26,7 +26,7 @@ vi.mock("@/lib/getFeatures", () => ({ getBusinessFeatures: db.limits }));
 
 import { encryptSecret } from "@/lib/notifications/secret";
 import { isStopMessage, maskSecret, verifyMetaSignature } from "@/lib/whatsapp/signature";
-import { GRAPH_VERSION, verifyConnection } from "@/lib/whatsapp/graph";
+import { GRAPH_VERSION, sendTemplateMessage, verifyConnection } from "@/lib/whatsapp/graph";
 import { TEMPLATE_DEFS, buildTemplatePayload, languagesOf, templateName } from "@/lib/whatsapp/templates";
 import { publicView, saveConfig } from "@/lib/whatsapp/store";
 import { handleWebhook } from "@/lib/whatsapp/webhook";
@@ -313,5 +313,15 @@ describe("webhook base URL on previews", () => {
     const env = { ...base, VERCEL_ENV: "production", VERCEL_BRANCH_URL: "alias.vercel.app", VERCEL_URL: "dep.vercel.app" };
     expect(whatsappCallbackUrl("K", env)).toBe("https://calvy.io/api/whatsapp/webhook/K");
     expect(webhookUrlFor(env)).toBe("https://calvy.io/api/payments/cashfree/webhook");
+  });
+});
+
+describe("Meta error 131030 (recipient not allowed)", () => {
+  it("is shown as a plain instruction, not Meta's raw text, and is permanent (not retried)", async () => {
+    const f = vi.fn(async () => json({ error: { code: 131030, message: "(#131030) Recipient phone number not in allowed list" } }, 400));
+    const out = await sendTemplateMessage({ phoneNumberId: "1", wabaId: "2", accessToken: "t" }, "919876543210", { name: "calvy_staff_alert_v1", language: "en", params: ["a", "b"] }, f as never);
+    expect(out).toMatchObject({ ok: false, status: 400, authFailure: false });
+    expect((out as { reason: string }).reason).toContain("recipient list");
+    expect((out as { reason: string }).reason).toContain("131030");
   });
 });
