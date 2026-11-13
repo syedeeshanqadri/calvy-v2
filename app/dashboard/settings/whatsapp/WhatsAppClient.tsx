@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/Button";
 
 interface Config {
   phoneNumberId: string; wabaId: string; accessTokenMasked: string | null; appSecretMasked: string | null;
-  callbackUrl: string; verifyToken: string; status: "PENDING" | "CONNECTED" | "ERROR"; statusReason: string | null;
+  credentialsUnreadable?: boolean; callbackUrl: string; verifyToken: string; status: "PENDING" | "CONNECTED" | "ERROR"; statusReason: string | null;
   displayPhone: string | null; verifiedName: string | null; qualityRating: string | null; messagingTier: string | null; lastCheckedAt: string | null;
 }
 interface Tpl { name: string; language: string; status: string; reason: string | null; category?: string | null }
@@ -86,6 +86,7 @@ export function WhatsAppClient({ initialConfig, initialTemplates }: { initialCon
       <div className="max-w-3xl space-y-6">
         <p className="text-sm text-[#6b6b80]">Calvy uses Meta&apos;s official WhatsApp Cloud API with your own WhatsApp Business Account; Meta bills you directly. Email always stays as the fallback. <Link href="/dashboard/settings/whatsapp/guide" className="text-accent underline">Step-by-step setup guide</Link></p>
 
+        {config?.credentialsUnreadable && <p role="alert" className="text-sm rounded-xl px-3 py-2 bg-amber-50 text-amber-900">The saved credentials cannot be read by this server, because they were saved under a different encryption key (for example by another environment on the same database). WhatsApp is paused and customers get email. Enter the access token and app secret again and press Save and verify; a new verify token is then shown to paste into Meta.</p>}
         {msg && <p role="status" className={`text-sm rounded-xl px-3 py-2 ${msg.ok ? "bg-emerald-50 text-emerald-800" : "bg-red-50 text-red-700"}`}>{msg.text}</p>}
 
         <section className="bg-white rounded-2xl border border-[#e8e6e0] p-5 space-y-4">

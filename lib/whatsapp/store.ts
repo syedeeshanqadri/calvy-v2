@@ -9,6 +9,12 @@ import { TEMPLATE_DEFS, buildTemplatePayload, currentTemplateNames, languagesOf,
 
 export const newKey = () => randomBytes(24).toString("base64url");
 
+/** Saved credentials this server cannot decrypt (saved under a different NOTIFY_SECRET_KEY / NEXTAUTH_SECRET, e.g. by another environment on the same database). */
+export class CredentialsUnreadable extends Error {
+  constructor() { super("The saved WhatsApp credentials cannot be read by this server (the encryption key differs from the one that saved them). Enter the access token and app secret again and press Save and verify."); }
+}
+export const tryDecrypt = (v: string): string | null => { try { return decryptSecret(v); } catch { return null; } };
+
 export interface SaveInput { phoneNumberId: string; wabaId: string; accessToken?: string; appSecret?: string }
 
 /** Create or update the credentials. Blank secret fields keep the stored value; any change resets status to PENDING. */
@@ -17,11 +23,17 @@ export async function saveConfig(businessId: string, input: SaveInput) {
   const token = input.accessToken?.trim();
   const secret = input.appSecret?.trim();
   if (!existing && (!token || !secret)) return { ok: false as const, error: "The access token and app secret are required." };
+  // Credentials this server cannot read must be re-entered; the verify token is then regenerated too (paste the new one into Meta).
+  const tokenLost = !!existing && tryDecrypt(existing.accessTokenEnc) === null;
+  const secretLost = !!existing && tryDecrypt(existing.appSecretEnc) === null;
+  if ((tokenLost && !token) || (secretLost && !secret)) return { ok: false as const, error: "The saved credentials cannot be read by this server. Enter both the access token and the app secret again." };
+  const verifyLost = !!existing && tryDecrypt(existing.verifyTokenEnc) === null;
   const data = {
     phoneNumberId: input.phoneNumberId.trim(),
     wabaId: input.wabaId.trim(),
     ...(token ? { accessTokenEnc: encryptSecret(token) } : {}),
     ...(secret ? { appSecretEnc: encryptSecret(secret) } : {}),
+    ...(verifyLost ? { verifyTokenEnc: encryptSecret(newKey()) } : {}),
     status: "PENDING" as const,
     statusReason: null,
     errorNotifiedAt: null,
@@ -42,18 +54,24 @@ export async function deleteConfig(businessId: string) {
 
 type ConfigRow = NonNullable<Awaited<ReturnType<typeof prisma.whatsAppConfig.findUnique>>>;
 
-export const credentialsOf = (c: ConfigRow): Credentials => ({ phoneNumberId: c.phoneNumberId, wabaId: c.wabaId, accessToken: decryptSecret(c.accessTokenEnc) });
+export function credentialsOf(c: ConfigRow): Credentials {
+  const accessToken = tryDecrypt(c.accessTokenEnc);
+  if (accessToken === null) throw new CredentialsUnreadable();
+  return { phoneNumberId: c.phoneNumberId, wabaId: c.wabaId, accessToken };
+}
 
 /** What the browser may see: masked secrets only. The verify token is shown in full (it is pasted into Meta). */
 export function publicView(c: ConfigRow | null) {
   if (!c) return null;
+  const token = tryDecrypt(c.accessTokenEnc), appSecret = tryDecrypt(c.appSecretEnc), verifyToken = tryDecrypt(c.verifyTokenEnc);
   return {
+    credentialsUnreadable: token === null || appSecret === null || verifyToken === null,
     phoneNumberId: c.phoneNumberId,
     wabaId: c.wabaId,
-    accessTokenMasked: maskSecret(decryptSecret(c.accessTokenEnc)),
-    appSecretMasked: maskSecret(decryptSecret(c.appSecretEnc)),
+    accessTokenMasked: token === null ? "" : maskSecret(token),
+    appSecretMasked: appSecret === null ? "" : maskSecret(appSecret),
     callbackUrl: whatsappCallbackUrl(c.webhookKey),
-    verifyToken: decryptSecret(c.verifyTokenEnc),
+    verifyToken: verifyToken ?? "",
     status: c.status,
     statusReason: c.statusReason,
     displayPhone: c.displayPhone,
@@ -68,7 +86,13 @@ export function publicView(c: ConfigRow | null) {
 export async function verifyAndStore(businessId: string, fetcher?: Fetcher, opts: { keepOnTransient?: boolean } = {}) {
   const c = await prisma.whatsAppConfig.findUnique({ where: { businessId } });
   if (!c) return null;
-  const out = await verifyConnection(credentialsOf(c), fetcher);
+  let creds: Credentials;
+  try { creds = credentialsOf(c); } catch (e) {
+    if (!(e instanceof CredentialsUnreadable)) throw e;
+    await prisma.whatsAppConfig.update({ where: { businessId }, data: { lastCheckedAt: new Date(), status: "ERROR", statusReason: e.message } });
+    return { ok: false, authFailure: false, transient: false, reason: e.message };
+  }
+  const out = await verifyConnection(creds, fetcher);
   const now = new Date();
   if (out.ok) {
     const bad = out.info.qualityRating === "RED";
@@ -91,7 +115,9 @@ export async function verifyAndStore(businessId: string, fetcher?: Fetcher, opts
 export async function refreshTemplates(businessId: string, fetcher?: Fetcher) {
   const c = await prisma.whatsAppConfig.findUnique({ where: { businessId } });
   if (!c) return { ok: false as const, error: "Not connected" };
-  const r = await listTemplates(credentialsOf(c), fetcher);
+  let creds: Credentials;
+  try { creds = credentialsOf(c); } catch (e) { if (e instanceof CredentialsUnreadable) return { ok: false as const, error: e.message }; throw e; }
+  const r = await listTemplates(creds, fetcher);
   if (!r.ok) return { ok: false as const, error: r.reason };
   const live = new Set(currentTemplateNames());
   const missing: string[] = [];
@@ -113,7 +139,8 @@ export async function installTemplates(businessId: string, bases: UrlBases, fetc
   const c = await prisma.whatsAppConfig.findUnique({ where: { businessId } });
   if (!c) return { ok: false as const, error: "Not connected" };
   if (c.status !== "CONNECTED") return { ok: false as const, error: "Verify the connection first." };
-  const creds = credentialsOf(c);
+  let creds: Credentials;
+  try { creds = credentialsOf(c); } catch (e) { if (e instanceof CredentialsUnreadable) return { ok: false as const, error: e.message }; throw e; }
   const failures: string[] = [];
   // Already on Meta (we hold its id): nothing to create.
   const have = new Set((await prisma.whatsAppTemplate.findMany({ where: { businessId, metaId: { not: null } }, select: { name: true, language: true } })).map((t) => `${t.name}/${t.language}`));

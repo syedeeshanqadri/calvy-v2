@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { timingSafeEqual } from "crypto";
 import { prisma } from "@/lib/prisma";
 import { rateLimit } from "@/lib/ratelimit";
-import { decryptSecret } from "@/lib/notifications/secret";
+import { tryDecrypt } from "@/lib/whatsapp/store";
 import { verifyMetaSignature } from "@/lib/whatsapp/signature";
 import { handleWebhook, type WebhookPayload } from "@/lib/whatsapp/webhook";
 
@@ -21,7 +21,7 @@ async function GET_handler(req: NextRequest, { params }: Ctx) {
   const { key } = await params;
   const q = req.nextUrl.searchParams;
   const cfg = await prisma.whatsAppConfig.findUnique({ where: { webhookKey: key }, select: { verifyTokenEnc: true } });
-  if (!cfg || q.get("hub.mode") !== "subscribe" || !same(q.get("hub.verify_token") ?? "", decryptSecret(cfg.verifyTokenEnc))) {
+  if (!cfg || q.get("hub.mode") !== "subscribe" || !same(q.get("hub.verify_token") ?? "", tryDecrypt(cfg.verifyTokenEnc) ?? "\u0000unreadable")) {
     return new NextResponse("Forbidden", { status: 403 });
   }
   return new NextResponse(q.get("hub.challenge") ?? "", { status: 200, headers: { "Content-Type": "text/plain" } });
@@ -35,7 +35,9 @@ async function POST_handler(req: NextRequest, { params }: Ctx) {
 
   const cfg = await prisma.whatsAppConfig.findUnique({ where: { webhookKey: key }, select: { businessId: true, phoneNumberId: true, appSecretEnc: true } });
   const raw = await req.text();
-  if (!cfg || !verifyMetaSignature(raw, req.headers.get("x-hub-signature-256"), decryptSecret(cfg.appSecretEnc))) {
+  // An app secret this server cannot decrypt must reject everything: never verify against an empty key.
+  const appSecret = cfg ? tryDecrypt(cfg.appSecretEnc) : null;
+  if (!cfg || !appSecret || !verifyMetaSignature(raw, req.headers.get("x-hub-signature-256"), appSecret)) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
   }
   let payload: WebhookPayload;
