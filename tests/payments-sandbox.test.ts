@@ -34,7 +34,7 @@ vi.mock("@/lib/push", () => ({ sendPushToBusiness: vi.fn(async () => {}) }));
 vi.mock("@/lib/whatsapp", () => ({ sendBookingConfirmationWhatsApp: vi.fn(async () => {}) }));
 
 import { cashfreeSignature } from "@/lib/payments/cashfree";
-import { paymentBaseUrl, webhookUrlFor, webhookUrlForDisplay } from "@/lib/paymentUrls";
+import { paymentBaseUrl, webhookBaseUrl, webhookUrlFor, webhookUrlForDisplay } from "@/lib/paymentUrls";
 import { evaluatePaymentsHealth } from "@/lib/paymentsHealth";
 import { POST as webhook } from "@/app/api/payments/cashfree/webhook/route";
 import { settlePaidPayment } from "@/lib/onlinePayment";

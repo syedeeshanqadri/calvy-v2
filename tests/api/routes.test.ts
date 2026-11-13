@@ -22,7 +22,6 @@ vi.mock("@/lib/email", () => ({
   sendBookingReschedule: vi.fn(),
   sendInvoice: vi.fn(),
 }));
-vi.mock("@/lib/whatsapp", () => ({ sendBookingConfirmationWhatsApp: vi.fn() }));
 vi.mock("@/lib/push", () => ({ sendPushToBusiness: vi.fn(async () => {}) }));
 vi.mock("@/lib/razorpay", () => ({ razorpay: {} }));
 vi.mock("@/lib/ratelimit", () => ({

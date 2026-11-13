@@ -14,7 +14,6 @@ vi.mock("next-auth", () => ({ getServerSession: vi.fn(async () => session.curren
 vi.mock("@/lib/auth", () => ({ authOptions: {} }));
 vi.mock("@/lib/getFeatures", () => ({ getBusinessFeatures: features }));
 vi.mock("@/lib/ratelimit", () => ({ rateLimit: vi.fn(async () => ({ ok: true, retryAfter: 0 })), clientIp: () => "1.1.1.1" }));
-vi.mock("@/lib/whatsapp", () => ({ sendWhatsApp: vi.fn(async () => true) }));
 vi.mock("resend", () => ({ Resend: class { batch = { send: vi.fn(async () => ({})) }; } }));
 
 import { POST as broadcastPost } from "@/app/api/broadcasts/send/route";
@@ -60,7 +59,7 @@ describe("POST /api/broadcasts/send", () => {
       headers: { "content-type": "application/json" },
       body: JSON.stringify(body),
     });
-  const valid = { subject: "Hi", message: "Hello", medium: "email" };
+  const valid = { subject: "Hi", message: "Hello" };
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -90,12 +89,12 @@ describe("POST /api/broadcasts/send", () => {
   it("caps recipients at 500 per request and says so", async () => {
     const many = Array.from({ length: 501 }, (_, i) => ({ email: `c${i}@x.com`, phone: null, name: "c" }));
     db.client.findMany.mockResolvedValue(many);
-    const res = await broadcastPost(req({ ...valid, medium: "email" }));
+    const res = await broadcastPost(req(valid));
     const body = await res.json();
     expect(db.client.findMany).toHaveBeenCalledWith(expect.objectContaining({ take: 501 }));
     expect(body).toMatchObject({ ok: true, sentTo: 500, capped: true, limit: 500 });
   });
-  it("400 on invalid medium", async () => {
-    expect((await broadcastPost(req({ ...valid, medium: "pigeon" }))).status).toBe(400);
+  it("400 without a subject (email only)", async () => {
+    expect((await broadcastPost(req({ message: "Hello" }))).status).toBe(400);
   });
 });

@@ -15,7 +15,6 @@ import type { Prisma } from "@prisma/client";
 import { enqueue, notify, sendSoon, type NotificationInput } from "@/lib/notifications/enqueue";
 import { confirmation, noticeFrom, receipt, serviceLabel } from "@/lib/notifications/events";
 import { ownerAlert } from "@/lib/notifications/business";
-import { sendBookingConfirmationWhatsApp } from "@/lib/whatsapp";
 import { sendPushToBusiness } from "@/lib/push";
 import { shortName } from "@/lib/pushRouting";
 import { DEFAULT_CURRENCY } from "@/lib/currency";
@@ -168,12 +167,6 @@ export async function buildConfirmation(db: Db, appointmentId: string, opts: Con
       url: "/dashboard/appointments",
       tag: "new-booking",
     }, { kind: "booking_new", staffId: a.staffId, subjectId: a.id, version: opts.paid ? "paid" : "created" }).catch(() => {});
-    if (opts.contactMessages !== false && a.client.phone) {
-      sendBookingConfirmationWhatsApp({
-        to: a.client.phone, clientName: a.client.name, serviceName, businessName: a.business.name,
-        date: dateLabel, time: token ? `${time} (Token #${token.number})` : time,
-      }).catch((e) => logger.error("[WhatsApp] Failed:", { err: e }));
-    }
   };
   return { owner, customer, afterCommit };
 }

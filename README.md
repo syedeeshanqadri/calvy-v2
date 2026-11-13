@@ -247,8 +247,6 @@ RESEND_API_KEY="re_..."
 EMAIL_FROM="Calvy <noreply@calvy.io>"
 
 # WhatsApp (Meta Cloud API)
-WHATSAPP_PHONE_NUMBER_ID="..."
-WHATSAPP_ACCESS_TOKEN="..."
 
 # Web Push (VAPID)
 NEXT_PUBLIC_VAPID_PUBLIC_KEY="..."

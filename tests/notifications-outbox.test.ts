@@ -13,6 +13,7 @@ vi.mock("@/lib/prisma", () => ({
   prisma: {
     $queryRaw: db.queryRaw,
     appointment: { findMany: async () => [] },
+    whatsAppConfig: { findMany: async () => [] },
     business: { findUnique: db.findBusiness, findMany: async () => [] },
     notificationOutbox: { createMany: db.createMany, findMany: db.findMany, findUnique: db.findUnique, updateMany: db.updateMany },
   },
@@ -280,6 +281,6 @@ describe("GET /api/cron/notifications", () => {
     vi.stubEnv("CRON_SECRET", "s3cret");
     const res = await call("Bearer s3cret");
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ ok: true, expiredHolds: 0, expiredOverrides: 0, remindersQueued: 0, summariesQueued: 0, claimed: 0, sent: 0, retried: 0, failed: 0, skipped: 0, reclaimedDead: 0, purged: 0 });
+    expect(await res.json()).toEqual({ ok: true, expiredHolds: 0, expiredOverrides: 0, remindersQueued: 0, summariesQueued: 0, whatsappChecked: 0, claimed: 0, sent: 0, retried: 0, failed: 0, skipped: 0, reclaimedDead: 0, purged: 0 });
   });
 });

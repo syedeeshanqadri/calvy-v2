@@ -10,7 +10,7 @@ Rule: keep ALL features open during the build (PLAN_ENFORCEMENT off). Plan restr
 | 2 | Business mobile app (businesses only) | PWA built (docs/business-app.md): installable, safe service worker, per-user web push with preferences and permissions, phone-first Today, TWA prep (docs/twa-playstore.md; real Android build at Pre-launch). Then Play Store via TWA wrapper; PWA first (installable, push alerts, full dashboard), then Play Store via TWA wrapper; Flutter only if PWA proves insufficient |
 | 3 | Cashfree Easy Split | Moved out of Parked (was chunk 12). Unlocks "Full online payment" in Settings → Online payments. **Easy Split blocked on Cashfree sandbox enablement (support ticket raised).** |
 | 4 | Plan subscriptions on Cashfree (remove Razorpay) | Moved out of Parked (was chunk 13) |
-| 5 | WhatsApp integration settings | Each business uses its OWN credentials: Meta Cloud API or third-party/OpenWA. Stored encrypted, owner-only, mid+ plans |
+| 5 | WhatsApp integration settings | Each business connects its OWN WhatsApp Business Account (official Meta Cloud API only; OpenWA/unofficial removed). Business pays Meta. Stored encrypted, owner-only, mid+ plans |
 | 6 | WhatsApp alerts | Every email alert also on WhatsApp, transactional only, email fallback |
 | 7 | Pre-launch | **Includes the production payments go-live checklist (docs/PLAN.md, Pre-launch security checklist)** and the Low payment items: public payment-status route keyed by order id, webhook timestamp freshness, **GST receipt on the customer's booking page** (email-only today). Security pass, production env (Asia Neon, R2, Upstash, Sentry, fresh secrets, domain), honest landing page, plan restrictions ON. **Also: verify phone push end to end on the production domain (VAPID vars in Production env, iPhone installed app + Android)** |
 
@@ -20,6 +20,7 @@ Rule: keep ALL features open during the build (PLAN_ENFORCEMENT off). Plan restr
 
 ## Parked (build later, owner's decision)
 - Pay-links. FULL_ONLINE unreachable.
+- WhatsApp marketing broadcasts via approved MARKETING templates + explicit marketing consent (the WhatsApp option was removed from Broadcasts in step 17).
 - Calvy-wide wallet (India only): customers pay at booking, can top up, cancellation/missed amounts stay in wallet (no refunds), wallet usable across all Calvy businesses. Owner has taken legal advice and has approval for this model. Parked for later; current per-business credit stays as is until then.
 
 ## Decisions: Identity, sign-up and team (Oct 2026)

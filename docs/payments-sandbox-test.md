@@ -21,7 +21,7 @@ Locally Cashfree cannot call your computer, so there is no webhook. The booking 
 
 **Vercel preview** (Settings → Environment Variables → **Preview** only): the same four variables.
 
-- The app uses the preview's own address (`VERCEL_URL`) for the return page and the webhook, not `NEXT_PUBLIC_APP_URL`.
+- The app uses the preview's own address (`VERCEL_URL`) for the return page, and the stable branch alias (`VERCEL_BRANCH_URL`, falling back to `VERCEL_URL`) for the webhook, not `NEXT_PUBLIC_APP_URL`. WhatsApp webhooks use the same alias.
 - If Deployment Protection is on, Cashfree needs the bypass secret to reach the webhook. In Vercel: Project → Settings → Deployment Protection → **Protection Bypass for Automation** → create a secret. Vercel then gives every deployment `VERCEL_AUTOMATION_BYPASS_SECRET`, and the app adds it to the webhook URL of each order, on previews only.
 - The webhook URL Cashfree is given for each order has this exact form:
 

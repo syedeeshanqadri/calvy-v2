@@ -8,7 +8,6 @@ import { broadcastSchema } from "@/lib/validation/misc";
 import { Resend } from "resend";
 import { getBusinessFeatures } from "@/lib/getFeatures";
 import { rateLimit } from "@/lib/ratelimit";
-import { sendWhatsApp } from "@/lib/whatsapp";
 import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
@@ -19,7 +18,6 @@ function getResend() {
   return resendClient;
 }
 const MAX_RECIPIENTS = 500;
-const WA_CONCURRENCY = 20;
 const FROM = process.env.EMAIL_FROM ?? "Calvy <onboarding@resend.dev>";
 
 const esc = (v: string) => v.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -57,7 +55,7 @@ async function POST_handler(req: NextRequest) {
 
   const parsed = await parseBody(req, broadcastSchema);
   if (!parsed.ok) return parsed.res;
-  const { subject, message, medium } = parsed.data;
+  const { subject, message } = parsed.data;
 
   // Plan limits come from PlanConfig (admin-editable), not hard-coded plan names.
   const limits = await getBusinessFeatures(business.id);
@@ -101,7 +99,7 @@ async function POST_handler(req: NextRequest) {
   let sentTo = 0;
 
   // ── Email ──────────────────────────────────────────────────────────────────
-  if (medium === "email" || medium === "both") {
+  {
     const emailClients = clients.filter((c): c is typeof c & { email: string } => !!c.email);
     const html = buildEmailHtml(business.name, subject!, message);
 
@@ -124,23 +122,12 @@ async function POST_handler(req: NextRequest) {
     }
   }
 
-  // ── WhatsApp ───────────────────────────────────────────────────────────────
-  if (medium === "whatsapp" || medium === "both") {
-    const waClients = clients.filter(c => c.phone);
-    for (let i = 0; i < waClients.length; i += WA_CONCURRENCY) {
-      const results = await Promise.allSettled(
-        waClients.slice(i, i + WA_CONCURRENCY).map(c => sendWhatsApp(c.phone!, message))
-      );
-      sentTo += results.filter(r => r.status === "fulfilled" && r.value).length;
-    }
-  }
-
   await prisma.broadcast.create({
     data: {
       businessId: business.id,
       subject: subject ?? null,
       message,
-      medium,
+      medium: "email",
       sentTo,
     },
   });

@@ -27,7 +27,7 @@ export default async function BroadcastsPage() {
       <UpgradeGate
         title="Broadcasts"
         subtitle="Send offers and updates to your clients"
-        description="Send bulk emails and WhatsApp messages to your clients. Available on Starter, Professional, and Business plans."
+        description="Send bulk emails to your clients. Available on Starter, Professional, and Business plans."
       />
     );
   }
@@ -45,14 +45,12 @@ export default async function BroadcastsPage() {
   ]);
 
   const emailCount = clients.filter(c => c.email).length;
-  const whatsappCount = clients.filter(c => c.phone).length;
 
   return (
     <DashboardLayout title="Broadcasts" subtitle="Send offers and updates to your clients">
       <BroadcastsClient
         clientCount={clients.length}
         emailCount={emailCount}
-        whatsappCount={whatsappCount}
         recentBroadcasts={recentBroadcasts}
       />
     </DashboardLayout>

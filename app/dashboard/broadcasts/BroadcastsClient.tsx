@@ -1,9 +1,7 @@
 "use client";
 import { useState } from "react";
-import { Mail, MessageCircle, Send, Clock, Users, Layers } from "lucide-react";
+import { Mail, MessageCircle, Send, Clock, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-type Medium = "email" | "whatsapp" | "both";
 
 interface BroadcastRecord {
   id: string;
@@ -17,20 +15,13 @@ interface BroadcastRecord {
 interface Props {
   clientCount: number;
   emailCount: number;
-  whatsappCount: number;
   recentBroadcasts: BroadcastRecord[];
 }
-
-const MEDIUM_OPTIONS: { value: Medium; label: string; icon: React.ElementType; desc: string }[] = [
-  { value: "email", label: "Email", icon: Mail, desc: "Send to clients with email" },
-  { value: "whatsapp", label: "WhatsApp", icon: MessageCircle, desc: "Send to clients with phone" },
-  { value: "both", label: "Both", icon: Layers, desc: "Email + WhatsApp" },
-];
 
 function mediumIcon(medium: string) {
   if (medium === "email") return <Mail size={13} />;
   if (medium === "whatsapp") return <MessageCircle size={13} />;
-  return <Layers size={13} />;
+  return <Mail size={13} />;
 }
 
 function timeAgo(date: Date) {
@@ -41,16 +32,15 @@ function timeAgo(date: Date) {
   return `${Math.floor(secs / 86400)}d ago`;
 }
 
-export default function BroadcastsClient({ clientCount, emailCount, whatsappCount, recentBroadcasts }: Props) {
-  const [medium, setMedium] = useState<Medium>("email");
+export default function BroadcastsClient({ clientCount, emailCount, recentBroadcasts }: Props) {
   const [subject, setSubject] = useState("");
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
   const [result, setResult] = useState<{ ok?: boolean; sentTo?: number; error?: string } | null>(null);
   const [history, setHistory] = useState<BroadcastRecord[]>(recentBroadcasts);
 
-  const recipientCount = medium === "email" ? emailCount : medium === "whatsapp" ? whatsappCount : Math.max(emailCount, whatsappCount);
-  const canSend = message.trim().length > 0 && (medium === "whatsapp" || subject.trim().length > 0);
+  const recipientCount = emailCount;
+  const canSend = message.trim().length > 0 && subject.trim().length > 0;
 
   async function handleSend() {
     if (!canSend || sending) return;
@@ -60,7 +50,7 @@ export default function BroadcastsClient({ clientCount, emailCount, whatsappCoun
       const res = await fetch("/api/broadcasts/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ subject: subject.trim() || undefined, message: message.trim(), medium }),
+        body: JSON.stringify({ subject: subject.trim(), message: message.trim() }),
       });
       const data = await res.json();
       if (data.ok) {
@@ -69,7 +59,7 @@ export default function BroadcastsClient({ clientCount, emailCount, whatsappCoun
           id: Date.now().toString(),
           subject: subject.trim() || null,
           message: message.trim(),
-          medium,
+          medium: "email",
           sentTo: data.sentTo,
           createdAt: new Date(),
         }, ...prev]);
@@ -89,11 +79,10 @@ export default function BroadcastsClient({ clientCount, emailCount, whatsappCoun
     <div className="space-y-6 max-w-2xl">
 
       {/* Stats row */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 gap-3">
         {[
           { label: "Total clients", value: clientCount, icon: Users },
           { label: "Have email", value: emailCount, icon: Mail },
-          { label: "Have WhatsApp", value: whatsappCount, icon: MessageCircle },
         ].map(({ label, value, icon: Icon }) => (
           <div key={label} className="bg-white rounded-2xl border border-[#e8e6e0] p-4 flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-sky-50 flex items-center justify-center text-[#0284c7] flex-shrink-0">
@@ -114,34 +103,8 @@ export default function BroadcastsClient({ clientCount, emailCount, whatsappCoun
           <p className="text-sm text-[#6b6b80] mt-0.5">Send an offer, reminder, or update to your clients.</p>
         </div>
 
-        {/* Medium selector */}
-        <div>
-          <label className="text-xs font-semibold text-[#6b6b80] uppercase tracking-wider block mb-2">Send via</label>
-          <div className="grid grid-cols-3 gap-2">
-            {MEDIUM_OPTIONS.map(opt => {
-              const Icon = opt.icon;
-              return (
-                <button
-                  key={opt.value}
-                  onClick={() => setMedium(opt.value)}
-                  className={cn(
-                    "flex flex-col items-center gap-1.5 px-3 py-3 rounded-xl border text-sm font-medium transition-all",
-                    medium === opt.value
-                      ? "bg-sky-50 border-sky-300 text-sky-700"
-                      : "border-[#e8e6e0] text-[#6b6b80] hover:bg-[#f8f7f4]"
-                  )}
-                >
-                  <Icon size={18} />
-                  <span className="text-xs font-semibold">{opt.label}</span>
-                  <span className="text-[10px] text-center leading-tight opacity-70">{opt.desc}</span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Subject — email only */}
-        {(medium === "email" || medium === "both") && (
+        {/* Subject */}
+        {(
           <div>
             <label className="text-sm font-medium text-[#0f0f1a] block mb-1.5">Subject</label>
             <input
