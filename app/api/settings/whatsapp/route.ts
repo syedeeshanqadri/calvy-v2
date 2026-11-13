@@ -6,7 +6,7 @@ import { parseBody } from "@/lib/validation/common";
 import { rateLimit } from "@/lib/ratelimit";
 import { whatsappSaveSchema } from "@/lib/whatsapp/schemas";
 import { whatsappPlanBlock } from "@/lib/whatsapp/access";
-import { deleteConfig, publicView, saveConfig } from "@/lib/whatsapp/store";
+import { deleteConfig, listCurrentTemplates, publicView, saveConfig } from "@/lib/whatsapp/store";
 
 export const dynamic = "force-dynamic";
 
@@ -17,10 +17,7 @@ async function GET_handler() {
   const businessId = session.user.businessId;
   const blocked = await whatsappPlanBlock(businessId);
   if (blocked) return blocked;
-  const [config, templates] = await Promise.all([
-    prisma.whatsAppConfig.findUnique({ where: { businessId } }),
-    prisma.whatsAppTemplate.findMany({ where: { businessId }, orderBy: [{ name: "asc" }, { language: "asc" }], select: { name: true, language: true, status: true, reason: true } }),
-  ]);
+  const [config, templates] = await Promise.all([prisma.whatsAppConfig.findUnique({ where: { businessId } }), listCurrentTemplates(businessId)]);
   return NextResponse.json({ config: publicView(config), templates });
 }
 

@@ -44,10 +44,11 @@ export const TEMPLATE_DEFS: TemplateDef[] = [
   },
   {
     key: "booking_cancelled",
+    version: 2,
     params: [FIRST, SERVICE, BUSINESS, WHEN],
     body: {
-      en: "Hi {{1}}, your {{2}} at {{3}} on {{4}} has been cancelled.",
-      hi: "नमस्ते {{1}}, {{3}} में {{4}} को आपकी {{2}} रद्द कर दी गई है।",
+      en: "Hello {{1}}, this is to confirm that your booking for {{2}} at {{3}} scheduled for {{4}} has been cancelled. No further action is needed from you.",
+      hi: "नमस्ते {{1}}, यह पुष्टि है कि {{3}} में {{4}} के लिए आपकी {{2}} की बुकिंग रद्द कर दी गई है। आपकी ओर से किसी कार्रवाई की आवश्यकता नहीं है।",
     },
   },
   {
@@ -61,12 +62,13 @@ export const TEMPLATE_DEFS: TemplateDef[] = [
   },
   {
     key: "token_issued",
+    version: 2,
     params: [FIRST, BUSINESS, { name: "token number", example: "14" }, { name: "estimated time", example: "4:30 PM" }],
     body: {
-      en: "Hi {{1}}, your token at {{2}} is number {{3}}, estimated around {{4}}. Follow your turn live below.",
-      hi: "नमस्ते {{1}}, {{2}} में आपका टोकन नंबर {{3}} है, अनुमानित समय {{4}}। अपनी बारी लाइव देखें।",
+      en: "Hello {{1}}, this is a confirmation of your queue token for your visit to {{2}}. Token number: {{3}}. Estimated time: {{4}}. You can check the current status of your token using the button below.",
+      hi: "नमस्ते {{1}}, यह {{2}} में आपकी विज़िट के लिए आपके कतार टोकन की पुष्टि है। टोकन नंबर: {{3}}। अनुमानित समय: {{4}}। अपने टोकन की वर्तमान स्थिति नीचे दिए बटन से देखें।",
     },
-    button: { text: { en: "Track my turn", hi: "मेरी बारी देखें" }, path: "tracking", example: "abc123def456" },
+    button: { text: { en: "Check token status", hi: "टोकन की स्थिति देखें" }, path: "tracking", example: "abc123def456" },
   },
   {
     key: "token_next",
@@ -120,12 +122,13 @@ export const TEMPLATE_DEFS: TemplateDef[] = [
   },
   {
     key: "token_moved_back",
+    version: 2,
     params: [FIRST, BUSINESS, { name: "token number", example: "14" }, { name: "place in line", example: "5" }],
     body: {
-      en: "Hi {{1}}, token {{3}} was called at {{2}} and you were not there, so you are now number {{4}} in line. Please come to the desk soon.",
-      hi: "नमस्ते {{1}}, {{2}} में टोकन {{3}} बुलाया गया पर आप मौजूद नहीं थे, इसलिए अब आप कतार में {{4}} नंबर पर हैं। कृपया जल्द काउंटर पर आएं।",
+      en: "Hello {{1}}, this is an update on your queue token for your visit to {{2}}. Token {{3}} was called and you were not present, so your token has been moved back. Your current position in the queue is {{4}}. You can check the status of your token using the button below.",
+      hi: "नमस्ते {{1}}, यह {{2}} में आपकी विज़िट के लिए आपके कतार टोकन की जानकारी है। टोकन {{3}} बुलाया गया और आप मौजूद नहीं थे, इसलिए आपका टोकन पीछे कर दिया गया है। कतार में आपकी वर्तमान स्थिति {{4}} है। अपने टोकन की स्थिति नीचे दिए बटन से देखें।",
     },
-    button: { text: { en: "Track my turn", hi: "मेरी बारी देखें" }, path: "tracking", example: "abc123def456" },
+    button: { text: { en: "Check token status", hi: "टोकन की स्थिति देखें" }, path: "tracking", example: "abc123def456" },
   },
   {
     key: "token_closed",
@@ -185,5 +188,8 @@ export function buildTemplatePayload(def: TemplateDef, lang: TemplateLanguage, b
   }
   return { name: templateName(def.key), language: lang, category: "UTILITY", components };
 }
+
+/** Names of the templates Calvy currently uses (older versions may still exist on Meta; the app ignores them). */
+export const currentTemplateNames = (): Set<string> => new Set(TEMPLATE_DEFS.map((d) => templateName(d.key)));
 
 export const defFor = (key: string) => TEMPLATE_DEFS.find((d) => d.key === key) ?? null;

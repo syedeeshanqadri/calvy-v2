@@ -6,7 +6,7 @@ import { parseBody } from "@/lib/validation/common";
 import { rateLimit } from "@/lib/ratelimit";
 import { whatsappTemplateActionSchema } from "@/lib/whatsapp/schemas";
 import { whatsappPlanBlock } from "@/lib/whatsapp/access";
-import { installTemplates, refreshTemplates } from "@/lib/whatsapp/store";
+import { installTemplates, listCurrentTemplates, refreshTemplates } from "@/lib/whatsapp/store";
 import { templateUrlBases } from "@/lib/whatsapp/urls";
 
 export const dynamic = "force-dynamic";
@@ -33,7 +33,7 @@ async function POST_handler(req: NextRequest) {
     const r = await refreshTemplates(businessId);
     if (!r.ok) return NextResponse.json({ error: r.error }, { status: 400 });
   }
-  const templates = await prisma.whatsAppTemplate.findMany({ where: { businessId }, orderBy: [{ name: "asc" }, { language: "asc" }], select: { name: true, language: true, status: true, reason: true } });
+  const templates = await listCurrentTemplates(businessId);
   return NextResponse.json({ templates, failures });
 }
 

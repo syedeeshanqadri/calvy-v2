@@ -14,7 +14,7 @@ interface Tpl { name: string; language: string; status: string; reason: string |
 const input = "w-full h-10 px-3 rounded-xl bg-white border border-[#e8e6e0] text-sm outline-none focus:border-accent/40";
 const TIER: Record<string, string> = { TIER_50: "50 customers / day", TIER_250: "250 customers / day", TIER_1K: "1,000 customers / day", TIER_10K: "10,000 customers / day", TIER_100K: "100,000 customers / day", TIER_UNLIMITED: "Unlimited" };
 const QUALITY: Record<string, string> = { GREEN: "text-emerald-700 bg-emerald-50", YELLOW: "text-amber-700 bg-amber-50", RED: "text-red-700 bg-red-50" };
-const TPL_COLOR: Record<string, string> = { APPROVED: "text-emerald-700 bg-emerald-50", PENDING: "text-amber-700 bg-amber-50", REJECTED: "text-red-700 bg-red-50" };
+const TPL_COLOR: Record<string, string> = { APPROVED: "text-emerald-700 bg-emerald-50", PENDING: "text-amber-700 bg-amber-50", REJECTED: "text-red-700 bg-red-50", NOT_INSTALLED: "text-[#6b6b80] bg-[#f0ede8]" };
 
 const Pill = ({ cls, children }: { cls: string; children: React.ReactNode }) => <span className={`inline-block text-[11px] font-semibold px-2 py-0.5 rounded-full ${cls}`}>{children}</span>;
 
@@ -138,7 +138,7 @@ export function WhatsAppClient({ initialConfig, initialTemplates }: { initialCon
                   <li key={`${t.name}:${t.language}`} className="py-2 flex flex-wrap items-center gap-2">
                     <span className="font-mono text-xs">{t.name}</span><span className="text-xs text-[#6b6b80]">{t.language}</span>
                     <Pill cls={TPL_COLOR[t.status] ?? "text-[#6b6b80] bg-[#f0ede8]"}>{t.status}</Pill>
-                    {t.reason && <span className="text-xs text-red-700">{t.reason}</span>}
+                    {t.status === "NOT_INSTALLED" ? <span className="text-xs text-[#6b6b80]">Not created on Meta yet: press Install to retry. {t.reason}</span> : t.reason && <span className="text-xs text-red-700">{t.reason}</span>}
                   </li>
                 ))}
               </ul>

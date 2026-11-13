@@ -30,13 +30,13 @@ Meta's test number can message only recipients added to the allowed list (WhatsA
 
 | Email event | WhatsApp template (calvy_*_v1 unless noted) | Switch (Settings > Notifications) |
 |---|---|---|
-| booking.created | booking_confirmed (v2) / token_issued for token bookings | Confirmations |
+| booking.created | booking_confirmed (v2) / token_issued (v2) for token bookings | Confirmations |
 | booking.meeting_link | booking_meeting_link | Confirmations |
 | booking.rescheduled | booking_rescheduled (v2) | Changes |
-| booking.cancelled | booking_cancelled | Changes |
+| booking.cancelled | booking_cancelled (v2) | Changes |
 | booking.no_show | booking_no_show | Changes |
 | booking.reminder | booking_reminder (v2) | Reminders |
-| booking.queue_moved_back | token_moved_back | Token |
+| booking.queue_moved_back | token_moved_back (v2) | Token |
 | booking.queue_closed | token_closed | Token |
 | booking.paid | payment_received | Receipts |
 | booking.completed | visit_thanks, or visit_thanks_follow_up when the visit earns a free follow-up (one message) | Thank-you (+ "Free follow-up deadline" switch) |
@@ -57,3 +57,9 @@ Meta's test number can message only recipients added to the allowed list (WhatsA
 **Visit completed (one event).** Marking an appointment completed and serving a token at reception (Next completes the previous token) both queue the same notices through `lib/notifications/completion.ts`: the thank-you (email and `visit_thanks` / `visit_thanks_follow_up` on WhatsApp, with the follow-up deadline under the same rules), the review request and the owner alert. Their keys are booking-based, so a visit completed in both places is still one message.
 
 **WhatsApp without email.** A client with a phone number and WhatsApp consent but no email gets the thank-you, "your turn is near", moved-back and closed notices on WhatsApp only; the email row is recorded as skipped ("no email address"). Same STOP, opt-out and consent checks. The walk-in form has "Send WhatsApp updates (customer agreed verbally)" (unticked, shown only when WhatsApp is connected): consent source `DESK`, stored with the staff user id (`Client.whatsappConsentBy`) and the time. Needs `npm run db:migrate` (migration `20261114120000_whatsapp_desk_consent`).
+
+**Template versions and Meta's verdicts.** A template Meta rejected is never edited under the same name: change its wording and bump `version` in `lib/whatsapp/templates.ts` (the name becomes `calvy_<key>_v2`, then `_v3`); en and hi move together, and Settings lists only the current names. History: `booking_confirmed`/`booking_reminder`/`booking_rescheduled` v2 (no tracking button); `token_issued`, `token_moved_back` and `booking_cancelled` v2 (Meta: INCORRECT_CATEGORY for the two token ones, "too many variables for its length" for cancelled; rewritten as plain confirmations with more fixed text, button text "Check token status"). If `token_*_v2` is recategorised again, remove the button and tracking link from all three token templates (`token_issued`, `token_moved_back`, `token_next`) in one v3.
+
+**"Too many variables" watch list.** `tests/whatsapp.test.ts` computes fixed words per variable (weaker of en/hi, minimum 4). The templates in its `WATCH` set are only flagged (printed, never failing) while Meta reviews them: the six 4-variable ones (`booking_confirmed`, `booking_reminder`, `booking_rescheduled`, `payment_received`, `visit_thanks`, `booking_no_show`) plus `visit_thanks_follow_up`, `booking_meeting_link`, `staff_alert`, `staff_new_booking`. Any new or changed template (including a watched one after a version bump) must pass.
+
+**Install Calvy templates.** Safe to press again: it creates what is missing and retries anything marked NOT_INSTALLED (could not be created; Meta never judged it). REJECTED means Meta's own verdict. If Meta answers 401 / error 190 (expired or revoked token), Install stops at the first call, marks the connection ERROR and writes nothing: save a new token, Save and verify, install again.

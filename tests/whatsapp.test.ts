@@ -146,6 +146,48 @@ describe("webhook events", () => {
   });
 });
 
+/**
+ * Meta rejects a template with "too many variables for its length". Its threshold is not published, so we watch the ratio:
+ * fixed words per variable, in the weaker of en and hi. Templates in WATCH are known to be low and are only FLAGGED (printed,
+ * never failing) while Meta's verdict is awaited; anything else, including a watched template after a version bump, must
+ * pass MIN_FIXED_WORDS_PER_VARIABLE. When Meta rejects one, lengthen it and bump its version (it leaves the list).
+ */
+const MIN_FIXED_WORDS_PER_VARIABLE = 4;
+const WATCH = new Set([
+  // the six 4-variable templates sent to Meta as-is
+  "booking_confirmed@2", "booking_reminder@2", "booking_rescheduled@2", "payment_received@1", "visit_thanks@1", "booking_no_show@1",
+  // also under 4 when this check was added: awaiting Meta as well
+  "visit_thanks_follow_up@1", "booking_meeting_link@1", "staff_alert@1", "staff_new_booking@1",
+]);
+const ratio = (text: string) => {
+  const vars = new Set(text.match(/\{\{\d+\}\}/g) ?? []).size;
+  const words = text.replace(/\{\{\d+\}\}/g, " ").split(/\s+/).filter((w) => /[\p{L}\p{N}]/u.test(w)).length;
+  return words / Math.max(1, vars);
+};
+const weakest = (d: (typeof TEMPLATE_DEFS)[number]) => Math.min(ratio(d.body.en), ratio(d.body.hi));
+
+describe("template length vs variables (Meta: 'too many variables for its length')", () => {
+  const id = (d: (typeof TEMPLATE_DEFS)[number]) => `${d.key}@${d.version ?? 1}`;
+  it("every new or changed template has enough fixed text per variable", () => {
+    const bad = TEMPLATE_DEFS.filter((d) => !WATCH.has(id(d)) && weakest(d) < MIN_FIXED_WORDS_PER_VARIABLE).map((d) => `${id(d)} (${weakest(d).toFixed(2)} fixed words per variable)`);
+    expect(bad, `lengthen these (min ${MIN_FIXED_WORDS_PER_VARIABLE}) or bump the version:`).toEqual([]);
+  });
+  it("FLAGS the watched templates so they stay visible (never fails)", () => {
+    const flagged = TEMPLATE_DEFS.filter((d) => WATCH.has(id(d)));
+    for (const d of flagged) console.warn(`[template watch] ${id(d)}: ${weakest(d).toFixed(2)} fixed words per variable (limit ${MIN_FIXED_WORDS_PER_VARIABLE}), awaiting Meta`);
+    expect(flagged.length).toBeGreaterThan(0);
+    expect([...WATCH].filter((w) => !TEMPLATE_DEFS.some((d) => id(d) === w)), "WATCH names a template or version that no longer exists").toEqual([]);
+  });
+  it("the three rewritten templates are well clear of the limit, with the new button text", () => {
+    for (const k of ["token_issued", "token_moved_back", "booking_cancelled"]) expect(weakest(TEMPLATE_DEFS.find((d) => d.key === k)!)).toBeGreaterThanOrEqual(5);
+    for (const k of ["token_issued", "token_moved_back"]) {
+      const b = TEMPLATE_DEFS.find((d) => d.key === k)!.button!;
+      expect(b.text).toEqual({ en: "Check token status", hi: "टोकन की स्थिति देखें" });
+    }
+    expect(TEMPLATE_DEFS.find((d) => d.key === "token_next")!.button!.text.en).toBe("Track my turn"); // unchanged until Meta's verdict
+  });
+});
+
 const def_btn = (d: (typeof TEMPLATE_DEFS)[number], lang: "en" | "hi") => d.button?.text[lang].length ?? 0;
 
 describe("Graph client and templates", () => {

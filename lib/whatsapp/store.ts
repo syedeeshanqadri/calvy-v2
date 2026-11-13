@@ -5,7 +5,7 @@ import { decryptSecret, encryptSecret } from "@/lib/notifications/secret";
 import { maskSecret } from "@/lib/whatsapp/signature";
 import { createTemplate, listTemplates, verifyConnection, type Credentials, type Fetcher } from "@/lib/whatsapp/graph";
 import { whatsappCallbackUrl } from "@/lib/whatsapp/urls";
-import { TEMPLATE_DEFS, TEMPLATE_LANGUAGES, buildTemplatePayload, templateName, type UrlBases } from "@/lib/whatsapp/templates";
+import { TEMPLATE_DEFS, TEMPLATE_LANGUAGES, buildTemplatePayload, currentTemplateNames, templateName, type UrlBases } from "@/lib/whatsapp/templates";
 
 export const newKey = () => randomBytes(24).toString("base64url");
 
@@ -118,12 +118,17 @@ export async function installTemplates(businessId: string, bases: UrlBases, fetc
         });
       } else if (r.duplicate) {
         await prisma.whatsAppTemplate.upsert({ where: { businessId_name_language: { businessId, name, language: lang } }, create: { businessId, name, language: lang }, update: {} });
+      } else if (r.authFailure) {
+        // The token is dead: every remaining call would fail the same way. Stop, pause the connection, write nothing.
+        await prisma.whatsAppConfig.update({ where: { businessId }, data: { status: "ERROR", statusReason: "Meta rejected the access token (invalid or expired). Save a new System User token and verify again." } });
+        return { ok: false as const, error: "Meta rejected the access token (invalid or expired). Save a new token, press Save and verify, then install again." };
       } else {
+        // Could not be CREATED (bad payload, Meta hiccup). NOT_INSTALLED, never REJECTED: Meta did not judge it, and the next Install retries it.
         failures.push(`${name} (${lang}): ${r.reason}`);
         await prisma.whatsAppTemplate.upsert({
           where: { businessId_name_language: { businessId, name, language: lang } },
-          create: { businessId, name, language: lang, status: "REJECTED", reason: r.reason },
-          update: { status: "REJECTED", reason: r.reason },
+          create: { businessId, name, language: lang, status: "NOT_INSTALLED", reason: r.reason },
+          update: { status: "NOT_INSTALLED", reason: r.reason },
         });
       }
     }
@@ -142,4 +147,14 @@ export const toE164 = (digits: string) => `+${digits.replace(/\D/g, "")}`;
 
 export async function isOptedOut(businessId: string, phone: string): Promise<boolean> {
   return !!(await prisma.whatsAppOptOut.findUnique({ where: { businessId_phone: { businessId, phone: toE164(phone) } }, select: { phone: true } }));
+}
+
+/** The templates the Settings page lists: only the names Calvy currently uses (older versions on Meta are ignored). */
+export async function listCurrentTemplates(businessId: string) {
+  const rows = await prisma.whatsAppTemplate.findMany({
+    where: { businessId, name: { in: [...currentTemplateNames()] } },
+    orderBy: [{ name: "asc" }, { language: "asc" }],
+    select: { name: true, language: true, status: true, reason: true },
+  });
+  return rows;
 }
