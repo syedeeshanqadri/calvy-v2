@@ -15,7 +15,7 @@ export function LogFilters({ action, filters, searchHint, showAudience = true }:
       </label>
       <label className="flex flex-col gap-1 text-xs text-[#6b6b80]">Channel
         <select name="channel" defaultValue={filters.channel ?? ""} className={field}>
-          <option value="">All</option><option value="EMAIL">Email</option><option value="WHATSAPP">WhatsApp</option>
+          <option value="">All</option><option value="EMAIL">Email</option><option value="WHATSAPP">WhatsApp</option><option value="PUSH">Push</option>
         </select>
       </label>
       {showAudience && (

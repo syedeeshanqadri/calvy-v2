@@ -59,7 +59,7 @@ export function LogTable({ rows, resendBase, businessNames }: { rows: LogRow[]; 
                 {businessNames && <td className="py-2.5 pr-3">{r.businessId ? businessNames[r.businessId] ?? "Deleted business" : <span className="text-[#6b6b80]">Platform</span>}</td>}
                 <td className="py-2.5 pr-3">
                   <span className="text-[#0f0f1a]">{r.eventLabel}</span>
-                  <span className="block text-xs text-[#6b6b80]">{r.channel === "EMAIL" ? "Email" : "WhatsApp"} · {r.audience.toLowerCase()}</span>
+                  <span className="block text-xs text-[#6b6b80]">{r.channelLabel} · {r.audience.toLowerCase()}</span>
                 </td>
                 <td className="break-all py-2.5 pr-3 text-[#0f0f1a]">{r.recipient}</td>
                 <td className="py-2.5 pr-3">

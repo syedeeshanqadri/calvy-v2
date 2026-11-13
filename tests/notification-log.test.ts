@@ -1,14 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const db = vi.hoisted(() => ({ findFirst: vi.fn(), findUnique: vi.fn(), findMany: vi.fn(), updateMany: vi.fn() }));
+const db = vi.hoisted(() => ({ findFirst: vi.fn(), findUnique: vi.fn(), findMany: vi.fn(), updateMany: vi.fn(), deviceFindMany: vi.fn() }));
 const attemptNow = vi.hoisted(() => vi.fn(async () => {}));
 vi.mock("@/lib/prisma", () => ({
-  prisma: { notificationOutbox: { findFirst: db.findFirst, findUnique: db.findUnique, findMany: db.findMany, updateMany: db.updateMany } },
+  prisma: { notificationOutbox: { findFirst: db.findFirst, findUnique: db.findUnique, findMany: db.findMany, updateMany: db.updateMany }, pushDevice: { findMany: db.deviceFindMany } },
 }));
 vi.mock("@/lib/notifications/process", () => ({ attemptNow }));
 
 import {
-  adminLogWhere, eventLabel, failureRate, listLog, maskEmail, maskPhone, ownerLogWhere, parseLogFilters,
+  adminLogWhere, channelLabel, deviceLabel, eventLabel, failureRate, listLog, maskEmail, maskPhone, ownerLogWhere, parseLogFilters,
   redactError, resendBlocker, resendFailed,
 } from "@/lib/notifications/log";
 import { MAX_ATTEMPTS } from "@/lib/notifications/policy";
@@ -126,5 +126,36 @@ describe("listLog", () => {
     expect(select.secret).toBeUndefined();
     expect(hasMore).toBe(false);
     expect(rows[0]).toMatchObject({ recipient: "j•••@x•••.com", error: "https://a.test/?token=[hidden]", resendable: true });
+  });
+});
+
+describe("staff alert rows: channel, title and recipient match the real channel", () => {
+  const row = (over: object) => ({ id: "n", businessId: "b1", event: "push.booking_new", audience: "BUSINESS", channel: "PUSH", recipient: "dev1", status: "SENT", attempts: 1, error: null, createdAt: hoursAgo(1), sentAt: hoursAgo(1), expiresAt: null, deliveryStatus: null, deliveryError: null, ...over });
+  it("titles say 'Staff alert', never 'Push:', and the channel is its own label", () => {
+    expect(eventLabel("push.booking_new")).toBe("Staff alert: booking new");
+    expect(eventLabel("push.booking_cancelled")).toBe("Staff alert: booking cancelled");
+    expect(["EMAIL", "WHATSAPP", "PUSH"].map(channelLabel)).toEqual(["Email", "WhatsApp", "Push"]);
+  });
+  it("push rows show the user's name and device, not the device id; WhatsApp staff rows show the masked number", async () => {
+    db.findMany.mockResolvedValue([row({}), row({ id: "w", channel: "WHATSAPP", recipient: "919876543210" })]);
+    db.deviceFindMany.mockResolvedValue([{ id: "dev1", userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)", user: { name: "Dr. Ahmed" } }]);
+    const { rows } = await listLog({}, 1, { mask: true, now: NOW });
+    expect(rows[0]).toMatchObject({ channel: "PUSH", channelLabel: "Push", eventLabel: "Staff alert: booking new", recipient: "Dr. Ahmed · iPhone" });
+    expect(rows[1]).toMatchObject({ channel: "WHATSAPP", channelLabel: "WhatsApp", eventLabel: "Staff alert: booking new", recipient: "•••3210" });
+    expect(JSON.stringify(rows)).not.toContain("dev1");
+  });
+  it("a removed device says so instead of leaking its id; no device query when there are no push rows", async () => {
+    db.findMany.mockResolvedValue([row({ recipient: "gone" })]);
+    db.deviceFindMany.mockResolvedValue([]);
+    expect((await listLog({}, 1, { mask: false, now: NOW })).rows[0].recipient).toBe("Removed device");
+    db.deviceFindMany.mockClear();
+    db.findMany.mockResolvedValue([row({ channel: "EMAIL", event: "booking.created", recipient: "a@b.test" })]);
+    await listLog({}, 1, { mask: false, now: NOW });
+    expect(db.deviceFindMany).not.toHaveBeenCalled();
+  });
+  it("recognises common devices from the user agent", () => {
+    expect(deviceLabel("Mozilla/5.0 (Linux; Android 14; Pixel 8)")).toBe("Android");
+    expect(deviceLabel("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)")).toBe("Mac");
+    expect(deviceLabel(null)).toBe("Device");
   });
 });
