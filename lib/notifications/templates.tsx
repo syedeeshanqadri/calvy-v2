@@ -1,7 +1,7 @@
 import * as React from "react";
 import { render } from "@react-email/render";
 import {
-  BookingCancellationEmail, BookingConfirmationEmail, BookingReminderEmail, BookingRescheduleEmail, BusinessAlertEmail, BusinessLiveEmail,
+  BookingCancellationEmail, QueueNextEmail, BookingConfirmationEmail, BookingReminderEmail, BookingRescheduleEmail, BusinessAlertEmail, BusinessLiveEmail,
   CustomerAccountSetupEmail, CustomerResetEmail, CustomerVerifyEmail, DailySummaryEmail, EmailVerificationEmail, InvoiceEmail, LeadAcknowledgmentEmail, MeetingLinkEmail,
   PasswordResetEmail, OwnerAccountSetupEmail, TeamInviteEmail, QueueClosedEmail, QueueMovedBackEmail, ReviewRequestEmail, StatusChangeEmail, WelcomeEmail, businessAlertHeadline,
   type BookingProps, type BusinessAlertProps, type DailySummaryProps, type InvoiceProps,
@@ -28,7 +28,8 @@ export interface UnsubscribeLinks { page: string; oneClick: string }
 /** Read at render, not stored in the payload: the business's look and its pack wording. */
 export interface RenderBrand { tenant?: TenantBrand; terms?: TermsSource }
 
-export type BookingPayload = Omit<BookingProps, "terms" | "tenant" | "unsubscribeUrl">;
+/** `providerName` is the real staff member's name only (never the "Your doctor" fallback that staffName carries). */
+export type BookingPayload = Omit<BookingProps, "terms" | "tenant" | "unsubscribeUrl"> & { providerName?: string };
 /** Attaches a calendar invite; the start is an ISO string because payloads are JSON. */
 export type ConfirmationPayload = BookingPayload & { ics?: { appointmentId: string; start: string; durationMinutes: number } };
 export type InvoicePayload = Omit<InvoiceProps, "terms" | "tenant" | "unsubscribeUrl">;
@@ -145,10 +146,15 @@ export const TEMPLATES = {
     Email: (p) => <InvoiceEmail {...p} />,
     text: (p) => lines(`Receipt #${p.invoiceNumber} from ${p.businessName}`, `Billed to: ${p.clientName}`, `${p.serviceName}, ${p.date}, ${p.time}`, `Total paid: ${formatCurrencyAmount(p.price ?? 0, p.currency ?? "INR")}`, p.paymentRef && `Payment reference: ${p.paymentRef}`),
   }),
-  status_change: define<BookingPayload & { status: "completed" | "no_show"; rebookUrl?: string }>({
+  queue_next: define<BookingPayload & { ahead: number }>({
+    subject: (p) => `Your turn is coming up at ${p.businessName}`,
+    Email: (p) => <QueueNextEmail {...p} />,
+    text: (p) => lines(`Hi ${first(p.clientName)}, your turn at ${p.businessName} is coming up: ${p.ahead} ${p.ahead === 1 ? "person is" : "people are"} ahead of you. Please be ready.`, p.token && `Your number is #${p.token.number}.`, p.trackUrl && `Track your place in line: ${p.trackUrl}`),
+  }),
+  status_change: define<BookingPayload & { status: "completed" | "no_show"; rebookUrl?: string; followUpUntil?: string }>({
     subject: (p) => (p.status === "completed" ? `Thanks for visiting ${p.businessName}` : `Your ${appt(p)} at ${p.businessName} was marked as missed`),
     Email: (p) => <StatusChangeEmail {...p} />,
-    text: (p) => lines(`Hi ${first(p.clientName)}, your ${appt(p)} at ${p.businessName} is marked as ${p.status === "completed" ? "completed" : "missed"}.`, detailsText(p), p.rebookUrl && `Book again: ${p.rebookUrl}`),
+    text: (p) => lines(`Hi ${first(p.clientName)}, your ${appt(p)} at ${p.businessName} is marked as ${p.status === "completed" ? "completed" : "missed"}.`, p.followUpUntil && `You can book one free follow-up until ${p.followUpUntil}. Sign in to My bookings to use it.`, detailsText(p), p.rebookUrl && `Book again: ${p.rebookUrl}`),
   }),
   review_request: define<{ clientName: string; businessName: string; reviewUrl: string }>({
     subject: (p) => `How was your visit to ${p.businessName}?`,
@@ -243,14 +249,22 @@ export const TEMPLATES = {
 export type TemplateId = keyof typeof TEMPLATES;
 
 /** Pure: everything comes in as arguments, so a retry renders the same message unless the brand changed. */
-export async function renderTemplate(template: string, payload: unknown, brand?: RenderBrand, unsubscribe?: UnsubscribeLinks): Promise<Rendered> {
+export async function renderTemplate(template: string, payload: unknown, brand?: RenderBrand, unsubscribe?: UnsubscribeLinks, whatsappStopUrl?: string): Promise<Rendered> {
   const entry = Object.hasOwn(TEMPLATES, template) ? TEMPLATES[template as TemplateId] : undefined;
   if (!entry) throw new Error(`Unknown notification template: ${template}`);
   const p = { ...(payload as object), ...brand, unsubscribeUrl: unsubscribe?.page };
+  let html = await render(entry.Email(p));
+  let text = unsubscribe ? `${entry.text(p)}\n\nStop these emails: ${unsubscribe.page}` : entry.text(p);
+  // Customers who opted in to WhatsApp can stop it from any email we send them about their booking.
+  if (whatsappStopUrl) {
+    const href = whatsappStopUrl.replace(/&/g, "&amp;");
+    html = html.replace("</body>", `<p style="text-align:center;font-size:12px;color:#6b6b80;font-family:Arial,sans-serif;margin:12px 0"><a href="${href}" style="color:#6b6b80;text-decoration:underline">Stop WhatsApp updates</a></p></body>`);
+    text = `${text}\n\nStop WhatsApp updates: ${whatsappStopUrl}`;
+  }
   return {
     subject: entry.subject(p),
-    html: await render(entry.Email(p)),
-    text: unsubscribe ? `${entry.text(p)}\n\nStop these emails: ${unsubscribe.page}` : entry.text(p),
+    html,
+    text,
     attachments: entry.attachments?.(p),
     ...(unsubscribe ? { headers: { "List-Unsubscribe": `<${unsubscribe.oneClick}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" } } : {}),
   };

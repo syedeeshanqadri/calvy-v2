@@ -4,6 +4,7 @@ import { enqueue, sendSoon, type NotificationInput } from "@/lib/notifications/e
 import { sanitizePermissions } from "@/lib/permissions";
 import { mayReceive, scrubContact, wants, type PushKind, type PushPrefs } from "@/lib/pushRouting";
 import { logger } from "@/lib/logger";
+import { eligibleWhatsAppUsers } from "@/lib/whatsapp/staff";
 
 export interface PushMessage { title: string; body: string; url?: string; tag?: string }
 
@@ -31,13 +32,20 @@ async function eligibleDevices(businessId: string, kind: PushKind, bookingStaffI
  */
 export async function queuePush(p: { businessId: string; kind: PushKind; staffId?: string | null; subjectId: string; version?: string | number; message: PushMessage }): Promise<number> {
   try {
-    const devices = await eligibleDevices(p.businessId, p.kind, p.staffId);
-    if (!devices.length) return 0;
+    const [devices, waUsers] = await Promise.all([eligibleDevices(p.businessId, p.kind, p.staffId), eligibleWhatsAppUsers(p.businessId, p.kind, p.staffId)]);
+    if (!devices.length && !waUsers.length) return 0;
     const payload = { title: scrubContact(p.message.title).slice(0, 80), body: scrubContact(p.message.body).slice(0, 160), url: p.message.url ?? "/dashboard", tag: p.message.tag ?? p.kind, kind: p.kind, staffId: p.staffId ?? null };
-    const items: NotificationInput[] = devices.map((d) => ({
-      event: `push.${p.kind}`, audience: "BUSINESS", subjectId: p.subjectId, version: p.version, channel: "PUSH", recipient: d.id,
-      template: "push", payload: { ...payload, userId: d.userId }, businessId: p.businessId,
-    }));
+    const items: NotificationInput[] = [
+      ...devices.map((d): NotificationInput => ({
+        event: `push.${p.kind}`, audience: "BUSINESS", subjectId: p.subjectId, version: p.version, channel: "PUSH", recipient: d.id,
+        template: "push", payload: { ...payload, userId: d.userId }, businessId: p.businessId,
+      })),
+      // The same alert on WhatsApp, to each opted-in person's own number (gates are re-checked at send: lib/whatsapp/send.ts).
+      ...waUsers.map((u): NotificationInput => ({
+        event: `push.${p.kind}`, audience: "BUSINESS", subjectId: p.subjectId, version: p.version, channel: "WHATSAPP", recipient: u.whatsappPhone as string,
+        template: "whatsapp_alert", payload: { ...payload, userId: u.id }, businessId: p.businessId,
+      })),
+    ];
     const ids = await enqueue(prisma, items);
     await sendSoon(ids);
     return items.length;

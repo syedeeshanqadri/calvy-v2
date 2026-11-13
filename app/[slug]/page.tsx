@@ -12,6 +12,7 @@ import { formatCurrencyAmount } from "@/lib/currency";
 import { getFlags } from "@/lib/flags";
 import { ChatWidget } from "@/components/chatbot/ChatWidget";
 import { getBusinessFeatures } from "@/lib/getFeatures";
+import { whatsappOffered } from "@/lib/whatsapp/consent";
 import { contactRequirements } from "@/lib/patients";
 import { safeThemeColor, readableForeground, themeVars, brandInk } from "@/lib/theme";
 import { BrandMark, SocialIcons, ReviewButton, initialsOf } from "@/components/site/Brand";
@@ -100,6 +101,7 @@ export default async function TenantWebsitePage(props: { params: Promise<{ slug:
   const hasHours = business.workingHours.length > 0;
   const bookingUrl = `${siteBase((await headers()).get("host"), business.slug, ROOT_DOMAIN)}/book-now`;
   const features = await getBusinessFeatures(business.id);
+  const offersWhatsApp = await whatsappOffered(business.id);
 
   // ── SEO: schema.org structured data (LocalBusiness + service offers) ──
   const publicUrl = publicUrlFor(business.slug);
@@ -503,6 +505,7 @@ export default async function TenantWebsitePage(props: { params: Promise<{ slug:
           primaryColor: primary,
           currency: business.currency ?? "USD",
           phoneRequired: contactRequirements(business.currency).phone,
+          whatsappOffered: offersWhatsApp,
           services: business.services.map(s => ({
             id: s.id,
             name: s.name,

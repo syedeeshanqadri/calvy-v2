@@ -21,6 +21,9 @@ export const bookingSchema = z
     patientGender: z.preprocess(blankToUndef, z.enum(PATIENT_GENDERS).optional()),
     clientEmail: emailField,
     clientPhone: z.preprocess(blankToUndef, phoneField.optional()),
+    /** "Get updates on WhatsApp" (never pre-ticked). Only honoured when the business has WhatsApp connected. */
+    whatsappConsent: z.boolean().optional(),
+    whatsappConsentSource: z.enum(["booking_form", "chat_widget"]).optional(),
     notes: z.preprocess(blankToUndef, text(1000).optional()),
     /** For services offered both in person and online: the customer's choice. */
     mode: z.preprocess(blankToUndef, z.enum(["in_person", "online"]).optional()),

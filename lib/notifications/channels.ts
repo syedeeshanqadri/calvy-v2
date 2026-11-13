@@ -51,7 +51,10 @@ const sendPush: Channel = async (message, deviceId) => {
 /** A channel with no provider behind it yet: its rows are kept as SKIPPED so the log says why nothing went. */
 const notSetUp: Channel = async () => ({ kind: "skipped", error: "channel not set up" });
 
-/** WhatsApp gets a real adapter later (per-business sessions, roadmap item 9); it plugs in here and sends `message.text`. */
+/**
+ * WHATSAPP rows are sent by lib/whatsapp/send.ts (it needs the whole row: consent, template, permissions), which
+ * process.ts calls directly while this entry is the default. Tests may replace it with a fake channel.
+ */
 export const CHANNELS: Record<"EMAIL" | "WHATSAPP" | "PUSH", Channel> = {
   EMAIL: sendEmail,
   WHATSAPP: notSetUp,

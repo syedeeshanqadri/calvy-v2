@@ -26,8 +26,8 @@ vi.mock("@/lib/getFeatures", () => ({ getBusinessFeatures: db.limits }));
 
 import { encryptSecret } from "@/lib/notifications/secret";
 import { isStopMessage, maskSecret, verifyMetaSignature } from "@/lib/whatsapp/signature";
-import { GRAPH_VERSION, verifyConnection } from "@/lib/whatsapp/graph";
-import { TEMPLATE_DEFS, buildTemplatePayload, templateName } from "@/lib/whatsapp/templates";
+import { GRAPH_VERSION, sendTemplateMessage, verifyConnection } from "@/lib/whatsapp/graph";
+import { TEMPLATE_DEFS, buildTemplatePayload, languagesOf, templateName } from "@/lib/whatsapp/templates";
 import { publicView, saveConfig } from "@/lib/whatsapp/store";
 import { handleWebhook } from "@/lib/whatsapp/webhook";
 import { runWhatsAppHealth } from "@/lib/whatsapp/health";
@@ -144,6 +144,53 @@ describe("webhook events", () => {
     await handleWebhook("b1", "111", { entry: [{ changes: [{ field: "message_template_status_update", value: { event: "REJECTED", message_template_name: "calvy_booking_confirmed_v1", message_template_language: "en", reason: "INVALID_FORMAT" } }] }] });
     expect(db.tplUpdateMany.mock.calls[0][0].data).toEqual({ status: "REJECTED", reason: "INVALID_FORMAT" });
   });
+  it("a category update (UTILITY -> MARKETING) is stored on the template row", async () => {
+    db.tplUpdateMany.mockResolvedValue({ count: 1 });
+    await handleWebhook("b1", "111", { entry: [{ changes: [{ field: "template_category_update", value: { message_template_name: "calvy_visit_thanks_v1", message_template_language: "en", new_category: "MARKETING" } }] }] });
+    expect(db.tplUpdateMany.mock.calls[0][0]).toMatchObject({ where: { businessId: "b1", name: "calvy_visit_thanks_v1", language: "en" }, data: { category: "MARKETING" } });
+  });
+});
+
+/**
+ * Meta rejects a template with "too many variables for its length". Its threshold is not published, so we watch the ratio:
+ * fixed words per variable, in the weaker of en and hi. Templates in WATCH are known to be low and are only FLAGGED (printed,
+ * never failing) while Meta's verdict is awaited; anything else, including a watched template after a version bump, must
+ * pass MIN_FIXED_WORDS_PER_VARIABLE. When Meta rejects one, lengthen it and bump its version (it leaves the list).
+ */
+const MIN_FIXED_WORDS_PER_VARIABLE = 4;
+const WATCH = new Set([
+  // the 4-variable templates sent to Meta as-is
+  "booking_confirmed@2", "booking_reminder@2", "booking_rescheduled@2", "payment_received@1",
+  // also under 4 when this check was added: awaiting Meta as well
+  "booking_meeting_link@1", "staff_alert@1", "staff_new_booking@1",
+]);
+const ratio = (text: string) => {
+  const vars = new Set(text.match(/\{\{\d+\}\}/g) ?? []).size;
+  const words = text.replace(/\{\{\d+\}\}/g, " ").split(/\s+/).filter((w) => /[\p{L}\p{N}]/u.test(w)).length;
+  return words / Math.max(1, vars);
+};
+const weakest = (d: (typeof TEMPLATE_DEFS)[number]) => Math.min(...languagesOf(d).map((l) => ratio(d.body[l])));
+
+describe("template length vs variables (Meta: 'too many variables for its length')", () => {
+  const id = (d: (typeof TEMPLATE_DEFS)[number]) => `${d.key}@${d.version ?? 1}`;
+  it("every new or changed template has enough fixed text per variable", () => {
+    const bad = TEMPLATE_DEFS.filter((d) => !WATCH.has(id(d)) && weakest(d) < MIN_FIXED_WORDS_PER_VARIABLE).map((d) => `${id(d)} (${weakest(d).toFixed(2)} fixed words per variable)`);
+    expect(bad, `lengthen these (min ${MIN_FIXED_WORDS_PER_VARIABLE}) or bump the version:`).toEqual([]);
+  });
+  it("FLAGS the watched templates so they stay visible (never fails)", () => {
+    const flagged = TEMPLATE_DEFS.filter((d) => WATCH.has(id(d)));
+    for (const d of flagged) console.warn(`[template watch] ${id(d)}: ${weakest(d).toFixed(2)} fixed words per variable (limit ${MIN_FIXED_WORDS_PER_VARIABLE}), awaiting Meta`);
+    expect(flagged.length).toBeGreaterThan(0);
+    expect([...WATCH].filter((w) => !TEMPLATE_DEFS.some((d) => id(d) === w)), "WATCH names a template or version that no longer exists").toEqual([]);
+  });
+  it("the three rewritten templates are well clear of the limit, with the new button text", () => {
+    for (const k of ["token_issued", "token_moved_back", "booking_cancelled"]) expect(weakest(TEMPLATE_DEFS.find((d) => d.key === k)!)).toBeGreaterThanOrEqual(5);
+    for (const k of ["token_issued", "token_moved_back"]) {
+      const b = TEMPLATE_DEFS.find((d) => d.key === k)!.button!;
+      expect(b.text).toEqual({ en: "Check token status", hi: "टोकन की स्थिति देखें" });
+    }
+    expect(TEMPLATE_DEFS.find((d) => d.key === "token_next")!.button!.text.en).toBe("Track my turn"); // unchanged until Meta's verdict
+  });
 });
 
 const def_btn = (d: (typeof TEMPLATE_DEFS)[number], lang: "en" | "hi") => d.button?.text[lang].length ?? 0;
@@ -170,7 +217,7 @@ describe("Graph client and templates", () => {
     for (const d of TEMPLATE_DEFS) for (const lang of ["en", "hi"] as const) {
       const p = buildTemplatePayload(d, lang, { tracking: "https://calvy.io/shop/q/", dashboard: "https://calvy.io/dashboard/" });
       expect(p.category).toBe("UTILITY");
-      expect(p.name).toMatch(/^calvy_[a-z_]+_v1$/);
+      expect(p.name).toMatch(/^calvy_[a-z_]+_v[123]$/);
       const body = d.body[lang];
       expect(body).not.toMatch(/@|https?:|\d{6,}/);
       // Meta rejects a body that starts or ends with a variable, or has two variables side by side.
@@ -180,7 +227,7 @@ describe("Graph client and templates", () => {
       const vars = [...body.matchAll(/\{\{(\d+)\}\}/g)].map((m) => Number(m[1]));
       expect(new Set(vars).size).toBe(d.params.length);
     }
-    const t = TEMPLATE_DEFS.find((d) => d.key === "booking_confirmed")!;
+    const t = TEMPLATE_DEFS.find((d) => d.key === "token_issued")!;
     const btn = (buildTemplatePayload(t, "en", { tracking: "https://calvy.io/shop/q/", dashboard: "" }).components[1] as { buttons: { url: string }[] }).buttons[0];
     expect(btn.url).toBe("https://calvy.io/shop/q/{{1}}");
   });
@@ -266,5 +313,15 @@ describe("webhook base URL on previews", () => {
     const env = { ...base, VERCEL_ENV: "production", VERCEL_BRANCH_URL: "alias.vercel.app", VERCEL_URL: "dep.vercel.app" };
     expect(whatsappCallbackUrl("K", env)).toBe("https://calvy.io/api/whatsapp/webhook/K");
     expect(webhookUrlFor(env)).toBe("https://calvy.io/api/payments/cashfree/webhook");
+  });
+});
+
+describe("Meta error 131030 (recipient not allowed)", () => {
+  it("is shown as a plain instruction, not Meta's raw text, and is permanent (not retried)", async () => {
+    const f = vi.fn(async () => json({ error: { code: 131030, message: "(#131030) Recipient phone number not in allowed list" } }, 400));
+    const out = await sendTemplateMessage({ phoneNumberId: "1", wabaId: "2", accessToken: "t" }, "919876543210", { name: "calvy_staff_alert_v1", language: "en", params: ["a", "b"] }, f as never);
+    expect(out).toMatchObject({ ok: false, status: 400, authFailure: false });
+    expect((out as { reason: string }).reason).toContain("recipient list");
+    expect((out as { reason: string }).reason).toContain("131030");
   });
 });

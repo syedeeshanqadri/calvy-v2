@@ -84,32 +84,33 @@ export async function verifyConnection(c: Credentials, fetcher: Fetcher = fetch)
   };
 }
 
-export interface RemoteTemplate { id: string; name: string; language: string; status: string; reason: string | null }
+export interface RemoteTemplate { id: string; name: string; language: string; status: string; category: string | null; reason: string | null }
 
 /** Templates on the WABA (all pages, capped), with approval status and the rejection reason when there is one. */
 export async function listTemplates(c: Credentials, fetcher: Fetcher = fetch): Promise<{ ok: true; templates: RemoteTemplate[] } | { ok: false; reason: string }> {
   const out: RemoteTemplate[] = [];
   let path: string | null = `${c.wabaId}/message_templates`;
-  let query: Record<string, string> | undefined = { fields: "id,name,language,status,rejected_reason", limit: "100", name: "calvy_" };
-  for (let page = 0; page < 5 && path; page++) {
-    const r: GraphResult<{ data?: { id: string; name: string; language: string; status: string; rejected_reason?: string }[]; paging?: { cursors?: { after?: string }; next?: string } }> = await graph(c.accessToken, path, { query }, fetcher);
+  let query: Record<string, string> | undefined = { fields: "id,name,language,status,category,rejected_reason", limit: "100" };
+  for (let page = 0; page < 30 && path; page++) {
+    const r: GraphResult<{ data?: { id: string; name: string; language: string; status: string; category?: string; rejected_reason?: string }[]; paging?: { cursors?: { after?: string }; next?: string } }> = await graph(c.accessToken, path, { query }, fetcher);
     if (!r.ok) return { ok: false, reason: r.error?.message ?? "Could not read templates" };
     for (const t of r.data.data ?? []) {
-      out.push({ id: t.id, name: t.name, language: t.language, status: t.status, reason: t.rejected_reason && t.rejected_reason !== "NONE" ? t.rejected_reason : null });
+      if (!t.name.startsWith("calvy_")) continue; // filtered here: Meta's name= filter is not a reliable prefix match
+      out.push({ id: t.id, name: t.name, language: t.language, status: t.status, category: t.category ?? null, reason: t.rejected_reason && t.rejected_reason !== "NONE" ? t.rejected_reason : null });
     }
-    const after = r.data.paging?.next ? r.data.paging.cursors?.after : undefined;
+    const after = r.data.paging?.cursors?.after && (r.data.paging.next || (r.data.data ?? []).length >= 100) ? r.data.paging.cursors.after : undefined;
     if (!after) break;
     query = { ...query, after };
   }
   return { ok: true, templates: out };
 }
 
-export async function createTemplate(c: Credentials, body: Record<string, unknown>, fetcher: Fetcher = fetch): Promise<{ ok: true; id: string; status: string } | { ok: false; reason: string; duplicate: boolean }> {
+export async function createTemplate(c: Credentials, body: Record<string, unknown>, fetcher: Fetcher = fetch): Promise<{ ok: true; id: string; status: string } | { ok: false; reason: string; duplicate: boolean; authFailure: boolean }> {
   const r = await graph<{ id?: string; status?: string }>(c.accessToken, `${c.wabaId}/message_templates`, { method: "POST", body }, fetcher);
   if (r.ok) return { ok: true, id: r.data.id ?? "", status: r.data.status ?? "PENDING" };
   // 2388024 / "already exists": this name and language is already on the WABA (we just sync its status).
   const msg = r.error?.message ?? "Meta refused the template";
-  return { ok: false, reason: msg, duplicate: r.error?.code === 2388024 || /already exist/i.test(msg) };
+  return { ok: false, reason: msg, duplicate: r.error?.code === 2388024 || /already exist|already (?:\w+ )?content for this template/i.test(msg), authFailure: isAuthFailure(r) };
 }
 
 /** What the outbox adapter and the "send test" button call: one template message to one number (digits, no plus). */
@@ -128,5 +129,12 @@ export async function sendTemplateMessage(
     fetcher,
   );
   if (r.ok) return { ok: true, messageId: r.data.messages?.[0]?.id ?? "" };
-  return { ok: false, reason: r.error?.message ?? "WhatsApp send failed", status: r.status, authFailure: isAuthFailure(r) };
+  return { ok: false, reason: friendlySendError(r.error?.code, r.error?.message), status: r.status, authFailure: isAuthFailure(r) };
+}
+
+/** Meta error 131030: the number is not on the allowed-recipient list (a test number can only message people added in Meta's API Setup). */
+export const NOT_ALLOWED_RECIPIENT = 131030;
+function friendlySendError(code: number | undefined, message: string | undefined): string {
+  if (code === NOT_ALLOWED_RECIPIENT) return "This number is not on your WhatsApp recipient list (Meta error 131030). Add it under API Setup > To in your Meta app, or use a live WhatsApp number, then try again.";
+  return message ?? "WhatsApp send failed";
 }

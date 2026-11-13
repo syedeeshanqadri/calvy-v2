@@ -6,7 +6,7 @@ import { parseBody } from "@/lib/validation/common";
 import { rateLimit } from "@/lib/ratelimit";
 import { whatsappTemplateActionSchema } from "@/lib/whatsapp/schemas";
 import { whatsappPlanBlock } from "@/lib/whatsapp/access";
-import { installTemplates, refreshTemplates } from "@/lib/whatsapp/store";
+import { installTemplates, listCurrentTemplates, refreshTemplates } from "@/lib/whatsapp/store";
 import { templateUrlBases } from "@/lib/whatsapp/urls";
 
 export const dynamic = "force-dynamic";
@@ -23,6 +23,7 @@ async function POST_handler(req: NextRequest) {
   if (!rl.ok) return NextResponse.json({ error: "Too many attempts. Try again later." }, { status: 429, headers: { "Retry-After": String(rl.retryAfter) } });
 
   let failures: string[] = [];
+  let missing: string[] = [];
   if (parsed.data.action === "install") {
     const business = await prisma.business.findUnique({ where: { id: businessId }, select: { slug: true } });
     if (!business) return NextResponse.json({ error: "Business not found" }, { status: 404 });
@@ -32,9 +33,10 @@ async function POST_handler(req: NextRequest) {
   } else {
     const r = await refreshTemplates(businessId);
     if (!r.ok) return NextResponse.json({ error: r.error }, { status: 400 });
+    missing = r.missing;
   }
-  const templates = await prisma.whatsAppTemplate.findMany({ where: { businessId }, orderBy: [{ name: "asc" }, { language: "asc" }], select: { name: true, language: true, status: true, reason: true } });
-  return NextResponse.json({ templates, failures });
+  const templates = await listCurrentTemplates(businessId);
+  return NextResponse.json({ templates, failures, missing });
 }
 
 export const POST = safeRoute(POST_handler);

@@ -7,6 +7,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { t, type TermsSource } from "@/lib/terms";
 import type { NotificationPrefs } from "@/lib/notifications/prefs";
+import { WA_PREF_KEYS, WA_PREF_LABELS } from "@/lib/whatsapp/events";
 import type { NotificationSettings } from "@/lib/notifications/settings";
 
 const LEADS: { value: number; label: string }[] = [
@@ -127,8 +128,30 @@ export function NotificationsClient({ initial, terms }: { initial: NotificationS
                 className={selectCls} value={prefs.customer.reviewDelayHours}
                 onChange={(e) => setCustomer("reviewDelayHours", Math.min(48, Math.max(1, Math.round(Number(e.target.value) || 1))))} />
             </div>
+            {(
+              <div>
+                <label htmlFor="n-token-next" className="block text-sm font-medium text-[#0f0f1a] mb-1.5">Token queue: tell the customer when their turn is near</label>
+                <select id="n-token-next" className={selectCls} value={prefs.customer.tokenNextAhead} onChange={(e) => setCustomer("tokenNextAhead", Number(e.target.value))}>
+                  {[1, 2, 3, 4, 5].map((n) => <option key={n} value={n}>{n === 1 ? "When 1 token is ahead" : `When ${n} tokens are ahead`}{n === 3 ? " (default)" : ""}</option>)}
+                </select>
+                <p className="text-xs text-[#6b6b80] mt-1">Sent once per booking by email, and on WhatsApp if they opted in. Again only if they were moved back and reach this point again (never more than twice).</p>
+              </div>
+            )}
           </CardContent>
         </Card>
+
+        {settings.whatsappSetUp && (
+          <Card>
+            <CardHeader><CardTitle>WhatsApp to your customers</CardTitle></CardHeader>
+            <CardContent>
+              <p className="text-sm text-[#6b6b80] mb-2">Sent in addition to the email, only to customers who ticked &quot;Get updates on WhatsApp&quot; when booking, and never after they reply STOP. If a message cannot go on WhatsApp (template not approved, connection paused), they still get the email.</p>
+              {WA_PREF_KEYS.map((k) => (
+                <Toggle key={k} id={`wa-${k}`} label={WA_PREF_LABELS[k]}
+                  checked={prefs.whatsapp[k]} onChange={(v) => update({ ...prefs, whatsapp: { ...prefs.whatsapp, [k]: v } })} />
+              ))}
+            </CardContent>
+          </Card>
+        )}
 
         <div className="flex items-center gap-3">
           <Button onClick={save} loading={saving}>Save</Button>

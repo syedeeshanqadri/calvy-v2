@@ -1,3 +1,4 @@
+import { visitCompletedItems } from "@/lib/notifications/completion";
 import { safeRoute } from "@/lib/api";
 import { NextRequest, NextResponse } from "next/server";
 import { accessSession, appointmentWhere, scopeOf } from "@/lib/access";
@@ -207,21 +208,23 @@ async function PATCH_handler(req: NextRequest, props: { params: Promise<{ id: st
         const n = noticeFrom(full);
         const rebookUrl = `${APP_URL}/${full.business.slug}`;
         const move = willReschedule ? { from: appointment.date, to: full.date, oldDate: fmtDate(appointment.date), oldTime: fmtTime(appointment.date) } : null;
+        // Completing a visit is one shared event (thank-you + follow-up deadline, review request, owner alert); serving a token at reception uses the same.
+        const done = willComplete ? await visitCompletedItems(n, full, rebookUrl) : null;
         // A phone alert for money received at the desk (to people who may see reports and want it).
         if (willPay && !willCancel) await queuePush({ businessId, kind: "payment", subjectId: full.id, version: "paid", message: { title: "Payment received", body: `${shortName(full.patientName?.trim() || full.client.name)} · ${full.service.name}`, url: "/dashboard/appointments", tag: "payment" } });
         await notify(
           willCancel ? await ownerAlert(n, "cancelled")
             : move ? await ownerAlert(n, "rescheduled", { version: `${move.from.getTime()}>${move.to.getTime()}`, oldDate: move.oldDate, oldTime: move.oldTime })
-            : willComplete ? await ownerAlert(n, "status", { version: "completed", statusLabel: "completed" })
+            : done ? done.owner
             : willNoShow ? await ownerAlert(n, "status", { version: "no_show", statusLabel: "marked as a no-show" })
             : null,
           willPay && !willCancel ? await ownerAlert(n, "paid") : null,
-          willComplete ? await reviewRequestFor(n, full.business) : null,
+          done?.review ?? null,
         );
         await notify(
           willCancel ? cancellation(n, rebookUrl)
             : move ? reschedule(n, move)
-            : willComplete ? statusChange(n, "completed", rebookUrl)
+            : done ? done.customer
             : willNoShow ? statusChange(n, "no_show", rebookUrl)
             : null,
           willPay && !willCancel ? receipt(n) : null,

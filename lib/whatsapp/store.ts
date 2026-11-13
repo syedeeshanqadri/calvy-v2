@@ -5,7 +5,7 @@ import { decryptSecret, encryptSecret } from "@/lib/notifications/secret";
 import { maskSecret } from "@/lib/whatsapp/signature";
 import { createTemplate, listTemplates, verifyConnection, type Credentials, type Fetcher } from "@/lib/whatsapp/graph";
 import { whatsappCallbackUrl } from "@/lib/whatsapp/urls";
-import { TEMPLATE_DEFS, TEMPLATE_LANGUAGES, buildTemplatePayload, templateName, type UrlBases } from "@/lib/whatsapp/templates";
+import { TEMPLATE_DEFS, buildTemplatePayload, currentTemplateNames, languagesOf, templateName, type UrlBases } from "@/lib/whatsapp/templates";
 
 export const newKey = () => randomBytes(24).toString("base64url");
 
@@ -93,10 +93,19 @@ export async function refreshTemplates(businessId: string, fetcher?: Fetcher) {
   if (!c) return { ok: false as const, error: "Not connected" };
   const r = await listTemplates(credentialsOf(c), fetcher);
   if (!r.ok) return { ok: false as const, error: r.reason };
+  const live = new Set(currentTemplateNames());
+  const missing: string[] = [];
   for (const t of r.templates) {
-    await prisma.whatsAppTemplate.updateMany({ where: { businessId, name: t.name, language: t.language }, data: { status: t.status, reason: t.reason, metaId: t.id } });
+    const res = await prisma.whatsAppTemplate.updateMany({ where: { businessId, name: t.name, language: t.language }, data: { status: t.status.toUpperCase(), reason: t.reason, metaId: t.id, category: t.category } });
+    // On Meta and current, but no row here (e.g. created in WhatsApp Manager): add it so the status shows.
+    if (res.count === 0 && live.has(t.name)) {
+      await prisma.whatsAppTemplate.create({ data: { businessId, name: t.name, language: t.language, status: t.status.toUpperCase(), reason: t.reason, metaId: t.id, category: t.category } });
+    }
   }
-  return { ok: true as const };
+  const seen = new Set(r.templates.map((t) => `${t.name}/${t.language}`));
+  const ours = await prisma.whatsAppTemplate.findMany({ where: { businessId, name: { in: [...live] } }, select: { name: true, language: true, status: true } });
+  for (const o of ours) if (!seen.has(`${o.name}/${o.language}`) && o.status !== "NOT_INSTALLED") missing.push(`${o.name} (${o.language})`);
+  return { ok: true as const, missing };
 }
 
 /** Create every Calvy template on the business's WABA (skipping ones already there), then sync statuses. */
@@ -106,9 +115,12 @@ export async function installTemplates(businessId: string, bases: UrlBases, fetc
   if (c.status !== "CONNECTED") return { ok: false as const, error: "Verify the connection first." };
   const creds = credentialsOf(c);
   const failures: string[] = [];
+  // Already on Meta (we hold its id): nothing to create.
+  const have = new Set((await prisma.whatsAppTemplate.findMany({ where: { businessId, metaId: { not: null } }, select: { name: true, language: true } })).map((t) => `${t.name}/${t.language}`));
   for (const def of TEMPLATE_DEFS) {
-    for (const lang of TEMPLATE_LANGUAGES) {
+    for (const lang of languagesOf(def)) {
       const name = templateName(def.key);
+      if (have.has(`${name}/${lang}`)) continue;
       const r = await createTemplate(creds, buildTemplatePayload(def, lang, bases), fetcher);
       if (r.ok) {
         await prisma.whatsAppTemplate.upsert({
@@ -118,12 +130,17 @@ export async function installTemplates(businessId: string, bases: UrlBases, fetc
         });
       } else if (r.duplicate) {
         await prisma.whatsAppTemplate.upsert({ where: { businessId_name_language: { businessId, name, language: lang } }, create: { businessId, name, language: lang }, update: {} });
+      } else if (r.authFailure) {
+        // The token is dead: every remaining call would fail the same way. Stop, pause the connection, write nothing.
+        await prisma.whatsAppConfig.update({ where: { businessId }, data: { status: "ERROR", statusReason: "Meta rejected the access token (invalid or expired). Save a new System User token and verify again." } });
+        return { ok: false as const, error: "Meta rejected the access token (invalid or expired). Save a new token, press Save and verify, then install again." };
       } else {
+        // Could not be CREATED (bad payload, Meta hiccup). NOT_INSTALLED, never REJECTED: Meta did not judge it, and the next Install retries it.
         failures.push(`${name} (${lang}): ${r.reason}`);
         await prisma.whatsAppTemplate.upsert({
           where: { businessId_name_language: { businessId, name, language: lang } },
-          create: { businessId, name, language: lang, status: "REJECTED", reason: r.reason },
-          update: { status: "REJECTED", reason: r.reason },
+          create: { businessId, name, language: lang, status: "NOT_INSTALLED", reason: r.reason },
+          update: { status: "NOT_INSTALLED", reason: r.reason },
         });
       }
     }
@@ -142,4 +159,24 @@ export const toE164 = (digits: string) => `+${digits.replace(/\D/g, "")}`;
 
 export async function isOptedOut(businessId: string, phone: string): Promise<boolean> {
   return !!(await prisma.whatsAppOptOut.findUnique({ where: { businessId_phone: { businessId, phone: toE164(phone) } }, select: { phone: true } }));
+}
+
+/** Meta's own "this is marketing" verdict. Such a template is never sent (the email goes instead). */
+export const isMarketing = (category: string | null | undefined) => (category ?? "").toUpperCase() === "MARKETING";
+
+/** Languages of this template that are APPROVED and not reclassified as MARKETING: the only ones a message may use. */
+export async function usableLanguages(businessId: string, name: string): Promise<string[]> {
+  const rows = await prisma.whatsAppTemplate.findMany({ where: { businessId, name, status: "APPROVED" }, select: { language: true, category: true } });
+  return rows.filter((t) => !isMarketing(t.category)).map((t) => t.language);
+}
+
+/** The templates the Settings page lists: only the names and languages Calvy currently uses (older versions on Meta are ignored). */
+export async function listCurrentTemplates(businessId: string) {
+  const rows = await prisma.whatsAppTemplate.findMany({
+    where: { businessId, name: { in: [...currentTemplateNames()] } },
+    orderBy: [{ name: "asc" }, { language: "asc" }],
+    select: { name: true, language: true, status: true, reason: true, category: true },
+  });
+  const wanted = new Set(TEMPLATE_DEFS.flatMap((d) => languagesOf(d).map((l) => `${templateName(d.key)}/${l}`)));
+  return rows.filter((r) => wanted.has(`${r.name}/${r.language}`));
 }

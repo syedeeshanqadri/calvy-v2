@@ -15,7 +15,7 @@ export default async function UnsubscribePage({ searchParams }: { searchParams: 
   return (
     <AuthShell>
       {link && business ? (
-        <UnsubscribeClient businessName={business.name} query={params.toString()} />
+        <UnsubscribeClient businessName={business.name} query={params.toString()} whatsapp={params.get("ch") === "wa"} />
       ) : (
         <div className="text-center">
           <h1 className="font-syne font-bold text-xl text-[#0f0f1a] mb-2">This link is not valid</h1>

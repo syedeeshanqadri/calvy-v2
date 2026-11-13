@@ -35,7 +35,7 @@ export interface BookingSource {
   meetingUrl?: string | null;
   tokenNumber?: number | null;
   estimatedAt?: Date | null;
-  client: { name: string; email: string | null };
+  client: { name: string; email: string | null; phone?: string | null; whatsappConsent?: boolean };
   service: { name: string; meetingUrl?: string | null };
   staff?: { name: string; meetingUrl?: string | null } | null;
   tokenSession?: { name: string } | null;
@@ -46,8 +46,10 @@ export interface BookingSource {
 export interface Notice {
   appointmentId: string;
   businessId: string;
-  /** The booker's email; with none, no builder returns anything. */
+  /** The booker's email; with none, only the WhatsApp-capable builders (thanks, token queue) still return something. */
   to: string | null | undefined;
+  /** The client has a phone number and agreed to WhatsApp: the message can go there even with no email address. */
+  whatsapp?: boolean;
   payload: BookingPayload;
 }
 
@@ -59,12 +61,14 @@ export function noticeFrom(a: BookingSource): Notice {
     appointmentId: a.id,
     businessId: a.businessId,
     to: a.client.email,
+    whatsapp: whatsappReachable(a.client),
     payload: {
       clientName: a.client.name,
       patientName: a.patientName ?? undefined,
       businessName: a.business.name,
       serviceName: serviceLabel(a.service.name, a.notes),
       staffName: a.staff?.name ?? `Your ${t(a.business, "staff")}`,
+      providerName: a.staff?.name,
       date: formatDateLabel(a.date, tz),
       time,
       duration: a.duration,
@@ -77,10 +81,17 @@ export function noticeFrom(a: BookingSource): Notice {
   };
 }
 
+/** Phone + WhatsApp consent: enough to reach someone with no email address. */
+export const whatsappReachable = (c: { phone?: string | null; whatsappConsent?: boolean } | null | undefined): boolean => !!c?.phone && !!c.whatsappConsent;
+
+/** The notice can be delivered somewhere: an email address, or (for WhatsApp-capable events) a consented phone. */
+const reachable = (n: Notice) => !!n.to || !!n.whatsapp;
+
 const base = (n: Notice) => ({
   audience: "CUSTOMER" as const,
   subjectId: n.appointmentId,
-  recipient: n.to as string,
+  /** Empty when there is no email: the email row is then recorded as skipped ("no email address") and WhatsApp carries it. */
+  recipient: n.to ?? "",
   businessId: n.businessId,
   appointmentId: n.appointmentId,
 });
@@ -138,9 +149,22 @@ export function receipt(n: Notice, paid: { price?: number; paymentRef?: string; 
 }
 
 /** booking.completed (optional mail) or booking.no_show (transactional): once per booking. */
-export function statusChange(n: Notice, status: "completed" | "no_show", rebookUrl?: string): NotificationInput | null {
-  if (!n.to) return null;
-  return { ...base(n), event: `booking.${status}`, template: "status_change", payload: { ...n.payload, status, rebookUrl } };
+export function statusChange(n: Notice, status: "completed" | "no_show", rebookUrl?: string, followUpUntil?: string): NotificationInput | null {
+  if (!n.to && !(n.whatsapp && status === "completed")) return null; // the thank-you may go on WhatsApp alone
+  // `followUpUntil` (a date label) is set only for a completed clinic visit that earns a free follow-up: the same
+  // message carries the deadline, on email and on WhatsApp.
+  return { ...base(n), event: `booking.${status}`, template: "status_change", payload: { ...n.payload, status, rebookUrl, ...(followUpUntil && status === "completed" ? { followUpUntil } : {}) } };
+}
+
+export const QUEUE_NEXT_EVENT = "booking.queue_next";
+
+/**
+ * "Your turn is coming up": a token customer with `ahead` tokens in front of them. `epoch` is how many times they were
+ * moved back (the version), so it goes out once per epoch. A `skipReason` records the epoch as used without sending.
+ */
+export function queueNext(n: Notice, ahead: number, epoch: number, skipReason?: string): NotificationInput | null {
+  if (!reachable(n)) return null;
+  return { ...base(n), event: QUEUE_NEXT_EVENT, template: "queue_next", version: epoch, payload: { ...n.payload, ahead }, ...(skipReason ? { skipReason } : {}) };
 }
 
 /**
@@ -163,13 +187,13 @@ export function reminder(
 
 /** booking.queue_moved_back: once per missed call, so the second and third are told too. */
 export function queueMovedBack(n: Notice, place: number, missedCalls: number): NotificationInput | null {
-  if (!n.to) return null;
+  if (!reachable(n)) return null;
   return { ...base(n), event: "booking.queue_moved_back", template: "queue_moved_back", version: missedCalls, payload: { ...n.payload, place } };
 }
 
 /** booking.queue_closed: a token closed at the clinic (missed four calls, or cancelled). Once per booking. */
 export function queueClosed(n: Notice, closed: { reason: "missed" | "cancelled"; creditLabel?: string; loginUrl?: string }): NotificationInput | null {
-  if (!n.to) return null;
+  if (!reachable(n)) return null;
   return { ...base(n), event: "booking.queue_closed", template: "queue_closed", payload: { ...n.payload, ...closed } };
 }
 

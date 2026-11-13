@@ -11,6 +11,7 @@ import { shortName } from "@/lib/pushRouting";
 import { DEFAULT_CURRENCY } from "@/lib/currency";
 import { rateLimit, clientIp } from "@/lib/ratelimit";
 import { findOrCreateClient } from "@/lib/clients";
+import { recordWhatsAppConsent, whatsappOffered } from "@/lib/whatsapp/consent";
 import { parseBody } from "@/lib/validation/common";
 import { bookingSchema } from "@/lib/validation/bookings";
 import { isPastBooking, bookExclusive, SlotConflictError, conflictMessage } from "@/lib/booking";
@@ -397,8 +398,18 @@ async function bookingHandler(req: NextRequest) {
     }
   }
 
-  const getOrCreateClient = () =>
-    findOrCreateClient(prisma, business!.id, { name: clientName, email: clientEmail, phone: clientPhone }, bizTz);
+  const getOrCreateClient = async () => {
+    const c = await findOrCreateClient(prisma, business!.id, { name: clientName, email: clientEmail, phone: clientPhone }, bizTz);
+    // "Get updates on WhatsApp": recorded only if the business offers it and the number is really this client's.
+    if (parsed.data.whatsappConsent && clientPhone) {
+      try {
+        if (await whatsappOffered(business!.id)) await recordWhatsAppConsent(prisma, c, clientPhone, bizTz, parsed.data.whatsappConsentSource ?? "booking_form");
+      } catch (err) {
+        logger.error("[WhatsApp] consent not recorded:", { err });
+      }
+    }
+    return c;
+  };
 
   let client: Awaited<ReturnType<typeof getOrCreateClient>>;
 

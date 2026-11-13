@@ -5,7 +5,7 @@ import { QueueRequestError, type QueueBusiness } from "@/lib/queueDb";
 import { safeTimeZone } from "@/lib/time";
 
 type Ctx =
-  | { ok: true; biz: QueueBusiness & { plan: string; planStatus: string; trialEndsAt: Date | null } }
+  | { ok: true; userId: string; biz: QueueBusiness & { plan: string; planStatus: string; trialEndsAt: Date | null } }
   | { ok: false; res: NextResponse };
 
 /** Signed-in business that runs on tokens, or the error response to return. */
@@ -21,7 +21,7 @@ export async function queueContext(): Promise<Ctx> {
   if (b.bookingMode !== "TOKEN") {
     return { ok: false, res: NextResponse.json({ error: "The queue is only available when booking mode is Tokens." }, { status: 409 }) };
   }
-  return { ok: true, biz: { ...b, timezone: safeTimeZone(b.timezone) } };
+  return { ok: true, userId: session.access.userId, biz: { ...b, timezone: safeTimeZone(b.timezone) } };
 }
 
 /** Turn a QueueRequestError into its HTTP response; rethrow anything else. */

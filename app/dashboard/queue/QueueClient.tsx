@@ -12,7 +12,7 @@ const POLL_MS = 10_000;
 const bigBtn = "w-full min-h-14 rounded-2xl text-base font-semibold px-4 transition-colors disabled:opacity-50 disabled:cursor-not-allowed";
 
 /** Reception queue: touch-friendly, works at 375px. */
-export function QueueClient({ today, services }: { today: string; services: { id: string; name: string }[] }) {
+export function QueueClient({ today, services, whatsappOffered = false }: { today: string; services: { id: string; name: string }[]; whatsappOffered?: boolean }) {
   const { t } = useTerms();
   const appt = t("appointment"), client = t("client");
   const [date, setDate] = useState(today);
@@ -24,6 +24,7 @@ export function QueueClient({ today, services }: { today: string; services: { id
   const [error, setError] = useState("");
   const [walkOpen, setWalkOpen] = useState(false);
   const [walk, setWalk] = useState({ name: "", phone: "", serviceId: services[0]?.id ?? "" });
+  const [walkWa, setWalkWa] = useState(false); // never pre-ticked: only when the customer agreed at the desk
 
   const key = `${date}|${sessionId ?? ""}|${tick}`;
 
@@ -81,9 +82,9 @@ export function QueueClient({ today, services }: { today: string; services: { id
   async function addWalkIn(e: React.FormEvent) {
     e.preventDefault();
     if (!queue) return;
-    const done = await post("/api/queue/walk-in", { sessionId: queue.session.id, date, name: walk.name, phone: walk.phone, serviceId: walk.serviceId || undefined },
+    const done = await post("/api/queue/walk-in", { sessionId: queue.session.id, date, name: walk.name, phone: walk.phone, serviceId: walk.serviceId || undefined, ...(whatsappOffered && walkWa ? { whatsappConsent: true } : {}) },
       (d) => `Walk-in added: token ${d.tokenNumber} for ${walk.name.trim()}, estimated around ${d.etaTime}.`);
-    if (done) { setWalk((w) => ({ ...w, name: "", phone: "" })); setWalkOpen(false); }
+    if (done) { setWalk((w) => ({ ...w, name: "", phone: "" })); setWalkWa(false); setWalkOpen(false); }
   }
 
   return (
@@ -205,6 +206,12 @@ export function QueueClient({ today, services }: { today: string; services: { id
                     <select value={walk.serviceId} onChange={(e) => setWalk({ ...walk, serviceId: e.target.value })} className="mt-1 w-full min-h-12 rounded-xl border border-[#e8e6e0] px-3 text-base bg-white">
                       {services.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
                     </select>
+                  </label>
+                )}
+                {whatsappOffered && (
+                  <label className="flex items-start gap-2 text-sm">
+                    <input type="checkbox" checked={walkWa} onChange={(e) => setWalkWa(e.target.checked)} className="mt-1 size-5" />
+                    <span>Send WhatsApp updates <span className="text-[#6b6b80]">(customer agreed verbally)</span></span>
                   </label>
                 )}
                 <p className="text-xs text-[#6b6b80]">No email needed and no fee. They go to the end of the queue.</p>

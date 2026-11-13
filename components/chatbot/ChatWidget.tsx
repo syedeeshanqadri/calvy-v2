@@ -13,6 +13,8 @@ interface ChatBusiness {
   slug: string; name: string; primaryColor: string; currency: string; services: Service[];
   /** India needs a phone number as well as an email. */
   phoneRequired?: boolean;
+  /** The business has WhatsApp connected: show the opt-in checkbox. */
+  whatsappOffered?: boolean;
 }
 
 type Step = "services" | "date" | "time" | "details" | "confirm" | "success";
@@ -50,6 +52,7 @@ export function ChatWidget({ business }: { business: ChatBusiness }) {
   const [slots, setSlots] = useState<string[]>([]);
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [details, setDetails] = useState({ name: "", email: "", phone: "" });
+  const [waConsent, setWaConsent] = useState(false); // never pre-ticked
   const [submitting, setSubmitting] = useState(false);
   const [hoveredSlot, setHoveredSlot] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -158,6 +161,7 @@ export function ChatWidget({ business }: { business: ChatBusiness }) {
           clientName: details.name,
           clientEmail: details.email,
           clientPhone: details.phone || null,
+          ...(business.whatsappOffered && waConsent && details.phone.trim() ? { whatsappConsent: true, whatsappConsentSource: "chat_widget" } : {}),
         }),
       });
       const data = await res.json();
@@ -361,6 +365,12 @@ export function ChatWidget({ business }: { business: ChatBusiness }) {
                   className="w-full h-9 rounded-xl border border-gray-200 px-3 text-sm focus:outline-none transition-colors"
                   onFocus={e => (e.target.style.borderColor = color)}
                   onBlur={e => (e.target.style.borderColor = "")} />
+                {business.whatsappOffered && (
+                  <label className="flex items-start gap-2 text-xs text-gray-600">
+                    <input type="checkbox" checked={waConsent} onChange={e => setWaConsent(e.target.checked)} disabled={!details.phone.trim()} className="mt-0.5" />
+                    <span>Get updates on WhatsApp on this number. Reply STOP any time to stop.</span>
+                  </label>
+                )}
                 <button onClick={submitDetails} disabled={!details.name || !details.email || (phoneRequired && !details.phone.trim())}
                   className="w-full py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-40 hover:opacity-90 transition-opacity"
                   style={{ background: color }}>

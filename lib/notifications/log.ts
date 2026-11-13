@@ -10,7 +10,7 @@ import { attemptNow } from "@/lib/notifications/process";
 export const LOG_PAGE_SIZE = 50;
 export const RESEND_WINDOW_MS = 7 * 24 * 3_600_000;
 const STATUSES = ["PENDING", "SENDING", "SENT", "FAILED", "SKIPPED"] as const;
-const CHANNELS = ["EMAIL", "WHATSAPP"] as const;
+const CHANNELS = ["EMAIL", "WHATSAPP", "PUSH"] as const;
 const AUDIENCES = ["CUSTOMER", "BUSINESS", "PLATFORM"] as const;
 const PERIODS = [1, 7, 30, 90] as const;
 
@@ -106,12 +106,40 @@ export function redactError(error: string | null | undefined, max = 200): string
   return clean.length > max ? `${clean.slice(0, max - 1)}…` : clean;
 }
 
-/** "alert.booking.created" → "Alert: booking created". */
+/** The channel as the person reads it. */
+export const channelLabel = (channel: string) => (channel === "EMAIL" ? "Email" : channel === "WHATSAPP" ? "WhatsApp" : channel === "PUSH" ? "Push" : channel);
+
+/**
+ * "alert.booking.created" → "Alert: booking created". Staff alerts are queued as "push.<kind>" for BOTH the phone (Push) and
+ * WhatsApp channels, so the event is not a channel name: it reads "Staff alert: booking new". The channel is shown separately.
+ */
 export function eventLabel(event: string): string {
+  if (event.startsWith("push.")) return `Staff alert: ${event.slice(5).replace(/_/g, " ")}`;
   const parts = event.split(".").map((p) => p.replace(/_/g, " "));
   const [head, ...rest] = parts;
   const title = head.charAt(0).toUpperCase() + head.slice(1);
   return rest.length ? `${title}: ${rest.join(" ")}` : title;
+}
+
+/** "iPhone", "Android", "Mac"... from a push device's user agent; "Device" when unknown. */
+export function deviceLabel(userAgent: string | null | undefined): string {
+  const ua = userAgent ?? "";
+  if (/iPhone/i.test(ua)) return "iPhone";
+  if (/iPad/i.test(ua)) return "iPad";
+  if (/Android/i.test(ua)) return "Android";
+  if (/Macintosh|Mac OS X/i.test(ua)) return "Mac";
+  if (/Windows/i.test(ua)) return "Windows";
+  if (/Linux|X11/i.test(ua)) return "Linux";
+  return "Device";
+}
+
+/** Push rows are addressed to a device id. The log shows who and what instead: "Dr. Ahmed · iPhone". */
+export async function pushRecipientLabels(deviceIds: string[]): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  if (!deviceIds.length) return out;
+  const devices = await prisma.pushDevice.findMany({ where: { id: { in: [...new Set(deviceIds)] } }, select: { id: true, userAgent: true, user: { select: { name: true } } } });
+  for (const d of devices) out.set(d.id, `${d.user?.name?.trim() || "Team member"} · ${deviceLabel(d.userAgent)}`);
+  return out;
 }
 
 export interface ResendCandidate { status: string; event: string; createdAt: Date; expiresAt: Date | null }
@@ -137,13 +165,24 @@ export function failureRate(sent: number, failed: number): number {
 
 const LOG_SELECT = {
   id: true, businessId: true, event: true, audience: true, channel: true, recipient: true, status: true,
-  attempts: true, error: true, createdAt: true, sentAt: true, expiresAt: true,
+  attempts: true, error: true, createdAt: true, sentAt: true, expiresAt: true, deliveryStatus: true, deliveryError: true,
 } satisfies Prisma.NotificationOutboxSelect;
 
 export interface LogRow {
-  id: string; businessId: string | null; event: string; eventLabel: string; audience: string; channel: string;
+  id: string; businessId: string | null; event: string; eventLabel: string; audience: string; channel: string; channelLabel: string;
   recipient: string; status: string; attempts: number; error: string | null; createdAt: string; sentAt: string | null;
   resendable: boolean;
+}
+
+/**
+ * What the log shows as the status. WhatsApp keeps counting after "sent": Meta reports delivered, read or failed
+ * through the webhook, so a sent WhatsApp row shows that later state (and the failure reason).
+ */
+export function shownStatus(r: { channel: string; status: string; deliveryStatus: string | null; error: string | null; deliveryError: string | null }): { status: string; error: string | null } {
+  if (r.channel === "WHATSAPP" && r.status === "SENT" && r.deliveryStatus) {
+    return { status: r.deliveryStatus.toUpperCase(), error: r.deliveryStatus === "failed" ? r.deliveryError : null };
+  }
+  return { status: r.status, error: r.error };
 }
 
 export async function listLog(where: Prisma.NotificationOutboxWhereInput, page: number, opts: { mask: boolean; now: Date }) {
@@ -151,12 +190,15 @@ export async function listLog(where: Prisma.NotificationOutboxWhereInput, page: 
     where, select: LOG_SELECT, orderBy: { createdAt: "desc" },
     skip: (page - 1) * LOG_PAGE_SIZE, take: LOG_PAGE_SIZE + 1,
   });
+  const labels = await pushRecipientLabels(rows.filter((r) => r.channel === "PUSH").map((r) => r.recipient));
+  const recipientOf = (r: { channel: string; recipient: string }) =>
+    r.channel === "PUSH" ? labels.get(r.recipient) ?? "Removed device" : opts.mask ? maskRecipient(r.channel, r.recipient) : r.recipient;
   return {
     hasMore: rows.length > LOG_PAGE_SIZE,
     rows: rows.slice(0, LOG_PAGE_SIZE).map((r): LogRow => ({
       id: r.id, businessId: r.businessId, event: r.event, eventLabel: eventLabel(r.event), audience: r.audience,
-      channel: r.channel, recipient: opts.mask ? maskRecipient(r.channel, r.recipient) : r.recipient,
-      status: r.status, attempts: r.attempts, error: redactError(r.error),
+      channel: r.channel, channelLabel: channelLabel(r.channel), recipient: recipientOf(r),
+      status: shownStatus(r).status, attempts: r.attempts, error: redactError(shownStatus(r).error),
       createdAt: r.createdAt.toISOString(), sentAt: r.sentAt?.toISOString() ?? null,
       resendable: resendBlocker(r, opts.now) === null,
     })),

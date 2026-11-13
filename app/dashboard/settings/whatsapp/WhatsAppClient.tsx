@@ -9,12 +9,12 @@ interface Config {
   callbackUrl: string; verifyToken: string; status: "PENDING" | "CONNECTED" | "ERROR"; statusReason: string | null;
   displayPhone: string | null; verifiedName: string | null; qualityRating: string | null; messagingTier: string | null; lastCheckedAt: string | null;
 }
-interface Tpl { name: string; language: string; status: string; reason: string | null }
+interface Tpl { name: string; language: string; status: string; reason: string | null; category?: string | null }
 
 const input = "w-full h-10 px-3 rounded-xl bg-white border border-[#e8e6e0] text-sm outline-none focus:border-accent/40";
 const TIER: Record<string, string> = { TIER_50: "50 customers / day", TIER_250: "250 customers / day", TIER_1K: "1,000 customers / day", TIER_10K: "10,000 customers / day", TIER_100K: "100,000 customers / day", TIER_UNLIMITED: "Unlimited" };
 const QUALITY: Record<string, string> = { GREEN: "text-emerald-700 bg-emerald-50", YELLOW: "text-amber-700 bg-amber-50", RED: "text-red-700 bg-red-50" };
-const TPL_COLOR: Record<string, string> = { APPROVED: "text-emerald-700 bg-emerald-50", PENDING: "text-amber-700 bg-amber-50", REJECTED: "text-red-700 bg-red-50" };
+const TPL_COLOR: Record<string, string> = { APPROVED: "text-emerald-700 bg-emerald-50", PENDING: "text-amber-700 bg-amber-50", REJECTED: "text-red-700 bg-red-50", NOT_INSTALLED: "text-[#6b6b80] bg-[#f0ede8]" };
 
 const Pill = ({ cls, children }: { cls: string; children: React.ReactNode }) => <span className={`inline-block text-[11px] font-semibold px-2 py-0.5 rounded-full ${cls}`}>{children}</span>;
 
@@ -67,6 +67,7 @@ export function WhatsAppClient({ initialConfig, initialTemplates }: { initialCon
     const r = await call("/api/settings/whatsapp/templates", "POST", { action });
     if (!r.ok) { setMsg({ ok: false, text: r.json.error ?? "Failed." }); return; }
     setTemplates(r.json.templates);
+    if (r.json.missing?.length) { setMsg({ ok: false, text: `Not found on Meta under this WhatsApp Business Account ID: ${r.json.missing.slice(0, 2).join(", ")}${r.json.missing.length > 2 ? "…" : ""}. Check the Account ID, or press Install.` }); return; }
     setMsg(r.json.failures?.length ? { ok: false, text: `Some templates were refused: ${r.json.failures.slice(0, 2).join("; ")}` } : { ok: true, text: action === "install" ? "Templates sent to Meta for approval." : "Statuses refreshed." });
   });
   const sendTest = () => run("test", async () => {
@@ -118,7 +119,7 @@ export function WhatsAppClient({ initialConfig, initialTemplates }: { initialCon
         {config && (
           <section className="bg-white rounded-2xl border border-[#e8e6e0] p-5 space-y-3">
             <h2 className="font-syne font-bold text-base">Webhook</h2>
-            <p className="text-sm text-[#6b6b80]">In your Meta app: WhatsApp &gt; Configuration &gt; Webhook. Paste these two values, verify, then subscribe to <b>messages</b> and <b>message_template_status_update</b>. This is how delivery status and STOP replies reach Calvy.</p>
+            <p className="text-sm text-[#6b6b80]">In your Meta app: WhatsApp &gt; Configuration &gt; Webhook. Paste these two values, verify, then subscribe to <b>messages</b>, <b>message_template_status_update</b> and <b>template_category_update</b>. This is how delivery status and STOP replies reach Calvy.</p>
             <CopyField label="Callback URL" value={config.callbackUrl} />
             <CopyField label="Verify token" value={config.verifyToken} />
           </section>
@@ -138,7 +139,8 @@ export function WhatsAppClient({ initialConfig, initialTemplates }: { initialCon
                   <li key={`${t.name}:${t.language}`} className="py-2 flex flex-wrap items-center gap-2">
                     <span className="font-mono text-xs">{t.name}</span><span className="text-xs text-[#6b6b80]">{t.language}</span>
                     <Pill cls={TPL_COLOR[t.status] ?? "text-[#6b6b80] bg-[#f0ede8]"}>{t.status}</Pill>
-                    {t.reason && <span className="text-xs text-red-700">{t.reason}</span>}
+                    {t.category?.toUpperCase() === "MARKETING" && <span className="text-xs text-red-700">Reclassified as marketing by Meta. Not used; customers get email.</span>}
+                    {t.status === "NOT_INSTALLED" ? <span className="text-xs text-[#6b6b80]">Not created on Meta yet: press Install to retry. {t.reason}</span> : t.reason && <span className="text-xs text-red-700">{t.reason}</span>}
                   </li>
                 ))}
               </ul>

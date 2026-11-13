@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { Prisma } from "@prisma/client";
 import { normalizeRecipient } from "@/lib/notifications/policy";
 import { sign, verifySignature } from "@/lib/notifications/secret";
+import { WA_PREF_DEFAULTS, WA_PREF_KEYS, type WaPrefKey } from "@/lib/whatsapp/events";
 
 /**
  * Which notifications a business and its customers can switch off (docs/notifications-design.md).
@@ -30,13 +31,14 @@ export const MAX_REMINDERS = 2;
 const DEFAULT_REMINDER_LEADS = [1440];
 
 const prefsSchema = z.object({
-  customer: z.object({ completed: z.boolean().optional(), reviewRequest: z.boolean().optional(), reviewDelayHours: z.number().optional() }).optional(),
+  customer: z.object({ completed: z.boolean().optional(), reviewRequest: z.boolean().optional(), reviewDelayHours: z.number().optional(), tokenNextAhead: z.number().optional() }).optional(),
   business: z.object({
     created: z.boolean().optional(), rescheduled: z.boolean().optional(), cancelled: z.boolean().optional(),
     paid: z.boolean().optional(), status: z.boolean().optional(),
   }).optional(),
   dailySummary: z.boolean().optional(),
   reminderLeadMinutes: z.array(z.number()).optional(),
+  whatsapp: z.record(z.string(), z.boolean()).optional(),
 });
 
 export interface NotificationPrefs {
@@ -47,6 +49,8 @@ export interface NotificationPrefs {
     reviewRequest: boolean;
     /** Hours after completion before the review request goes out (1 to 48, default 2). */
     reviewDelayHours: number;
+    /** Token queue: tell the customer "your turn is coming up" when this many tokens are ahead of them (1 to 5, default 3). */
+    tokenNextAhead: number;
   };
   /** Alerts to the business: new booking, rescheduled, cancelled and paid are on; other status changes are off. */
   business: Record<AlertKind, boolean>;
@@ -54,9 +58,18 @@ export interface NotificationPrefs {
   dailySummary: boolean;
   /** Up to two reminders, longest lead first (24h + 2h, say). Empty means the business sends no reminders. */
   reminderLeadMinutes: number[];
+  /** Per-event WhatsApp switches (WhatsApp goes out in addition to email, only to customers who ticked the box). */
+  whatsapp: Record<WaPrefKey, boolean>;
 }
 
 export const REVIEW_DELAY_DEFAULT_HOURS = 2;
+export const TOKEN_NEXT_DEFAULT = 3;
+/** A whole number from 1 to 5; anything else (missing, junk) is the default or clamped. */
+export function clampTokenNextAhead(v: unknown): number {
+  if (typeof v !== "number" || !Number.isFinite(v)) return TOKEN_NEXT_DEFAULT;
+  return Math.min(5, Math.max(1, Math.round(v)));
+}
+
 /** A whole number of hours from 1 to 48; anything else (missing, junk, out of range) is clamped or defaulted. */
 export function clampReviewDelay(v: unknown): number {
   if (typeof v !== "number" || !Number.isFinite(v)) return REVIEW_DELAY_DEFAULT_HOURS;
@@ -76,18 +89,20 @@ export function resolvePrefs(raw: unknown): NotificationPrefs {
   const data = parsed.success ? parsed.data : {};
   const b = data.business ?? {};
   return {
-    customer: { completed: data.customer?.completed ?? true, reviewRequest: data.customer?.reviewRequest ?? true, reviewDelayHours: clampReviewDelay(data.customer?.reviewDelayHours) },
+    customer: { completed: data.customer?.completed ?? true, reviewRequest: data.customer?.reviewRequest ?? true, reviewDelayHours: clampReviewDelay(data.customer?.reviewDelayHours), tokenNextAhead: clampTokenNextAhead(data.customer?.tokenNextAhead) },
     business: { created: b.created ?? true, rescheduled: b.rescheduled ?? true, cancelled: b.cancelled ?? true, paid: b.paid ?? true, status: b.status ?? false },
     dailySummary: data.dailySummary ?? false,
     reminderLeadMinutes: resolveReminderLeads(data.reminderLeadMinutes),
+    whatsapp: Object.fromEntries(WA_PREF_KEYS.map((k) => [k, data.whatsapp?.[k] ?? WA_PREF_DEFAULTS[k]])) as Record<WaPrefKey, boolean>,
   };
 }
 
 /** What the settings page saves: every field, strictly typed. Reminder leads must be allowed values, distinct. */
 export const prefsInputSchema = z.object({
-  customer: z.object({ completed: z.boolean(), reviewRequest: z.boolean(), reviewDelayHours: z.number().int().min(1).max(48).default(REVIEW_DELAY_DEFAULT_HOURS) }).strict(),
+  customer: z.object({ completed: z.boolean(), reviewRequest: z.boolean(), reviewDelayHours: z.number().int().min(1).max(48).default(REVIEW_DELAY_DEFAULT_HOURS), tokenNextAhead: z.number().int().min(1).max(5).default(TOKEN_NEXT_DEFAULT) }).strict(),
   business: z.object({ created: z.boolean(), rescheduled: z.boolean(), cancelled: z.boolean(), paid: z.boolean(), status: z.boolean() }).strict(),
   dailySummary: z.boolean(),
+  whatsapp: z.object(Object.fromEntries(WA_PREF_KEYS.map((k) => [k, z.boolean().optional()]))).strict().optional(),
   reminderLeadMinutes: z.array(z.number().refine((m) => (REMINDER_LEADS as readonly number[]).includes(m), "Not an allowed reminder time"))
     .max(MAX_REMINDERS)
     .refine((l) => new Set(l).size === l.length, "The two reminders must be at different times"),

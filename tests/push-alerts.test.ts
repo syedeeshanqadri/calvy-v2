@@ -6,6 +6,7 @@ import { NextRequest } from "next/server";
 
 const db = vi.hoisted(() => ({
   business: { findUnique: vi.fn() },
+  whatsAppConfig: { findUnique: vi.fn(async () => null) },
   pushDevice: { findMany: vi.fn(), findUnique: vi.fn(), upsert: vi.fn(), deleteMany: vi.fn(), count: vi.fn() },
   pushPreference: { findUnique: vi.fn(), upsert: vi.fn() },
   teamMember: { findUnique: vi.fn(), findFirst: vi.fn(), update: vi.fn(), delete: vi.fn() },

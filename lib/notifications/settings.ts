@@ -12,6 +12,8 @@ export interface NotificationSettings {
   hasReviewLink: boolean;
   /** The plan includes email reminders. */
   emailReminders: boolean;
+  /** WhatsApp is set up for this business (any status): the WhatsApp column of switches is shown. */
+  whatsappSetUp: boolean;
 }
 
 /** What the notifications settings page shows, for one business. */
@@ -22,6 +24,7 @@ export async function loadNotificationSettings(businessId: string): Promise<Noti
   });
   if (!b) return null;
   const limits = await getEffectiveLimits(b);
+  const wa = await prisma.whatsAppConfig.findUnique({ where: { businessId }, select: { status: true } });
   const own = b.email?.trim() || null;
   return {
     prefs: resolvePrefs(b.notificationPrefs),
@@ -29,5 +32,6 @@ export async function loadNotificationSettings(businessId: string): Promise<Noti
     alertEmailIsLogin: !own,
     hasReviewLink: !!safeReviewLink(b.googleReviewUrl),
     emailReminders: limits.emailReminders,
+    whatsappSetUp: !!wa && limits.whatsappReminders,
   };
 }

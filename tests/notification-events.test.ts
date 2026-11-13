@@ -10,6 +10,7 @@ const fake = vi.hoisted(() => {
   const f = {
     state,
     $queryRaw: vi.fn(async (..._a: unknown[]): Promise<Row[]> => []),
+    whatsAppConfig: { findUnique: async () => null, findMany: async () => [] },
     business: {
       findMany: vi.fn(async ({ where }: any) => where.id.in.map((id: string) => ({ id, notificationPrefs: state.prefs[id] ?? null }))),
       findUnique: vi.fn(async ({ where }: any) => ({ id: where.id, name: "Sunrise", logoUrl: null, primaryColor: "#0f766e", address: null, phone: null, packId: "CLINIC", termsOverride: null })),

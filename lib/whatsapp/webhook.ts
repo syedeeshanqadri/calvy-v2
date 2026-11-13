@@ -13,6 +13,7 @@ interface Change {
     message_template_name?: string;
     message_template_language?: string;
     reason?: string;
+    new_category?: string;
   };
 }
 export interface WebhookPayload { entry?: { changes?: Change[] }[] }
@@ -35,6 +36,16 @@ export async function handleWebhook(businessId: string, phoneNumberId: string, p
           });
           result.templates += r.count;
         }
+        continue;
+      }
+
+      // Meta moved a template to another category (typically UTILITY -> MARKETING): remember it, the send gate reads it.
+      if ((ch.field === "template_category_update" || ch.field === "message_template_category_update") && v.message_template_name?.startsWith("calvy_") && v.new_category) {
+        const r = await prisma.whatsAppTemplate.updateMany({
+          where: { businessId, name: v.message_template_name, ...(v.message_template_language ? { language: v.message_template_language } : {}) },
+          data: { category: v.new_category.toUpperCase() },
+        });
+        result.templates += r.count;
         continue;
       }
 

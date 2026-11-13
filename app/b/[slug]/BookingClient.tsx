@@ -48,6 +48,8 @@ interface Business {
   currency: string; paymentMode: string;
   /** India needs a phone number as well as an email. */
   phoneRequired?: boolean;
+  /** The business has WhatsApp connected: show the opt-in checkbox. */
+  whatsappOffered?: boolean;
   /** Cashfree online payments (null = no online charge; legacy paymentMode applies). */
   payConfig?: PayConfig | null;
   packId: string; termsOverride: unknown; bookingMode?: "SLOT" | "TOKEN";
@@ -90,6 +92,7 @@ export function BookingClient({ business, fontClasses, homeHref = "/", followUp 
   const [selectedStaff, setSelectedStaff] = useState<string | null>(followUp?.staffId && !tokenMode ? followUp.staffId : deep ? "any" : null);
   const [selectedDate, setSelectedDate] = useState<number | null>(deep?.date ? Number(deep.date.slice(8)) : null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
+  const [waConsent, setWaConsent] = useState(false); // never pre-ticked
   const [form, setForm] = useState({ name: "", email: followUp?.email ?? credit?.email ?? "", phone: "", notes: "" });
   // "Who is this appointment for?" Someone else: the booker's email/phone stay, the patient is who it is for.
   const [forSomeone, setForSomeone] = useState(false);
@@ -338,6 +341,7 @@ export function BookingClient({ business, fontClasses, homeHref = "/", followUp 
           } : {}),
           clientEmail: form.email,
           clientPhone: form.phone || null,
+          ...(business.whatsappOffered && waConsent && form.phone.trim() ? { whatsappConsent: true, whatsappConsentSource: "booking_form" } : {}),
           notes: form.notes || null,
           ...(needsModeChoice && bookingMode ? { mode: bookingMode } : {}),
           ...(followUp ? { followUpTicket: followUp.ticket } : {}),
@@ -764,6 +768,12 @@ export function BookingClient({ business, fontClasses, homeHref = "/", followUp 
                     </div>
                   ))}
                 </div>
+                {business.whatsappOffered && (
+                  <label className="bk-check" style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 13 }}>
+                    <input type="checkbox" checked={waConsent} onChange={e => setWaConsent(e.target.checked)} disabled={!form.phone.trim()} style={{ marginTop: 3 }} />
+                    <span>Get updates on WhatsApp (confirmation, reminders, changes) on the number above. Reply STOP any time to stop.</span>
+                  </label>
+                )}
                 <div className="bk-field">
                   <label htmlFor="booking-email-address">Email address</label>
                   <input id="booking-email-address" className="bk-input" type="email" required placeholder="jane@email.com" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} />

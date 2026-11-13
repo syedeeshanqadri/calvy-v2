@@ -6,7 +6,9 @@ const STATUS_STYLE: Record<string, { label: string; cls: string }> = {
   SENT: { label: "Sent", cls: "bg-emerald-50 text-emerald-700" },
   FAILED: { label: "Failed", cls: "bg-red-50 text-red-700" },
   SKIPPED: { label: "Skipped", cls: "bg-amber-50 text-amber-800" },
-  PENDING: { label: "Waiting", cls: "bg-sky-50 text-sky-700" },
+  PENDING: { label: "Queued", cls: "bg-sky-50 text-sky-700" },
+  DELIVERED: { label: "Delivered", cls: "bg-emerald-50 text-emerald-700" },
+  READ: { label: "Read", cls: "bg-emerald-100 text-emerald-800" },
   SENDING: { label: "Sending", cls: "bg-sky-50 text-sky-700" },
 };
 
@@ -57,7 +59,7 @@ export function LogTable({ rows, resendBase, businessNames }: { rows: LogRow[]; 
                 {businessNames && <td className="py-2.5 pr-3">{r.businessId ? businessNames[r.businessId] ?? "Deleted business" : <span className="text-[#6b6b80]">Platform</span>}</td>}
                 <td className="py-2.5 pr-3">
                   <span className="text-[#0f0f1a]">{r.eventLabel}</span>
-                  <span className="block text-xs text-[#6b6b80]">{r.channel === "EMAIL" ? "Email" : "WhatsApp"} · {r.audience.toLowerCase()}</span>
+                  <span className="block text-xs text-[#6b6b80]">{r.channelLabel} · {r.audience.toLowerCase()}</span>
                 </td>
                 <td className="break-all py-2.5 pr-3 text-[#0f0f1a]">{r.recipient}</td>
                 <td className="py-2.5 pr-3">
