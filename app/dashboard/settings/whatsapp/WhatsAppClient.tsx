@@ -67,6 +67,7 @@ export function WhatsAppClient({ initialConfig, initialTemplates }: { initialCon
     const r = await call("/api/settings/whatsapp/templates", "POST", { action });
     if (!r.ok) { setMsg({ ok: false, text: r.json.error ?? "Failed." }); return; }
     setTemplates(r.json.templates);
+    if (r.json.missing?.length) { setMsg({ ok: false, text: `Not found on Meta under this WhatsApp Business Account ID: ${r.json.missing.slice(0, 2).join(", ")}${r.json.missing.length > 2 ? "…" : ""}. Check the Account ID, or press Install.` }); return; }
     setMsg(r.json.failures?.length ? { ok: false, text: `Some templates were refused: ${r.json.failures.slice(0, 2).join("; ")}` } : { ok: true, text: action === "install" ? "Templates sent to Meta for approval." : "Statuses refreshed." });
   });
   const sendTest = () => run("test", async () => {

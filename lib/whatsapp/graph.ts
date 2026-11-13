@@ -90,14 +90,15 @@ export interface RemoteTemplate { id: string; name: string; language: string; st
 export async function listTemplates(c: Credentials, fetcher: Fetcher = fetch): Promise<{ ok: true; templates: RemoteTemplate[] } | { ok: false; reason: string }> {
   const out: RemoteTemplate[] = [];
   let path: string | null = `${c.wabaId}/message_templates`;
-  let query: Record<string, string> | undefined = { fields: "id,name,language,status,rejected_reason", limit: "100", name: "calvy_" };
-  for (let page = 0; page < 5 && path; page++) {
+  let query: Record<string, string> | undefined = { fields: "id,name,language,status,rejected_reason", limit: "100" };
+  for (let page = 0; page < 30 && path; page++) {
     const r: GraphResult<{ data?: { id: string; name: string; language: string; status: string; rejected_reason?: string }[]; paging?: { cursors?: { after?: string }; next?: string } }> = await graph(c.accessToken, path, { query }, fetcher);
     if (!r.ok) return { ok: false, reason: r.error?.message ?? "Could not read templates" };
     for (const t of r.data.data ?? []) {
+      if (!t.name.startsWith("calvy_")) continue; // filtered here: Meta's name= filter is not a reliable prefix match
       out.push({ id: t.id, name: t.name, language: t.language, status: t.status, reason: t.rejected_reason && t.rejected_reason !== "NONE" ? t.rejected_reason : null });
     }
-    const after = r.data.paging?.next ? r.data.paging.cursors?.after : undefined;
+    const after = r.data.paging?.cursors?.after && (r.data.paging.next || (r.data.data ?? []).length >= 100) ? r.data.paging.cursors.after : undefined;
     if (!after) break;
     query = { ...query, after };
   }

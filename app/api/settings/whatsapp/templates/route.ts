@@ -23,6 +23,7 @@ async function POST_handler(req: NextRequest) {
   if (!rl.ok) return NextResponse.json({ error: "Too many attempts. Try again later." }, { status: 429, headers: { "Retry-After": String(rl.retryAfter) } });
 
   let failures: string[] = [];
+  let missing: string[] = [];
   if (parsed.data.action === "install") {
     const business = await prisma.business.findUnique({ where: { id: businessId }, select: { slug: true } });
     if (!business) return NextResponse.json({ error: "Business not found" }, { status: 404 });
@@ -32,9 +33,10 @@ async function POST_handler(req: NextRequest) {
   } else {
     const r = await refreshTemplates(businessId);
     if (!r.ok) return NextResponse.json({ error: r.error }, { status: 400 });
+    missing = r.missing;
   }
   const templates = await listCurrentTemplates(businessId);
-  return NextResponse.json({ templates, failures });
+  return NextResponse.json({ templates, failures, missing });
 }
 
 export const POST = safeRoute(POST_handler);

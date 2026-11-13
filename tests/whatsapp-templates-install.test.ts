@@ -2,17 +2,17 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const db = vi.hoisted(() => ({
   cfgFindUnique: vi.fn(), cfgUpdate: vi.fn(),
-  tplUpsert: vi.fn(), tplUpdateMany: vi.fn(), tplFindMany: vi.fn(),
+  tplUpsert: vi.fn(), tplUpdateMany: vi.fn(), tplFindMany: vi.fn(), tplCreate: vi.fn(),
 }));
 vi.mock("@/lib/prisma", () => ({
   prisma: {
     whatsAppConfig: { findUnique: db.cfgFindUnique, update: db.cfgUpdate },
-    whatsAppTemplate: { upsert: db.tplUpsert, updateMany: db.tplUpdateMany, findMany: db.tplFindMany },
+    whatsAppTemplate: { upsert: db.tplUpsert, updateMany: db.tplUpdateMany, findMany: db.tplFindMany, create: db.tplCreate },
   },
 }));
 
 import { encryptSecret } from "@/lib/notifications/secret";
-import { installTemplates, listCurrentTemplates } from "@/lib/whatsapp/store";
+import { installTemplates, listCurrentTemplates, refreshTemplates } from "@/lib/whatsapp/store";
 import { TEMPLATE_DEFS, TEMPLATE_LANGUAGES, currentTemplateNames, templateName } from "@/lib/whatsapp/templates";
 
 process.env.NEXTAUTH_SECRET = "test-secret";
@@ -22,7 +22,7 @@ const bases = { tracking: "https://calvy.io/shop/q/", dashboard: "https://calvy.
 const TOTAL = TEMPLATE_DEFS.length * TEMPLATE_LANGUAGES.length;
 const upserts = () => db.tplUpsert.mock.calls.map((c) => c[0] as { create: { name: string; status?: string; reason?: string }; update: Record<string, unknown> });
 
-beforeEach(() => { vi.resetAllMocks(); db.cfgFindUnique.mockResolvedValue(cfg()); db.tplUpsert.mockResolvedValue({}); db.tplUpdateMany.mockResolvedValue({ count: 0 }); });
+beforeEach(() => { vi.resetAllMocks(); db.cfgFindUnique.mockResolvedValue(cfg()); db.tplUpsert.mockResolvedValue({}); db.tplUpdateMany.mockResolvedValue({ count: 0 }); db.tplFindMany.mockResolvedValue([]); });
 
 describe("Install Calvy templates", () => {
   it("a dead token (401 / code 190) stops at the FIRST call, pauses the connection, writes no template rows", async () => {
@@ -70,5 +70,34 @@ describe("the Settings list shows only current template names", () => {
   it("the three rewritten templates are v2, the others unchanged", () => {
     for (const k of ["token_issued", "token_moved_back", "booking_cancelled"]) expect(templateName(k)).toBe(`calvy_${k}_v2`);
     expect(templateName("token_next")).toBe("calvy_token_next_v1");
+  });
+});
+
+describe("Refresh status (sync from Meta)", () => {
+  it("writes Meta's APPROVED into our row, pages through everything, ignores non-calvy templates", async () => {
+    const name = templateName("token_issued");
+    const urls: string[] = [];
+    const f = vi.fn(async (url: string) => {
+      urls.push(url);
+      return json({ data: [{ id: "m1", name, language: "en", status: "APPROVED" }, { id: "m2", name: "someone_elses", language: "en", status: "APPROVED" }] });
+    });
+    db.tplUpdateMany.mockResolvedValue({ count: 1 });
+    const out = await refreshTemplates("b1", f as never);
+    expect(out).toMatchObject({ ok: true });
+    expect(urls[0]).not.toContain("name=");
+    expect(db.tplUpdateMany).toHaveBeenCalledTimes(1);
+    expect(db.tplUpdateMany.mock.calls[0][0]).toMatchObject({ where: { name, language: "en" }, data: { status: "APPROVED", metaId: "m1" } });
+  });
+  it("adds a row for a current template that exists on Meta but not here", async () => {
+    const name = templateName("token_issued");
+    const f = vi.fn(async () => json({ data: [{ id: "m1", name, language: "hi", status: "approved" }] }));
+    await refreshTemplates("b1", f as never);
+    expect(db.tplCreate.mock.calls[0][0].data).toMatchObject({ name, language: "hi", status: "APPROVED" });
+  });
+  it("reports current templates our table has but Meta does not return (wrong Account ID)", async () => {
+    const name = templateName("token_issued");
+    db.tplFindMany.mockResolvedValue([{ name, language: "en", status: "PENDING" }]);
+    const out = await refreshTemplates("b1", (async () => json({ data: [] })) as never);
+    expect((out as { missing: string[] }).missing).toEqual([`${name} (en)`]);
   });
 });

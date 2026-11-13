@@ -93,10 +93,19 @@ export async function refreshTemplates(businessId: string, fetcher?: Fetcher) {
   if (!c) return { ok: false as const, error: "Not connected" };
   const r = await listTemplates(credentialsOf(c), fetcher);
   if (!r.ok) return { ok: false as const, error: r.reason };
+  const live = new Set(currentTemplateNames());
+  const missing: string[] = [];
   for (const t of r.templates) {
-    await prisma.whatsAppTemplate.updateMany({ where: { businessId, name: t.name, language: t.language }, data: { status: t.status, reason: t.reason, metaId: t.id } });
+    const res = await prisma.whatsAppTemplate.updateMany({ where: { businessId, name: t.name, language: t.language }, data: { status: t.status.toUpperCase(), reason: t.reason, metaId: t.id } });
+    // On Meta and current, but no row here (e.g. created in WhatsApp Manager): add it so the status shows.
+    if (res.count === 0 && live.has(t.name)) {
+      await prisma.whatsAppTemplate.create({ data: { businessId, name: t.name, language: t.language, status: t.status.toUpperCase(), reason: t.reason, metaId: t.id } });
+    }
   }
-  return { ok: true as const };
+  const seen = new Set(r.templates.map((t) => `${t.name}/${t.language}`));
+  const ours = await prisma.whatsAppTemplate.findMany({ where: { businessId, name: { in: [...live] } }, select: { name: true, language: true, status: true } });
+  for (const o of ours) if (!seen.has(`${o.name}/${o.language}`) && o.status !== "NOT_INSTALLED") missing.push(`${o.name} (${o.language})`);
+  return { ok: true as const, missing };
 }
 
 /** Create every Calvy template on the business's WABA (skipping ones already there), then sync statuses. */
