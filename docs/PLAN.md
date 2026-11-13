@@ -373,6 +373,8 @@ If any of these is open, v2 should not take real customers. Where each one lives
 Complete every item before the first real customer (see also S1-01, S9-02, S9-10).
 
 - [ ] Fresh production Neon project with new passwords (never reuse dev credentials).
+- [ ] **Real production database: a separate Neon project in an Asia region** (see S9-17). Today Vercel Production (calvy-v2.vercel.app) points at the same dev Neon database as `.env.local`, so a dev migration is also a production migration, and the check "prod is migrated" is only true by accident.
+- [ ] **Run `prisma migrate deploy` in the production deploy pipeline before `next build`** (for example the Vercel build command `npm run db:deploy && npm run build`, with the production `DATABASE_URL` and `DIRECT_URL` in the Production environment only), so a merge can never deploy code ahead of the schema. The build today is `prisma generate && next build` with no migration step, and `/ship` step 9 only migrates the dev database after the merge. Keep migrations additive (expand, then contract) so a failed build leaves the old deployment working with the new schema.
 - [ ] New `NEXTAUTH_SECRET`, `CRON_SECRET` and `ADMIN_SETUP_SECRET` generated for production.
 - [ ] Rotate the dev Neon password and remove any secrets from `.claude/settings.json`.
 - [ ] Remove or disable seed test accounts in production (`SEED_TEST_ACCOUNTS` unset).
