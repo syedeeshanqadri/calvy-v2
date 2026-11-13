@@ -84,19 +84,19 @@ export async function verifyConnection(c: Credentials, fetcher: Fetcher = fetch)
   };
 }
 
-export interface RemoteTemplate { id: string; name: string; language: string; status: string; reason: string | null }
+export interface RemoteTemplate { id: string; name: string; language: string; status: string; category: string | null; reason: string | null }
 
 /** Templates on the WABA (all pages, capped), with approval status and the rejection reason when there is one. */
 export async function listTemplates(c: Credentials, fetcher: Fetcher = fetch): Promise<{ ok: true; templates: RemoteTemplate[] } | { ok: false; reason: string }> {
   const out: RemoteTemplate[] = [];
   let path: string | null = `${c.wabaId}/message_templates`;
-  let query: Record<string, string> | undefined = { fields: "id,name,language,status,rejected_reason", limit: "100" };
+  let query: Record<string, string> | undefined = { fields: "id,name,language,status,category,rejected_reason", limit: "100" };
   for (let page = 0; page < 30 && path; page++) {
-    const r: GraphResult<{ data?: { id: string; name: string; language: string; status: string; rejected_reason?: string }[]; paging?: { cursors?: { after?: string }; next?: string } }> = await graph(c.accessToken, path, { query }, fetcher);
+    const r: GraphResult<{ data?: { id: string; name: string; language: string; status: string; category?: string; rejected_reason?: string }[]; paging?: { cursors?: { after?: string }; next?: string } }> = await graph(c.accessToken, path, { query }, fetcher);
     if (!r.ok) return { ok: false, reason: r.error?.message ?? "Could not read templates" };
     for (const t of r.data.data ?? []) {
       if (!t.name.startsWith("calvy_")) continue; // filtered here: Meta's name= filter is not a reliable prefix match
-      out.push({ id: t.id, name: t.name, language: t.language, status: t.status, reason: t.rejected_reason && t.rejected_reason !== "NONE" ? t.rejected_reason : null });
+      out.push({ id: t.id, name: t.name, language: t.language, status: t.status, category: t.category ?? null, reason: t.rejected_reason && t.rejected_reason !== "NONE" ? t.rejected_reason : null });
     }
     const after = r.data.paging?.cursors?.after && (r.data.paging.next || (r.data.data ?? []).length >= 100) ? r.data.paging.cursors.after : undefined;
     if (!after) break;

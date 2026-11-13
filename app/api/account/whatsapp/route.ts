@@ -7,7 +7,7 @@ import { parseBody } from "@/lib/validation/common";
 import { rateLimit } from "@/lib/ratelimit";
 import { getBusinessFeatures } from "@/lib/getFeatures";
 import { normalizeStaffPhone } from "@/lib/whatsapp/staff";
-import { credentialsOf } from "@/lib/whatsapp/store";
+import { credentialsOf, usableLanguages } from "@/lib/whatsapp/store";
 import { sendTemplateMessage } from "@/lib/whatsapp/graph";
 import { templateName } from "@/lib/whatsapp/templates";
 import { maskSecret } from "@/lib/whatsapp/signature";
@@ -59,11 +59,11 @@ async function POST_handler(req: NextRequest) {
   const phone = normalizeStaffPhone(parsed.data.phone, business.timezone);
   if (!phone) return NextResponse.json({ error: "That does not look like a phone number. Include the country code." }, { status: 400 });
 
-  const approved = await prisma.whatsAppTemplate.findMany({ where: { businessId, name: templateName("connection_test"), status: "APPROVED" }, select: { language: true } });
-  const language = approved.find((t) => t.language === "en")?.language ?? approved[0]?.language;
+  const approved = await usableLanguages(businessId, templateName("connection_test"));
+  const language = approved.includes("en") ? "en" : approved[0];
   if (!language) return NextResponse.json({ error: "The test template is not approved yet. Ask the owner to check Settings > WhatsApp." }, { status: 409 });
 
-  const r = await sendTemplateMessage(credentialsOf(cfg), phone.replace(/\D/g, ""), { name: templateName("connection_test"), language, params: ["there", business.name] });
+  const r = await sendTemplateMessage(credentialsOf(cfg), phone.replace(/\D/g, ""), { name: templateName("connection_test"), language, params: [business.name] });
   if (!r.ok) return NextResponse.json({ error: r.reason }, { status: 502 });
   // A new number starts with alerts off; the person turns them on after the test message arrives.
   await prisma.user.update({ where: { id: userId }, data: { whatsappPhone: phone, whatsappVerifiedAt: new Date(), whatsappOptIn: false } });

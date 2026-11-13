@@ -940,6 +940,7 @@ model WhatsAppTemplate {
   status     String   @default("PENDING") // PENDING | APPROVED | REJECTED | PAUSED | DISABLED ...
   reason     String?
   metaId     String?
+  category   String? // UTILITY | MARKETING | AUTHENTICATION, as Meta last reported it; MARKETING = never sent
   updatedAt  DateTime @updatedAt @db.Timestamptz(3)
 
   @@unique([businessId, name, language])

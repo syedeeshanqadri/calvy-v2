@@ -12,7 +12,7 @@ import { sanitizePermissions } from "@/lib/permissions";
 import { mayReceive, wants, type PushKind, type PushPrefs } from "@/lib/pushRouting";
 import { buildWhatsAppMessage, WA_EVENTS } from "@/lib/whatsapp/events";
 import { sendTemplateMessage, type Fetcher } from "@/lib/whatsapp/graph";
-import { credentialsOf, isOptedOut } from "@/lib/whatsapp/store";
+import { credentialsOf, isOptedOut, usableLanguages } from "@/lib/whatsapp/store";
 import { TEMPLATE_LANGUAGES, templateName } from "@/lib/whatsapp/templates";
 
 const digits = (s: string | null | undefined) => (s ?? "").replace(/\D/g, "");
@@ -76,8 +76,8 @@ export async function sendWhatsAppRow(row: NotificationOutbox, fetcher?: Fetcher
   if (!message) return { kind: "skipped", error: "nothing to say on WhatsApp for this message" };
 
   const name = templateName(message.key);
-  const approved = await prisma.whatsAppTemplate.findMany({ where: { businessId, name, status: "APPROVED" }, select: { language: true } });
-  const language = TEMPLATE_LANGUAGES.find((l) => approved.some((t) => t.language === l));
+  const approved = await usableLanguages(businessId, name); // APPROVED and not reclassified as MARKETING
+  const language = TEMPLATE_LANGUAGES.find((l) => approved.includes(l));
   if (!language) return { kind: "skipped", error: "template not approved yet" };
 
   const cfg = await prisma.whatsAppConfig.findUnique({ where: { businessId } });

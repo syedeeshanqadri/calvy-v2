@@ -9,6 +9,8 @@ export interface TemplateDef {
   key: string;
   /** Bumped (to 2) only when a template had to change after it may already be on a WABA: Meta will not edit-by-name here. */
   version?: number;
+  /** Languages to create (default: all). Only English where Hindi was reclassified by Meta. */
+  languages?: TemplateLanguage[];
   /** Body parameters in {{1}}.. order, with a sample value Meta needs for review. */
   params: { name: string; example: string }[];
   body: Record<TemplateLanguage, string>;
@@ -16,6 +18,7 @@ export interface TemplateDef {
   button?: { text: Record<TemplateLanguage, string>; path: "tracking" | "dashboard"; example: string };
 }
 
+export const languagesOf = (def: TemplateDef): readonly TemplateLanguage[] => def.languages ?? TEMPLATE_LANGUAGES;
 export const templateName = (key: string) => `calvy_${key}_v${TEMPLATE_DEFS.find((d) => d.key === key)?.version ?? 1}`;
 
 const FIRST = { name: "first name", example: "Priya" };
@@ -106,18 +109,20 @@ export const TEMPLATE_DEFS: TemplateDef[] = [
   },
   {
     key: "visit_thanks",
-    params: [FIRST, BUSINESS, SERVICE, WHEN],
+    version: 2, // v1 read as a thank-you / "come again" message: Meta reclassified it as MARKETING
+    params: [FIRST, BUSINESS, WHEN],
     body: {
-      en: "Hi {{1}}, thank you for visiting {{2}} for your {{3}} on {{4}}. We hope to see you again.",
-      hi: "नमस्ते {{1}}, {{4}} को {{2}} में {{3}} के लिए आने का धन्यवाद। हम आपसे फिर मिलने की आशा करते हैं।",
+      en: "Hello {{1}}, your visit to {{2}} on {{3}} has been marked as completed. This is an update for your records. No action is needed.",
+      hi: "नमस्ते {{1}}, {{3}} को {{2}} में आपकी विज़िट को पूर्ण के रूप में दर्ज किया गया है। यह आपके रिकॉर्ड के लिए एक अपडेट है। किसी कार्रवाई की आवश्यकता नहीं है।",
     },
   },
   {
     key: "booking_no_show",
-    params: [FIRST, BUSINESS, SERVICE, WHEN],
+    version: 2, // v1 said "we missed you ... book again": MARKETING
+    params: [FIRST, SERVICE, BUSINESS, WHEN],
     body: {
-      en: "Hi {{1}}, we missed you at {{2}} for your {{3}} on {{4}}. You can book again any time.",
-      hi: "नमस्ते {{1}}, {{4}} को {{2}} में आपकी {{3}} के लिए हमें आपकी कमी खली। आप कभी भी दोबारा बुक कर सकते हैं।",
+      en: "Hello {{1}}, your booking for {{2}} at {{3}} on {{4}} was marked as missed. This is an update for your records.",
+      hi: "नमस्ते {{1}}, {{3}} में {{4}} को आपकी {{2}} की बुकिंग को छूटी हुई के रूप में दर्ज किया गया है। यह आपके रिकॉर्ड के लिए एक अपडेट है।",
     },
   },
   {
@@ -139,23 +144,17 @@ export const TEMPLATE_DEFS: TemplateDef[] = [
     },
   },
   {
-    key: "review_request",
-    params: [FIRST, BUSINESS, { name: "review link", example: "https://g.page/r/example/review" }],
-    body: {
-      en: "Hi {{1}}, thank you for visiting {{2}}. We would love your feedback, you can leave a review here: {{3}} It only takes a minute.",
-      hi: "नमस्ते {{1}}, {{2}} में आने का धन्यवाद। हमें आपकी राय जानकर खुशी होगी, आप यहाँ रिव्यू दे सकते हैं: {{3}} इसमें बस एक मिनट लगता है।",
-    },
-  },
-  {
     key: "visit_thanks_follow_up",
-    params: [FIRST, BUSINESS, SERVICE, WHEN, { name: "last day", example: "30 Nov" }],
+    version: 2,
+    params: [FIRST, BUSINESS, WHEN, BUSINESS, { name: "last day", example: "30 Nov" }],
     body: {
-      en: "Hi {{1}}, thank you for visiting {{2}} for your {{3}} on {{4}}. You can book one free follow-up until {{5}} from your bookings page.",
-      hi: "नमस्ते {{1}}, {{4}} को {{2}} में {{3}} के लिए आने का धन्यवाद। आप {{5}} तक अपनी बुकिंग पेज से एक मुफ़्त फॉलो-अप बुक कर सकते हैं।",
+      en: "Hello {{1}}, your visit to {{2}} on {{3}} has been marked as completed. Your free follow-up with {{4}} is valid until {{5}}. This is an update for your records. No action is needed.",
+      hi: "नमस्ते {{1}}, {{3}} को {{2}} में आपकी विज़िट को पूर्ण के रूप में दर्ज किया गया है। {{4}} के साथ आपका निःशुल्क फॉलो-अप {{5}} तक मान्य है। यह आपके रिकॉर्ड के लिए एक अपडेट है। किसी कार्रवाई की आवश्यकता नहीं है।",
     },
   },
   {
     key: "staff_alert",
+    languages: ["en"], // the Hindi version was reclassified as MARKETING by Meta
     params: [BUSINESS, { name: "alert", example: "New booking: Priya K., Haircut, Sat 15 Nov 4:30 PM." }],
     body: {
       en: "Calvy alert for {{1}}: {{2}} Open Calvy for the details.",
@@ -165,10 +164,11 @@ export const TEMPLATE_DEFS: TemplateDef[] = [
   },
   {
     key: "connection_test",
-    params: [FIRST, BUSINESS],
+    version: 2,
+    params: [BUSINESS],
     body: {
-      en: "Hi {{1}}, this is a test message from {{2}} sent through Calvy. Your WhatsApp connection works.",
-      hi: "नमस्ते {{1}}, यह Calvy के ज़रिए {{2}} का एक टेस्ट संदेश है। आपका WhatsApp कनेक्शन काम कर रहा है।",
+      en: "Hello, WhatsApp updates for {{1}} are now connected. Booking confirmations and reminders will be sent from this number.",
+      hi: "नमस्ते, {{1}} के लिए WhatsApp अपडेट अब जुड़ गए हैं। बुकिंग की पुष्टि और रिमाइंडर इसी नंबर से भेजे जाएंगे।",
     },
   },
 ];
@@ -186,6 +186,7 @@ export function buildTemplatePayload(def: TemplateDef, lang: TemplateLanguage, b
       buttons: [{ type: "URL", text: def.button.text[lang], url: `${bases[def.button.path]}{{1}}`, example: [`${bases[def.button.path]}${def.button.example}`] }],
     });
   }
+  // allow_category_change is not sent: Meta has deprecated it and reclassifies on its own; the send gate handles MARKETING.
   return { name: templateName(def.key), language: lang, category: "UTILITY", components };
 }
 

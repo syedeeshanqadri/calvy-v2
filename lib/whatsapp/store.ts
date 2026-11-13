@@ -5,7 +5,7 @@ import { decryptSecret, encryptSecret } from "@/lib/notifications/secret";
 import { maskSecret } from "@/lib/whatsapp/signature";
 import { createTemplate, listTemplates, verifyConnection, type Credentials, type Fetcher } from "@/lib/whatsapp/graph";
 import { whatsappCallbackUrl } from "@/lib/whatsapp/urls";
-import { TEMPLATE_DEFS, TEMPLATE_LANGUAGES, buildTemplatePayload, currentTemplateNames, templateName, type UrlBases } from "@/lib/whatsapp/templates";
+import { TEMPLATE_DEFS, buildTemplatePayload, currentTemplateNames, languagesOf, templateName, type UrlBases } from "@/lib/whatsapp/templates";
 
 export const newKey = () => randomBytes(24).toString("base64url");
 
@@ -96,10 +96,10 @@ export async function refreshTemplates(businessId: string, fetcher?: Fetcher) {
   const live = new Set(currentTemplateNames());
   const missing: string[] = [];
   for (const t of r.templates) {
-    const res = await prisma.whatsAppTemplate.updateMany({ where: { businessId, name: t.name, language: t.language }, data: { status: t.status.toUpperCase(), reason: t.reason, metaId: t.id } });
+    const res = await prisma.whatsAppTemplate.updateMany({ where: { businessId, name: t.name, language: t.language }, data: { status: t.status.toUpperCase(), reason: t.reason, metaId: t.id, category: t.category } });
     // On Meta and current, but no row here (e.g. created in WhatsApp Manager): add it so the status shows.
     if (res.count === 0 && live.has(t.name)) {
-      await prisma.whatsAppTemplate.create({ data: { businessId, name: t.name, language: t.language, status: t.status.toUpperCase(), reason: t.reason, metaId: t.id } });
+      await prisma.whatsAppTemplate.create({ data: { businessId, name: t.name, language: t.language, status: t.status.toUpperCase(), reason: t.reason, metaId: t.id, category: t.category } });
     }
   }
   const seen = new Set(r.templates.map((t) => `${t.name}/${t.language}`));
@@ -118,7 +118,7 @@ export async function installTemplates(businessId: string, bases: UrlBases, fetc
   // Already on Meta (we hold its id): nothing to create.
   const have = new Set((await prisma.whatsAppTemplate.findMany({ where: { businessId, metaId: { not: null } }, select: { name: true, language: true } })).map((t) => `${t.name}/${t.language}`));
   for (const def of TEMPLATE_DEFS) {
-    for (const lang of TEMPLATE_LANGUAGES) {
+    for (const lang of languagesOf(def)) {
       const name = templateName(def.key);
       if (have.has(`${name}/${lang}`)) continue;
       const r = await createTemplate(creds, buildTemplatePayload(def, lang, bases), fetcher);
@@ -161,12 +161,22 @@ export async function isOptedOut(businessId: string, phone: string): Promise<boo
   return !!(await prisma.whatsAppOptOut.findUnique({ where: { businessId_phone: { businessId, phone: toE164(phone) } }, select: { phone: true } }));
 }
 
-/** The templates the Settings page lists: only the names Calvy currently uses (older versions on Meta are ignored). */
+/** Meta's own "this is marketing" verdict. Such a template is never sent (the email goes instead). */
+export const isMarketing = (category: string | null | undefined) => (category ?? "").toUpperCase() === "MARKETING";
+
+/** Languages of this template that are APPROVED and not reclassified as MARKETING: the only ones a message may use. */
+export async function usableLanguages(businessId: string, name: string): Promise<string[]> {
+  const rows = await prisma.whatsAppTemplate.findMany({ where: { businessId, name, status: "APPROVED" }, select: { language: true, category: true } });
+  return rows.filter((t) => !isMarketing(t.category)).map((t) => t.language);
+}
+
+/** The templates the Settings page lists: only the names and languages Calvy currently uses (older versions on Meta are ignored). */
 export async function listCurrentTemplates(businessId: string) {
   const rows = await prisma.whatsAppTemplate.findMany({
     where: { businessId, name: { in: [...currentTemplateNames()] } },
     orderBy: [{ name: "asc" }, { language: "asc" }],
-    select: { name: true, language: true, status: true, reason: true },
+    select: { name: true, language: true, status: true, reason: true, category: true },
   });
-  return rows;
+  const wanted = new Set(TEMPLATE_DEFS.flatMap((d) => languagesOf(d).map((l) => `${templateName(d.key)}/${l}`)));
+  return rows.filter((r) => wanted.has(`${r.name}/${r.language}`));
 }

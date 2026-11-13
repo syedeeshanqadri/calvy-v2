@@ -1,7 +1,7 @@
 // Which email event becomes which WhatsApp template, and how its variables are filled (pure, unit-tested).
 // Customer messages are cloned from the email's payload, so a WhatsApp message can never say more than the email did.
 
-export const WA_PREF_KEYS = ["confirmations", "changes", "reminders", "token", "turnSoon", "receipts", "thanks", "followUp", "reviewRequest"] as const;
+export const WA_PREF_KEYS = ["confirmations", "changes", "reminders", "token", "turnSoon", "receipts", "thanks", "followUp"] as const;
 export type WaPrefKey = (typeof WA_PREF_KEYS)[number];
 
 export const WA_PREF_LABELS: Record<WaPrefKey, string> = {
@@ -13,12 +13,11 @@ export const WA_PREF_LABELS: Record<WaPrefKey, string> = {
   receipts: "Payment receipts",
   thanks: "Thank-you after a visit",
   followUp: "Free follow-up deadline inside the thank-you (clinics)",
-  reviewRequest: "Review request",
 };
 
-/** Review requests are off until the business turns them on (Meta may treat them as marketing). Everything else is on. */
+/** Everything is on by default. Review requests are email only: Meta treats them as marketing. */
 export const WA_PREF_DEFAULTS: Record<WaPrefKey, boolean> = {
-  confirmations: true, changes: true, reminders: true, token: true, turnSoon: true, receipts: true, thanks: true, followUp: true, reviewRequest: false,
+  confirmations: true, changes: true, reminders: true, token: true, turnSoon: true, receipts: true, thanks: true, followUp: true,
 };
 
 export interface WaMessage { key: string; params: string[]; buttonSuffix?: string }
@@ -26,7 +25,7 @@ export interface WaMessage { key: string; params: string[]; buttonSuffix?: strin
 interface BookingLike {
   clientName?: string; businessName?: string; serviceName?: string; date?: string; time?: string;
   token?: { number: number; estimatedTime: string; sessionName: string; sessionStart?: string };
-  trackUrl?: string; meetingUrl?: string; reviewUrl?: string; place?: number; followUpUntil?: string;
+  trackUrl?: string; meetingUrl?: string; place?: number; followUpUntil?: string;
 }
 
 /** Meta rejects empty variables and variables with newlines, tabs or runs of spaces. */
@@ -58,15 +57,15 @@ export const WA_EVENTS: Record<string, Mapping> = {
   },
   "booking.rescheduled": { pref: "changes", build: (p) => booking("booking_rescheduled", p) },
   "booking.cancelled": { pref: "changes", build: (p) => booking("booking_cancelled", p) },
-  "booking.no_show": { pref: "changes", build: (p) => ({ key: "booking_no_show", params: [first(p.clientName), clean(p.businessName), clean(p.serviceName), when(p)] }) },
+  "booking.no_show": { pref: "changes", build: (p) => booking("booking_no_show", p) },
   "booking.reminder": { pref: "reminders", build: (p) => booking("booking_reminder", p) },
   "booking.paid": { pref: "receipts", build: (p) => booking("payment_received", p) },
   // One message: the thank-you carries the free follow-up deadline when there is one (never a separate follow-up message).
   "booking.completed": {
     pref: "thanks",
     build: (p) => {
-      const base = [first(p.clientName), clean(p.businessName), clean(p.serviceName), when(p)];
-      return p.followUpUntil ? { key: "visit_thanks_follow_up", params: [...base, clean(p.followUpUntil)] } : { key: "visit_thanks", params: base };
+      const base = [first(p.clientName), clean(p.businessName), when(p)];
+      return p.followUpUntil ? { key: "visit_thanks_follow_up", params: [...base, clean(p.businessName), clean(p.followUpUntil)] } : { key: "visit_thanks", params: base };
     },
   },
   "booking.queue_next": {
@@ -84,10 +83,6 @@ export const WA_EVENTS: Record<string, Mapping> = {
     },
   },
   "booking.queue_closed": { pref: "token", build: (p) => (p.token ? { key: "token_closed", params: [first(p.clientName), clean(p.businessName), clean(p.token.number)] } : null) },
-  "booking.review_request": {
-    pref: "reviewRequest",
-    build: (p) => (p.reviewUrl ? { key: "review_request", params: [first(p.clientName), clean(p.businessName), clean(p.reviewUrl)] } : null),
-  },
 };
 
 /** Email event names that get a WhatsApp clone. */

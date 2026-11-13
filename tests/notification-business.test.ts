@@ -70,7 +70,7 @@ const notice: Notice = {
 const fullPrefs = (over: Record<string, any> = {}) => ({
   customer: { completed: true, reviewRequest: true, reviewDelayHours: 2, tokenNextAhead: 3 }, business: { created: true, rescheduled: true, cancelled: true, paid: true, status: false },
   dailySummary: false, reminderLeadMinutes: [1440],
-  whatsapp: { confirmations: true, changes: true, reminders: true, token: true, turnSoon: true, receipts: true, thanks: true, followUp: true, reviewRequest: false }, ...over,
+  whatsapp: { confirmations: true, changes: true, reminders: true, token: true, turnSoon: true, receipts: true, thanks: true, followUp: true }, ...over,
 });
 
 beforeEach(() => {

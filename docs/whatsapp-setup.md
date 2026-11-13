@@ -41,7 +41,6 @@ Meta's test number can message only recipients added to the allowed list (WhatsA
 | booking.paid | payment_received | Receipts |
 | booking.completed | visit_thanks, or visit_thanks_follow_up when the visit earns a free follow-up (one message) | Thank-you (+ "Free follow-up deadline" switch) |
 | booking.queue_next (new: "your turn is coming up") | token_next | Token: your turn is coming up (ON) |
-| booking.review_request | review_request | Review request (OFF by default) |
 | push alerts to owner/members | staff_alert | the person's own alert choices |
 
 `booking_confirmed`, `booking_reminder` and `booking_rescheduled` are `_v2`: v1 had a "View booking" button that only token bookings have a page for. After upgrading, press **Install Calvy templates** again: it only creates what is missing.
@@ -63,3 +62,14 @@ Meta's test number can message only recipients added to the allowed list (WhatsA
 **"Too many variables" watch list.** `tests/whatsapp.test.ts` computes fixed words per variable (weaker of en/hi, minimum 4). The templates in its `WATCH` set are only flagged (printed, never failing) while Meta reviews them: the six 4-variable ones (`booking_confirmed`, `booking_reminder`, `booking_rescheduled`, `payment_received`, `visit_thanks`, `booking_no_show`) plus `visit_thanks_follow_up`, `booking_meeting_link`, `staff_alert`, `staff_new_booking`. Any new or changed template (including a watched one after a version bump) must pass.
 
 **Install Calvy templates.** Safe to press again: it creates what is missing and retries anything marked NOT_INSTALLED (could not be created; Meta never judged it). REJECTED means Meta's own verdict. If Meta answers 401 / error 190 (expired or revoked token), Install stops at the first call, marks the connection ERROR and writes nothing: save a new token, Save and verify, install again.
+
+## Marketing reclassification (v2 rewrite)
+
+Meta reclassified `connection_test`, `visit_thanks`, `visit_thanks_follow_up`, `booking_no_show` (en + hi), `review_request` (en) and `staff_alert` (hi) as MARKETING.
+
+- **Review requests are email only.** `review_request` and its WhatsApp switch are gone.
+- **Rewritten as plain transactional v2s** (en + hi): `visit_thanks`, `visit_thanks_follow_up` (adds the follow-up deadline), `booking_no_show`, `connection_test`. No thank-you, no "we miss you", no invitation to return.
+- **`staff_alert` is English only.** Add `languages: ["en"]` to any template whose Hindi version gets flagged.
+- **Category is stored** from Meta on Refresh and from the `template_category_update` webhook field (subscribe to it next to `message_template_status_update`). A template Meta marks MARKETING is never sent (the email goes instead) and Settings shows "Reclassified as marketing by Meta".
+- **`allow_category_change` is not sent:** Meta has deprecated it and reclassifies on its own, so the send gate is the protection.
+- **Migration:** `20261115120000_whatsapp_template_category` (additive column). Run `npm run db:migrate` locally; `npm run db:deploy` for production before merging.

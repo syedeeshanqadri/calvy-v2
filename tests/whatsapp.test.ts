@@ -144,6 +144,11 @@ describe("webhook events", () => {
     await handleWebhook("b1", "111", { entry: [{ changes: [{ field: "message_template_status_update", value: { event: "REJECTED", message_template_name: "calvy_booking_confirmed_v1", message_template_language: "en", reason: "INVALID_FORMAT" } }] }] });
     expect(db.tplUpdateMany.mock.calls[0][0].data).toEqual({ status: "REJECTED", reason: "INVALID_FORMAT" });
   });
+  it("a category update (UTILITY -> MARKETING) is stored on the template row", async () => {
+    db.tplUpdateMany.mockResolvedValue({ count: 1 });
+    await handleWebhook("b1", "111", { entry: [{ changes: [{ field: "template_category_update", value: { message_template_name: "calvy_visit_thanks_v1", message_template_language: "en", new_category: "MARKETING" } }] }] });
+    expect(db.tplUpdateMany.mock.calls[0][0]).toMatchObject({ where: { businessId: "b1", name: "calvy_visit_thanks_v1", language: "en" }, data: { category: "MARKETING" } });
+  });
 });
 
 /**
@@ -154,10 +159,10 @@ describe("webhook events", () => {
  */
 const MIN_FIXED_WORDS_PER_VARIABLE = 4;
 const WATCH = new Set([
-  // the six 4-variable templates sent to Meta as-is
-  "booking_confirmed@2", "booking_reminder@2", "booking_rescheduled@2", "payment_received@1", "visit_thanks@1", "booking_no_show@1",
+  // the 4-variable templates sent to Meta as-is
+  "booking_confirmed@2", "booking_reminder@2", "booking_rescheduled@2", "payment_received@1",
   // also under 4 when this check was added: awaiting Meta as well
-  "visit_thanks_follow_up@1", "booking_meeting_link@1", "staff_alert@1", "staff_new_booking@1",
+  "booking_meeting_link@1", "staff_alert@1", "staff_new_booking@1",
 ]);
 const ratio = (text: string) => {
   const vars = new Set(text.match(/\{\{\d+\}\}/g) ?? []).size;

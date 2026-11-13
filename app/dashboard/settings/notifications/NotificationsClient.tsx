@@ -147,7 +147,6 @@ export function NotificationsClient({ initial, terms }: { initial: NotificationS
               <p className="text-sm text-[#6b6b80] mb-2">Sent in addition to the email, only to customers who ticked &quot;Get updates on WhatsApp&quot; when booking, and never after they reply STOP. If a message cannot go on WhatsApp (template not approved, connection paused), they still get the email.</p>
               {WA_PREF_KEYS.map((k) => (
                 <Toggle key={k} id={`wa-${k}`} label={WA_PREF_LABELS[k]}
-                  hint={k === "reviewRequest" ? "Off by default. Meta may treat review requests as marketing." : undefined}
                   checked={prefs.whatsapp[k]} onChange={(v) => update({ ...prefs, whatsapp: { ...prefs.whatsapp, [k]: v } })} />
               ))}
             </CardContent>

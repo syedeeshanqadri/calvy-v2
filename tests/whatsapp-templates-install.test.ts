@@ -12,14 +12,14 @@ vi.mock("@/lib/prisma", () => ({
 }));
 
 import { encryptSecret } from "@/lib/notifications/secret";
-import { installTemplates, listCurrentTemplates, refreshTemplates } from "@/lib/whatsapp/store";
-import { TEMPLATE_DEFS, TEMPLATE_LANGUAGES, currentTemplateNames, templateName } from "@/lib/whatsapp/templates";
+import { installTemplates, listCurrentTemplates, refreshTemplates, usableLanguages } from "@/lib/whatsapp/store";
+import { TEMPLATE_DEFS, buildTemplatePayload, currentTemplateNames, languagesOf, templateName } from "@/lib/whatsapp/templates";
 
 process.env.NEXTAUTH_SECRET = "test-secret";
 const json = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status });
 const cfg = () => ({ businessId: "b1", status: "CONNECTED", phoneNumberId: "1", wabaId: "2", accessTokenEnc: encryptSecret("TOKEN"), appSecretEnc: encryptSecret("S") });
 const bases = { tracking: "https://calvy.io/shop/q/", dashboard: "https://calvy.io/dashboard/" };
-const TOTAL = TEMPLATE_DEFS.length * TEMPLATE_LANGUAGES.length;
+const TOTAL = TEMPLATE_DEFS.reduce((n, d) => n + languagesOf(d).length, 0);
 const upserts = () => db.tplUpsert.mock.calls.map((c) => c[0] as { create: { name: string; status?: string; reason?: string }; update: Record<string, unknown> });
 
 beforeEach(() => { vi.resetAllMocks(); db.cfgFindUnique.mockResolvedValue(cfg()); db.tplUpsert.mockResolvedValue({}); db.tplUpdateMany.mockResolvedValue({ count: 0 }); db.tplFindMany.mockResolvedValue([]); });
@@ -122,5 +122,47 @@ describe("Install: templates that already exist", () => {
     await installTemplates("b1", bases, f as never);
     const posts = f.mock.calls.filter((c) => (c[1] as RequestInit | undefined)?.method === "POST").length;
     expect(posts).toBe(TOTAL - 2);
+  });
+});
+
+describe("MARKETING reclassification and the rewritten set", () => {
+  it("Refresh stores the category Meta reports", async () => {
+    const name = templateName("visit_thanks");
+    const f = vi.fn(async () => json({ data: [{ id: "m1", name, language: "en", status: "APPROVED", category: "MARKETING" }] }));
+    db.tplUpdateMany.mockResolvedValue({ count: 1 });
+    await refreshTemplates("b1", f as never);
+    expect(db.tplUpdateMany.mock.calls[0][0].data).toMatchObject({ status: "APPROVED", category: "MARKETING" });
+    expect((f.mock.calls as unknown as [string][])[0][0]).toContain("category");
+  });
+  it("usableLanguages drops APPROVED-but-MARKETING templates (the email goes instead); null category still counts", async () => {
+    db.tplFindMany.mockResolvedValue([{ language: "en", category: "MARKETING" }, { language: "hi", category: "UTILITY" }]);
+    expect(await usableLanguages("b1", "x")).toEqual(["hi"]);
+    db.tplFindMany.mockResolvedValue([{ language: "en", category: null }]);
+    expect(await usableLanguages("b1", "x")).toEqual(["en"]);
+  });
+  it("the Settings list carries the category so a marketing template can be flagged", async () => {
+    const name = templateName("visit_thanks");
+    db.tplFindMany.mockResolvedValue([{ name, language: "en", status: "APPROVED", reason: null, category: "MARKETING" }]);
+    expect((await listCurrentTemplates("b1"))[0]).toMatchObject({ category: "MARKETING" });
+  });
+  it("staff_alert is English only: no Hindi created, no Hindi row listed", async () => {
+    const f = vi.fn(async (_u: string, init?: RequestInit) => (init?.method === "POST" ? json({ id: "m", status: "PENDING" }) : json({ data: [] })));
+    await installTemplates("b1", bases, f as never);
+    const names = f.mock.calls.filter((c) => (c[1] as RequestInit | undefined)?.method === "POST").map((c) => JSON.parse((c[1] as RequestInit).body as string)).filter((b) => b.name === templateName("staff_alert"));
+    expect(names.map((b) => b.language)).toEqual(["en"]);
+    db.tplFindMany.mockResolvedValue([{ name: templateName("staff_alert"), language: "hi", status: "APPROVED", reason: null, category: "MARKETING" }]);
+    expect(await listCurrentTemplates("b1")).toEqual([]);
+  });
+  it("review_request is gone from the WhatsApp set, the other four are strictly transactional v2s", () => {
+    expect(TEMPLATE_DEFS.some((d) => d.key === "review_request")).toBe(false);
+    for (const k of ["visit_thanks", "visit_thanks_follow_up", "booking_no_show", "connection_test"]) {
+      const d = TEMPLATE_DEFS.find((x) => x.key === k)!;
+      expect(d.version).toBe(2);
+      for (const l of ["en", "hi"] as const) expect(d.body[l], `${k} ${l}`).not.toMatch(/thank|miss(ed)? you|again|धन्यवाद|कमी खली|फिर/i);
+    }
+    expect(TEMPLATE_DEFS.find((d) => d.key === "visit_thanks")!.body.en).toBe("Hello {{1}}, your visit to {{2}} on {{3}} has been marked as completed. This is an update for your records. No action is needed.");
+    expect(TEMPLATE_DEFS.find((d) => d.key === "booking_no_show")!.body.en).toBe("Hello {{1}}, your booking for {{2}} at {{3}} on {{4}} was marked as missed. This is an update for your records.");
+    expect(TEMPLATE_DEFS.find((d) => d.key === "connection_test")!.body.en).toBe("Hello, WhatsApp updates for {{1}} are now connected. Booking confirmations and reminders will be sent from this number.");
+    expect(buildTemplatePayload(TEMPLATE_DEFS[0], "en", bases)).not.toHaveProperty("allow_category_change");
   });
 });
