@@ -389,6 +389,8 @@ model PushDevice {
   p256dh     String
   auth       String
   userAgent  String?
+  /// First 6 + last 6 characters of the application server key this device subscribed with (never the whole key). Null = made before this was recorded.
+  keyFp      String?
   createdAt  DateTime @default(now())
   lastSeenAt DateTime @default(now())
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)

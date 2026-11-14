@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { parseBody } from "@/lib/validation/common";
 import { PUSH_DEVICE_COOKIE, pushDeviceCookieOptions } from "@/lib/pushDeviceCookie";
 import { pushSubscribeSchema, pushUnsubscribeSchema } from "@/lib/validation/misc";
-import { normalizeKey, signingPublicKey } from "@/lib/push";
+import { keyFingerprint, normalizeKey, signingPublicKey } from "@/lib/push";
 
 export const dynamic = "force-dynamic";
 
@@ -27,10 +27,11 @@ async function POST_handler(req: NextRequest) {
   }
   const userAgent = (req.headers.get("user-agent") ?? "").slice(0, 200) || null;
 
+  const keyFp = applicationServerKey ? keyFingerprint(normalizeKey(applicationServerKey)) : null;
   const device = await prisma.pushDevice.upsert({
     where: { endpoint },
-    update: { userId: session.access.userId, businessId: session.access.businessId, p256dh: keys.p256dh, auth: keys.auth, userAgent, lastSeenAt: new Date() },
-    create: { userId: session.access.userId, businessId: session.access.businessId, endpoint, p256dh: keys.p256dh, auth: keys.auth, userAgent },
+    update: { userId: session.access.userId, businessId: session.access.businessId, p256dh: keys.p256dh, auth: keys.auth, userAgent, keyFp, lastSeenAt: new Date() },
+    create: { userId: session.access.userId, businessId: session.access.businessId, endpoint, p256dh: keys.p256dh, auth: keys.auth, userAgent, keyFp },
     select: { id: true },
   });
   const res = NextResponse.json({ ok: true });
