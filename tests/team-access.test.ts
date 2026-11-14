@@ -56,7 +56,7 @@ describe("access is read from the database on every request", () => {
   });
   it("a page without permission sends the member back to the dashboard", async () => {
     db.teamMember.findUnique.mockResolvedValue(member(["customers.view"]));
-    await expect(pageAccess("services.manage")).rejects.toThrow("REDIRECT:/dashboard");
+    await expect(pageAccess("services.manage")).rejects.toThrow("REDIRECT:/dashboard/no-access");
   });
   it("owner-only: a member never passes, the owner always does", async () => {
     db.teamMember.findUnique.mockResolvedValue(member(["customers.view"]));

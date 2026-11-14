@@ -59,7 +59,7 @@ export async function pageAccess(need?: Need): Promise<AccessSession> {
   const session = await getServerSession(authOptions);
   const access = await resolveAccess(session);
   if (!session || !access) redirect("/login");
-  if (!allowed(access, need)) redirect("/dashboard");
+  if (!allowed(access, need)) redirect("/dashboard/no-access"); // a clear "no access" screen, not a silent bounce to the home screen
   return { ...session, user: { ...session.user, businessId: access.businessId }, access };
 }
 

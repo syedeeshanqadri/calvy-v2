@@ -361,3 +361,13 @@ describe("dialogs: full-screen sheets on phones with actions above the keyboard"
     expect(readFileSync("app/dashboard/expenses/ExpensesClient.tsx", "utf8")).not.toContain("fixed inset-0 z-50 flex items-end sm:items-center");
   });
 });
+
+describe("a member opening a page they cannot use", () => {
+  it("lands on a clear 'no access' screen (with a way back), not the member home", () => {
+    const page = readFileSync("app/dashboard/no-access/page.tsx", "utf8");
+    expect(page).toContain("You don&apos;t have access to this page");
+    expect(page).toContain('href="/dashboard"');
+    expect(page).toMatch(/redirect\("\/login"\)/); // signed-out visitors still go to login
+    expect(readFileSync("lib/access.ts", "utf8")).toContain('redirect("/dashboard/no-access")');
+  });
+});
