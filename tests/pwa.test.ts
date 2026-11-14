@@ -302,3 +302,21 @@ describe("layout: sidebar from 768px (tablets and phones in landscape), bottom n
     expect(JSON.parse(readFileSync("public/manifest.json", "utf8")).orientation).toBe("any");
   });
 });
+
+describe("touch devices: 16px inputs and 44px targets, everywhere", () => {
+  const css = readFileSync("app/globals.css", "utf8");
+  const block = css.slice(css.indexOf("@media (pointer: coarse)"));
+  it("a global rule makes every text input, select and textarea 16px (iOS never zooms) and 44px tall", () => {
+    expect(block).toMatch(/select,\s*textarea \{ font-size: 16px !important; \}/);
+    expect(block).toMatch(/min-height: 44px/);
+    expect(block).toMatch(/button:not\(\.tap-tight\)[^}]*min-height: 44px; min-width: 44px/);
+  });
+  it("covers the public pages and /my too: the rule is global (root CSS), not dashboard-only", () => {
+    expect(readFileSync("app/layout.tsx", "utf8")).toContain('import "./globals.css"');
+  });
+  it("the website theme's small buttons and the booking back link keep a 44px target; social icons are 44px", () => {
+    expect(readFileSync("app/[slug]/site.css", "utf8")).toMatch(/pointer: coarse\) \{ \.st-btn, \.st-btn-sm \{ min-height: 44px/);
+    expect(readFileSync("app/[slug]/booking.css", "utf8")).toMatch(/\.bk-back \{ min-width: 44px/);
+    expect(readFileSync("components/site/Brand.tsx", "utf8")).toContain("w-11 h-11 rounded-full");
+  });
+});

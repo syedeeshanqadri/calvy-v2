@@ -164,7 +164,7 @@ function inPage(opts) {
 
   // 3. tap targets < 44px
   const small = interactive.filter((el) => {
-    if (el.tagName === "INPUT" && /checkbox|radio/.test(el.type)) { const lab = el.closest("label"); if (lab) { const lr = lab.getBoundingClientRect(); if (lr.width >= 44 && lr.height >= 44) return false; } }
+    if (el.tagName === "INPUT" && /checkbox|radio/.test(el.type)) { for (const lab of [el.closest("label"), ...(el.labels ? [...el.labels] : [])]) { if (!lab) continue; const lr = lab.getBoundingClientRect(); if (lr.width >= 44 && lr.height >= 44) return false; } }
     const r = el.getBoundingClientRect();
     if (r.width >= 44 && r.height >= 44) return false;
     if (el.tagName === "A" && getComputedStyle(el).display === "inline") { const p = el.parentElement; if (p && p.innerText && p.innerText.trim().length > (el.innerText || "").trim().length + 8) return false; }

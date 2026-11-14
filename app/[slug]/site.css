@@ -356,3 +356,6 @@
 .st-svc-card-body { padding: 18px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
 .st-svc-card-foot { display: flex; justify-content: space-between; align-items: baseline; margin-top: auto; }
 .st-svc-card .st-btn { align-self: flex-start; }
+
+/* Touch: small buttons keep a 44px target. */
+@media (pointer: coarse) { .st-btn, .st-btn-sm { min-height: 44px; } }

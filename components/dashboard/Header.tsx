@@ -88,7 +88,7 @@ export function Header({ title, subtitle }: HeaderProps) {
     <>
       <header className="bg-white border-b border-[#e8e6e0] flex items-center px-4 sm:px-6 gap-3 sticky top-0 z-30 safe-header-14">
         {/* Mobile: logo */}
-        <Link href="/dashboard" className="md:hidden flex-shrink-0" aria-label="Calvy home">
+        <Link href="/dashboard" className="md:hidden flex-shrink-0 inline-flex items-center min-h-11" aria-label="Calvy home">
           <Logo width={64} priority />
         </Link>
 

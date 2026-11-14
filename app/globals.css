@@ -71,3 +71,16 @@ body {
   .safe-header-16 { padding-top: env(safe-area-inset-top); min-height: calc(4rem + env(safe-area-inset-top)); }
   .pl-13 { padding-left: 3.25rem; }
 }
+
+/* Touch devices (phones and tablets): inputs are 16px so iOS never zooms the page on focus, and every control is at least 44px.
+   Add .tap-tight to a control that must stay compact (a dense grid cell); it still gets 16px text but not the 44px minimum. */
+@media (pointer: coarse) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([type="range"]):not([type="color"]):not([type="file"]):not([type="submit"]):not([type="button"]):not([type="image"]),
+  select,
+  textarea { font-size: 16px !important; }
+  input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([type="range"]):not([type="color"]):not([type="file"]):not([type="image"]):not(.tap-tight),
+  select:not(.tap-tight) { min-height: 44px; }
+  button:not(.tap-tight), [role="button"]:not(.tap-tight), summary { min-height: 44px; min-width: 44px; }
+  a[class*="inline-flex"]:not(.tap-tight), a[class*="items-center"]:not(.tap-tight) { min-height: 44px; }
+  input[type="checkbox"], input[type="radio"] { width: 1.5rem; height: 1.5rem; }
+}

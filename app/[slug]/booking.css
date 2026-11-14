@@ -12,6 +12,7 @@
 .bk-back:hover { color: var(--ink); }
 .bk-back-text { display: none; }
 @media (min-width: 600px) { .bk-back-text { display: inline; } }
+.bk-back { min-width: 44px; }
 
 /* Progress */
 .bk-progress { background: #fff; border-bottom: 1px solid var(--line); padding: 14px 0 16px; }
