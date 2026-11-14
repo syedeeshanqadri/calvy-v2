@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { Sidebar } from "./Sidebar";
 import { Header } from "./Header";
 import { TrialBanner } from "./TrialBanner";
@@ -9,6 +9,13 @@ import { PushBanner } from "./PushBanner";
 import { InstallPrompt } from "./InstallPrompt";
 import { cn } from "@/lib/utils";
 
+const NARROW = "(max-width: 1023px)";
+function subscribeNarrow(cb: () => void) {
+  const m = window.matchMedia(NARROW);
+  m.addEventListener("change", cb);
+  return () => m.removeEventListener("change", cb);
+}
+
 interface DashboardLayoutProps {
   children: React.ReactNode;
   title: string;
@@ -16,12 +23,16 @@ interface DashboardLayoutProps {
 }
 
 export function DashboardLayout({ children, title, subtitle }: DashboardLayoutProps) {
-  const [collapsed, setCollapsed] = useState(false);
+  // 768px and up shows the sidebar (tablets, phones in landscape); below 1024px it starts icon-only so the content keeps its room.
+  const narrow = useSyncExternalStore(subscribeNarrow, () => window.matchMedia(NARROW).matches, () => false);
+  const [chosen, setChosen] = useState<boolean | null>(null);
+  const collapsed = chosen ?? narrow;
+  const setCollapsed = (v: boolean) => setChosen(v);
 
   return (
     <div className="flex h-dvh overflow-clip bg-[#f5f5f7]">
-      {/* Sidebar — desktop only */}
-      <div className={cn("hidden lg:flex flex-col flex-shrink-0 transition-all duration-300", collapsed ? "w-16" : "w-64")}>
+      {/* Sidebar: 768px and up. Below that, the bottom nav. */}
+      <div className={cn("hidden md:flex flex-col flex-shrink-0 transition-all duration-300", collapsed ? "w-16" : "w-64")}>
         <Sidebar collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} />
       </div>
 
@@ -32,7 +43,7 @@ export function DashboardLayout({ children, title, subtitle }: DashboardLayoutPr
         <InstallPrompt />
         <PushBanner />
         <main className="flex-1 overflow-y-auto overscroll-contain">
-          <div className="p-4 sm:p-6 pb-mobile-nav lg:pb-6 max-w-[1600px] mx-auto">
+          <div className="p-4 sm:p-6 pb-mobile-nav md:pb-6 max-w-[1600px] mx-auto">
             {children}
           </div>
         </main>

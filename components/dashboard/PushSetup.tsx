@@ -39,7 +39,7 @@ export function PushSetup() {
 
   if (!waiting) return null;
   return (
-    <div role="status" className="fixed bottom-20 lg:bottom-6 left-1/2 -translate-x-1/2 z-[70] flex items-center gap-3 rounded-xl bg-[#0f0f1a] text-white text-sm px-4 py-3 shadow-xl" data-testid="update-bar">
+    <div role="status" className="fixed bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 z-[70] flex items-center gap-3 rounded-xl bg-[#0f0f1a] text-white text-sm px-4 py-3 shadow-xl" data-testid="update-bar">
       <span>New version available</span>
       <button
         type="button"

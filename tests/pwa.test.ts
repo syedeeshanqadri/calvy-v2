@@ -289,3 +289,16 @@ describe("removeLegacyWorkers (the dashboard cleans up the old root registration
     vi.unstubAllGlobals();
   });
 });
+
+describe("layout: sidebar from 768px (tablets and phones in landscape), bottom nav below", () => {
+  it("the sidebar, bottom nav and header switch at md (768px), not lg (1024px)", () => {
+    for (const f of ["components/dashboard/DashboardLayout.tsx", "components/dashboard/BottomNav.tsx", "components/dashboard/Header.tsx"]) {
+      expect(readFileSync(f, "utf8"), f).not.toMatch(/\blg:(hidden|flex|block|pb-6)\b/);
+    }
+    expect(readFileSync("components/dashboard/DashboardLayout.tsx", "utf8")).toMatch(/hidden md:flex flex-col/);
+    expect(readFileSync("components/dashboard/BottomNav.tsx", "utf8")).toMatch(/<nav className="[^"]*md:hidden/);
+  });
+  it("the manifest allows any orientation", () => {
+    expect(JSON.parse(readFileSync("public/manifest.json", "utf8")).orientation).toBe("any");
+  });
+});

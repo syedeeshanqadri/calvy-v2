@@ -66,7 +66,7 @@ export function BottomNav() {
       {/* More sheet backdrop */}
       {showMore && (
         <div
-          className="fixed inset-0 z-40 bg-black/40 lg:hidden"
+          className="fixed inset-0 z-40 bg-black/40 md:hidden"
           onClick={() => setShowMore(false)}
         />
       )}
@@ -74,7 +74,7 @@ export function BottomNav() {
       {/* More sheet */}
       <div
         className={cn(
-          "fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-3xl shadow-2xl border-t border-[#e8e6e0] lg:hidden transition-transform duration-300 ease-out",
+          "fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-3xl shadow-2xl border-t border-[#e8e6e0] md:hidden transition-transform duration-300 ease-out",
           showMore ? "translate-y-0" : "translate-y-full"
         )}
       >
@@ -128,7 +128,7 @@ export function BottomNav() {
 
       {/* Bottom tab bar */}
       {/* The home-indicator inset is added ONCE, as padding on the nav itself; the bar's own height is fixed at 3.5rem. */}
-      <nav className="fixed bottom-0 left-0 right-0 z-30 bg-white border-t border-[#e8e6e0] lg:hidden" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
+      <nav className="fixed bottom-0 left-0 right-0 z-30 bg-white border-t border-[#e8e6e0] md:hidden" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
         <div className="flex items-stretch h-14">
           {bar.map(item => {
             const isActive = "exact" in item && item.exact ? pathname === item.href : pathname.startsWith(item.href);

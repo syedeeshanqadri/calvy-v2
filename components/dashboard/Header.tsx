@@ -88,14 +88,14 @@ export function Header({ title, subtitle }: HeaderProps) {
     <>
       <header className="bg-white border-b border-[#e8e6e0] flex items-center px-4 sm:px-6 gap-3 sticky top-0 z-30 safe-header-14">
         {/* Mobile: logo */}
-        <Link href="/dashboard" className="lg:hidden flex-shrink-0" aria-label="Calvy home">
+        <Link href="/dashboard" className="md:hidden flex-shrink-0" aria-label="Calvy home">
           <Logo width={64} priority />
         </Link>
 
         {/* Title */}
         <div className="flex-1 min-w-0">
-          <h1 className="font-syne font-bold text-[15px] lg:text-lg leading-tight truncate">{title}</h1>
-          {subtitle && <p className="text-xs text-[#6b6b80] hidden lg:block">{subtitle}</p>}
+          <h1 className="font-syne font-bold text-[15px] md:text-lg leading-tight truncate">{title}</h1>
+          {subtitle && <p className="text-xs text-[#6b6b80] hidden md:block">{subtitle}</p>}
         </div>
 
         {/* Right actions */}
@@ -103,7 +103,7 @@ export function Header({ title, subtitle }: HeaderProps) {
           {/* Help — desktop only */}
           <button
             onClick={() => { setToast("Help center coming soon!"); setTimeout(() => setToast(""), 3000); }}
-            className="hidden lg:flex p-2 rounded-xl text-[#6b6b80] hover:bg-[#f8f7f4] hover:text-[#0f0f1a] transition-colors"
+            className="hidden md:flex p-2 rounded-xl text-[#6b6b80] hover:bg-[#f8f7f4] hover:text-[#0f0f1a] transition-colors"
             title="Help"
           >
             <HelpCircle size={18} />
@@ -129,7 +129,7 @@ export function Header({ title, subtitle }: HeaderProps) {
           {/* Sign out — desktop only */}
           <button
             onClick={async () => { await releaseThisDevice(); await signOut({ callbackUrl: "/login" }); }}
-            className="hidden lg:flex p-2 rounded-xl text-[#6b6b80] hover:bg-[#f8f7f4] hover:text-red-500 transition-colors"
+            className="hidden md:flex p-2 rounded-xl text-[#6b6b80] hover:bg-[#f8f7f4] hover:text-red-500 transition-colors"
             title="Sign out"
           >
             <LogOut size={18} />
@@ -140,7 +140,7 @@ export function Header({ title, subtitle }: HeaderProps) {
             <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center text-xs font-bold text-white flex-shrink-0">
               {initials}
             </div>
-            <div className="hidden lg:block min-w-0">
+            <div className="hidden md:block min-w-0">
               <p className="text-xs font-semibold text-[#0f0f1a] truncate max-w-[120px]">{userName}</p>
               <p className="text-[10px] text-[#6b6b80] truncate max-w-[120px]">{userEmail}</p>
             </div>

@@ -87,13 +87,23 @@ function inPage(opts) {
       }).pop();
     }
     if (!overlay) return null;
-    const kids = [...overlay.children].filter(visible).map((c) => ({ c, a: c.getBoundingClientRect().width * c.getBoundingClientRect().height })).sort((x, y) => y.a - x.a);
-    const panel = d || (kids[0] && kids[0].a > vw * vh * 0.1 ? kids[0].c : overlay);
+    const hasContent = (c) => !c.getAttribute("aria-hidden") && (c.querySelector("input,textarea,select,button,a[href]") || (c.innerText || "").trim().length > 3);
+    const kids = [...overlay.querySelectorAll(":scope > *")].filter((c) => visible(c) && hasContent(c)).map((c) => ({ c, a: c.getBoundingClientRect().width * c.getBoundingClientRect().height })).sort((x, y) => y.a - x.a);
+    const panel = d && !overlay.querySelector('[role="dialog"]') ? d : kids[0] && kids[0].a > vw * vh * 0.05 ? kids[0].c : overlay;
     return panel;
   };
 
   const scopeEl = opts.dialog ? findModal() : document.body;
   if (opts.dialog && !scopeEl) return { issues: [], modal: false };
+  if (opts.kb) {
+    // keyboard check: focus the first text field of the modal, report where its primary action is
+    const input = [...scopeEl.querySelectorAll("input:not([type=hidden]):not([type=checkbox]):not([type=radio]),textarea")].find((e) => visible(e));
+    if (input) input.focus();
+    const acts = [...scopeEl.querySelectorAll("button,[role=button]")].filter((b) => visible(b) && (b.type === "submit" || /^(save|add|create|confirm|book|send|submit|done|invite|update|apply|continue|next|schedule|record|import)/i.test((b.innerText || "").trim())));
+    const b = acts[acts.length - 1];
+    const r = b ? b.getBoundingClientRect() : null;
+    return { issues: [], kb: { hasInput: !!input, found: !!b, label: b ? (b.innerText || "").trim().slice(0, 24) : null, bottom: r ? Math.round(r.bottom) : null, top: r ? Math.round(r.top) : null, vh } };
+  }
   const within = (el) => scopeEl === document.body || scopeEl.contains(el);
 
   // fixed bars (header at the top, nav at the bottom)
@@ -118,7 +128,8 @@ function inPage(opts) {
     }
   }
 
-  const interactive = [...(scopeEl === document.body ? document : scopeEl).querySelectorAll('a[href],button,input:not([type=hidden]),select,textarea,[role="button"],[role="tab"],summary')].filter((el) => !dev(el) && visible(el));
+  const hiddenControl = (el) => { const r = el.getBoundingClientRect(); const s = getComputedStyle(el); return r.width <= 2 || r.height <= 2 || (s.clip && s.clip !== "auto" && /rect\(0/.test(s.clip)) || /inset\(50%\)/.test(s.clipPath || ""); }; // sr-only toggles, skip links
+  const interactive = [...(scopeEl === document.body ? document : scopeEl).querySelectorAll('a[href],button,input:not([type=hidden]),select,textarea,[role="button"],[role="tab"],summary')].filter((el) => !dev(el) && visible(el) && !hiddenControl(el));
 
   // 2. controls covered by a fixed bar (what is on screen right now)
   if (opts.page && bars.length) {
@@ -133,6 +144,22 @@ function inPage(opts) {
       if (bar) covered.push(`${sel(el)} under ${sel(bar)}`);
     }
     if (covered.length) add("covered-by-bar", `${covered.length}: ${covered.slice(0, 3).join("; ")}`);
+  }
+
+  // 2b. layout: the lowest visible content must clear the bottom bar when scrolled to the end; the bottom nav must not exist from 768px up
+  if (opts.page && opts.bottom) {
+    const bottomBar = bars.find((b) => b.getBoundingClientRect().bottom >= vh - 1);
+    if (bottomBar) {
+      const navTop = bottomBar.getBoundingClientRect().top;
+      const lows = [...document.querySelectorAll("body *")].filter((el) => !dev(el) && visible(el) && !bars.some((b) => b.contains(el)) && !hiddenControl(el) && !el.closest("[aria-hidden=true]") && el.children.length === 0 && !/^(SCRIPT|STYLE|PATH|SVG)$/i.test(el.tagName));
+      let lowest = null, lowestBottom = -1;
+      for (const el of lows) { const r = el.getBoundingClientRect(); if (r.top < vh && r.bottom > lowestBottom && r.bottom <= vh + 400) { lowest = el; lowestBottom = r.bottom; } }
+      if (lowest && lowestBottom > navTop + 1 && lowestBottom <= vh) add("last-content-under-bar", `${sel(lowest)} bottom ${Math.round(lowestBottom)} > bar top ${Math.round(navTop)}`);
+    }
+  }
+  if (opts.page && vw >= 768) {
+    const nav = bars.find((b) => b.tagName === "NAV" && b.getBoundingClientRect().bottom >= vh - 1);
+    if (nav) add("bottom-nav-at-768+", `${vw}px wide still shows the bottom nav (${sel(nav)})`);
   }
 
   // 3. tap targets < 44px
@@ -181,15 +208,6 @@ function inPage(opts) {
   return { issues, modal: modalInfo, bars: bars.map(sel) };
 }
 
-const KB_PRIMARY = () => {
-  const vh = innerHeight;
-  const m = [...document.querySelectorAll('[role="dialog"],[aria-modal="true"]')].pop() || document.body;
-  const act = [...m.querySelectorAll("button,[role=button]")].filter((b) => { const r = b.getBoundingClientRect(); return r.width > 0 && r.height > 0 && (b.type === "submit" || /^(save|add|create|confirm|book|send|submit|done|invite|update|apply|continue|next|schedule|record)/i.test((b.innerText || "").trim())); });
-  if (!act.length) return { found: false };
-  const b = act[act.length - 1], r = b.getBoundingClientRect();
-  return { found: true, label: (b.innerText || "").trim().slice(0, 24), bottom: Math.round(r.bottom), top: Math.round(r.top), vh };
-};
-
 // ---- helpers ------------------------------------------------------------------------------------------------------------
 const slug = (s) => s.replace(/^\//, "").replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "") || "home";
 const log = (rec) => fs.appendFileSync(RESULTS, JSON.stringify(rec) + "\n");
@@ -224,7 +242,7 @@ async function checkPage(page, vp, route, state, { dialog = false, pageChecks = 
   const passes = dialog ? [false] : [false, true];
   for (const bottom of passes) {
     if (!dialog) await scrollTo(page, bottom);
-    const r = await page.evaluate(inPage, { dialog, page: pageChecks }).catch((e) => ({ issues: [{ type: "audit-error", detail: String(e).slice(0, 120) }] }));
+    const r = await page.evaluate(inPage, { dialog, page: pageChecks, bottom }).catch((e) => ({ issues: [{ type: "audit-error", detail: String(e).slice(0, 120) }] }));
     if (r.modal === false) return null;
     if (r.modal) modal = r.modal;
     for (const i of r.issues) if (!merged.some((m) => m.type === i.type && m.detail === i.detail)) merged.push({ ...i, at: bottom ? "scrolled-bottom" : "top" });
@@ -261,15 +279,17 @@ async function closeModal(page, route) {
 }
 
 async function keyboardCheck(page, vp, route, state) {
-  const hasInput = await page.evaluate(() => { const m = [...document.querySelectorAll('[role="dialog"],[aria-modal="true"]')].pop() || document.body; const i = [...m.querySelectorAll("input:not([type=hidden]):not([type=checkbox]):not([type=radio]),textarea")].find((e) => e.getBoundingClientRect().width > 0); if (i) { i.focus(); return true; } return false; });
-  if (!hasInput) return;
   await page.setViewportSize({ width: vp.width, height: Math.max(200, vp.height - vp.kbh) });
-  await page.waitForTimeout(300);
-  const k = await page.evaluate(KB_PRIMARY).catch(() => ({ found: false }));
-  const issues = [];
-  if (k.found && (k.bottom > k.vh + 1 || k.top < 0)) issues.push({ type: "keyboard-hides-primary-action", detail: `"${k.label}" bottom ${k.bottom} > visible ${k.vh}px (keyboard ${vp.kbh}px)`, at: "keyboard-open" });
-  const file = await shot(page, vp, route, `${state}-keyboard`);
-  log({ phase: PHASE, persona: PERSONA, vp: vp.id, route, state: `${state}-keyboard`, url: new URL(page.url()).pathname, issues, modal: null, shot: file, note: k.found ? undefined : "no primary action found" });
+  await page.waitForTimeout(350);
+  const r = await page.evaluate(inPage, { dialog: true, kb: true }).catch(() => ({}));
+  const k = r.kb;
+  if (k && k.hasInput) {
+    const issues = [];
+    if (k.found && (k.bottom > k.vh + 1 || k.top < 0)) issues.push({ type: "keyboard-hides-primary-action", detail: `"${k.label}" bottom ${k.bottom} > visible ${k.vh}px (keyboard ${vp.kbh}px)`, at: "keyboard-open" });
+    if (!k.found) issues.push({ type: "keyboard-no-visible-primary-action", detail: "no save/confirm button in the dialog", at: "keyboard-open" });
+    const file = await shot(page, vp, route, `${state}-keyboard`);
+    log({ phase: PHASE, persona: PERSONA, vp: vp.id, route, state: `${state}-keyboard`, url: new URL(page.url()).pathname, issues, modal: null, shot: file });
+  }
   await page.setViewportSize({ width: vp.width, height: vp.height });
   await page.waitForTimeout(150);
 }
