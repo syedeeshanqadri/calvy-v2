@@ -21,6 +21,7 @@ Rule: keep ALL features open during the build (PLAN_ENFORCEMENT off). Plan restr
 ## Parked (build later, owner's decision)
 - Pay-links. FULL_ONLINE unreachable.
 - WhatsApp marketing broadcasts via approved MARKETING templates + explicit marketing consent (the WhatsApp option was removed from Broadcasts in step 17).
+- Quiet hours for phone alerts (optional, per user: no alerts between chosen times, e.g. 22:00-07:00, held or dropped). Parked in Step 19 (PWA polish); needs one additive migration on the user's push preferences.
 - Calvy-wide wallet (India only): customers pay at booking, can top up, cancellation/missed amounts stay in wallet (no refunds), wallet usable across all Calvy businesses. Owner has taken legal advice and has approval for this model. Parked for later; current per-business credit stays as is until then.
 
 ## Decisions: Identity, sign-up and team (Oct 2026)

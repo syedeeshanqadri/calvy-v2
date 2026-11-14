@@ -69,3 +69,54 @@ export async function subscribeAndSync(reg: ServiceWorkerRegistration): Promise<
     return false;
   }
 }
+
+// ─── Who has phone alerts on, on THIS device ────────────────────────────────────────────────────────────────────────────
+// Alerts are turned on per person (reception phones are shared), so the app remembers WHICH person enabled them here. Only that person
+// is re-subscribed silently if the browser drops or expires the subscription. Cleared on turn-off and on sign-out.
+const PUSH_FLAG = "calvy-push-user";
+export function markPushEnabled(userId: string) { try { localStorage.setItem(PUSH_FLAG, userId); } catch { /* private mode */ } }
+export function clearPushEnabled() { try { localStorage.removeItem(PUSH_FLAG); } catch { /* ignore */ } }
+export function pushEnabledFor(userId: string): boolean { try { return localStorage.getItem(PUSH_FLAG) === userId; } catch { return false; } }
+
+export type EnsureResult = "skipped" | "ok" | "resubscribed" | "failed";
+
+/**
+ * On app open: if THIS person turned alerts on here and permission is still granted, make sure the subscription exists, has not
+ * expired, and is known to the server (one idempotent POST). Missing or expired: subscribe again. Never asks for permission.
+ */
+export async function ensurePushSubscription(userId: string): Promise<EnsureResult> {
+  if (!hasServiceWorker() || typeof Notification === "undefined" || Notification.permission !== "granted" || !pushEnabledFor(userId)) return "skipped";
+  const reg = await getAppRegistration();
+  if (!reg) return "skipped";
+  const sub = await reg.pushManager.getSubscription();
+  const expired = !!sub && sub.expirationTime != null && sub.expirationTime <= Date.now();
+  if (sub && !expired) return (await syncSubscription(sub)) ? "ok" : "failed";
+  if (sub && expired) await sub.unsubscribe().catch(() => false);
+  return (await subscribeAndSync(reg)) ? "resubscribed" : "failed";
+}
+
+// ─── Can this device get phone alerts? ──────────────────────────────────────────────────────────────────────────────────
+export const isStandalone = () =>
+  typeof window !== "undefined" && (window.matchMedia("(display-mode: standalone)").matches || (navigator as { standalone?: boolean }).standalone === true);
+export const isIos = () => typeof navigator !== "undefined" && (/iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1));
+
+/** Why the Enable button cannot work yet. iPhone: web push only exists for an app added to the Home Screen (iOS 16.4+). */
+export type PushBlock = "ios-install" | "unsupported" | "denied" | null;
+export function pushBlock(): PushBlock {
+  if (typeof window === "undefined") return null;
+  if (isIos() && !isStandalone()) return "ios-install";
+  if (!hasServiceWorker() || !("PushManager" in window) || !("Notification" in window)) return "unsupported";
+  if (Notification.permission === "denied") return "denied";
+  return null;
+}
+
+/** Called when the app is opened or comes to the front: the alerts have been seen, so the icon badge and the lock-screen alerts clear. */
+export async function clearSeenAlerts() {
+  try {
+    const nav = navigator as Navigator & { clearAppBadge?: () => Promise<void> };
+    await nav.clearAppBadge?.();
+    const reg = await getAppRegistration();
+    const shown = (await reg?.getNotifications()) ?? [];
+    shown.forEach((n) => n.close());
+  } catch { /* badges and notification lists are optional */ }
+}

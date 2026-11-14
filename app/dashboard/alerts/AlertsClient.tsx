@@ -3,7 +3,8 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { disablePush, requestPushPermission } from "@/components/dashboard/PushSetup";
-import { getAppRegistration } from "@/lib/pwa";
+import { getAppRegistration, pushBlock, type PushBlock } from "@/lib/pwa";
+import { IosInstallSteps } from "@/components/dashboard/IosInstallSteps";
 
 type Prefs = Record<string, boolean>;
 interface WaState { available: boolean; phoneMasked: string | null; verified: boolean; optIn: boolean }
@@ -54,6 +55,8 @@ export function AlertsClient({ offered, configured }: { offered: { field: string
   const [prefs, setPrefs] = useState<Prefs>({});
   const [devices, setDevices] = useState(0);
   const [here, setHere] = useState(false);
+  const [block, setBlock] = useState<PushBlock>(null);
+  const [testing, setTesting] = useState(false);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
   const [error, setError] = useState("");
@@ -61,6 +64,7 @@ export function AlertsClient({ offered, configured }: { offered: { field: string
   async function load() {
     const r = await fetch("/api/push/preferences");
     if (r.ok) { const d = await r.json(); setPrefs(d.prefs); setDevices(d.devices); }
+    setBlock(pushBlock());
     try {
       const reg = await getAppRegistration();
       setHere(!!(await reg?.pushManager.getSubscription()));
@@ -80,6 +84,20 @@ export function AlertsClient({ offered, configured }: { offered: { field: string
     setBusy(false);
     if (r.ok) { setMsg("Phone alerts are on for this device."); await load(); } else setError(r.error ?? "Could not turn alerts on.");
   }
+  /** Sends one real alert to THIS device through the same path as a booking alert. */
+  async function sendTest() {
+    setTesting(true); setError(""); setMsg("");
+    try {
+      const reg = await getAppRegistration();
+      const sub = await reg?.pushManager.getSubscription();
+      if (!sub) { setError("This device is not subscribed. Turn phone alerts on first."); return; }
+      const r = await fetch("/api/push/test", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ endpoint: sub.endpoint }) });
+      const d = await r.json().catch(() => ({}));
+      if (r.ok) setMsg("Test sent. It should appear in a few seconds.");
+      else setError(d.error ?? "The test did not go through.");
+    } catch { setError("We could not reach the server. Check your connection."); }
+    finally { setTesting(false); }
+  }
   async function disable() {
     setBusy(true); setError(""); setMsg("");
     await disablePush();
@@ -93,10 +111,18 @@ export function AlertsClient({ offered, configured }: { offered: { field: string
         <CardContent className="space-y-3">
           <p className="text-sm text-[#6b6b80]">{here ? "Alerts are on for this device." : "Alerts are off for this device."} {devices > 0 && `You have ${devices} device${devices === 1 ? "" : "s"} registered.`}</p>
           {!configured && <p className="text-xs text-amber-800 bg-amber-50 rounded-lg px-3 py-2">Phone alerts are not set up on the server yet.</p>}
-          <div className="flex gap-2">
+          {block === "ios-install" && <IosInstallSteps />}
+          {block === "unsupported" && <p className="text-xs text-amber-800 bg-amber-50 rounded-lg px-3 py-2">This browser cannot receive phone alerts. Use Chrome on Android, or the installed app on iPhone.</p>}
+          {block === "denied" && <p className="text-xs text-amber-800 bg-amber-50 rounded-lg px-3 py-2">Notifications are blocked for Calvy. Turn them on in your phone&apos;s Settings → Notifications → Calvy (iPhone) or the site settings (Android), then come back.</p>}
+          <div className="flex flex-wrap gap-2">
             {here
-              ? <Button variant="outline" size="sm" onClick={disable} disabled={busy}>Turn off on this device</Button>
-              : <Button size="sm" onClick={enable} disabled={busy || !configured}>Turn on for this device</Button>}
+              ? (
+                <>
+                  <Button variant="outline" size="sm" onClick={disable} disabled={busy || testing}>Turn off on this device</Button>
+                  <Button size="sm" onClick={sendTest} disabled={busy || testing} data-testid="send-test-push">{testing ? "Sending…" : "Send test notification"}</Button>
+                </>
+              )
+              : <Button size="sm" onClick={enable} disabled={busy || !configured || block === "ios-install" || block === "unsupported" || block === "denied"}>Turn on for this device</Button>}
           </div>
           <p className="text-xs text-[#6b6b80]">Signing out turns alerts off on this device only, so a shared phone never shows someone else&apos;s alerts. Your other devices keep theirs. On iPhone, install the app first (Share → Add to Home Screen).</p>
           {msg && <p role="status" className="text-sm text-green-700">{msg}</p>}

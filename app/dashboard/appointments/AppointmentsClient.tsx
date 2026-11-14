@@ -61,6 +61,16 @@ export function AppointmentsClient({ appointments, services, staff, csvExport = 
     finally { setRowBusy(null); }
   }
 
+  // A tapped phone alert lands here with ?open=<id>: show that exact booking.
+  const openId = searchParams.get("open");
+  const [handledOpen, setHandledOpen] = useState<string | null>(null);
+  if (openId && openId !== handledOpen) {
+    setHandledOpen(openId);
+    const hit = appointments.find((a) => a.id === openId);
+    if (hit) setViewAppt(hit);
+  }
+  useEffect(() => { if (openId) router.replace("/dashboard/appointments"); }, [openId, router]);
+
   useEffect(() => {
     if (searchParams.get("new") === "1") {
       setShowModal(true);

@@ -211,7 +211,7 @@ async function PATCH_handler(req: NextRequest, props: { params: Promise<{ id: st
         // Completing a visit is one shared event (thank-you + follow-up deadline, review request, owner alert); serving a token at reception uses the same.
         const done = willComplete ? await visitCompletedItems(n, full, rebookUrl) : null;
         // A phone alert for money received at the desk (to people who may see reports and want it).
-        if (willPay && !willCancel) await queuePush({ businessId, kind: "payment", subjectId: full.id, version: "paid", message: { title: "Payment received", body: `${shortName(full.patientName?.trim() || full.client.name)} · ${full.service.name}`, url: "/dashboard/appointments", tag: "payment" } });
+        if (willPay && !willCancel) await queuePush({ businessId, kind: "payment", subjectId: full.id, version: "paid", message: { title: "Payment received", body: `${shortName(full.patientName?.trim() || full.client.name)} · ${full.service.name}`, url: `/dashboard/appointments?open=${full.id}`, tag: "payment" } });
         await notify(
           willCancel ? await ownerAlert(n, "cancelled")
             : move ? await ownerAlert(n, "rescheduled", { version: `${move.from.getTime()}>${move.to.getTime()}`, oldDate: move.oldDate, oldTime: move.oldTime })

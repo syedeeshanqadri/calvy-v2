@@ -368,7 +368,7 @@ async function bookingHandler(req: NextRequest) {
     sendPushToBusiness(business!.id, {
       title: "New booking received",
       body: `${shortName(patientName)} · ${serviceNamesLabel} · ${dateLabel} ${time}`,
-      url: "/dashboard/appointments",
+      url: `/dashboard/appointments?open=${appointmentId}`,
       tag: "new-booking",
     }, { kind: "booking_new", staffId: chosenStaffId, subjectId: appointmentId, version: "created" }).catch(() => {});
 

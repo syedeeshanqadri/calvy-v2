@@ -145,7 +145,7 @@ describe("cancel", () => {
     expect(mocks.db.appointment.updateMany.mock.calls[0][0]).toMatchObject({ where: { id: "a1" }, data: { status: "cancelled" } });
     expect(mocks.push).toHaveBeenCalledTimes(1);
     expect(mocks.push.mock.calls[0][0]).toBe("biz1");
-    expect(mocks.push.mock.calls[0][1]).toMatchObject({ title: expect.stringContaining("cancelled by the customer"), url: "/dashboard/appointments" });
+    expect(mocks.push.mock.calls[0][1]).toMatchObject({ title: expect.stringContaining("cancelled by the customer"), url: "/dashboard/appointments?open=a1" }); // a tap opens that exact booking
     expect(mocks.notify).toHaveBeenCalledTimes(1);
     expect(mocks.notify.mock.calls[0][0]).toMatchObject({ event: "booking.cancelled", audience: "CUSTOMER", template: "cancellation", subjectId: "a1", recipient: "riya@example.com", businessId: "biz1", payload: { businessName: "Sunrise Clinic" } });
   });

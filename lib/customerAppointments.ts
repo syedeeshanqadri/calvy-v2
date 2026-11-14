@@ -135,7 +135,7 @@ export async function rescheduleByCustomer(verifiedEmail: string, id: string, da
   sendPushToBusiness(a.businessId, {
     title: "Appointment rescheduled by the customer",
     body: `${shortName(a.client.name)} · ${a.service.name} · now ${dateLabel} ${timeLabel}`,
-    url: "/dashboard/appointments", tag: "customer-reschedule",
+    url: `/dashboard/appointments?open=${a.id}`, tag: "customer-reschedule",
   }, { kind: "booking_rescheduled", staffId: a.staffId, subjectId: a.id, version: start.getTime() }).catch(() => {});
   // Customer: email with the new time (once per move, so a double click is still one email).
   try {
@@ -175,7 +175,7 @@ export async function cancelByCustomer(verifiedEmail: string, id: string): Promi
   sendPushToBusiness(a.businessId, {
     title: "Appointment cancelled by the customer",
     body: `${shortName(a.client.name)} · ${a.service.name} · ${formatDateLabel(a.date, tz)} ${formatTimeLabel(a.date, tz)}`,
-    url: "/dashboard/appointments", tag: "customer-cancel",
+    url: `/dashboard/appointments?open=${a.id}`, tag: "customer-cancel",
   }, { kind: "booking_cancelled", staffId: a.staffId, subjectId: a.id, version: "cancelled" }).catch(() => {});
   try {
     const n = noticeFrom(a);

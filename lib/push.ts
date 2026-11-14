@@ -25,6 +25,8 @@ export interface PushPayload {
   icon?: string;
   url?: string;
   tag?: string;
+  /** Which alert this is (booking_new, queue...): the app groups repeated alerts of one kind into "3 new bookings". */
+  kind?: string;
 }
 
 export type PushOutcome = { kind: "sent" } | { kind: "expired" } | { kind: "retry" | "permanent"; error: string };

@@ -3,12 +3,14 @@ import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { Bell, X } from "lucide-react";
 import { requestPushPermission } from "./PushSetup";
-import { getAppRegistration } from "@/lib/pwa";
+import { getAppRegistration, pushBlock } from "@/lib/pwa";
+import { IosInstallSteps } from "./IosInstallSteps";
 
 /** One compact line on the Today page only: shown until dismissed or until phone alerts are on for THIS device. */
 export function PushBanner() {
   const pathname = usePathname();
   const [visible, setVisible] = useState(false);
+  const [steps, setSteps] = useState(false);
   const onToday = pathname === "/dashboard";
 
   useEffect(() => {
@@ -37,10 +39,14 @@ export function PushBanner() {
   }
 
   async function enable() {
+    // iPhone in a Safari tab: web push cannot work yet, so show the install steps instead of a permission prompt that would fail.
+    if (pushBlock() === "ios-install") { setSteps(true); return; }
     const r = await requestPushPermission();
     if (r.ok) dismiss();
     else if (r.error) alert(r.error);
   }
+
+  if (steps) return <div className="mx-4 sm:mx-6 mt-2"><IosInstallSteps /></div>;
 
   return (
     <div className="mx-4 sm:mx-6 mt-2 flex items-center gap-2 bg-sky-50 border border-sky-200 rounded-xl pl-3 pr-2 py-1.5">

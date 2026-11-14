@@ -68,31 +68,81 @@ self.addEventListener("fetch", (event) => {
 // ─── Push ─────────────────────────────────────────────────────────────────────
 // Only a path inside the app (/dashboard...) is ever opened from an alert: nothing else, and never another site.
 const safePath = (u) => (typeof u === "string" && (u === "/dashboard" || u.startsWith("/dashboard/") || u.startsWith("/dashboard?")) ? u : "/dashboard");
+
+// Repeated alerts of one kind share a tag, so they REPLACE each other instead of piling up, and read "3 new bookings".
+const GROUP_NOUN = {
+  booking_new: "new bookings",
+  booking_cancelled: "cancellations",
+  booking_rescheduled: "rescheduled bookings",
+  queue: "queue updates",
+  payment: "payments received",
+  reminder: "reminders",
+};
+const listPath = (url) => safePath(url).split("?")[0];
+
+// The app icon badge counts the alerts still on the lock screen (what has not been looked at yet). Where the Badging API is missing nothing happens.
+const updateBadge = async () => {
+  try {
+    const list = self.registration.getNotifications ? await self.registration.getNotifications() : [];
+    const n = list.reduce((sum, x) => sum + ((x.data && x.data.count) || 1), 0);
+    if (n > 0 && self.navigator && self.navigator.setAppBadge) await self.navigator.setAppBadge(n);
+    else if (self.navigator && self.navigator.clearAppBadge) await self.navigator.clearAppBadge();
+  } catch (e) { /* no badge support: fine */ }
+};
+
 self.addEventListener("push", (event) => {
   let data = {};
   try { if (event.data) data = event.data.json(); } catch (e) { /* not JSON: show the default */ }
-  const title = typeof data.title === "string" && data.title ? data.title : "Calvy";
-  const body = typeof data.body === "string" ? data.body : "You have a new notification";
-  const url = safePath(data.url);
-  event.waitUntil(
-    self.registration.showNotification(title, {
+  let title = typeof data.title === "string" && data.title ? data.title : "Calvy";
+  let body = typeof data.body === "string" ? data.body : "You have a new notification";
+  let url = safePath(data.url);
+  const tag = typeof data.tag === "string" ? data.tag : "calvy";
+  const noun = typeof data.kind === "string" ? GROUP_NOUN[data.kind] : undefined;
+
+  event.waitUntil((async () => {
+    let count = 1;
+    if (noun && self.registration.getNotifications) {
+      const same = await self.registration.getNotifications({ tag });
+      const previous = same[0] && same[0].data ? same[0].data.count || 1 : 0;
+      count = previous + 1;
+      if (count > 1) { body = "Latest: " + body; title = count + " " + noun; url = listPath(url); }
+    }
+    await self.registration.showNotification(title, {
       body,
       icon: "/icons/icon-192.png",
       badge: "/icons/icon-192.png",
-      tag: typeof data.tag === "string" ? data.tag : "calvy",
-      data: { url },
-    }),
-  );
+      tag,
+      renotify: true, // a replacing alert still buzzes once
+      data: { url, count },
+    });
+    await updateBadge();
+  })());
 });
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
   const url = safePath(event.notification.data && event.notification.data.url);
-  event.waitUntil(
-    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((list) => {
-      const existing = list.find((c) => c.url.startsWith(self.location.origin));
-      if (existing) { existing.focus(); return existing.navigate(url); }
-      return self.clients.openWindow(url);
-    }),
-  );
+  event.waitUntil((async () => {
+    const list = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+    const existing = list.find((c) => c.url.startsWith(self.location.origin + "/dashboard"));
+    if (existing) { await existing.focus(); await existing.navigate(url); } else { await self.clients.openWindow(url); }
+    await updateBadge();
+  })());
+});
+
+self.addEventListener("notificationclose", (event) => { event.waitUntil(updateBadge()); });
+
+// The browser replaced or dropped this device's push subscription: register the new one for the signed-in person. If that is not
+// possible from here, the app does it the next time it is opened.
+self.addEventListener("pushsubscriptionchange", (event) => {
+  event.waitUntil((async () => {
+    try {
+      const old = event.oldSubscription;
+      const key = old && old.options && old.options.applicationServerKey;
+      if (!key) return;
+      const sub = await self.registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key });
+      const json = sub.toJSON();
+      await fetch("/api/push/subscribe", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ endpoint: json.endpoint, keys: json.keys }) });
+    } catch (e) { /* the app re-subscribes on its next open */ }
+  })());
 });

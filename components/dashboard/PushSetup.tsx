@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
-import { getAppRegistration, registerAppWorker, removeLegacyWorkers, subscribeAndSync, syncSubscription, urlBase64ToUint8Array } from "@/lib/pwa";
+import { useSession, getSession } from "next-auth/react";
+import { clearPushEnabled, clearSeenAlerts, ensurePushSubscription, getAppRegistration, markPushEnabled, registerAppWorker, removeLegacyWorkers, subscribeAndSync, syncSubscription, urlBase64ToUint8Array } from "@/lib/pwa";
 
 /**
  * Registers the business app's service worker (scope /dashboard only) and shows "New version available" when an update is waiting.
@@ -9,6 +10,7 @@ import { getAppRegistration, registerAppWorker, removeLegacyWorkers, subscribeAn
  */
 export function PushSetup() {
   const [waiting, setWaiting] = useState<ServiceWorker | null>(null);
+  const userId = useSession().data?.user?.id;
 
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
@@ -22,7 +24,9 @@ export function PushSetup() {
       const { hadPush } = await removeLegacyWorkers();
       const reg = await registerAppWorker();
       if (cancelled) return;
-      if (hadPush && "Notification" in window && Notification.permission === "granted") void navigator.serviceWorker.ready.then(() => subscribeAndSync(reg));
+      // The first worker held this person's phone alerts: unregistering it dropped them, so subscribe again under the new one.
+      if (hadPush && "Notification" in window && Notification.permission === "granted") await navigator.serviceWorker.ready.then(() => subscribeAndSync(reg));
+      void clearSeenAlerts();
       if (reg.waiting && navigator.serviceWorker.controller) setWaiting(reg.waiting);
       reg.addEventListener("updatefound", () => {
         const w = reg.installing;
@@ -36,6 +40,15 @@ export function PushSetup() {
     })().catch(() => {});
     return () => { cancelled = true; navigator.serviceWorker.removeEventListener("controllerchange", onChange); };
   }, []);
+
+  // Every time the app opens or returns to the front: the alerts have been seen, and this person's subscription is checked (silently re-created if missing or expired).
+  useEffect(() => {
+    if (!userId) return;
+    const open = () => { if (document.visibilityState === "visible") { void clearSeenAlerts(); void ensurePushSubscription(userId); } };
+    open();
+    document.addEventListener("visibilitychange", open);
+    return () => document.removeEventListener("visibilitychange", open);
+  }, [userId]);
 
   if (!waiting) return null;
   return (
@@ -90,6 +103,8 @@ export async function requestPushPermission(): Promise<PushResult> {
     }
     const saved = await syncSubscription(sub);
     if (!saved) return { ok: false, error: "Subscribed on device but the server didn't save it. Check your connection and try again." };
+    const me = await getSession();
+    if (me?.user?.id) markPushEnabled(me.user.id);
     return { ok: true };
   } catch (e) {
     return { ok: false, error: `Couldn't subscribe: ${(e as Error).message}` };
@@ -105,6 +120,7 @@ export async function disablePush(): Promise<boolean> {
       await fetch("/api/push/subscribe", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ endpoint: sub.endpoint }) });
       await sub.unsubscribe();
     }
+    clearPushEnabled();
     return true;
   } catch {
     return false;
@@ -117,6 +133,7 @@ export async function releaseThisDevice(): Promise<void> {
     if (!("serviceWorker" in navigator)) return;
     const reg = await getAppRegistration();
     const sub = await reg?.pushManager.getSubscription();
+    clearPushEnabled(); // signing out: the next person here starts with alerts off
     if (!sub) return; // nothing registered here; never send an "all devices" delete
     await fetch("/api/push/subscribe", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ endpoint: sub.endpoint }) });
     await sub.unsubscribe();
