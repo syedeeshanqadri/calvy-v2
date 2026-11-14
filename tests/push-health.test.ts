@@ -41,7 +41,7 @@ describe("VAPID subject: Apple answers BadJwtToken for a malformed one, Chrome d
 });
 
 describe("push sends cannot hang a request", () => {
-  beforeEach(() => pair.sendNotification.mockReset());
+  beforeEach(() => { pair.sendNotification.mockReset(); });
   it("every send has a timeout and no keep-alive agent (one hung send held /api/bookings for 300s)", async () => {
     pair.sendNotification.mockResolvedValue({ statusCode: 201 });
     const out = await deliverPush({ endpoint: "https://web.push.apple.com/x", p256dh: "p", auth: "a" }, { title: "t", body: "b" });
