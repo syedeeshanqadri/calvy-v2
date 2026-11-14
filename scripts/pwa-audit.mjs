@@ -131,16 +131,18 @@ function inPage(opts) {
   const hiddenControl = (el) => { const r = el.getBoundingClientRect(); const s = getComputedStyle(el); return r.width <= 2 || r.height <= 2 || (s.clip && s.clip !== "auto" && /rect\(0/.test(s.clip)) || /inset\(50%\)/.test(s.clipPath || ""); }; // sr-only toggles, skip links
   const interactive = [...(scopeEl === document.body ? document : scopeEl).querySelectorAll('a[href],button,input:not([type=hidden]),select,textarea,[role="button"],[role="tab"],summary')].filter((el) => !dev(el) && visible(el) && !hiddenControl(el));
 
-  // 2. controls covered by a fixed bar (what is on screen right now)
-  if (opts.page && bars.length) {
+  // 2. controls that stay covered by a fixed bar: the header when scrolled to the top, the bottom bar when scrolled to the very end
+  // (content scrolling under a sticky bar in between is normal, so only the two resting positions count)
+  const restBars = bars.filter((b) => { const r = b.getBoundingClientRect(); return opts.bottom ? r.bottom >= vh - 1 : r.top <= 1; });
+  if (opts.page && restBars.length) {
     const covered = [];
     for (const el of interactive) {
-      if (bars.some((b) => b.contains(el))) continue;
+      if (restBars.some((b) => b.contains(el))) continue;
       const r = el.getBoundingClientRect(); if (r.bottom < 0 || r.top > vh || r.right < 0 || r.left > vw) continue;
       const cx = Math.min(vw - 1, Math.max(0, r.left + r.width / 2)), cy = Math.min(vh - 1, Math.max(0, r.top + r.height / 2));
       const top = document.elementFromPoint(cx, cy);
       if (!top || top === el || el.contains(top) || top.contains(el)) continue;
-      const bar = bars.find((b) => b.contains(top));
+      const bar = restBars.find((b) => b.contains(top));
       if (bar) covered.push(`${sel(el)} under ${sel(bar)}`);
     }
     if (covered.length) add("covered-by-bar", `${covered.length}: ${covered.slice(0, 3).join("; ")}`);
