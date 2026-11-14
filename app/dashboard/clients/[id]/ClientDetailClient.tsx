@@ -80,18 +80,18 @@ export function ClientDetailClient({ client }: { client: ClientData }) {
           <Card>
             <CardContent className="pt-6 flex flex-col items-center text-center">
               <Avatar name={client.name} color="#0284c7" size="xl" />
-              <h2 className="font-syne font-bold text-lg mt-4 mb-0.5">{client.name}</h2>
+              <h2 className="font-syne font-bold text-lg mt-4 mb-0.5 break-words">{client.name}</h2>
               {isVip && (
                 <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-1 rounded-full mb-2">
                   <Star size={10} fill="currentColor" /> VIP {Cli1}
                 </span>
               )}
               <div className="space-y-2 w-full mt-4 text-left">
-                {client.email && <a href={`mailto:${client.email}`} className="flex items-center gap-2.5 text-sm text-[#3d3d4d] hover:text-accent transition-colors">
+                {client.email && <a href={`mailto:${client.email}`} className="flex items-center gap-2.5 text-sm text-[#3d3d4d] hover:text-accent transition-colors min-w-0 break-all">
                   <Mail size={14} className="text-[#6b6b80] flex-shrink-0" /> {client.email}
                 </a>}
                 {client.phone && (
-                  <a href={`tel:${client.phone}`} className="flex items-center gap-2.5 text-sm text-[#3d3d4d] hover:text-accent transition-colors">
+                  <a href={`tel:${client.phone}`} className="flex items-center gap-2.5 text-sm text-[#3d3d4d] hover:text-accent transition-colors min-w-0 break-all">
                     <Phone size={14} className="text-[#6b6b80] flex-shrink-0" /> {client.phone}
                   </a>
                 )}

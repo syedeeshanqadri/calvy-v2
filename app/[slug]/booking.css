@@ -130,6 +130,10 @@ textarea.bk-input { resize: none; }
 .bk-nav-total + .st-btn { margin-left: 0; }
 .bk-nav .bk-link { background: none; border: 0; font: inherit; font-weight: 600; color: var(--muted); display: inline-flex; align-items: center; gap: 4px; min-height: 48px; padding: 0 8px; cursor: pointer; }
 .bk-nav .st-btn:disabled { opacity: .45; cursor: not-allowed; }
+/* The last option must never end up behind the sticky bar: keyboard focus and scrollIntoView keep it clear, and on short screens
+   (phones in landscape) the bar stops being sticky so it cannot eat half the viewport. */
+.bk-opt, .bk-slot, .bk-link { scroll-margin-bottom: 120px; }
+@media (max-height: 520px) { .bk-nav { position: static; margin: 20px 0 0; box-shadow: none; } }
 @media (min-width: 900px) { .bk-nav { position: static; margin: 28px 0 0; padding: 20px 0 0; background: transparent; border-top: 1px solid var(--line); box-shadow: none; } .bk-nav-total { display: none; } .bk-nav-total + .st-btn { margin-left: auto; } }
 
 /* Success */

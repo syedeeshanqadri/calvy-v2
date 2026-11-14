@@ -320,3 +320,16 @@ describe("touch devices: 16px inputs and 44px targets, everywhere", () => {
     expect(readFileSync("components/site/Brand.tsx", "utf8")).toContain("w-11 h-11 rounded-full");
   });
 });
+
+describe("notifications log and booking pages on phones", () => {
+  it("the log renders one card per message on phones and the table only from md up (no sideways scrolling)", () => {
+    const src = readFileSync("components/notifications/LogTable.tsx", "utf8");
+    expect(src).toMatch(/<ul className="md:hidden[^"]*" data-testid="log-cards">/);
+    expect(src).toMatch(/<div className="hidden md:block overflow-x-auto">/);
+  });
+  it("the sticky Continue bar never hides the last option: scroll margin, and not sticky on short screens", () => {
+    const css = readFileSync("app/[slug]/booking.css", "utf8");
+    expect(css).toMatch(/\.bk-opt[^{]*\{ scroll-margin-bottom: 120px; \}/);
+    expect(css).toMatch(/@media \(max-height: 520px\) \{ \.bk-nav \{ position: static/);
+  });
+});
