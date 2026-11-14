@@ -1,4 +1,4 @@
-// Before / after counts per issue type.   node scripts/pwa-audit-compare.mjs <AUDIT_OUT>
+// Before / after counts per issue type.   node scripts/pwa-audit-compare.mjs <AUDIT_OUT> [beforePhase=before] [afterPhase=after]
 // "checks" = individual screenshots (route x viewport x state) that hit the issue; "routes" = distinct routes/states affected.
 import fs from "node:fs";
 import path from "node:path";
@@ -20,7 +20,8 @@ const tally = (rows) => {
   }
   return t;
 };
-const before = load("before"), after = load("after");
+const [beforePhase, afterPhase] = [process.argv[3] ?? "before", process.argv[4] ?? "after"];
+const before = load(beforePhase), after = load(afterPhase);
 const b = tally(before), a = tally(after);
 const types = [...new Set([...b.keys(), ...a.keys()])].sort((x, y) => (b.get(y)?.checks ?? 0) - (b.get(x)?.checks ?? 0));
 const pad = (s, n) => String(s).padEnd(n);
@@ -34,5 +35,5 @@ const lines = [
   "## Still open after the fixes (routes)",
   ...types.filter((t) => a.get(t)).flatMap((t) => [`- ${t}: ${[...a.get(t).routes].slice(0, 8).join(", ")}${a.get(t).routes.size > 8 ? ` (+${a.get(t).routes.size - 8} more)` : ""}`]),
 ];
-fs.writeFileSync(path.join(OUT, "compare.md"), lines.join("\n"));
+fs.writeFileSync(path.join(OUT, `compare-${beforePhase}-vs-${afterPhase}.md`), lines.join("\n"));
 console.log(lines.join("\n"));
