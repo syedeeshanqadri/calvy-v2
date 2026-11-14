@@ -398,3 +398,9 @@ describe("every dialog's action row is pinned on phones", () => {
     for (const [f, min] of files) expect((readFileSync(f, "utf8").match(/className="sheet-actions /g) ?? []).length, f).toBeGreaterThanOrEqual(min);
   });
 });
+
+describe("pinned dialog actions also on short screens (phone in landscape)", () => {
+  it("the sticky rule applies under 768px wide OR under 520px tall", () => {
+    expect(readFileSync("app/globals.css", "utf8")).toContain("@media (max-width: 767px), (max-height: 520px)");
+  });
+});

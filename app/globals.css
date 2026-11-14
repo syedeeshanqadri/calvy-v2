@@ -87,7 +87,7 @@ body {
 
 /* Dialogs on phones: the action row at the end of a form inside a Modal stays pinned at the bottom of the sheet (above the keyboard).
    Modal's own `footer` prop is the explicit way; .sheet-actions marks a row that is not the last child of a <form>. */
-@media (max-width: 767px) {
+@media (max-width: 767px), (max-height: 520px) {
   /* the bar is the last thing in the sheet: no bottom padding under it, so it sits exactly on the bottom edge (or on the keyboard) */
   .sheet-body:has(form > :last-child:has(button[type="submit"])),
   .sheet-body:has(.sheet-actions) { padding-bottom: 0; }
@@ -96,4 +96,9 @@ body {
     position: sticky; bottom: 0; z-index: 5; background: #fff; border-top: 1px solid #f0ede8;
     margin: 0.75rem -1rem 0; padding: 0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom));
   }
+}
+/* Short wide screens (phone in landscape) keep the centered card, whose body padding is 1.5rem */
+@media (min-width: 768px) and (max-height: 520px) {
+  .sheet-body form > :last-child:has(button[type="submit"]),
+  .sheet-body .sheet-actions { margin-left: -1.5rem; margin-right: -1.5rem; padding-left: 1.5rem; padding-right: 1.5rem; }
 }
