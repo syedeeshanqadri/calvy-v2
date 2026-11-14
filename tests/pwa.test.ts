@@ -154,7 +154,8 @@ describe("service worker: push", () => {
   it("shows the alert and opens only a path inside the app", async () => {
     const sw = loadSw();
     await sw.fire("push", sw.waitEvent({ data: { json: () => ({ title: "New booking", body: "Riya K. · Haircut · 3:30 pm", url: "/dashboard/appointments", tag: "t1" }) } }));
-    expect(sw.calls.shown[0]).toMatchObject({ title: "New booking", options: { body: "Riya K. · Haircut · 3:30 pm", tag: "t1", data: { url: "/dashboard/appointments" } } });
+    expect(sw.calls.shown[0]).toMatchObject({ title: "New booking", options: { body: "Riya K. · Haircut · 3:30 pm", data: { url: "/dashboard/appointments" } } });
+    expect(sw.calls.shown[0].options.tag).toMatch(/^t1:\d+$/); // unique per event: never silently replaces an earlier alert
     await sw.fire("push", sw.waitEvent({ data: { json: () => ({ title: "x", body: "y", url: "https://evil.example/phish" }) } }));
     expect(sw.calls.shown[1].options.data.url).toBe("/dashboard");
     await sw.fire("push", sw.waitEvent({ data: { json: () => ({ title: "x", body: "y", url: "/my/bookings" }) } }));

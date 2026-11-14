@@ -3,7 +3,10 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { disablePush, reenablePush, requestPushPermission } from "@/components/dashboard/PushSetup";
-import { getAppRegistration, pushBlock, pushRegistered, type PushBlock } from "@/lib/pwa";
+import { getAppRegistration, isStandalone, pushBlock, pushStatus, subscriptionKey, type PushBlock, type PushStatus } from "@/lib/pwa";
+import { detectPlatform, fingerprint, type ChecklistFacts } from "@/lib/pushChecklist";
+import { PushChecklist } from "@/components/dashboard/PushChecklist";
+import { SoundSettings } from "@/components/dashboard/SoundSettings";
 import { IosInstallSteps } from "@/components/dashboard/IosInstallSteps";
 
 type Prefs = Record<string, boolean>;
@@ -57,6 +60,7 @@ export function AlertsClient({ offered, configured }: { offered: { field: string
   const [here, setHere] = useState(false);
   const [block, setBlock] = useState<PushBlock>(null);
   const [testing, setTesting] = useState(false);
+  const [facts, setFacts] = useState<ChecklistFacts | null>(null);
   const [needsReenable, setNeedsReenable] = useState(false); // this browser still holds a subscription the server no longer has
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
@@ -70,7 +74,19 @@ export function AlertsClient({ offered, configured }: { offered: { field: string
       const reg = await getAppRegistration();
       const sub = await reg?.pushManager.getSubscription();
       setHere(!!sub);
-      setNeedsReenable(!!sub && !(await pushRegistered(sub.endpoint)));
+      const status: PushStatus | null = sub ? await pushStatus(sub.endpoint) : null;
+      setNeedsReenable(!!sub && !!status && !status.registered);
+      const buildKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+      const made = sub ? subscriptionKey(sub) : null;
+      setFacts({
+        platform: detectPlatform(navigator.userAgent, navigator.platform, navigator.maxTouchPoints),
+        permission: typeof Notification === "undefined" ? "unsupported" : Notification.permission,
+        standalone: isStandalone(),
+        subscription: sub ? { endpointKnown: true, keyFingerprint: made ? fingerprint(made) : null } : null,
+        buildKeyFingerprint: buildKey ? fingerprint(buildKey) : null,
+        server: status,
+        now: new Date(),
+      });
     } catch { setHere(false); }
   }
   useEffect(() => { void load(); }, []);
@@ -96,8 +112,9 @@ export function AlertsClient({ offered, configured }: { offered: { field: string
       if (!sub) { setError("This device is not subscribed. Turn phone alerts on first."); return; }
       const r = await fetch("/api/push/test", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ endpoint: sub.endpoint }) });
       const d = await r.json().catch(() => ({}));
-      if (r.ok) setMsg("Test sent. It should appear in a few seconds.");
+      if (r.ok) setMsg(`Delivered to the push service (${d.status}) in ${d.ms} ms via ${d.host}. It should appear on this device within a few seconds. If it does not, check the steps below.`);
       else setError(d.error ?? "The test did not go through.");
+      await load();
     } catch { setError("We could not reach the server. Check your connection."); }
     finally { setTesting(false); }
   }
@@ -144,6 +161,18 @@ export function AlertsClient({ offered, configured }: { offered: { field: string
           {msg && <p role="status" className="text-sm text-green-700">{msg}</p>}
           {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
         </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader><CardTitle>Setup checklist</CardTitle></CardHeader>
+        <CardContent>
+          {facts ? <PushChecklist facts={facts} /> : <p className="text-sm text-[#6b6b80]">Checking this device…</p>}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader><CardTitle>Sound while the app is open</CardTitle></CardHeader>
+        <CardContent><SoundSettings /></CardContent>
       </Card>
 
       <Card>

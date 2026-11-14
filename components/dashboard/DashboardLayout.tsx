@@ -9,6 +9,7 @@ import { Header } from "./Header";
 import { TrialBanner } from "./TrialBanner";
 import { BottomNav } from "./BottomNav";
 import { PushSetup } from "./PushSetup";
+import { AlertCenter } from "./AlertCenter";
 import { PushBanner } from "./PushBanner";
 import { InstallPrompt } from "./InstallPrompt";
 import { cn } from "@/lib/utils";
@@ -66,6 +67,7 @@ export function DashboardLayout({ children, title, subtitle }: DashboardLayoutPr
       {/* Mobile bottom nav */}
       <BottomNav />
       <PushSetup />
+      <AlertCenter />
     </div>
   );
 }

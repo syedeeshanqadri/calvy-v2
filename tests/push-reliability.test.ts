@@ -5,12 +5,13 @@ import { NextRequest } from "next/server";
 
 // ── the worker (public/app-sw.js) in a sandbox with a fake notification list and badge ───────────────────────────────────
 type Listener = (e: any) => void;
-function loadSw() {
+function loadSw(opts: { windows?: { visibilityState: string }[]; fetchOk?: boolean } = {}) {
   const listeners: Record<string, Listener[]> = {};
   const shown: { title: string; options: any }[] = [];
   const badge: (number | "clear")[] = [];
   const subscribed: unknown[] = [];
-  const posts: { url: string; body: string }[] = [];
+  const posts: { url: string; body: string; method?: string }[] = [];
+  const forwarded: unknown[] = [];
   const opened: string[] = [];
   const nav: string[] = [];
   const self: any = {
@@ -20,7 +21,7 @@ function loadSw() {
     navigator: { setAppBadge: async (n: number) => { badge.push(n); }, clearAppBadge: async () => { badge.push("clear"); } },
     clients: {
       claim: async () => {},
-      matchAll: async () => [{ url: "https://app.example/dashboard", focus: async () => {}, navigate: async (u: string) => { nav.push(u); } }],
+      matchAll: async () => (opts.windows ?? [{ visibilityState: "hidden" }]).map((w) => ({ url: "https://app.example/dashboard", visibilityState: w.visibilityState, postMessage: (m: unknown) => { forwarded.push(m); }, focus: async () => {}, navigate: async (u: string) => { nav.push(u); } })),
       openWindow: async (u: string) => { opened.push(u); },
     },
     registration: {
@@ -33,43 +34,80 @@ function loadSw() {
       pushManager: { subscribe: async (o: unknown) => { subscribed.push(o); return { toJSON: () => ({ endpoint: "https://push.example/new", keys: { p256dh: "p", auth: "a" } }) }; } },
     },
   };
-  const ctx = vm.createContext({ self, caches: { keys: async () => [], has: async () => false, delete: async () => true, open: async () => ({ addAll: async () => {}, put: async () => {} }), match: async () => undefined }, URL, Response, Request, fetch: async (u: string, init: RequestInit) => { posts.push({ url: u, body: String(init?.body) }); return new Response("{}"); } });
+  const ctx = vm.createContext({ self, caches: { keys: async () => [], has: async () => false, delete: async () => true, open: async () => ({ addAll: async () => {}, put: async () => {} }), match: async () => undefined }, URL, Response, Request, fetch: async (u: string, init: RequestInit) => { posts.push({ url: u, body: String(init?.body), method: init?.method }); return new Response("{}", { status: opts.fetchOk === false ? 500 : 200 }); } });
   vm.runInContext(readFileSync("public/app-sw.js", "utf8"), ctx);
   const fire = async (type: string, event: any) => { for (const fn of listeners[type] ?? []) fn(event); await Promise.all(event.__waits ?? []); };
   const ev = (extra: Record<string, unknown> = {}) => { const e: any = { __waits: [] as Promise<unknown>[], waitUntil: (p: Promise<unknown>) => e.__waits.push(p), ...extra }; return e; };
   const push = (data: object) => fire("push", ev({ data: { json: () => data } }));
-  return { fire, ev, push, shown, badge, subscribed, posts, opened, nav, listeners };
+  return { fire, ev, push, shown, badge, subscribed, posts, opened, nav, listeners, forwarded };
 }
 
-describe("alerts: grouped, replacing, with an app badge", () => {
-  it("repeated alerts of one kind replace each other and read '3 new bookings' (no pile-up)", async () => {
+describe("alerts you cannot miss: one per booking, persistent, loud, with actions and a badge", () => {
+  const booking = (id: string, extra: object = {}) => ({ title: "New booking received", body: `Riya K. · Haircut · ${id}`, tag: "new-booking", kind: "booking_new", url: `/dashboard/appointments?open=${id}`, ts: 1_700_000_000_000, ...extra });
+  it("every booking is its own notification: a new one never silently replaces an earlier one, and each one renotifies", async () => {
     const sw = loadSw();
-    const base = { title: "New booking received", tag: "new-booking", kind: "booking_new" };
-    await sw.push({ ...base, body: "Riya K. · Haircut · 3:30 pm", url: "/dashboard/appointments?open=a1" });
-    expect(sw.shown).toHaveLength(1);
-    expect(sw.shown[0]).toMatchObject({ title: "New booking received", options: { data: { url: "/dashboard/appointments?open=a1", count: 1 }, renotify: true } });
-    await sw.push({ ...base, body: "Sam P. · Colour · 4:00 pm", url: "/dashboard/appointments?open=a2" });
-    await sw.push({ ...base, body: "Lena O. · Cut · 5:00 pm", url: "/dashboard/appointments?open=a3" });
-    expect(sw.shown).toHaveLength(1); // one alert, not three
-    expect(sw.shown[0].title).toBe("3 new bookings");
-    expect(sw.shown[0].options.body).toBe("Latest: Lena O. · Cut · 5:00 pm");
-    expect(sw.shown[0].options.data.url).toBe("/dashboard/appointments"); // several: the list; one: that exact booking
+    await sw.push(booking("a1"));
+    await sw.push(booking("a2"));
+    await sw.push(booking("a3"));
+    expect(sw.shown).toHaveLength(3);
+    expect(new Set(sw.shown.map((n) => n.options.tag)).size).toBe(3);
+    expect(sw.shown[0].options.tag).toBe("new-booking:a1");
+    for (const n of sw.shown) expect(n.options.renotify).toBe(true);
+    await sw.push(booking("a2")); // the SAME booking again replaces itself (no duplicate)
+    expect(sw.shown).toHaveLength(3);
   });
-  it("different kinds do not merge; the badge is the number of unseen alerts", async () => {
+  it("closed or locked: requireInteraction, not silent, vibration pattern, badge, icon, timestamp", async () => {
+    const sw = loadSw({ windows: [] });
+    await sw.push(booking("a1"));
+    expect(sw.shown[0].options).toMatchObject({ requireInteraction: true, silent: false, vibrate: [300, 100, 300, 100, 300], badge: "/icons/icon-192.png", icon: "/icons/icon-192.png", timestamp: 1_700_000_000_000 });
+    expect(sw.forwarded).toEqual([]);
+  });
+  it("offers Open and Mark arrived on a new booking, only Open elsewhere", async () => {
     const sw = loadSw();
-    await sw.push({ title: "New booking received", body: "x", tag: "new-booking", kind: "booking_new", url: "/dashboard/appointments?open=a1" });
-    await sw.push({ title: "New booking received", body: "y", tag: "new-booking", kind: "booking_new", url: "/dashboard/appointments?open=a2" });
+    await sw.push(booking("a1"));
+    await sw.push({ title: "Token moved", body: "x", tag: "q", kind: "queue", url: "/dashboard/queue" });
+    expect(sw.shown[0].options.actions).toEqual([{ action: "open", title: "Open" }, { action: "arrived", title: "Mark arrived" }]);
+    expect(sw.shown[1].options.actions).toEqual([{ action: "open", title: "Open" }]);
+  });
+  it("app open and in front: the alert is handed to the page (chime, vibration, card) and the system alert is silent", async () => {
+    const sw = loadSw({ windows: [{ visibilityState: "visible" }] });
+    await sw.push(booking("a1"));
+    expect(sw.forwarded).toEqual([{ type: "calvy-alert", alert: { title: "New booking received", body: "Riya K. · Haircut · a1", url: "/dashboard/appointments?open=a1", kind: "booking_new" } }]);
+    expect(sw.shown[0].options.silent).toBe(true);
+    expect(sw.shown[0].options.requireInteraction).toBe(true); // iOS needs a visible notification for every push
+  });
+  it("a hidden window does not count as 'open': the system alert makes its sound", async () => {
+    const sw = loadSw({ windows: [{ visibilityState: "hidden" }] });
+    await sw.push(booking("a1"));
+    expect(sw.shown[0].options.silent).toBe(false);
+    expect(sw.forwarded).toEqual([]);
+  });
+  it("the badge is the number of alerts still on the lock screen", async () => {
+    const sw = loadSw();
+    await sw.push(booking("a1"));
+    await sw.push(booking("a2"));
     await sw.push({ title: "Token moved", body: "z", tag: "customer-token-move", kind: "queue", url: "/dashboard/queue" });
-    expect(sw.shown.map((n) => n.title).sort()).toEqual(["2 new bookings", "Token moved"]);
-    expect(sw.badge.at(-1)).toBe(3); // 2 bookings + 1 queue update
+    expect(sw.badge.at(-1)).toBe(3);
   });
-  it("a tap opens the exact booking (the app opens a detail from ?open=) and the badge drops", async () => {
+  it("a tap on the alert opens that exact booking and the badge drops", async () => {
     const sw = loadSw();
-    await sw.push({ title: "New booking received", body: "x", tag: "new-booking", kind: "booking_new", url: "/dashboard/appointments?open=a1" });
-    sw.shown.length = 0; // the person tapped it: it is gone from the list
-    await sw.fire("notificationclick", sw.ev({ notification: { close: () => {}, data: { url: "/dashboard/appointments?open=a1" } } }));
+    await sw.push(booking("a1"));
+    sw.shown.length = 0;
+    await sw.fire("notificationclick", sw.ev({ notification: { close: () => {}, data: { url: "/dashboard/appointments?open=a1", appointmentId: "a1" } } }));
     expect(sw.nav).toEqual(["/dashboard/appointments?open=a1"]);
     expect(sw.badge.at(-1)).toBe("clear");
+  });
+  it("'Mark arrived' marks it from the alert without opening anything", async () => {
+    const sw = loadSw();
+    await sw.fire("notificationclick", sw.ev({ action: "arrived", notification: { close: () => {}, data: { url: "/dashboard/appointments?open=a1", appointmentId: "a1" } } }));
+    expect(sw.posts).toEqual([{ url: "/api/appointments/a1/arrived", body: "undefined", method: "POST" }]);
+    expect(sw.nav).toEqual([]);
+    expect(sw.opened).toEqual([]);
+  });
+  it("if 'Mark arrived' fails the booking opens, so nothing is lost", async () => {
+    const sw = loadSw({ fetchOk: false });
+    await sw.fire("notificationclick", sw.ev({ action: "arrived", notification: { close: () => {}, data: { url: "/dashboard/appointments?open=a1", appointmentId: "a1" } } }));
+    expect(sw.nav).toEqual(["/dashboard/appointments?open=a1"]);
   });
   it("a tap can only open the business app, whatever the payload says", async () => {
     const sw = loadSw();
@@ -212,7 +250,7 @@ describe("iPhone: install first", () => {
 // ── the test endpoint ────────────────────────────────────────────────────────────────────────────────────────────────────
 const m = vi.hoisted(() => ({ accessSession: vi.fn(), findUnique: vi.fn(), deleteMany: vi.fn(), deliverPush: vi.fn(), rateLimit: vi.fn(), configured: vi.fn() }));
 vi.mock("@/lib/access", () => ({ accessSession: m.accessSession }));
-vi.mock("@/lib/prisma", () => ({ prisma: { pushDevice: { findUnique: m.findUnique, deleteMany: m.deleteMany } } }));
+vi.mock("@/lib/prisma", () => ({ prisma: { pushDevice: { findUnique: m.findUnique, deleteMany: m.deleteMany, update: vi.fn(async () => ({})) } } }));
 vi.mock("@/lib/push", () => ({ deliverPush: m.deliverPush, isPushConfigured: m.configured }));
 vi.mock("@/lib/ratelimit", () => ({ rateLimit: m.rateLimit }));
 import { POST as testRoute } from "@/app/api/push/test/route";
@@ -310,7 +348,9 @@ describe("POST/GET /api/push/subscribe key check", () => {
     expect(src).toMatch(/normalizeKey\(applicationServerKey\) !== signing/);
     expect(src).toContain('code: "VAPID_MISMATCH"');
     expect(src).toContain("status: 409");
-    expect(src).toContain("registered: !!device && device.userId === session.access.userId");
+    expect(src).toContain("registered: mine");
+    expect(src).toContain("keyMatches:");
+    expect(src).toContain("lastPushAt:");
     void s;
   });
   it("the client sends the key it subscribed with, and the Alerts page offers 'Re-enable alerts on this device'", () => {

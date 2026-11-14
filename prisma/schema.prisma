@@ -391,6 +391,8 @@ model PushDevice {
   userAgent  String?
   /// First 6 + last 6 characters of the application server key this device subscribed with (never the whole key). Null = made before this was recorded.
   keyFp      String?
+  /// When the push service last accepted a message for this device (alert or test): the Phone alerts checklist shows it.
+  lastPushAt DateTime?
   createdAt  DateTime @default(now())
   lastSeenAt DateTime @default(now())
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)

@@ -94,7 +94,7 @@ export function reasonOf(err: unknown): string {
 export async function deliverPush(sub: { endpoint: string; p256dh: string; auth: string }, payload: PushPayload): Promise<PushOutcome> {
   if (!isPushConfigured()) return { kind: "permanent", error: "push not configured" };
   try {
-    const res = await webpush.sendNotification({ endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } }, JSON.stringify(payload), { TTL: 60 * 60 * 24, timeout: SEND_TIMEOUT_MS, agent: noKeepAlive });
+    const res = await webpush.sendNotification({ endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } }, JSON.stringify({ ts: Date.now(), ...payload }), { TTL: 60 * 60 * 24, timeout: SEND_TIMEOUT_MS, agent: noKeepAlive });
     return { kind: "sent", status: res.statusCode };
   } catch (err: unknown) {
     const status = (err as { statusCode?: number }).statusCode;

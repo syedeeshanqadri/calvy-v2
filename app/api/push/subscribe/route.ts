@@ -46,8 +46,17 @@ async function GET_handler(req: NextRequest) {
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const endpoint = req.nextUrl.searchParams.get("endpoint") ?? "";
   if (!endpoint || endpoint.length > 1000) return NextResponse.json({ error: "endpoint required" }, { status: 400 });
-  const device = await prisma.pushDevice.findUnique({ where: { endpoint }, select: { userId: true } });
-  return NextResponse.json({ registered: !!device && device.userId === session.access.userId });
+  const device = await prisma.pushDevice.findUnique({ where: { endpoint }, select: { userId: true, keyFp: true, lastPushAt: true, createdAt: true } });
+  const mine = !!device && device.userId === session.access.userId;
+  const signing = signingPublicKey();
+  return NextResponse.json({
+    registered: mine,
+    // The key this device subscribed with against the key the server signs with: equal = pushes can work.
+    deviceKeyFingerprint: mine ? device.keyFp : null,
+    serverKeyFingerprint: signing ? keyFingerprint(signing) : null,
+    keyMatches: mine && !!device.keyFp && !!signing && device.keyFp === keyFingerprint(signing),
+    lastPushAt: mine ? device.lastPushAt?.toISOString() ?? null : null,
+  }, { headers: { "Cache-Control": "no-store" } });
 }
 
 /** Turn push off for one device of the signed-in user. */

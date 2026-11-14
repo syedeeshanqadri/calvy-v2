@@ -102,6 +102,15 @@ export async function subscribeAndSync(reg: ServiceWorkerRegistration, opts: { f
   }
 }
 
+export interface PushStatus { registered: boolean; deviceKeyFingerprint: string | null; serverKeyFingerprint: string | null; keyMatches: boolean; lastPushAt: string | null }
+/** What the server knows about this device: registered, which key it used against the server's key, and the last accepted push. */
+export async function pushStatus(endpoint: string): Promise<PushStatus | null> {
+  try {
+    const r = await fetch(`/api/push/subscribe?endpoint=${encodeURIComponent(endpoint)}`, { cache: "no-store" });
+    return r.ok ? ((await r.json()) as PushStatus) : null;
+  } catch { return null; }
+}
+
 /** Does the server still have this device? False after the push service rejected or dropped it (the server removes it). */
 export async function pushRegistered(endpoint: string): Promise<boolean> {
   try {

@@ -45,3 +45,13 @@ Set them in **Vercel → Production** after the signing key exists (below), rede
 
 ## What still depends on the domain
 Everything above waits for the production domain: the manifest URL given to Bubblewrap, the assetlinks fingerprints, and the push keys (`NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`) in the Production environment.
+
+## Pre-launch: a dedicated, loud "New bookings" notification channel (Android)
+A web page cannot choose the sound of a push notification: on Android the sound belongs to the notification **channel**, and a channel's sound can only be set when the channel is created (users can change it later, the app cannot). So decide this **before the first Play Store release**.
+
+1. Turn on **notification delegation** in the TWA (Bubblewrap: `enableNotifications: true` in `twa-manifest.json`, then rebuild). Push messages for the origin are then shown by our app instead of Chrome's generic "Chrome" channel, which lets us own the channel.
+2. In the generated Android project create a channel before the first notification, for example `new_bookings` named **New bookings**: importance **HIGH** (heads-up, sound), vibration `[0, 300, 100, 300, 100, 300]`, lock-screen visibility public, and a **custom sound**: copy `public/sounds/new-booking.wav` (the same chime the open app plays) to `res/raw/new_booking.wav` and call `setSound(Uri.parse("android.resource://in.calvy.business/raw/new_booking"), AudioAttributes(USAGE_NOTIFICATION))`. Use a second, quieter channel for daily summaries and reminders so they never share the loud one.
+3. Test on a real phone with the app installed from the internal testing track: a new-booking push must play the chime with the screen locked and the phone on normal volume, and stay on screen until tapped (`requireInteraction`).
+4. Check Play's "notification permission" prompt on Android 13+: the app asks for it, so keep the existing "tap to turn on phone alerts" flow as the trigger.
+Until the TWA exists, Android uses Chrome's own channel: tell people to open Chrome notification settings → Calvy Business → Sound and Pop on screen (the checklist on Settings → Phone alerts says so).
+

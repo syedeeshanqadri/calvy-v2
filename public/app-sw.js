@@ -69,22 +69,16 @@ self.addEventListener("fetch", (event) => {
 // Only a path inside the app (/dashboard...) is ever opened from an alert: nothing else, and never another site.
 const safePath = (u) => (typeof u === "string" && (u === "/dashboard" || u.startsWith("/dashboard/") || u.startsWith("/dashboard?")) ? u : "/dashboard");
 
-// Repeated alerts of one kind share a tag, so they REPLACE each other instead of piling up, and read "3 new bookings".
-const GROUP_NOUN = {
-  booking_new: "new bookings",
-  booking_cancelled: "cancellations",
-  booking_rescheduled: "rescheduled bookings",
-  queue: "queue updates",
-  payment: "payments received",
-  reminder: "reminders",
-};
-const listPath = (url) => safePath(url).split("?")[0];
+// Every booking is its own alert: the tag is unique per booking, so a new booking never silently replaces an earlier one, and renotify makes
+// each one buzz/ring again. (Same booking again = same tag = replaced, which is right.)
+const OPEN_ID = /[?&]open=([^&#]+)/;
+const VIBRATE = [300, 100, 300, 100, 300];
 
 // The app icon badge counts the alerts still on the lock screen (what has not been looked at yet). Where the Badging API is missing nothing happens.
 const updateBadge = async () => {
   try {
     const list = self.registration.getNotifications ? await self.registration.getNotifications() : [];
-    const n = list.reduce((sum, x) => sum + ((x.data && x.data.count) || 1), 0);
+    const n = list.length;
     if (n > 0 && self.navigator && self.navigator.setAppBadge) await self.navigator.setAppBadge(n);
     else if (self.navigator && self.navigator.clearAppBadge) await self.navigator.clearAppBadge();
   } catch (e) { /* no badge support: fine */ }
@@ -93,41 +87,59 @@ const updateBadge = async () => {
 self.addEventListener("push", (event) => {
   let data = {};
   try { if (event.data) data = event.data.json(); } catch (e) { /* not JSON: show the default */ }
-  let title = typeof data.title === "string" && data.title ? data.title : "Calvy";
-  let body = typeof data.body === "string" ? data.body : "You have a new notification";
-  let url = safePath(data.url);
-  const tag = typeof data.tag === "string" ? data.tag : "calvy";
-  const noun = typeof data.kind === "string" ? GROUP_NOUN[data.kind] : undefined;
+  const title = typeof data.title === "string" && data.title ? data.title : "Calvy";
+  const body = typeof data.body === "string" ? data.body : "You have a new notification";
+  const url = safePath(data.url);
+  const kind = typeof data.kind === "string" ? data.kind : undefined;
+  const match = OPEN_ID.exec(url);
+  const appointmentId = match ? decodeURIComponent(match[1]) : null;
+  const base = typeof data.tag === "string" ? data.tag : "calvy";
+  const tag = base + ":" + (appointmentId || String(Date.now()));
+  const timestamp = typeof data.ts === "number" ? data.ts : Date.now();
 
   event.waitUntil((async () => {
-    let count = 1;
-    if (noun && self.registration.getNotifications) {
-      const same = await self.registration.getNotifications({ tag });
-      const previous = same[0] && same[0].data ? same[0].data.count || 1 : 0;
-      count = previous + 1;
-      if (count > 1) { body = "Latest: " + body; title = count + " " + noun; url = listPath(url); }
-    }
+    // If the app is open and in front, hand the alert to it (chime, vibration, card) and keep the system alert quiet: one sound, not two.
+    const wins = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+    const visible = wins.filter((w) => w.visibilityState === "visible");
+    visible.forEach((w) => w.postMessage({ type: "calvy-alert", alert: { title, body, url, kind } }));
     await self.registration.showNotification(title, {
       body,
       icon: "/icons/icon-192.png",
       badge: "/icons/icon-192.png",
       tag,
-      renotify: true, // a replacing alert still buzzes once
-      data: { url, count },
+      renotify: true,
+      requireInteraction: true, // stays until tapped, where the platform supports it
+      silent: visible.length > 0,
+      vibrate: VIBRATE,
+      timestamp,
+      actions: kind === "booking_new" && appointmentId ? [{ action: "open", title: "Open" }, { action: "arrived", title: "Mark arrived" }] : [{ action: "open", title: "Open" }],
+      data: { url, appointmentId },
     });
     await updateBadge();
   })());
 });
 
+const openOrFocus = async (url) => {
+  const list = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+  const existing = list.find((c) => c.url.startsWith(self.location.origin + "/dashboard"));
+  if (existing) { await existing.focus(); await existing.navigate(url); } else { await self.clients.openWindow(url); }
+};
+
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const url = safePath(event.notification.data && event.notification.data.url);
-  event.waitUntil((async () => {
-    const list = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
-    const existing = list.find((c) => c.url.startsWith(self.location.origin + "/dashboard"));
-    if (existing) { await existing.focus(); await existing.navigate(url); } else { await self.clients.openWindow(url); }
-    await updateBadge();
-  })());
+  const d = event.notification.data || {};
+  const url = safePath(d.url);
+  if (event.action === "arrived" && d.appointmentId) {
+    // "Mark arrived" straight from the alert; if that fails, open the booking so nothing is lost.
+    event.waitUntil((async () => {
+      let ok = false;
+      try { ok = (await fetch("/api/appointments/" + encodeURIComponent(d.appointmentId) + "/arrived", { method: "POST", credentials: "same-origin" })).ok; } catch (e) { /* offline */ }
+      if (!ok) await openOrFocus(url);
+      await updateBadge();
+    })());
+    return;
+  }
+  event.waitUntil(openOrFocus(url).then(updateBadge));
 });
 
 self.addEventListener("notificationclose", (event) => { event.waitUntil(updateBadge()); });

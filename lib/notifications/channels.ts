@@ -40,7 +40,10 @@ const sendPush: Channel = async (message, deviceId) => {
   const device = await prisma.pushDevice.findUnique({ where: { id: deviceId } });
   if (!device) return { kind: "skipped", error: "device removed" };
   const out = await deliverPush(device, { title: message.subject, body: message.text, url: message.push?.url, tag: message.push?.tag, kind: message.push?.kind });
-  if (out.kind === "sent") return { kind: "sent" };
+  if (out.kind === "sent") {
+    await prisma.pushDevice.update({ where: { id: device.id }, data: { lastPushAt: new Date() } }).catch(() => {});
+    return { kind: "sent" };
+  }
   if (out.kind === "expired" || out.kind === "rejected") {
     // The device can never receive this again: remove it, and say why in the delivery log (the person is told to re-enable on that device).
     await prisma.pushDevice.deleteMany({ where: { id: device.id } });

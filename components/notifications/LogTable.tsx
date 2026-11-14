@@ -12,7 +12,6 @@ const STATUS_STYLE: Record<string, { label: string; cls: string }> = {
   SENDING: { label: "Sending", cls: "bg-sky-50 text-sky-700" },
 };
 
-const when = (iso: string) => new Date(iso).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
 
 /**
  * Delivery log rows. `resendBase` is the API prefix (`/api/notifications/log` or the admin one);
@@ -68,7 +67,7 @@ export function LogTable({ rows, resendBase, businessNames }: { rows: LogRow[]; 
               {businessNames && <p className="text-xs text-[#6b6b80]">{r.businessId ? businessNames[r.businessId] ?? "Deleted business" : "Platform"}</p>}
               {reason && <p className="mt-1 text-xs text-[#6b6b80] break-words">{reason}</p>}
               <div className="mt-2 flex items-center justify-between gap-2 text-xs text-[#6b6b80]">
-                <span suppressHydrationWarning>{when(r.createdAt)}{r.attempts > 1 && shown === r.status ? ` · ${r.attempts} attempts` : ""}</span>
+                <span suppressHydrationWarning>{r.whenLabel}{r.attempts > 1 && shown === r.status ? ` · ${r.attempts} attempts` : ""}</span>
                 {resendButton(r, s)}
               </div>
             </li>
@@ -93,7 +92,7 @@ export function LogTable({ rows, resendBase, businessNames }: { rows: LogRow[]; 
               const { s, shown, style, reason } = renderRow(r);
               return (
                 <tr key={r.id} className="border-b border-[#f0ede8] align-top last:border-0">
-                  <td className="whitespace-nowrap py-2.5 pr-3 text-[#6b6b80]" suppressHydrationWarning>{when(r.createdAt)}</td>
+                  <td className="whitespace-nowrap py-2.5 pr-3 text-[#6b6b80]" suppressHydrationWarning>{r.whenLabel}</td>
                   {businessNames && <td className="py-2.5 pr-3">{r.businessId ? businessNames[r.businessId] ?? "Deleted business" : <span className="text-[#6b6b80]">Platform</span>}</td>}
                   <td className="py-2.5 pr-3">
                     <span className="text-[#0f0f1a]">{r.eventLabel}</span>

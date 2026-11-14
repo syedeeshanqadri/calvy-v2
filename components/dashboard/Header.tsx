@@ -1,11 +1,12 @@
 "use client";
 import { releaseThisDevice } from "@/components/dashboard/PushSetup";
 import { Bell, X, HelpCircle, LogOut, Calendar, CreditCard } from "lucide-react";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useSession, signOut } from "next-auth/react";
 import Link from "next/link";
 import { requestPushPermission } from "./PushSetup";
 import { Logo } from "@/components/ui/Logo";
+import { emitAlert } from "@/lib/alertEvents";
 
 interface Notification {
   id: string;
@@ -36,6 +37,7 @@ export function Header({ title, subtitle }: HeaderProps) {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
+  const seenIds = useRef<Set<string> | null>(null);
 
   const { data: session, update: updateSession } = useSession();
   const userName = session?.user?.name ?? "User";
@@ -58,6 +60,13 @@ export function Header({ title, subtitle }: HeaderProps) {
       const res = await fetch("/api/notifications");
       if (res.ok) {
         const data = await res.json();
+        // The first load only records what is already there; anything unread that appears later is a new event: chime + card.
+        const list: Notification[] = data.notifications ?? [];
+        if (seenIds.current) {
+          const fresh = list.filter((n) => !n.read && !seenIds.current!.has(n.id));
+          if (fresh.length) { const n = fresh[0]; emitAlert({ title: fresh.length > 1 ? `${fresh.length} new alerts` : n.title, body: fresh.length > 1 ? n.title : n.body, url: fresh.length > 1 ? "/dashboard/appointments" : n.url }); }
+        }
+        seenIds.current = new Set(list.map((n) => n.id));
         setNotifications(data.notifications ?? []);
         setUnreadCount(data.unreadCount ?? 0);
       }
@@ -66,10 +75,10 @@ export function Header({ title, subtitle }: HeaderProps) {
     }
   }, []);
 
-  // Fetch count on mount and poll every 30s
+  // Fetch count on mount and poll every 15s (a push forwards new events at once; this is the safety net)
   useEffect(() => {
     fetchNotifications();
-    const interval = setInterval(fetchNotifications, 30000);
+    const interval = setInterval(() => { if (document.visibilityState === "visible") void fetchNotifications(); }, 15000);
     return () => clearInterval(interval);
   }, [fetchNotifications]);
 

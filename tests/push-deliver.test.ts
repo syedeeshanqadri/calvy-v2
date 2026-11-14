@@ -22,7 +22,8 @@ describe("deliverPush", () => {
     expect(await deliverPush(sub, { title: "New booking", body: "Riya K." })).toEqual({ kind: "sent" });
     const [s, payload] = wp.sendNotification.mock.calls[0];
     expect(s).toEqual({ endpoint: sub.endpoint, keys: { p256dh: "p", auth: "a" } });
-    expect(JSON.parse(payload)).toEqual({ title: "New booking", body: "Riya K." });
+    expect(JSON.parse(payload)).toMatchObject({ title: "New booking", body: "Riya K." });
+    expect(typeof JSON.parse(payload).ts).toBe("number"); // shown as the notification time
   });
   it.each([[404], [410]])("%i means the browser dropped the subscription: expired, so the device is deleted", async (status) => {
     wp.sendNotification.mockImplementation(async () => { throw fail(status); });
