@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { readFileSync, existsSync } from "fs";
+import { readFileSync, existsSync, readdirSync } from "fs";
 import vm from "vm";
 import sharp from "sharp";
 import { NextRequest } from "next/server";
@@ -10,7 +10,9 @@ import { GET as assetlinksRoute } from "@/app/.well-known/assetlinks.json/route"
 
 type Listener = (e: any) => void;
 
-/** Run public/sw.js in a sandbox with a fake cache store, and return handles to drive it. */
+const SW_FILE = "public/app-sw.js";
+
+/** Run public/app-sw.js in a sandbox with a fake cache store, and return handles to drive it. */
 function loadSw(opts: { caches?: Record<string, Record<string, string>>; fetchImpl?: (req: Request) => Promise<Response> } = {}) {
   const listeners: Record<string, Listener[]> = {};
   const store = new Map<string, Map<string, Response>>();
@@ -41,7 +43,7 @@ function loadSw(opts: { caches?: Record<string, Record<string, string>>; fetchIm
     registration: { showNotification: async (title: string, options: any) => { calls.shown.push({ title, options }); } },
   };
   const ctx = vm.createContext({ self, caches: cacheApi, URL, Response, Request, fetch: async (r: Request) => { fetchLog.push(new URL(r.url).pathname); const res = await (opts.fetchImpl ?? (async () => new Response("net", { status: 200 })))(r); Object.defineProperty(res, "type", { value: "basic" }); return res; } });
-  vm.runInContext(readFileSync("public/sw.js", "utf8"), ctx);
+  vm.runInContext(readFileSync(SW_FILE, "utf8"), ctx);
 
   const fire = async (type: string, event: any) => { for (const fn of listeners[type] ?? []) fn(event); await Promise.all(event.__waits ?? []); };
   const fetchEvent = async (url: string, init: { method?: string; mode?: string } = {}) => {
@@ -112,7 +114,7 @@ describe("service worker: what it caches and what it never touches", () => {
   });
 
   it("the precache list holds only the offline page and icons: no page, no API", () => {
-    const src = readFileSync("public/sw.js", "utf8");
+    const src = readFileSync(SW_FILE, "utf8");
     const list = /const PRECACHE = \[([^\]]*)\]/.exec(src)![1];
     expect(src).toContain('const OFFLINE = "/offline.html"');
     expect(list).toContain("OFFLINE");
@@ -124,7 +126,7 @@ describe("service worker: purging what the first worker cached, and the update f
   it("on install it deletes EVERY old cache, including the legacy one that held signed-in dashboard pages", async () => {
     const sw = loadSw({ caches: { "calvy-v2": { "/dashboard": "<html>Riya Kapoor</html>", "/dashboard/clients": "<html>customers</html>" }, "other-old": { "/x": "y" } } });
     await sw.fire("install", sw.waitEvent());
-    expect([...sw.store.keys()]).toEqual(["calvy-static-v3"]);
+    expect([...sw.store.keys()]).toEqual(["calvy-app-v1"]);
     expect(await caches_has(sw, "calvy-v2")).toBe(false);
   });
   it("it takes over at once when it replaces the legacy worker (so that one cannot cache another page)", async () => {
@@ -140,9 +142,9 @@ describe("service worker: purging what the first worker cached, and the update f
     expect(sw.calls.skipWaiting).toBe(1);
   });
   it("on activate it purges any other cache and claims the open pages", async () => {
-    const sw = loadSw({ caches: { "calvy-v2": { "/dashboard": "x" }, "calvy-static-v3": { "/offline.html": "ok" } } });
+    const sw = loadSw({ caches: { "calvy-v2": { "/dashboard": "x" }, "calvy-app-v1": { "/offline.html": "ok" } } });
     await sw.fire("activate", sw.waitEvent());
-    expect([...sw.store.keys()]).toEqual(["calvy-static-v3"]);
+    expect([...sw.store.keys()]).toEqual(["calvy-app-v1"]);
     expect(sw.calls.claim).toBe(1);
   });
 });
@@ -155,6 +157,8 @@ describe("service worker: push", () => {
     expect(sw.calls.shown[0]).toMatchObject({ title: "New booking", options: { body: "Riya K. · Haircut · 3:30 pm", tag: "t1", data: { url: "/dashboard/appointments" } } });
     await sw.fire("push", sw.waitEvent({ data: { json: () => ({ title: "x", body: "y", url: "https://evil.example/phish" }) } }));
     expect(sw.calls.shown[1].options.data.url).toBe("/dashboard");
+    await sw.fire("push", sw.waitEvent({ data: { json: () => ({ title: "x", body: "y", url: "/my/bookings" }) } }));
+    expect(sw.calls.shown[2].options.data.url).toBe("/dashboard"); // an alert can only open the business app
     const clicked = { notification: { close: () => {}, data: { url: "//evil.example" } }, __waits: [] as Promise<unknown>[], waitUntil(p: Promise<unknown>) { this.__waits.push(p); } };
     await sw.fire("notificationclick", clicked);
     expect(sw.calls.opened).toEqual(["/dashboard"]);
@@ -189,9 +193,8 @@ describe("manifest and icons", () => {
   it("has an Apple touch icon (180) and the iOS web-app meta in the layout", async () => {
     const meta = await sharp("public/icons/apple-touch-icon.png").metadata();
     expect([meta.width, meta.height, meta.hasAlpha]).toEqual([180, 180, false]); // iOS wants no transparency
-    const layout = readFileSync("app/layout.tsx", "utf8");
-    expect(layout).toContain("apple-touch-icon.png");
-    expect(layout).toMatch(/appleWebApp:\s*\{\s*capable: true/);
+    expect(readFileSync("app/layout.tsx", "utf8")).toContain("apple-touch-icon.png");
+    expect(readFileSync("lib/appMetadata.ts", "utf8")).toMatch(/appleWebApp:\s*\{\s*capable: true/);
   });
 });
 
@@ -217,5 +220,72 @@ describe("TWA verification file", () => {
     expect(res.headers.get("content-type")).toContain("application/json");
     expect(Array.isArray(await res.json())).toBe(true);
     void NextRequest; void vi;
+  });
+});
+
+describe("the app is isolated from public and customer pages", () => {
+  const walk = (dir: string): string[] => readdirSync(dir, { withFileTypes: true }).flatMap((d) => (d.isDirectory() ? walk(`${dir}/${d.name}`) : [`${dir}/${d.name}`]));
+  const appFiles = [...walk("app"), ...walk("components"), ...walk("lib")].filter((f) => /\.(tsx?|mjs)$/.test(f));
+
+  it("the manifest is linked ONLY by the app routes: dashboard, login, accept-invite", () => {
+    const linking = appFiles.filter((f) => /appManifestMetadata|manifest\.json/.test(readFileSync(f, "utf8")) && f !== "lib/appMetadata.ts");
+    expect(linking.sort()).toEqual(["app/accept-invite/layout.tsx", "app/dashboard/layout.tsx", "app/login/layout.tsx"]);
+    expect(readFileSync("app/layout.tsx", "utf8")).not.toMatch(/manifest|appleWebApp|InstallPrompt/);
+  });
+  it("there is exactly ONE install prompt component and only the dashboard layout mounts it", () => {
+    expect(existsSync("components/PWAInstallPrompt.tsx")).toBe(false);
+    const mounting = appFiles.filter((f) => /<InstallPrompt\s*\/>/.test(readFileSync(f, "utf8")));
+    expect(mounting).toEqual(["components/dashboard/DashboardLayout.tsx"]);
+  });
+  it("the worker is registered at /app-sw.js with scope /dashboard, never at the root", () => {
+    const pwa = readFileSync("lib/pwa.ts", "utf8");
+    expect(pwa).toContain('APP_SW_URL = "/app-sw.js"');
+    expect(pwa).toContain('APP_SW_SCOPE = "/dashboard"');
+    for (const f of appFiles) expect(readFileSync(f, "utf8"), f).not.toMatch(/register\(\s*"\/sw\.js"|scope:\s*"\/"/);
+  });
+  it("the manifest keeps scope / and starts at /dashboard", () => {
+    expect(JSON.parse(readFileSync("public/manifest.json", "utf8"))).toMatchObject({ scope: "/", start_url: "/dashboard" });
+  });
+});
+
+describe("the retired root worker (public/sw.js) removes itself", () => {
+  function run() {
+    const listeners: Record<string, Listener[]> = {};
+    const log = { deleted: [] as string[], unregistered: 0, skipped: 0 };
+    const self: any = { addEventListener: (t: string, fn: Listener) => { (listeners[t] ??= []).push(fn); }, skipWaiting: () => { log.skipped++; }, registration: { unregister: async () => { log.unregistered++; return true; } } };
+    vm.runInContext(readFileSync("public/sw.js", "utf8"), vm.createContext({ self, caches: { keys: async () => ["calvy-v2", "calvy-static-v3"], delete: async (n: string) => { log.deleted.push(n); return true; } } }));
+    return { listeners, log };
+  }
+  it("takes over at once, deletes every cache, unregisters, and never answers a request", async () => {
+    const { listeners, log } = run();
+    expect(Object.keys(listeners).sort()).toEqual(["activate", "install"]); // no fetch / push handler
+    listeners.install[0]({});
+    const waits: Promise<unknown>[] = [];
+    listeners.activate[0]({ waitUntil: (p: Promise<unknown>) => waits.push(p) });
+    await Promise.all(waits);
+    expect(log).toEqual({ deleted: ["calvy-v2", "calvy-static-v3"], unregistered: 1, skipped: 1 });
+  });
+});
+
+describe("removeLegacyWorkers (the dashboard cleans up the old root registration)", () => {
+  it("unregisters scope '/' (and reports its push subscription), leaves the /dashboard worker alone", async () => {
+    const { removeLegacyWorkers } = await import("@/lib/pwa");
+    const unreg = { root: 0, dash: 0 };
+    const fetched: { url: string; method?: string; body?: string }[] = [];
+    vi.stubGlobal("fetch", async (url: string, init?: RequestInit) => { fetched.push({ url, method: init?.method, body: init?.body as string }); return new Response("{}"); });
+    vi.stubGlobal("navigator", { serviceWorker: { getRegistrations: async () => [
+      { scope: "https://app.example/", unregister: async () => { unreg.root++; }, pushManager: { getSubscription: async () => ({ endpoint: "https://push.example/old" }) } },
+      { scope: "https://app.example/dashboard", unregister: async () => { unreg.dash++; }, pushManager: { getSubscription: async () => ({ endpoint: "https://push.example/new" }) } },
+    ] } });
+    expect(await removeLegacyWorkers()).toEqual({ hadPush: true });
+    expect(unreg).toEqual({ root: 1, dash: 0 });
+    expect(fetched).toEqual([{ url: "/api/push/subscribe", method: "DELETE", body: JSON.stringify({ endpoint: "https://push.example/old" }) }]);
+    vi.unstubAllGlobals();
+  });
+  it("no legacy registration: nothing happens", async () => {
+    const { removeLegacyWorkers } = await import("@/lib/pwa");
+    vi.stubGlobal("navigator", { serviceWorker: { getRegistrations: async () => [] } });
+    expect(await removeLegacyWorkers()).toEqual({ hadPush: false });
+    vi.unstubAllGlobals();
   });
 });

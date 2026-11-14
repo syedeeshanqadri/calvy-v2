@@ -3,7 +3,6 @@ import SentryClient from "@/components/providers/SentryClient";
 import localFont from "next/font/local";
 import { Analytics } from "@vercel/analytics/next";
 import { Providers } from "@/components/Providers";
-import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
 import "./globals.css";
 
 const plusJakartaSans = localFont({
@@ -36,17 +35,11 @@ export const metadata: Metadata = {
     type: "website",
   },
   twitter: { card: "summary_large_image", title: "Calvy — Smart Appointment Booking", description: "Automated scheduling for modern service businesses." },
+  // App-install setup (web app config, install prompt, service worker) is NOT here: it belongs to the app routes only, see lib/appMetadata.ts.
   icons: {
     icon: [{ url: "/icon.svg", type: "image/svg+xml" }, { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" }],
     shortcut: "/icon.svg",
     apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180" }],
-  },
-  manifest: "/manifest.json",
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "black-translucent",
-    title: "Calvy",
-    startupImage: [{ url: "/icons/apple-touch-icon.png" }],
   },
 };
 
@@ -63,7 +56,7 @@ export const viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" data-scroll-behavior="smooth" className={`${plusJakartaSans.variable} ${dmSans.variable}`}>
-      <body><Providers>{children}<PWAInstallPrompt /><SentryClient /></Providers><Analytics /></body>
+      <body><Providers>{children}<SentryClient /></Providers><Analytics /></body>
     </html>
   );
 }

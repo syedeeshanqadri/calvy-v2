@@ -5,14 +5,14 @@ import { Download, Share, X } from "lucide-react";
 type InstallEvent = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: string }> };
 const KEY = "calvy-install-dismissed";
 
-/** "Install app": the native prompt on Android/Chrome, a short Share → Add to Home Screen guide on iPhone. Dismissible and remembered. */
+/** The ONE install prompt, shown inside the dashboard only (an in-flow card under the header, so it can never sit on the bottom nav). "Install app": the native prompt on Android/Chrome, a short Share → Add to Home Screen guide on iPhone. Dismissible and remembered. */
 export function InstallPrompt() {
   const [evt, setEvt] = useState<InstallEvent | null>(null);
   const [ios, setIos] = useState(false);
   const [hidden, setHidden] = useState(true);
 
   useEffect(() => {
-    try { if (localStorage.getItem(KEY)) return; } catch { /* private mode: just show it */ }
+    try { if (localStorage.getItem(KEY) || localStorage.getItem("calvy-pwa-dismissed")) return; } catch { /* private mode: just show it */ }
     const standalone = window.matchMedia("(display-mode: standalone)").matches || (navigator as unknown as { standalone?: boolean }).standalone === true;
     if (standalone) return; // already installed
     const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent) && !/crios|fxios/i.test(navigator.userAgent);

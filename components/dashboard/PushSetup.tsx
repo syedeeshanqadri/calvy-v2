@@ -1,8 +1,10 @@
 "use client";
 import { useEffect, useState } from "react";
+import { getAppRegistration, registerAppWorker, removeLegacyWorkers, subscribeAndSync, syncSubscription, urlBase64ToUint8Array } from "@/lib/pwa";
 
 /**
- * Registers the service worker for the installed business app and shows "New version available" when an update is waiting.
+ * Registers the business app's service worker (scope /dashboard only) and shows "New version available" when an update is waiting.
+ * Devices that still have the first worker (scope "/") get it removed here; if it held phone alerts they are re-subscribed.
  * It does NOT subscribe to push by itself: phone alerts are turned on per person, on purpose (reception devices are shared).
  */
 export function PushSetup() {
@@ -16,8 +18,11 @@ export function PushSetup() {
     navigator.serviceWorker.addEventListener("controllerchange", onChange);
     (window as unknown as { __calvyReload?: () => void }).__calvyReload = () => { reloading = true; };
 
-    navigator.serviceWorker.register("/sw.js", { scope: "/" }).then((reg) => {
+    (async () => {
+      const { hadPush } = await removeLegacyWorkers();
+      const reg = await registerAppWorker();
       if (cancelled) return;
+      if (hadPush && "Notification" in window && Notification.permission === "granted") void navigator.serviceWorker.ready.then(() => subscribeAndSync(reg));
       if (reg.waiting && navigator.serviceWorker.controller) setWaiting(reg.waiting);
       reg.addEventListener("updatefound", () => {
         const w = reg.installing;
@@ -28,7 +33,7 @@ export function PushSetup() {
       // Look for a new version whenever the app comes back to the front.
       const check = () => { if (document.visibilityState === "visible") reg.update().catch(() => {}); };
       document.addEventListener("visibilitychange", check);
-    }).catch(() => {});
+    })().catch(() => {});
     return () => { cancelled = true; navigator.serviceWorker.removeEventListener("controllerchange", onChange); };
   }, []);
 
@@ -73,7 +78,7 @@ export async function requestPushPermission(): Promise<PushResult> {
   }
 
   try {
-    const reg = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
+    const reg = await registerAppWorker();
     await navigator.serviceWorker.ready;
 
     let sub = await reg.pushManager.getSubscription();
@@ -94,7 +99,7 @@ export async function requestPushPermission(): Promise<PushResult> {
 /** Turn phone alerts off on THIS device (and tell the server). */
 export async function disablePush(): Promise<boolean> {
   try {
-    const reg = await navigator.serviceWorker.getRegistration("/");
+    const reg = await getAppRegistration();
     const sub = await reg?.pushManager.getSubscription();
     if (sub) {
       await fetch("/api/push/subscribe", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ endpoint: sub.endpoint }) });
@@ -110,36 +115,10 @@ export async function disablePush(): Promise<boolean> {
 export async function releaseThisDevice(): Promise<void> {
   try {
     if (!("serviceWorker" in navigator)) return;
-    const reg = await navigator.serviceWorker.getRegistration("/");
+    const reg = await getAppRegistration();
     const sub = await reg?.pushManager.getSubscription();
     if (!sub) return; // nothing registered here; never send an "all devices" delete
     await fetch("/api/push/subscribe", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ endpoint: sub.endpoint }) });
     await sub.unsubscribe();
   } catch { /* the server-side sign-out event is the fallback */ }
-}
-
-async function syncSubscription(sub: PushSubscription): Promise<boolean> {
-  try {
-    const json = sub.toJSON();
-    const res = await fetch("/api/push/subscribe", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ endpoint: json.endpoint, keys: json.keys }),
-    });
-    return res.ok;
-  } catch {
-    return false;
-  }
-}
-
-// Return the Uint8Array itself (not its .buffer): iOS Safari's pushManager
-// rejects a bare ArrayBuffer as applicationServerKey, which silently fails the
-// subscribe on iPhone while Chrome/Android tolerates it.
-function urlBase64ToUint8Array(base64String: string): Uint8Array {
-  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
-  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
-  const raw = atob(base64);
-  const arr = new Uint8Array(raw.length);
-  for (let i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
-  return arr;
 }

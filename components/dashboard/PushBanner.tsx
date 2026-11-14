@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { Bell, X } from "lucide-react";
 import { requestPushPermission } from "./PushSetup";
+import { getAppRegistration } from "@/lib/pwa";
 
 /** One compact line on the Today page only: shown until dismissed or until phone alerts are on for THIS device. */
 export function PushBanner() {
@@ -19,7 +20,7 @@ export function PushBanner() {
     (async () => {
       try {
         // Already on for this device: nothing to ask. (Another device of the same person does not count.)
-        const reg = await navigator.serviceWorker?.getRegistration("/");
+        const reg = await getAppRegistration();
         if (await reg?.pushManager.getSubscription()) return;
         const d = await fetch("/api/push/preferences").then((r) => (r.ok ? r.json() : null));
         if (live && d) setVisible(true);

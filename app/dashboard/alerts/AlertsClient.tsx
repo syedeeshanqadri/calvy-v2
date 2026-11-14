@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { disablePush, requestPushPermission } from "@/components/dashboard/PushSetup";
+import { getAppRegistration } from "@/lib/pwa";
 
 type Prefs = Record<string, boolean>;
 interface WaState { available: boolean; phoneMasked: string | null; verified: boolean; optIn: boolean }
@@ -61,7 +62,7 @@ export function AlertsClient({ offered, configured }: { offered: { field: string
     const r = await fetch("/api/push/preferences");
     if (r.ok) { const d = await r.json(); setPrefs(d.prefs); setDevices(d.devices); }
     try {
-      const reg = await navigator.serviceWorker?.getRegistration("/");
+      const reg = await getAppRegistration();
       setHere(!!(await reg?.pushManager.getSubscription()));
     } catch { setHere(false); }
   }
