@@ -333,3 +333,31 @@ describe("notifications log and booking pages on phones", () => {
     expect(css).toMatch(/@media \(max-height: 520px\) \{ \.bk-nav \{ position: static/);
   });
 });
+
+describe("dialogs: full-screen sheets on phones with actions above the keyboard", () => {
+  const modal = readFileSync("components/ui/Modal.tsx", "utf8");
+  it("the shared Modal is a role=dialog sheet that follows the visual viewport (keyboard), centered card from md", () => {
+    expect(modal).toContain('role="dialog"');
+    expect(modal).toContain('aria-modal="true"');
+    expect(modal).toContain("visualViewport");
+    expect(modal).toContain("--vvh");
+    expect(modal).toMatch(/h-\[var\(--vvh,100dvh\)\]/);
+    expect(modal).toMatch(/md:max-h-\[90vh\] md:rounded-2xl/);
+  });
+  it("has a pinned footer for actions and scrolls the focused field into view", () => {
+    expect(modal).toMatch(/footer\?: React\.ReactNode/);
+    expect(modal).toContain("flex-shrink-0 border-t");
+    expect(modal).toContain("scrollIntoView");
+  });
+  it("legacy inline action rows inside a form are pinned on phones too", () => {
+    const css = readFileSync("app/globals.css", "utf8");
+    expect(css).toMatch(/\.sheet-body form > :last-child:has\(button\[type="submit"\]\)/);
+    expect(css).toMatch(/position: sticky; bottom: 0/);
+  });
+  it("the support and expense dialogs use the shared Modal (no hand-rolled overlay)", () => {
+    for (const f of ["app/dashboard/support/SupportClient.tsx", "app/dashboard/expenses/ExpensesClient.tsx"]) {
+      expect(readFileSync(f, "utf8"), f).toContain('from "@/components/ui/Modal"');
+    }
+    expect(readFileSync("app/dashboard/expenses/ExpensesClient.tsx", "utf8")).not.toContain("fixed inset-0 z-50 flex items-end sm:items-center");
+  });
+});
