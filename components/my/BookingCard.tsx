@@ -249,7 +249,7 @@ function CancelModal({ b, onClose, onDone }: { b: BookingView; onClose: () => vo
         <p className="text-sm">{b.serviceName} at <strong>{b.businessName}</strong><br />{b.dateLabel}, {b.timeLabel}</p>
         <p className="text-xs text-[#6b6b80]">{b.businessName} is told straight away and we email you a confirmation. If you paid online, the amount is saved as credit for your next booking there.</p>
         {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
-        <div className="flex gap-3">
+        <div className="sheet-actions flex gap-3">
           <button type="button" onClick={onClose} className={`${ghost} flex-1`}>Keep booking</button>
           <button type="button" onClick={cancel} disabled={busy} className={`${btn} flex-1 border-transparent bg-red-600 hover:bg-red-700 text-white`}>{busy ? "Cancelling…" : "Yes, cancel"}</button>
         </div>

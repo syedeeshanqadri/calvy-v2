@@ -388,3 +388,13 @@ describe("accessibility basics the Lighthouse run flagged", () => {
     expect(readFileSync("components/dashboard/BottomNav.tsx", "utf8")).not.toContain("#b0b0c0");
   });
 });
+
+describe("every dialog's action row is pinned on phones", () => {
+  it("the Cancel / Save rows inside Modal bodies carry .sheet-actions", () => {
+    const files: [string, number][] = [
+      ["components/dashboard/AppointmentModals.tsx", 1], ["app/dashboard/clients/ClientsClient.tsx", 1], ["app/dashboard/settings/team/TeamClient.tsx", 1],
+      ["app/dashboard/staff/StaffClient.tsx", 1], ["app/dashboard/services/ServicesClient.tsx", 2], ["components/dashboard/QuickActions.tsx", 1], ["components/my/BookingCard.tsx", 1],
+    ];
+    for (const [f, min] of files) expect((readFileSync(f, "utf8").match(/className="sheet-actions /g) ?? []).length, f).toBeGreaterThanOrEqual(min);
+  });
+});

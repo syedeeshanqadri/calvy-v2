@@ -214,7 +214,7 @@ export function ServicesClient({ services: initial, groupBooking = false }: { se
             </div>
           </div>
           {error && <p className="text-sm text-red-500">{error}</p>}
-          <div className="flex gap-3 pt-2">
+          <div className="sheet-actions flex gap-3 pt-2">
             <Button variant="outline" onClick={() => { setShowAddModal(false); setEditService(null); }} className="flex-1 justify-center">Cancel</Button>
             <Button onClick={submitForm} disabled={loading || !form.name || !form.duration} className="flex-1 justify-center">
               {loading ? "Saving..." : editService ? "Save changes" : `Add ${svc1}`}
@@ -233,7 +233,7 @@ export function ServicesClient({ services: initial, groupBooking = false }: { se
             <p className="text-xs text-[#6b6b80] bg-amber-50 border border-amber-100 rounded-xl p-3">
               If this {svc1} has existing {apptN}, it will be <strong>deactivated</strong> instead of deleted to preserve booking history.
             </p>
-            <div className="flex gap-3 pt-1">
+            <div className="sheet-actions flex gap-3 pt-1">
               <Button variant="outline" onClick={() => setDeleteTarget(null)} className="flex-1 justify-center">Cancel</Button>
               <button onClick={confirmDelete} disabled={deleteLoading} className="flex-1 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-white text-sm font-semibold disabled:opacity-60 transition-colors">
                 {deleteLoading ? "Deleting..." : "Delete"}

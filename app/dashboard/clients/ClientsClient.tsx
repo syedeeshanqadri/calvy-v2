@@ -205,7 +205,7 @@ export function ClientsClient({ clients, canEdit = true, canExport = true, csvEx
           />
           <Input label="Notes (optional)" placeholder="Any important info..." value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} />
           {error && <p className="text-sm text-red-500">{error}</p>}
-          <div className="flex gap-3 pt-2">
+          <div className="sheet-actions flex gap-3 pt-2">
             <Button variant="outline" onClick={() => setShowModal(false)} className="flex-1 justify-center">Cancel</Button>
             <Button onClick={submit} disabled={loading || !form.firstName || (!form.email && !form.phone)} className="flex-1 justify-center">
               {loading ? "Saving..." : `Add ${Cli1}`}
