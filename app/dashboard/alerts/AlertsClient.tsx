@@ -153,7 +153,7 @@ export function AlertsClient({ offered, configured }: { offered: { field: string
             <ul className="divide-y divide-[#f0ede8]">
               {offered.map((o) => (
                 <li key={o.field} className="flex items-center justify-between py-3">
-                  <label htmlFor={`pref-${o.field}`} className="text-sm font-medium">{o.label}</label>
+                  <label htmlFor={`pref-${o.field}`} className="flex-1 min-h-11 flex items-center text-sm font-medium">{o.label}</label>
                   <input id={`pref-${o.field}`} type="checkbox" role="switch" className="size-5 accent-sky-600" checked={prefs[o.field] ?? true} onChange={(e) => toggle(o.field, e.target.checked)} />
                 </li>
               ))}

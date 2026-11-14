@@ -57,7 +57,7 @@ export function DashboardLayout({ children, title, subtitle }: DashboardLayoutPr
               <RefreshCw size={18} className={refreshing ? "animate-spin mb-2" : "mb-2"} style={refreshing ? undefined : { transform: `rotate(${(pull / PULL_THRESHOLD) * 270}deg)`, opacity: Math.min(1, pull / 40) }} />
             </div>
           )}
-          <div className="p-4 sm:p-6 pb-mobile-nav md:pb-6 max-w-[1600px] mx-auto">
+          <div className="p-4 sm:p-6 pb-mobile-nav sm:pb-mobile-nav md:pb-6 max-w-[1600px] mx-auto">
             {children}
           </div>
         </main>

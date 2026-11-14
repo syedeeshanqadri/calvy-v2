@@ -399,8 +399,18 @@ describe("every dialog's action row is pinned on phones", () => {
   });
 });
 
-describe("pinned dialog actions also on short screens (phone in landscape)", () => {
-  it("the sticky rule applies under 768px wide OR under 520px tall", () => {
-    expect(readFileSync("app/globals.css", "utf8")).toContain("@media (max-width: 767px), (max-height: 520px)");
+describe("pinned dialog actions at every screen size", () => {
+  it("the sticky rule is not tied to a breakpoint: phones, landscape phones and tablet cards all keep the action row in view", () => {
+    const css = readFileSync("app/globals.css", "utf8");
+    const rule = css.slice(css.indexOf(".sheet-body { --sheet-pad"));
+    expect(rule).toContain("@media (min-width: 768px) { .sheet-body { --sheet-pad: 1.5rem; } }");
+    expect(rule).toMatch(/\.sheet-body form > :last-child:has\(button\[type="submit"\]\),\s*\.sheet-body \.sheet-actions \{\s*position: sticky; bottom: 0;/);
+    expect(rule).toContain("margin: 0.75rem calc(var(--sheet-pad) * -1) 0");
+  });
+});
+
+describe("the bottom nav never covers the end of a page", () => {
+  it("the nav clearance also applies from 640px (sm:p-6 would otherwise shrink it to 24px on a phone in landscape) and ends at the sidebar breakpoint", () => {
+    expect(readFileSync("components/dashboard/DashboardLayout.tsx", "utf8")).toContain("p-4 sm:p-6 pb-mobile-nav sm:pb-mobile-nav md:pb-6");
   });
 });

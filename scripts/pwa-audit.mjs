@@ -99,7 +99,7 @@ function inPage(opts) {
     // keyboard check: focus the first text field of the modal, report where its primary action is
     const input = [...scopeEl.querySelectorAll("input:not([type=hidden]):not([type=checkbox]):not([type=radio]),textarea")].find((e) => visible(e));
     if (input) input.focus();
-    const acts = [...scopeEl.querySelectorAll("button,[role=button]")].filter((b) => visible(b) && (b.type === "submit" || /^(save|add|create|confirm|book|send|submit|done|invite|update|apply|continue|next|schedule|record|import)/i.test((b.innerText || "").trim())));
+    const acts = [...scopeEl.querySelectorAll("button,[role=button]")].filter((b) => visible(b) && (b.innerText || "").trim().length > 1 && (b.type === "submit" || /^(save|add|create|confirm|book|send|submit|done|invite|update|apply|continue|next|schedule|record|import)/i.test((b.innerText || "").trim())));
     const b = acts[acts.length - 1];
     const r = b ? b.getBoundingClientRect() : null;
     return { issues: [], kb: { hasInput: !!input, found: !!b, label: b ? (b.innerText || "").trim().slice(0, 24) : null, bottom: r ? Math.round(r.bottom) : null, top: r ? Math.round(r.top) : null, vh } };
@@ -201,7 +201,9 @@ function inPage(opts) {
     if (r.height > vh + 1) add("modal-taller-than-viewport", `panel ${Math.round(r.height)}px > viewport ${vh}px`);
     if (r.bottom > vh + 1 || r.top < -1) add("modal-off-screen", `panel top ${Math.round(r.top)}, bottom ${Math.round(r.bottom)}, viewport ${vh}`);
     if (vw <= 600 && (r.width < vw - 2 || r.height < vh - 2)) add("modal-not-full-screen-on-phone", `panel ${Math.round(r.width)}x${Math.round(r.height)} in ${vw}x${vh}`);
-    const act = [...scopeEl.querySelectorAll("button,[role=button]")].filter((b) => visible(b) && (b.type === "submit" || /^(save|add|create|confirm|book|send|submit|done|invite|update|apply|continue|next|schedule|record|import)/i.test((b.innerText || "").trim())));
+    // A <button> in a form defaults to type=submit (colour swatches, icon buttons): only labelled buttons count, and only the LAST one (the primary action).
+    const labelled = [...scopeEl.querySelectorAll("button,[role=button]")].filter((b) => visible(b) && (b.innerText || "").trim().length > 1 && (b.type === "submit" || /^(save|add|create|confirm|book|send|submit|done|invite|update|apply|continue|next|schedule|record|import)/i.test((b.innerText || "").trim())));
+    const act = labelled.slice(-1);
     const off = act.filter((b) => { const br = b.getBoundingClientRect(); return br.bottom > vh + 1 || br.top < -1; });
     if (off.length) add("primary-action-not-visible", `${off.map((b) => `${sel(b)} bottom ${Math.round(b.getBoundingClientRect().bottom)} > ${vh}`).slice(0, 2).join("; ")} (needs scroll, not sticky)`);
     const sticky = act.some((b) => { for (let p = b; p && p !== scopeEl.parentElement; p = p.parentElement) if (/sticky|fixed/.test(getComputedStyle(p).position)) return true; return false; });
@@ -301,7 +303,7 @@ async function interactions(page, vp, route) {
   for (const name of names) {
     const btn = page.getByRole("button", { name, exact: true }).first();
     await btn.click({ timeout: 2500 }).catch(() => {});
-    await page.waitForTimeout(600);
+    await page.waitForTimeout(950); // the dialog slides in for 0.6s
     const rec = await checkPage(page, vp, route, `dialog ${name}`, { dialog: true });
     if (rec) await keyboardCheck(page, vp, route, `dialog ${name}`);
     await closeModal(page, route);

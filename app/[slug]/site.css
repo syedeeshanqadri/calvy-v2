@@ -359,3 +359,4 @@
 
 /* Touch: small buttons keep a 44px target. */
 @media (pointer: coarse) { .st-btn, .st-btn-sm { min-height: 44px; } }
+@media (pointer: coarse) { .st-foot a, .st-nav a { display: inline-flex; align-items: center; min-height: 44px; } }
