@@ -130,10 +130,10 @@ export function ServicesClient({ services: initial, groupBooking = false }: { se
                 <button onClick={() => toggleActive(service.id)} className="text-[#6b6b80] hover:text-brand-800 transition-colors">
                   {service.isActive ? <ToggleRight size={22} className="text-accent" /> : <ToggleLeft size={22} />}
                 </button>
-                <button onClick={() => openEdit(service)} className="w-7 h-7 rounded-lg flex items-center justify-center text-[#6b6b80] hover:bg-[#f8f7f4] transition-colors">
+                <button onClick={() => openEdit(service)} aria-label={`Edit ${service.name}`} className="w-7 h-7 rounded-lg flex items-center justify-center text-[#6b6b80] hover:bg-[#f8f7f4] transition-colors">
                   <MoreVertical size={14} />
                 </button>
-                <button onClick={() => setDeleteTarget(service)} className="w-7 h-7 rounded-lg flex items-center justify-center text-[#6b6b80] hover:bg-red-50 hover:text-red-500 transition-colors">
+                <button onClick={() => setDeleteTarget(service)} aria-label={`Delete ${service.name}`} className="w-7 h-7 rounded-lg flex items-center justify-center text-[#6b6b80] hover:bg-red-50 hover:text-red-500 transition-colors">
                   <Trash2 size={14} />
                 </button>
               </div>

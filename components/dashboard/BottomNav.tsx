@@ -87,6 +87,7 @@ export function BottomNav() {
           <p className="font-syne font-bold text-base">More</p>
           <button
             onClick={() => setShowMore(false)}
+            aria-label="Close menu"
             className="p-1.5 rounded-xl text-[#6b6b80] hover:bg-[#f8f7f4] transition-colors"
           >
             <X size={18} />
@@ -138,11 +139,11 @@ export function BottomNav() {
                 href={item.href}
                 className={cn(
                   "flex flex-col items-center justify-center gap-0.5 flex-1 basis-0 min-w-0 transition-colors active:scale-95",
-                  isActive ? "text-sky-600" : "text-[#b0b0c0]"
+                  isActive ? "text-sky-600" : "text-[#6b6b80]"
                 )}
               >
                 <item.icon size={22} strokeWidth={isActive ? 2.5 : 1.5} />
-                <span className={cn("text-[10px] font-medium", isActive ? "text-sky-600" : "text-[#b0b0c0]")}>
+                <span className={cn("text-[10px] font-medium", isActive ? "text-sky-600" : "text-[#6b6b80]")}>
                   {labelOf(item)}
                 </span>
               </Link>
@@ -153,11 +154,11 @@ export function BottomNav() {
             onClick={() => setShowMore(true)}
             className={cn(
               "flex flex-col items-center justify-center gap-0.5 flex-1 basis-0 min-w-0 transition-colors active:scale-95",
-              isMoreActive ? "text-sky-600" : "text-[#b0b0c0]"
+              isMoreActive ? "text-sky-600" : "text-[#6b6b80]"
             )}
           >
             <MoreHorizontal size={22} strokeWidth={isMoreActive ? 2.5 : 1.5} />
-            <span className={cn("text-[10px] font-medium", isMoreActive ? "text-sky-600" : "text-[#b0b0c0]")}>
+            <span className={cn("text-[10px] font-medium", isMoreActive ? "text-sky-600" : "text-[#6b6b80]")}>
               More
             </span>
           </button>

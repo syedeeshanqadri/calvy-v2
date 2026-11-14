@@ -25,8 +25,8 @@ export function MiniCalendar({ busyDays }: { busyDays: number[] }) {
       <CardHeader>
         <CardTitle>{MONTHS[month]} {year}</CardTitle>
         <div className="flex gap-1">
-          <button onClick={() => setDate(new Date(year, month - 1))} className="w-7 h-7 rounded-lg flex items-center justify-center text-[#6b6b80] hover:bg-[#f8f7f4] transition-colors"><ChevronLeft size={14} /></button>
-          <button onClick={() => setDate(new Date(year, month + 1))} className="w-7 h-7 rounded-lg flex items-center justify-center text-[#6b6b80] hover:bg-[#f8f7f4] transition-colors"><ChevronRight size={14} /></button>
+          <button onClick={() => setDate(new Date(year, month - 1))} aria-label="Previous month" className="w-7 h-7 rounded-lg flex items-center justify-center text-[#6b6b80] hover:bg-[#f8f7f4] transition-colors"><ChevronLeft size={14} /></button>
+          <button onClick={() => setDate(new Date(year, month + 1))} aria-label="Next month" className="w-7 h-7 rounded-lg flex items-center justify-center text-[#6b6b80] hover:bg-[#f8f7f4] transition-colors"><ChevronRight size={14} /></button>
         </div>
       </CardHeader>
       <CardContent>

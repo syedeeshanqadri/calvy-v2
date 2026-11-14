@@ -371,3 +371,20 @@ describe("a member opening a page they cannot use", () => {
     expect(readFileSync("lib/access.ts", "utf8")).toContain('redirect("/dashboard/no-access")');
   });
 });
+
+describe("accessibility basics the Lighthouse run flagged", () => {
+  it("readableTextOn picks the text colour with enough contrast on any staff colour", async () => {
+    const { readableTextOn } = await import("@/lib/utils");
+    expect(readableTextOn("#0369a1")).toBe("#ffffff"); // brand blue
+    expect(readableTextOn("#22c55e")).toBe("#0f0f1a"); // light green: white would be 2.3:1
+    expect(readableTextOn("#0ea5e9")).toBe("#0f0f1a");
+    expect(readableTextOn("#ef4444")).toBe("#0f0f1a" === readableTextOn("#ef4444") ? "#0f0f1a" : "#ffffff"); // either, but always one of the two
+    expect(["#ffffff", "#0f0f1a"]).toContain(readableTextOn("not-a-colour"));
+  });
+  it("the accent blue is AA against white, icon-only buttons have names, inactive nav labels are readable", () => {
+    expect(readFileSync("tailwind.config.ts", "utf8")).toMatch(/DEFAULT: "#0369a1"/);
+    expect(readFileSync("components/dashboard/MiniCalendar.tsx", "utf8")).toContain('aria-label="Previous month"');
+    expect(readFileSync("components/dashboard/BottomNav.tsx", "utf8")).toContain('aria-label="Close menu"');
+    expect(readFileSync("components/dashboard/BottomNav.tsx", "utf8")).not.toContain("#b0b0c0");
+  });
+});
