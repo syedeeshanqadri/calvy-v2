@@ -1,5 +1,9 @@
 "use client";
-import { useState, useSyncExternalStore } from "react";
+import { useCallback, useRef, useState, useSyncExternalStore } from "react";
+import { useRouter } from "next/navigation";
+import { RefreshCw } from "lucide-react";
+import { PULL_THRESHOLD, usePullToRefresh } from "@/lib/usePullToRefresh";
+import { REFRESH_EVENT } from "@/lib/useLivePoll";
 import { Sidebar } from "./Sidebar";
 import { Header } from "./Header";
 import { TrialBanner } from "./TrialBanner";
@@ -26,6 +30,11 @@ export function DashboardLayout({ children, title, subtitle }: DashboardLayoutPr
   // 768px and up shows the sidebar (tablets, phones in landscape); below 1024px it starts icon-only so the content keeps its room.
   const narrow = useSyncExternalStore(subscribeNarrow, () => window.matchMedia(NARROW).matches, () => false);
   const [chosen, setChosen] = useState<boolean | null>(null);
+  const router = useRouter();
+  const mainRef = useRef<HTMLElement>(null);
+  // Phones: pull down at the top to refresh. Today and Queue listen for the event and re-read at once; server data refreshes too.
+  const onRefresh = useCallback(async () => { window.dispatchEvent(new Event(REFRESH_EVENT)); router.refresh(); await new Promise((r) => setTimeout(r, 700)); }, [router]);
+  const { pull, refreshing } = usePullToRefresh(mainRef, onRefresh);
   const collapsed = chosen ?? narrow;
   const setCollapsed = (v: boolean) => setChosen(v);
 
@@ -42,7 +51,12 @@ export function DashboardLayout({ children, title, subtitle }: DashboardLayoutPr
         <TrialBanner />
         <InstallPrompt />
         <PushBanner />
-        <main className="flex-1 overflow-y-auto overscroll-contain">
+        <main ref={mainRef} className="flex-1 overflow-y-auto overscroll-contain">
+          {(pull > 0 || refreshing) && (
+            <div className="flex items-end justify-center overflow-hidden text-sky-600" style={{ height: refreshing ? 40 : pull }} role="status" aria-label={refreshing ? "Refreshing" : "Pull to refresh"}>
+              <RefreshCw size={18} className={refreshing ? "animate-spin mb-2" : "mb-2"} style={refreshing ? undefined : { transform: `rotate(${(pull / PULL_THRESHOLD) * 270}deg)`, opacity: Math.min(1, pull / 40) }} />
+            </div>
+          )}
           <div className="p-4 sm:p-6 pb-mobile-nav md:pb-6 max-w-[1600px] mx-auto">
             {children}
           </div>
