@@ -26,6 +26,13 @@ The app is for businesses and team members only. The manifest, the install promp
 - Text is a name (first name + initial), a time and a service. Phone numbers and emails are scrubbed.
 - Signing out removes only THIS device's alert registration; all of a person's devices are removed when they are **removed** from the team, **lose a permission** or change staff link (shared reception phones). The old business-wide subscriptions were dropped; the opt-in banner shows again.
 
+## Push "403" (VAPID key mismatch): what it is and how it is handled
+A push service answers **403** (`VapidPkHashMismatch` / "VAPID credentials ... do not correspond" on Chrome, `BadJwtToken` on Apple) when the browser subscribed with a different key pair than the one the server signs with. `NEXT_PUBLIC_VAPID_PUBLIC_KEY` is baked into the browser build at **build time** and `VAPID_PRIVATE_KEY` is read by the server at run time, so changing one without the other (or without redeploying) breaks every device, and the dev and production environments must use the same pair while they share a database.
+- The server logs `[Push] VAPID_PRIVATE_KEY does not belong to NEXT_PUBLIC_VAPID_PUBLIC_KEY` at start-up when its own two values are not one pair.
+- Enabling alerts sends the key the browser used; `POST /api/push/subscribe` answers **409 VAPID_MISMATCH** with a plain message instead of saving a device that can never work.
+- The browser never reuses a subscription made with another key: it is unsubscribed and replaced (silently on app open for the person who enabled alerts, or by **Re-enable alerts on this device**).
+- A 401/403 (rejected) or 404/410 (dropped) from the push service deletes the device and writes the push service's own reason into the delivery log ("push service rejected this device (403 BadJwtToken). Re-enable alerts on this device."). The Alerts page and the Today banner then show **Re-enable alerts on this device**; the app never quietly re-adds a device the server dropped.
+
 ## Phone alerts page, test and iPhone
 Settings → **Phone alerts** has **Send test notification** (`POST /api/push/test`: one alert to THIS device, only if the device belongs to you, 5 per 10 minutes). On iPhone and iPad web push exists only for an app added to the Home Screen (iOS 16.4+): in a Safari tab the page and the Today banner show the install steps (Share, Add to Home Screen, open from the Home Screen, then turn on) instead of a permission prompt that would fail.
 

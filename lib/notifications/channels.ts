@@ -41,9 +41,10 @@ const sendPush: Channel = async (message, deviceId) => {
   if (!device) return { kind: "skipped", error: "device removed" };
   const out = await deliverPush(device, { title: message.subject, body: message.text, url: message.push?.url, tag: message.push?.tag, kind: message.push?.kind });
   if (out.kind === "sent") return { kind: "sent" };
-  if (out.kind === "expired") {
+  if (out.kind === "expired" || out.kind === "rejected") {
+    // The device can never receive this again: remove it, and say why in the delivery log (the person is told to re-enable on that device).
     await prisma.pushDevice.deleteMany({ where: { id: device.id } });
-    return { kind: "skipped", error: "subscription expired: device removed" };
+    return { kind: "skipped", error: out.kind === "expired" ? `push service dropped this device (${out.reason ?? "expired"}). Re-enable alerts on this device.` : `push service rejected this device (${out.reason}). Re-enable alerts on this device.` };
   }
   return out;
 };

@@ -47,27 +47,67 @@ export function urlBase64ToUint8Array(base64String: string): Uint8Array {
   return arr;
 }
 
-export async function syncSubscription(sub: PushSubscription): Promise<boolean> {
+const normalize = (s: string) => s.replace(/=+$/, "").replace(/\+/g, "-").replace(/\//g, "_");
+const toB64u = (buf: ArrayBuffer) => normalize(btoa(String.fromCharCode(...new Uint8Array(buf))));
+
+/** The application server key this subscription was CREATED with (null when the browser does not expose it). */
+export function subscriptionKey(sub: PushSubscription): string | null {
+  const k = sub.options?.applicationServerKey;
+  return k ? toB64u(k) : null;
+}
+
+export type SyncResult = { ok: boolean; code?: "VAPID_MISMATCH"; error?: string };
+
+/** Register this subscription for the signed-in person, with the key it was made with so the server can refuse a mismatch. */
+export async function syncSubscriptionDetailed(sub: PushSubscription): Promise<SyncResult> {
   try {
     const json = sub.toJSON();
-    const res = await fetch("/api/push/subscribe", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ endpoint: json.endpoint, keys: json.keys }) });
-    return res.ok;
+    const key = subscriptionKey(sub) ?? (process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ? normalize(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY) : undefined);
+    const res = await fetch("/api/push/subscribe", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ endpoint: json.endpoint, keys: json.keys, ...(key ? { applicationServerKey: key } : {}) }) });
+    if (res.ok) return { ok: true };
+    const d = await res.json().catch(() => ({}));
+    return { ok: false, code: d.code, error: d.error };
   } catch {
-    return false;
+    return { ok: false };
   }
+}
+export const syncSubscription = async (sub: PushSubscription): Promise<boolean> => (await syncSubscriptionDetailed(sub)).ok;
+
+/**
+ * A subscription for THIS build's key. An existing subscription made with a DIFFERENT key can never receive our pushes (the push
+ * service answers 403: VapidPkHashMismatch / BadJwtToken) and the browser refuses to subscribe again with another key while it exists,
+ * so a mismatching one is unsubscribed first. `force` always starts clean (used by "Re-enable").
+ */
+export async function subscribeFresh(reg: ServiceWorkerRegistration, opts: { force?: boolean } = {}): Promise<PushSubscription | null> {
+  const key = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+  if (!key) return null;
+  let sub = await reg.pushManager.getSubscription();
+  if (sub) {
+    const made = subscriptionKey(sub);
+    if (opts.force || (made !== null && made !== normalize(key))) { await sub.unsubscribe().catch(() => false); sub = null; }
+  }
+  return sub ?? reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(key) as BufferSource });
 }
 
 /** Subscribe this device under the app worker and tell the server. Needs permission already granted. */
-export async function subscribeAndSync(reg: ServiceWorkerRegistration): Promise<boolean> {
-  const key = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-  if (!key) return false;
+export async function subscribeAndSync(reg: ServiceWorkerRegistration, opts: { force?: boolean } = {}): Promise<SyncResult> {
   try {
-    let sub = await reg.pushManager.getSubscription();
-    if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(key) as BufferSource });
-    return await syncSubscription(sub);
+    const sub = await subscribeFresh(reg, opts);
+    if (!sub) return { ok: false };
+    const r = await syncSubscriptionDetailed(sub);
+    if (!r.ok && r.code === "VAPID_MISMATCH") await sub.unsubscribe().catch(() => false); // useless: it would be rejected on every send
+    return r;
   } catch {
-    return false;
+    return { ok: false };
   }
+}
+
+/** Does the server still have this device? False after the push service rejected or dropped it (the server removes it). */
+export async function pushRegistered(endpoint: string): Promise<boolean> {
+  try {
+    const r = await fetch(`/api/push/subscribe?endpoint=${encodeURIComponent(endpoint)}`, { cache: "no-store" });
+    return r.ok ? !!(await r.json()).registered : true; // unknown: do not alarm anyone
+  } catch { return true; }
 }
 
 // ─── Who has phone alerts on, on THIS device ────────────────────────────────────────────────────────────────────────────
@@ -78,21 +118,25 @@ export function markPushEnabled(userId: string) { try { localStorage.setItem(PUS
 export function clearPushEnabled() { try { localStorage.removeItem(PUSH_FLAG); } catch { /* ignore */ } }
 export function pushEnabledFor(userId: string): boolean { try { return localStorage.getItem(PUSH_FLAG) === userId; } catch { return false; } }
 
-export type EnsureResult = "skipped" | "ok" | "resubscribed" | "failed";
+export type EnsureResult = "skipped" | "ok" | "resubscribed" | "needs-reenable" | "failed";
 
 /**
- * On app open: if THIS person turned alerts on here and permission is still granted, make sure the subscription exists, has not
- * expired, and is known to the server (one idempotent POST). Missing or expired: subscribe again. Never asks for permission.
+ * On app open: if THIS person turned alerts on here and permission is still granted, check the subscription and repair what can be
+ * repaired silently: missing, expired, or made with a different key than this build's -> subscribe again. A subscription that looks
+ * fine but that the server no longer has (the push service rejected it) is NOT quietly re-added: it would just be rejected again, so
+ * the person is asked to "Re-enable alerts on this device" instead. Never asks for permission.
  */
 export async function ensurePushSubscription(userId: string): Promise<EnsureResult> {
   if (!hasServiceWorker() || typeof Notification === "undefined" || Notification.permission !== "granted" || !pushEnabledFor(userId)) return "skipped";
   const reg = await getAppRegistration();
   if (!reg) return "skipped";
   const sub = await reg.pushManager.getSubscription();
+  const key = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
   const expired = !!sub && sub.expirationTime != null && sub.expirationTime <= Date.now();
-  if (sub && !expired) return (await syncSubscription(sub)) ? "ok" : "failed";
-  if (sub && expired) await sub.unsubscribe().catch(() => false);
-  return (await subscribeAndSync(reg)) ? "resubscribed" : "failed";
+  const made = sub ? subscriptionKey(sub) : null;
+  const wrongKey = !!sub && !!key && made !== null && made !== normalize(key);
+  if (!sub || expired || wrongKey) return (await subscribeAndSync(reg, { force: wrongKey || expired })).ok ? "resubscribed" : "failed";
+  return (await pushRegistered(sub.endpoint)) ? "ok" : "needs-reenable";
 }
 
 // ─── Can this device get phone alerts? ──────────────────────────────────────────────────────────────────────────────────

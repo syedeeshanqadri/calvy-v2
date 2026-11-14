@@ -2,8 +2,8 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
-import { disablePush, requestPushPermission } from "@/components/dashboard/PushSetup";
-import { getAppRegistration, pushBlock, type PushBlock } from "@/lib/pwa";
+import { disablePush, reenablePush, requestPushPermission } from "@/components/dashboard/PushSetup";
+import { getAppRegistration, pushBlock, pushRegistered, type PushBlock } from "@/lib/pwa";
 import { IosInstallSteps } from "@/components/dashboard/IosInstallSteps";
 
 type Prefs = Record<string, boolean>;
@@ -57,6 +57,7 @@ export function AlertsClient({ offered, configured }: { offered: { field: string
   const [here, setHere] = useState(false);
   const [block, setBlock] = useState<PushBlock>(null);
   const [testing, setTesting] = useState(false);
+  const [needsReenable, setNeedsReenable] = useState(false); // this browser still holds a subscription the server no longer has
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
   const [error, setError] = useState("");
@@ -67,7 +68,9 @@ export function AlertsClient({ offered, configured }: { offered: { field: string
     setBlock(pushBlock());
     try {
       const reg = await getAppRegistration();
-      setHere(!!(await reg?.pushManager.getSubscription()));
+      const sub = await reg?.pushManager.getSubscription();
+      setHere(!!sub);
+      setNeedsReenable(!!sub && !(await pushRegistered(sub.endpoint)));
     } catch { setHere(false); }
   }
   useEffect(() => { void load(); }, []);
@@ -98,6 +101,12 @@ export function AlertsClient({ offered, configured }: { offered: { field: string
     } catch { setError("We could not reach the server. Check your connection."); }
     finally { setTesting(false); }
   }
+  async function reenable() {
+    setBusy(true); setError(""); setMsg("");
+    const r = await reenablePush();
+    setBusy(false);
+    if (r.ok) { setMsg("Alerts are on again for this device."); await load(); } else setError(r.error ?? "Could not re-enable alerts.");
+  }
   async function disable() {
     setBusy(true); setError(""); setMsg("");
     await disablePush();
@@ -111,6 +120,13 @@ export function AlertsClient({ offered, configured }: { offered: { field: string
         <CardContent className="space-y-3">
           <p className="text-sm text-[#6b6b80]">{here ? "Alerts are on for this device." : "Alerts are off for this device."} {devices > 0 && `You have ${devices} device${devices === 1 ? "" : "s"} registered.`}</p>
           {!configured && <p className="text-xs text-amber-800 bg-amber-50 rounded-lg px-3 py-2">Phone alerts are not set up on the server yet.</p>}
+          {needsReenable && (
+            <div role="alert" className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900" data-testid="reenable-push">
+              <p className="font-semibold">Alerts stopped working on this device</p>
+              <p className="mt-1 text-xs">The push service no longer accepts this device, so new bookings are not reaching it. Tap below to set it up again.</p>
+              <Button size="sm" className="mt-2" onClick={reenable} disabled={busy}>Re-enable alerts on this device</Button>
+            </div>
+          )}
           {block === "ios-install" && <IosInstallSteps />}
           {block === "unsupported" && <p className="text-xs text-amber-800 bg-amber-50 rounded-lg px-3 py-2">This browser cannot receive phone alerts. Use Chrome on Android, or the installed app on iPhone.</p>}
           {block === "denied" && <p className="text-xs text-amber-800 bg-amber-50 rounded-lg px-3 py-2">Notifications are blocked for Calvy. Turn them on in your phone&apos;s Settings → Notifications → Calvy (iPhone) or the site settings (Android), then come back.</p>}

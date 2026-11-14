@@ -144,12 +144,49 @@ describe("ensurePushSubscription: silent only for the person who turned alerts o
     current = (globalThis as any).__mk("https://push.example/old", Date.now() - 1000);
     expect(await ensurePushSubscription("u1")).toBe("resubscribed");
   });
-  it("healthy subscription: just confirms it to the server", async () => {
+  it("healthy subscription the server knows: nothing to do", async () => {
     const { ensurePushSubscription, markPushEnabled } = await import("@/lib/pwa");
     markPushEnabled("u1");
     current = (globalThis as any).__mk("https://push.example/ok", Date.now() + 86_400_000);
+    vi.stubGlobal("fetch", async (u: string) => { fetched.push(u); return new Response(JSON.stringify({ registered: true }), { status: 200 }); });
     expect(await ensurePushSubscription("u1")).toBe("ok");
     expect(subscribes).toEqual([]);
+  });
+  it("a subscription the SERVER dropped (the push service rejected it) is not quietly re-added: the person is asked to re-enable", async () => {
+    const { ensurePushSubscription, markPushEnabled } = await import("@/lib/pwa");
+    markPushEnabled("u1");
+    current = (globalThis as any).__mk("https://push.example/rejected", Date.now() + 86_400_000);
+    vi.stubGlobal("fetch", async (u: string, init?: RequestInit) => { fetched.push(`${init?.method ?? "GET"} ${u}`); return new Response(JSON.stringify({ registered: false }), { status: 200 }); });
+    expect(await ensurePushSubscription("u1")).toBe("needs-reenable");
+    expect(fetched.some((f) => f.startsWith("POST"))).toBe(false); // never re-registered behind their back
+  });
+  it("a subscription made with a DIFFERENT key than this build's is unsubscribed and replaced", async () => {
+    const { ensurePushSubscription, markPushEnabled } = await import("@/lib/pwa");
+    markPushEnabled("u1");
+    const unsub = vi.fn(async () => true);
+    const other = new Uint8Array([9, 9, 9, 9]); // not the build's key (AQID)
+    current = { ...(globalThis as any).__mk("https://push.example/old-key", Date.now() + 86_400_000), unsubscribe: unsub, options: { applicationServerKey: other.buffer } } as never;
+    expect(await ensurePushSubscription("u1")).toBe("resubscribed");
+    expect(unsub).toHaveBeenCalledTimes(1);
+    expect(subscribes).toHaveLength(1);
+  });
+  it("a subscription made with the SAME key is reused (no needless churn)", async () => {
+    const { subscribeFresh } = await import("@/lib/pwa");
+    const same = new Uint8Array([1, 2, 3]); // "AQID"
+    const unsub = vi.fn(async () => true);
+    current = { ...(globalThis as any).__mk("https://push.example/same", Date.now() + 86_400_000), unsubscribe: unsub, options: { applicationServerKey: same.buffer } } as never;
+    const reg = { pushManager: { getSubscription: async () => current, subscribe: async () => { throw new Error("must not subscribe again"); } } };
+    expect(await subscribeFresh(reg as never)).toBe(current);
+    expect(unsub).not.toHaveBeenCalled();
+  });
+  it("force (Re-enable) always starts clean", async () => {
+    const { subscribeFresh } = await import("@/lib/pwa");
+    const unsub = vi.fn(async () => true);
+    current = { ...(globalThis as any).__mk("https://push.example/x", Date.now() + 86_400_000), unsubscribe: unsub, options: { applicationServerKey: new Uint8Array([1, 2, 3]).buffer } } as never;
+    const fresh = (globalThis as any).__mk("https://push.example/fresh");
+    const reg = { pushManager: { getSubscription: async () => current, subscribe: async () => fresh } };
+    expect(await subscribeFresh(reg as never, { force: true })).toBe(fresh);
+    expect(unsub).toHaveBeenCalledTimes(1);
   });
   it("turning alerts off or signing out forgets the person", async () => {
     const { ensurePushSubscription, markPushEnabled, clearPushEnabled } = await import("@/lib/pwa");
@@ -240,5 +277,45 @@ describe("wiring", () => {
     expect(alerts).toContain("Send test notification");
     expect(alerts).toContain("IosInstallSteps");
     expect(readFileSync("components/dashboard/PushSetup.tsx", "utf8")).toContain("clearSeenAlerts");
+  });
+});
+
+// ── the server's key pair and the subscribe check ───────────────────────────────────────────────────────────────────────
+describe("VAPID pair and the subscribe check (the 403 'push service' failure)", () => {
+  it("signingPublicKey is derived from the PRIVATE key; vapidPairMatches is false when the public key belongs to another pair", async () => {
+    const { generateKeyPairSync } = await import("crypto");
+    const mk = () => { const { privateKey } = generateKeyPairSync("ec", { namedCurve: "prime256v1" }); const jwk = privateKey.export({ format: "jwk" }) as { d: string; x: string; y: string };
+      const pub = Buffer.concat([Buffer.from([4]), Buffer.from(jwk.x, "base64url"), Buffer.from(jwk.y, "base64url")]).toString("base64url"); return { priv: jwk.d, pub }; };
+    const a = mk(), b = mk();
+    vi.resetModules();
+    process.env.VAPID_PRIVATE_KEY = a.priv; process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY = a.pub;
+    vi.doMock("web-push", () => ({ default: { setVapidDetails: () => {}, sendNotification: async () => ({}) } }));
+    let push = await vi.importActual<typeof import("@/lib/push")>("@/lib/push");
+    expect(push.signingPublicKey()).toBe(a.pub);
+    expect(push.vapidPairMatches()).toBe(true);
+    vi.resetModules();
+    process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY = b.pub; // a public key from a DIFFERENT pair: exactly the production failure
+    push = await vi.importActual<typeof import("@/lib/push")>("@/lib/push");
+    expect(push.signingPublicKey()).toBe(a.pub);
+    expect(push.vapidPairMatches()).toBe(false);
+    vi.doUnmock("web-push");
+  });
+});
+
+describe("POST/GET /api/push/subscribe key check", () => {
+  const s = vi.hoisted(() => ({ session: vi.fn(), upsert: vi.fn(), find: vi.fn(), signing: vi.fn() }));
+  it("source: refuses a browser key that is not the key the server signs with (409 VAPID_MISMATCH) and answers 'registered'", () => {
+    const src = readFileSync("app/api/push/subscribe/route.ts", "utf8");
+    expect(src).toContain("signingPublicKey()");
+    expect(src).toMatch(/normalizeKey\(applicationServerKey\) !== signing/);
+    expect(src).toContain('code: "VAPID_MISMATCH"');
+    expect(src).toContain("status: 409");
+    expect(src).toContain("registered: !!device && device.userId === session.access.userId");
+    void s;
+  });
+  it("the client sends the key it subscribed with, and the Alerts page offers 'Re-enable alerts on this device'", () => {
+    expect(readFileSync("lib/pwa.ts", "utf8")).toContain("applicationServerKey: key");
+    expect(readFileSync("app/dashboard/alerts/AlertsClient.tsx", "utf8")).toContain("Re-enable alerts on this device");
+    expect(readFileSync("components/dashboard/PushBanner.tsx", "utf8")).toContain("Re-enable alerts on this device");
   });
 });

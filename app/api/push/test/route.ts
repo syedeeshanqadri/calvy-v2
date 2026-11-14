@@ -25,9 +25,10 @@ async function POST_handler(req: NextRequest) {
 
   const out = await deliverPush(device, { title: "Test from Calvy", body: "Phone alerts are working on this device.", url: "/dashboard/alerts", tag: "test", kind: "test" });
   if (out.kind === "sent") return NextResponse.json({ ok: true });
-  if (out.kind === "expired") {
+  if (out.kind === "expired" || out.kind === "rejected") {
     await prisma.pushDevice.deleteMany({ where: { id: device.id } });
-    return NextResponse.json({ error: "This device's subscription expired. Turn phone alerts off and on again." }, { status: 410 });
+    const why = out.reason ? ` (${out.reason})` : "";
+    return NextResponse.json({ error: `The push service no longer accepts this device${why}. Re-enable alerts on this device.`, code: "REENABLE" }, { status: 410 });
   }
   return NextResponse.json({ error: "The push service did not accept the test. Try again." }, { status: 502 });
 }

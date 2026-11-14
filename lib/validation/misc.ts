@@ -64,6 +64,8 @@ export const websitePatchSchema = z.object({
 export const pushSubscribeSchema = z.object({
   endpoint: z.string().trim().max(1000).url().refine((u) => u.startsWith("https://"), "endpoint must be https"),
   keys: z.object({ p256dh: z.string().min(1).max(300), auth: z.string().min(1).max(300) }),
+  /** The key the browser subscribed with (base64url). Checked against the key the server signs with. */
+  applicationServerKey: z.string().max(200).optional(),
 });
 export const pushUnsubscribeSchema = z.object({ endpoint: z.string().trim().max(1000).optional() });
 

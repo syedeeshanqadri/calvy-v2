@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useSession, getSession } from "next-auth/react";
-import { clearPushEnabled, clearSeenAlerts, ensurePushSubscription, getAppRegistration, markPushEnabled, registerAppWorker, removeLegacyWorkers, subscribeAndSync, syncSubscription, urlBase64ToUint8Array } from "@/lib/pwa";
+import { clearPushEnabled, clearSeenAlerts, ensurePushSubscription, getAppRegistration, markPushEnabled, registerAppWorker, removeLegacyWorkers, subscribeAndSync } from "@/lib/pwa";
 
 /**
  * Registers the business app's service worker (scope /dashboard only) and shows "New version available" when an update is waiting.
@@ -67,7 +67,8 @@ export function PushSetup() {
 
 export interface PushResult { ok: boolean; error?: string }
 
-export async function requestPushPermission(): Promise<PushResult> {
+export async function requestPushPermission(opts: { force?: boolean } = {}): Promise<PushResult> {
+  const force = !!opts.force;
   if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) {
     return { ok: false, error: "This device doesn't support web push here. On iPhone, open the app from your Home Screen (installed PWA, iOS 16.4+) — push doesn't work in a Safari tab." };
   }
@@ -94,21 +95,20 @@ export async function requestPushPermission(): Promise<PushResult> {
     const reg = await registerAppWorker();
     await navigator.serviceWorker.ready;
 
-    let sub = await reg.pushManager.getSubscription();
-    if (!sub) {
-      sub = await reg.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!) as BufferSource,
-      });
-    }
-    const saved = await syncSubscription(sub);
-    if (!saved) return { ok: false, error: "Subscribed on device but the server didn't save it. Check your connection and try again." };
+    // A subscription made with a different key is replaced (the server would be rejected by the push service for it); `force` = start clean.
+    const done = await subscribeAndSync(reg, { force });
+    if (!done.ok) return { ok: false, error: done.code === "VAPID_MISMATCH" && done.error ? done.error : "Subscribed on device but the server didn't save it. Check your connection and try again." };
     const me = await getSession();
     if (me?.user?.id) markPushEnabled(me.user.id);
     return { ok: true };
   } catch (e) {
     return { ok: false, error: `Couldn't subscribe: ${(e as Error).message}` };
   }
+}
+
+/** "Re-enable alerts on this device": drop the old subscription completely and make a new one (permission is already granted, so no prompt). */
+export async function reenablePush(): Promise<PushResult> {
+  return requestPushPermission({ force: true });
 }
 
 /** Turn phone alerts off on THIS device (and tell the server). */

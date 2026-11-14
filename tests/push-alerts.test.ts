@@ -184,6 +184,14 @@ describe("delivery and expired devices", () => {
     expect(db.pushDevice.deleteMany).toHaveBeenCalledWith({ where: { id: "d1" } });
     void status;
   });
+  it("a 403 key mismatch deletes the device and the delivery log says why and what to do", async () => {
+    deliver.mockResolvedValue({ kind: "rejected", reason: "403 BadJwtToken" });
+    const out = await CHANNELS.PUSH(msg, "d1", "k");
+    expect(out).toMatchObject({ kind: "skipped" });
+    expect((out as { error: string }).error).toContain("403 BadJwtToken");
+    expect((out as { error: string }).error).toContain("Re-enable alerts on this device");
+    expect(db.pushDevice.deleteMany).toHaveBeenCalledWith({ where: { id: "d1" } });
+  });
   it("other failures are retried or permanent, and keep the device", async () => {
     deliver.mockResolvedValue({ kind: "retry", error: "push service 503" });
     expect((await CHANNELS.PUSH(msg, "d1", "k")).kind).toBe("retry");
