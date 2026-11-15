@@ -130,10 +130,10 @@ export function ServicesClient({ services: initial, groupBooking = false }: { se
                 <button onClick={() => toggleActive(service.id)} className="text-[#6b6b80] hover:text-brand-800 transition-colors">
                   {service.isActive ? <ToggleRight size={22} className="text-accent" /> : <ToggleLeft size={22} />}
                 </button>
-                <button onClick={() => openEdit(service)} className="w-7 h-7 rounded-lg flex items-center justify-center text-[#6b6b80] hover:bg-[#f8f7f4] transition-colors">
+                <button onClick={() => openEdit(service)} aria-label={`Edit ${service.name}`} className="w-7 h-7 rounded-lg flex items-center justify-center text-[#6b6b80] hover:bg-[#f8f7f4] transition-colors">
                   <MoreVertical size={14} />
                 </button>
-                <button onClick={() => setDeleteTarget(service)} className="w-7 h-7 rounded-lg flex items-center justify-center text-[#6b6b80] hover:bg-red-50 hover:text-red-500 transition-colors">
+                <button onClick={() => setDeleteTarget(service)} aria-label={`Delete ${service.name}`} className="w-7 h-7 rounded-lg flex items-center justify-center text-[#6b6b80] hover:bg-red-50 hover:text-red-500 transition-colors">
                   <Trash2 size={14} />
                 </button>
               </div>
@@ -214,7 +214,7 @@ export function ServicesClient({ services: initial, groupBooking = false }: { se
             </div>
           </div>
           {error && <p className="text-sm text-red-500">{error}</p>}
-          <div className="flex gap-3 pt-2">
+          <div className="sheet-actions flex gap-3 pt-2">
             <Button variant="outline" onClick={() => { setShowAddModal(false); setEditService(null); }} className="flex-1 justify-center">Cancel</Button>
             <Button onClick={submitForm} disabled={loading || !form.name || !form.duration} className="flex-1 justify-center">
               {loading ? "Saving..." : editService ? "Save changes" : `Add ${svc1}`}
@@ -233,7 +233,7 @@ export function ServicesClient({ services: initial, groupBooking = false }: { se
             <p className="text-xs text-[#6b6b80] bg-amber-50 border border-amber-100 rounded-xl p-3">
               If this {svc1} has existing {apptN}, it will be <strong>deactivated</strong> instead of deleted to preserve booking history.
             </p>
-            <div className="flex gap-3 pt-1">
+            <div className="sheet-actions flex gap-3 pt-1">
               <Button variant="outline" onClick={() => setDeleteTarget(null)} className="flex-1 justify-center">Cancel</Button>
               <button onClick={confirmDelete} disabled={deleteLoading} className="flex-1 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-white text-sm font-semibold disabled:opacity-60 transition-colors">
                 {deleteLoading ? "Deleting..." : "Delete"}

@@ -242,7 +242,7 @@ async function POST_handler(request: NextRequest) {
   sendPushToBusiness(businessId, {
     title: "New appointment booked",
     body: `${shortName(clientName)} · ${serviceNamesLabel} · ${dateLabel} ${time}`,
-    url: "/dashboard/appointments",
+    url: `/dashboard/appointments?open=${appointment.id}`,
     tag: "new-booking",
   }, { kind: "booking_new", staffId: chosenStaffId, subjectId: appointment.id, version: "created" }).catch(() => {});
 

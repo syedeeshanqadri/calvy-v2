@@ -8,7 +8,7 @@ import { rateLimit } from "@/lib/ratelimit";
 import { getBusinessFeatures } from "@/lib/getFeatures";
 import { normalizeStaffPhone } from "@/lib/whatsapp/staff";
 import { connectionTestMessage } from "@/lib/whatsapp/events";
-import { credentialsOf, usableLanguages } from "@/lib/whatsapp/store";
+import { CredentialsUnreadable, credentialsOf, usableLanguages } from "@/lib/whatsapp/store";
 import { sendTemplateMessage } from "@/lib/whatsapp/graph";
 import { templateName } from "@/lib/whatsapp/templates";
 import { maskSecret } from "@/lib/whatsapp/signature";
@@ -65,7 +65,9 @@ async function POST_handler(req: NextRequest) {
   const language = approved.includes("en") ? "en" : approved[0];
   if (!language) return NextResponse.json({ error: "The alert template (used for test messages) is not approved yet. Ask the owner to check Settings > WhatsApp." }, { status: 409 });
 
-  const r = await sendTemplateMessage(credentialsOf(cfg), phone.replace(/\D/g, ""), { name: templateName("staff_alert"), language, params: testMsg.params, buttonSuffix: testMsg.buttonSuffix });
+  let creds;
+  try { creds = credentialsOf(cfg); } catch (e) { if (e instanceof CredentialsUnreadable) return NextResponse.json({ error: e.message }, { status: 409 }); throw e; }
+  const r = await sendTemplateMessage(creds, phone.replace(/\D/g, ""), { name: templateName("staff_alert"), language, params: testMsg.params, buttonSuffix: testMsg.buttonSuffix });
   if (!r.ok) return NextResponse.json({ error: r.reason }, { status: 502 });
   // A new number starts with alerts off; the person turns them on after the test message arrives.
   await prisma.user.update({ where: { id: userId }, data: { whatsappPhone: phone, whatsappVerifiedAt: new Date(), whatsappOptIn: false } });

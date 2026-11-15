@@ -69,8 +69,8 @@ async function attemptSend(row: NotificationOutbox, channels: Record<string, Cha
       // A phone alert: the device must still exist and its owner must still be allowed (and want) it. No template: title and body are the payload.
       const blocked = await pushSendBlocker(row);
       if (blocked) return { kind: "skipped", error: blocked };
-      const p = row.payload as { title?: string; body?: string; url?: string; tag?: string };
-      return await channels.PUSH({ subject: p.title ?? "Calvy", text: p.body ?? "", html: "", push: { url: p.url ?? "/dashboard", tag: p.tag ?? "calvy" } }, row.recipient, row.id);
+      const p = row.payload as { title?: string; body?: string; url?: string; tag?: string; kind?: string };
+      return await channels.PUSH({ subject: p.title ?? "Calvy", text: p.body ?? "", html: "", push: { url: p.url ?? "/dashboard", tag: p.tag ?? "calvy", kind: p.kind } }, row.recipient, row.id);
     }
     // Checked again here: the recipient may have unsubscribed, or the business switched it off, since it was queued.
     const skip = (await skipReasons(prisma, [{ businessId: row.businessId, event: row.event, recipient: row.recipient }])).get(0);

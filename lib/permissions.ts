@@ -91,7 +91,7 @@ export const ROUTE_PERMISSIONS: { prefix: string; any: Permission[] }[] = [
 ];
 
 /** Personal pages every signed-in person (owner or member) may open: their own phone alerts. */
-export const ALWAYS_OPEN: readonly string[] = ["/dashboard/alerts"];
+export const ALWAYS_OPEN: readonly string[] = ["/dashboard/alerts", "/dashboard/no-access"];
 
 /** Pages a member may open; "/dashboard" itself is always fine (a landing screen). */
 export function pathAllowed(perms: readonly string[], pathname: string): boolean {

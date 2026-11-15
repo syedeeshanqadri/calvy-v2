@@ -71,3 +71,36 @@ body {
   .safe-header-16 { padding-top: env(safe-area-inset-top); min-height: calc(4rem + env(safe-area-inset-top)); }
   .pl-13 { padding-left: 3.25rem; }
 }
+
+/* Touch devices (phones and tablets): inputs are 16px so iOS never zooms the page on focus, and every control is at least 44px.
+   Add .tap-tight to a control that must stay compact (a dense grid cell); it still gets 16px text but not the 44px minimum. */
+@media (pointer: coarse) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([type="range"]):not([type="color"]):not([type="file"]):not([type="submit"]):not([type="button"]):not([type="image"]),
+  select,
+  textarea { font-size: 16px !important; }
+  input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([type="range"]):not([type="color"]):not([type="file"]):not([type="image"]):not(.tap-tight),
+  select:not(.tap-tight) { min-height: 44px; }
+  button:not(.tap-tight), [role="button"]:not(.tap-tight), summary { min-height: 44px; min-width: 44px; }
+  a[class*="inline-flex"]:not(.tap-tight), a[class*="items-center"]:not(.tap-tight) { min-height: 44px; }
+  input[type="checkbox"], input[type="radio"] { width: 1.5rem; height: 1.5rem; }
+}
+
+/* Dialogs: the action row at the end of a form inside a Modal stays pinned at the bottom of the dialog, at every screen size (above the
+   keyboard on phones). Modal's own `footer` prop is the explicit way; .sheet-actions marks a row that is not the last child of a <form>. */
+.sheet-body { --sheet-pad: 1rem; }
+@media (min-width: 768px) { .sheet-body { --sheet-pad: 1.5rem; } }
+.sheet-body:has(form > :last-child:has(button[type="submit"])),
+.sheet-body:has(.sheet-actions) { padding-bottom: 0; }
+.sheet-body form > :last-child:has(button[type="submit"]),
+.sheet-body .sheet-actions {
+  position: sticky; bottom: 0; z-index: 5; background: #fff; border-top: 1px solid #f0ede8;
+  margin: 0.75rem calc(var(--sheet-pad) * -1) 0; padding: 0.75rem var(--sheet-pad) calc(0.75rem + env(safe-area-inset-bottom));
+}
+
+/* Touch: more targets that were still under 44px (link-styled buttons with a fixed height, colour pickers, checkbox rows). */
+@media (pointer: coarse) {
+  a:is(.h-6, .h-7, .h-8, .h-9, .h-10):not(.tap-tight) { min-height: 44px; }
+  a[class*="inline-block"]:not(.tap-tight) { min-height: 44px; display: inline-flex; align-items: center; }
+  input[type="color"] { min-width: 44px; min-height: 44px; }
+  label:has(> input[type="checkbox"]), label:has(> input[type="radio"]) { min-height: 44px; display: flex; align-items: center; gap: 0.5rem; }
+}

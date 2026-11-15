@@ -63,7 +63,7 @@ function MemberForm({ staff, initial, onDone, onClose }: { staff: StaffOpt[]; in
       </fieldset>
       <p className="text-xs text-[#6b6b80]">Billing, team management, payment settings, WhatsApp credentials and deleting the business always stay with the owner.</p>
       {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
-      <div className="flex justify-end gap-2">
+      <div className="sheet-actions flex justify-end gap-2">
         <Button variant="outline" size="sm" onClick={onClose}>Cancel</Button>
         <Button size="sm" loading={busy} onClick={save} disabled={!name || !roleName || (!initial && !email)} data-testid="member-save">{initial ? "Save" : "Send invite"}</Button>
       </div>

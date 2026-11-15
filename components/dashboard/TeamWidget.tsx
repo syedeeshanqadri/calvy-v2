@@ -24,7 +24,7 @@ export function TeamWidget({ staff }: { staff: TeamMember[] }) {
         {staff.length === 0 && <p className="text-sm text-[#6b6b80] text-center py-4">No staff yet</p>}
         {staff.map((member) => {
           const load = Math.round((member.appointmentsToday / 8) * 100);
-          const statusColor = load >= 80 ? "text-amber-600 bg-amber-50" : load >= 40 ? "text-green-600 bg-green-50" : "text-gray-500 bg-gray-100";
+          const statusColor = load >= 80 ? "text-amber-600 bg-amber-50" : load >= 40 ? "text-green-600 bg-green-50" : "text-gray-600 bg-gray-100";
           const statusLabel = load >= 80 ? "Busy" : load >= 40 ? "Online" : "Available";
           return (
             <div key={member.id} className="flex items-center gap-3">

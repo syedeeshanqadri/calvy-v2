@@ -248,7 +248,7 @@ export function StaffClient({ staff, currentPlan, maxStaff }: Props) {
               ))}
             </div>
           </div>
-          <div className="flex gap-3 pt-2">
+          <div className="sheet-actions flex gap-3 pt-2">
             <Button variant="ghost" className="flex-1" onClick={() => setShowModal(false)}>Cancel</Button>
             <Button className="flex-1" onClick={submit} disabled={loading}>
               {loading ? "Saving…" : editStaff ? "Save changes" : `Add ${stf1}`}

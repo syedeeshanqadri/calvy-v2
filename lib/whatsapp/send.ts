@@ -12,7 +12,7 @@ import { sanitizePermissions } from "@/lib/permissions";
 import { mayReceive, wants, type PushKind, type PushPrefs } from "@/lib/pushRouting";
 import { buildWhatsAppMessage, WA_EVENTS } from "@/lib/whatsapp/events";
 import { sendTemplateMessage, type Fetcher } from "@/lib/whatsapp/graph";
-import { credentialsOf, isOptedOut, usableLanguages } from "@/lib/whatsapp/store";
+import { CredentialsUnreadable, credentialsOf, isOptedOut, usableLanguages } from "@/lib/whatsapp/store";
 import { TEMPLATE_LANGUAGES, templateName } from "@/lib/whatsapp/templates";
 
 const digits = (s: string | null | undefined) => (s ?? "").replace(/\D/g, "");
@@ -82,7 +82,9 @@ export async function sendWhatsAppRow(row: NotificationOutbox, fetcher?: Fetcher
 
   const cfg = await prisma.whatsAppConfig.findUnique({ where: { businessId } });
   if (!cfg) return { kind: "skipped", error: "WhatsApp not set up" };
-  const r = await sendTemplateMessage(credentialsOf(cfg), digits(row.recipient), { name, language, params: message.params, buttonSuffix: message.buttonSuffix }, fetcher);
+  let creds;
+  try { creds = credentialsOf(cfg); } catch (e) { if (e instanceof CredentialsUnreadable) return { kind: "skipped", error: "WhatsApp credentials cannot be read by this server (re-enter them in Settings)" }; throw e; }
+  const r = await sendTemplateMessage(creds, digits(row.recipient), { name, language, params: message.params, buttonSuffix: message.buttonSuffix }, fetcher);
   if (r.ok) return { kind: "sent", providerId: r.messageId };
 
   if (r.authFailure) {

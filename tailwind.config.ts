@@ -20,10 +20,12 @@ const config: Config = {
           800: "#1a1a2e",
           900: "#0f0f1a",
         },
+        // AA contrast: white text on the accent, and the accent as text on white, both reach 4.5:1 (the old #0284c7 gave 4.09).
         accent: {
-          DEFAULT: "#0284c7",
-          hover: "#0369a1",
+          DEFAULT: "#0369a1",
+          hover: "#075985",
         },
+        sky: { 600: "#0369a1", 700: "#075985" },
         gold: "#f5a623",
       },
       animation: {

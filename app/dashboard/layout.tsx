@@ -1,4 +1,6 @@
+import type { Metadata } from "next";
 import { getServerSession } from "next-auth";
+import { appManifestMetadata } from "@/lib/appMetadata";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { resolveAccess } from "@/lib/access";
@@ -9,6 +11,8 @@ import { getFlags } from "@/lib/flags";
 import { FlagsProvider } from "@/components/providers/FlagsProvider";
 import { CurrencyProvider } from "@/components/providers/CurrencyProvider";
 import { TermsProvider } from "@/components/providers/TermsProvider";
+
+export const metadata: Metadata = { ...appManifestMetadata };
 
 export default async function DashboardRootLayout({ children }: { children: React.ReactNode }) {
   const session = await getServerSession(authOptions);

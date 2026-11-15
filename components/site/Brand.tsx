@@ -39,7 +39,7 @@ export function SocialIcons({ links, className = "", tone = "light" }: { links: 
         return (
           <li key={p}>
             <a href={links[p]} target="_blank" rel="noopener noreferrer" aria-label={SOCIAL_LABELS[p]} title={SOCIAL_LABELS[p]}
-              className={`w-9 h-9 rounded-full inline-flex items-center justify-center transition-colors ${cls}`}>
+              className={`w-11 h-11 rounded-full inline-flex items-center justify-center transition-colors ${cls}`}>
               <Icon size={16} />
             </a>
           </li>

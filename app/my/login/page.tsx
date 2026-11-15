@@ -53,7 +53,7 @@ function LoginForm() {
           <input id="c-email" type="email" required autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} className={inputClass} />
         </div>
         <PasswordInput id="c-password" label="Password" value={password} onChange={setPassword} autoComplete="current-password"
-          labelAction={<Link href="/my/forgot-password" className={`${linkClass} text-xs`}>Forgot password?</Link>} />
+          labelAction={<Link href="/my/forgot-password" className={`${linkClass} text-xs inline-flex items-center min-h-11`}>Forgot password?</Link>} />
         <button type="submit" disabled={loading} className={primaryBtn}>{loading ? "Signing in…" : "Sign in"}</button>
         {canResend && <button type="button" onClick={resend} className={`${linkClass} text-sm`}>Send a new verification email</button>}
       </form>

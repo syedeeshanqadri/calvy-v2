@@ -1,12 +1,16 @@
 "use client";
 import { useEffect, useState } from "react";
+import { useSession, getSession } from "next-auth/react";
+import { clearPushEnabled, clearSeenAlerts, ensurePushSubscription, getAppRegistration, markPushEnabled, registerAppWorker, removeLegacyWorkers, subscribeAndSync } from "@/lib/pwa";
 
 /**
- * Registers the service worker for the installed business app and shows "New version available" when an update is waiting.
+ * Registers the business app's service worker (scope /dashboard only) and shows "New version available" when an update is waiting.
+ * Devices that still have the first worker (scope "/") get it removed here; if it held phone alerts they are re-subscribed.
  * It does NOT subscribe to push by itself: phone alerts are turned on per person, on purpose (reception devices are shared).
  */
 export function PushSetup() {
   const [waiting, setWaiting] = useState<ServiceWorker | null>(null);
+  const userId = useSession().data?.user?.id;
 
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
@@ -16,8 +20,13 @@ export function PushSetup() {
     navigator.serviceWorker.addEventListener("controllerchange", onChange);
     (window as unknown as { __calvyReload?: () => void }).__calvyReload = () => { reloading = true; };
 
-    navigator.serviceWorker.register("/sw.js", { scope: "/" }).then((reg) => {
+    (async () => {
+      const { hadPush } = await removeLegacyWorkers();
+      const reg = await registerAppWorker();
       if (cancelled) return;
+      // The first worker held this person's phone alerts: unregistering it dropped them, so subscribe again under the new one.
+      if (hadPush && "Notification" in window && Notification.permission === "granted") await navigator.serviceWorker.ready.then(() => subscribeAndSync(reg));
+      void clearSeenAlerts();
       if (reg.waiting && navigator.serviceWorker.controller) setWaiting(reg.waiting);
       reg.addEventListener("updatefound", () => {
         const w = reg.installing;
@@ -28,13 +37,22 @@ export function PushSetup() {
       // Look for a new version whenever the app comes back to the front.
       const check = () => { if (document.visibilityState === "visible") reg.update().catch(() => {}); };
       document.addEventListener("visibilitychange", check);
-    }).catch(() => {});
+    })().catch(() => {});
     return () => { cancelled = true; navigator.serviceWorker.removeEventListener("controllerchange", onChange); };
   }, []);
 
+  // Every time the app opens or returns to the front: the alerts have been seen, and this person's subscription is checked (silently re-created if missing or expired).
+  useEffect(() => {
+    if (!userId) return;
+    const open = () => { if (document.visibilityState === "visible") { void clearSeenAlerts(); void ensurePushSubscription(userId); } };
+    open();
+    document.addEventListener("visibilitychange", open);
+    return () => document.removeEventListener("visibilitychange", open);
+  }, [userId]);
+
   if (!waiting) return null;
   return (
-    <div role="status" className="fixed bottom-20 lg:bottom-6 left-1/2 -translate-x-1/2 z-[70] flex items-center gap-3 rounded-xl bg-[#0f0f1a] text-white text-sm px-4 py-3 shadow-xl" data-testid="update-bar">
+    <div role="status" className="fixed bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 z-[70] flex items-center gap-3 rounded-xl bg-[#0f0f1a] text-white text-sm px-4 py-3 shadow-xl" data-testid="update-bar">
       <span>New version available</span>
       <button
         type="button"
@@ -49,7 +67,8 @@ export function PushSetup() {
 
 export interface PushResult { ok: boolean; error?: string }
 
-export async function requestPushPermission(): Promise<PushResult> {
+export async function requestPushPermission(opts: { force?: boolean } = {}): Promise<PushResult> {
+  const force = !!opts.force;
   if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) {
     return { ok: false, error: "This device doesn't support web push here. On iPhone, open the app from your Home Screen (installed PWA, iOS 16.4+) — push doesn't work in a Safari tab." };
   }
@@ -73,33 +92,35 @@ export async function requestPushPermission(): Promise<PushResult> {
   }
 
   try {
-    const reg = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
+    const reg = await registerAppWorker();
     await navigator.serviceWorker.ready;
 
-    let sub = await reg.pushManager.getSubscription();
-    if (!sub) {
-      sub = await reg.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!) as BufferSource,
-      });
-    }
-    const saved = await syncSubscription(sub);
-    if (!saved) return { ok: false, error: "Subscribed on device but the server didn't save it. Check your connection and try again." };
+    // A subscription made with a different key is replaced (the server would be rejected by the push service for it); `force` = start clean.
+    const done = await subscribeAndSync(reg, { force });
+    if (!done.ok) return { ok: false, error: done.code === "VAPID_MISMATCH" && done.error ? done.error : "Subscribed on device but the server didn't save it. Check your connection and try again." };
+    const me = await getSession();
+    if (me?.user?.id) markPushEnabled(me.user.id);
     return { ok: true };
   } catch (e) {
     return { ok: false, error: `Couldn't subscribe: ${(e as Error).message}` };
   }
 }
 
+/** "Re-enable alerts on this device": drop the old subscription completely and make a new one (permission is already granted, so no prompt). */
+export async function reenablePush(): Promise<PushResult> {
+  return requestPushPermission({ force: true });
+}
+
 /** Turn phone alerts off on THIS device (and tell the server). */
 export async function disablePush(): Promise<boolean> {
   try {
-    const reg = await navigator.serviceWorker.getRegistration("/");
+    const reg = await getAppRegistration();
     const sub = await reg?.pushManager.getSubscription();
     if (sub) {
       await fetch("/api/push/subscribe", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ endpoint: sub.endpoint }) });
       await sub.unsubscribe();
     }
+    clearPushEnabled();
     return true;
   } catch {
     return false;
@@ -110,36 +131,11 @@ export async function disablePush(): Promise<boolean> {
 export async function releaseThisDevice(): Promise<void> {
   try {
     if (!("serviceWorker" in navigator)) return;
-    const reg = await navigator.serviceWorker.getRegistration("/");
+    const reg = await getAppRegistration();
     const sub = await reg?.pushManager.getSubscription();
+    clearPushEnabled(); // signing out: the next person here starts with alerts off
     if (!sub) return; // nothing registered here; never send an "all devices" delete
     await fetch("/api/push/subscribe", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ endpoint: sub.endpoint }) });
     await sub.unsubscribe();
   } catch { /* the server-side sign-out event is the fallback */ }
-}
-
-async function syncSubscription(sub: PushSubscription): Promise<boolean> {
-  try {
-    const json = sub.toJSON();
-    const res = await fetch("/api/push/subscribe", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ endpoint: json.endpoint, keys: json.keys }),
-    });
-    return res.ok;
-  } catch {
-    return false;
-  }
-}
-
-// Return the Uint8Array itself (not its .buffer): iOS Safari's pushManager
-// rejects a bare ArrayBuffer as applicationServerKey, which silently fails the
-// subscribe on iPhone while Chrome/Android tolerates it.
-function urlBase64ToUint8Array(base64String: string): Uint8Array {
-  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
-  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
-  const raw = atob(base64);
-  const arr = new Uint8Array(raw.length);
-  for (let i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
-  return arr;
 }

@@ -1,14 +1,19 @@
 "use client";
 import { OnlineBadge, JoinButton } from "@/components/dashboard/OnlineJoin";
 import { useCallback, useEffect, useState } from "react";
-import { Loader2, Phone, UserPlus } from "lucide-react";
+import { advanceQueue } from "@/lib/optimistic";
+import { useLivePoll } from "@/lib/useLivePoll";
+import { useUndoSlot } from "@/lib/useUndoSlot";
+import { UndoToast } from "@/components/ui/UndoToast";
+import { Shimmer } from "@/components/ui/Shimmer";
+import { Phone, UserPlus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTerms } from "@/components/providers/TermsProvider";
 import type { QueueRow, QueueSessionInfo, QueueView } from "@/lib/queueDb";
 
 type Payload = { key: string; sessions: QueueSessionInfo[]; queue: QueueView | null; error: string };
 
-const POLL_MS = 10_000;
+const POLL_MS = 10_000; // reception: a little faster than the 15s of Today
 const bigBtn = "w-full min-h-14 rounded-2xl text-base font-semibold px-4 transition-colors disabled:opacity-50 disabled:cursor-not-allowed";
 
 /** Reception queue: touch-friendly, works at 375px. */
@@ -19,6 +24,8 @@ export function QueueClient({ today, services, whatsappOffered = false }: { toda
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [data, setData] = useState<Payload | null>(null);
   const [tick, setTick] = useState(0);
+  const [override, setOverride] = useState<{ view: QueueView; baseKey: string } | null>(null); // "Done · call next" shown before it is sent
+  const undo = useUndoSlot(5000);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -40,15 +47,11 @@ export function QueueClient({ today, services, whatsappOffered = false }: { toda
     return () => { cancelled = true; };
   }, [key, date, sessionId]);
 
-  // Live updates: other staff and online bookings change the queue.
-  useEffect(() => {
-    const id = setInterval(() => setTick((n) => n + 1), POLL_MS);
-    return () => clearInterval(id);
-  }, []);
-
   const refresh = useCallback(() => setTick((n) => n + 1), []);
+  // Live updates (other staff, online bookings): only while the app is in front, and never while an action of ours is waiting to be sent.
+  useLivePoll(() => { if (!undo.label) refresh(); }, POLL_MS);
   const sessions = data?.sessions ?? [];
-  const queue = data?.queue ?? null;
+  const queue = override && data?.key === override.baseKey ? override.view : data?.queue ?? null;
   const loading = !data;
   const serving = queue?.open.find((r) => r.state === "SERVING") ?? null;
   const waiting = queue?.open.filter((r) => r.state !== "SERVING") ?? [];
@@ -71,8 +74,26 @@ export function QueueClient({ today, services, whatsappOffered = false }: { toda
     }
   }
 
-  const act = (action: "next" | "not_present" | "not_coming", row?: QueueRow) =>
+  const send = (action: "next" | "not_present" | "not_coming", row?: QueueRow) =>
     post("/api/queue/action", { sessionId: queue!.session.id, date, action, appointmentId: row?.id }, (d) => String(d.message ?? "Done."));
+
+  /** "Done · call next": shown at once, sent after 5 seconds unless Undo is tapped (an undone tap notifies nobody). */
+  function callNext() {
+    if (!queue || !data) return;
+    const first = waiting[0];
+    setError(""); setMessage("");
+    setOverride({ view: advanceQueue(queue), baseKey: data.key });
+    void undo.schedule({
+      label: first ? `Called #${first.tokenNumber} ${first.clientName}` : "Marked done",
+      revert: () => setOverride(null),
+      commit: async () => { if (!(await send("next"))) setOverride(null); },
+    });
+  }
+  const act = async (action: "next" | "not_present" | "not_coming", row?: QueueRow) => {
+    if (action === "next") return callNext();
+    await undo.flush(); // anything waiting goes first, in order
+    return send(action, row);
+  };
 
   function notComing(row: QueueRow) {
     const text = `Cancel token ${row.tokenNumber} (${row.clientName})? Whatever they paid online is saved in their wallet for a future booking. Nothing is refunded automatically.`;
@@ -116,7 +137,12 @@ export function QueueClient({ today, services, whatsappOffered = false }: { toda
       {message && !error && <p role="status" className="text-sm text-green-800 bg-green-50 rounded-xl px-4 py-3">{message}</p>}
       {data?.error && <p role="alert" className="text-sm text-red-600 bg-red-50 rounded-xl px-4 py-3">{data.error}</p>}
 
-      {loading && <div className="flex items-center gap-2 text-sm text-[#6b6b80]"><Loader2 size={16} className="animate-spin" /> Loading the queue…</div>}
+      {loading && (
+        <div className="space-y-4" role="status" aria-label="Loading the queue">
+          <div className="bg-white rounded-2xl border border-[#e8e6e0] p-5 space-y-4"><Shimmer className="h-3 w-24" /><div className="flex items-center gap-4"><Shimmer className="h-12 w-20" /><div className="flex-1 space-y-2"><Shimmer className="h-5 w-2/3" /><Shimmer className="h-4 w-1/2" /></div></div><Shimmer className="h-14 w-full rounded-2xl" /></div>
+          <div className="bg-white rounded-2xl border border-[#e8e6e0] p-5 space-y-3"><Shimmer className="h-3 w-20" />{[0, 1, 2].map((i) => <Shimmer key={i} className="h-12 w-full" />)}</div>
+        </div>
+      )}
       {!loading && !data?.error && sessions.length === 0 && (
         <p className="text-sm text-[#6b6b80] bg-white rounded-2xl border border-[#e8e6e0] p-5">No token sessions run on this date. Add sessions in Settings → Booking.</p>
       )}
@@ -239,6 +265,7 @@ export function QueueClient({ today, services, whatsappOffered = false }: { toda
           )}
         </>
       )}
+      <UndoToast label={undo.label} onUndo={undo.undo} />
     </div>
   );
 }

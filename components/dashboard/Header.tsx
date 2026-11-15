@@ -1,11 +1,12 @@
 "use client";
 import { releaseThisDevice } from "@/components/dashboard/PushSetup";
 import { Bell, X, HelpCircle, LogOut, Calendar, CreditCard } from "lucide-react";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useSession, signOut } from "next-auth/react";
 import Link from "next/link";
 import { requestPushPermission } from "./PushSetup";
 import { Logo } from "@/components/ui/Logo";
+import { emitAlert } from "@/lib/alertEvents";
 
 interface Notification {
   id: string;
@@ -36,6 +37,7 @@ export function Header({ title, subtitle }: HeaderProps) {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
+  const seenIds = useRef<Set<string> | null>(null);
 
   const { data: session, update: updateSession } = useSession();
   const userName = session?.user?.name ?? "User";
@@ -58,6 +60,13 @@ export function Header({ title, subtitle }: HeaderProps) {
       const res = await fetch("/api/notifications");
       if (res.ok) {
         const data = await res.json();
+        // The first load only records what is already there; anything unread that appears later is a new event: chime + card.
+        const list: Notification[] = data.notifications ?? [];
+        if (seenIds.current) {
+          const fresh = list.filter((n) => !n.read && !seenIds.current!.has(n.id));
+          if (fresh.length) { const n = fresh[0]; emitAlert({ title: fresh.length > 1 ? `${fresh.length} new alerts` : n.title, body: fresh.length > 1 ? n.title : n.body, url: fresh.length > 1 ? "/dashboard/appointments" : n.url }); }
+        }
+        seenIds.current = new Set(list.map((n) => n.id));
         setNotifications(data.notifications ?? []);
         setUnreadCount(data.unreadCount ?? 0);
       }
@@ -66,10 +75,10 @@ export function Header({ title, subtitle }: HeaderProps) {
     }
   }, []);
 
-  // Fetch count on mount and poll every 30s
+  // Fetch count on mount and poll every 15s (a push forwards new events at once; this is the safety net)
   useEffect(() => {
     fetchNotifications();
-    const interval = setInterval(fetchNotifications, 30000);
+    const interval = setInterval(() => { if (document.visibilityState === "visible") void fetchNotifications(); }, 15000);
     return () => clearInterval(interval);
   }, [fetchNotifications]);
 
@@ -88,14 +97,14 @@ export function Header({ title, subtitle }: HeaderProps) {
     <>
       <header className="bg-white border-b border-[#e8e6e0] flex items-center px-4 sm:px-6 gap-3 sticky top-0 z-30 safe-header-14">
         {/* Mobile: logo */}
-        <Link href="/dashboard" className="lg:hidden flex-shrink-0" aria-label="Calvy home">
+        <Link href="/dashboard" className="md:hidden flex-shrink-0 inline-flex items-center min-h-11" aria-label="Calvy home">
           <Logo width={64} priority />
         </Link>
 
         {/* Title */}
         <div className="flex-1 min-w-0">
-          <h1 className="font-syne font-bold text-[15px] lg:text-lg leading-tight truncate">{title}</h1>
-          {subtitle && <p className="text-xs text-[#6b6b80] hidden lg:block">{subtitle}</p>}
+          <h1 className="font-syne font-bold text-[15px] md:text-lg leading-tight truncate">{title}</h1>
+          {subtitle && <p className="text-xs text-[#6b6b80] hidden md:block">{subtitle}</p>}
         </div>
 
         {/* Right actions */}
@@ -103,7 +112,7 @@ export function Header({ title, subtitle }: HeaderProps) {
           {/* Help — desktop only */}
           <button
             onClick={() => { setToast("Help center coming soon!"); setTimeout(() => setToast(""), 3000); }}
-            className="hidden lg:flex p-2 rounded-xl text-[#6b6b80] hover:bg-[#f8f7f4] hover:text-[#0f0f1a] transition-colors"
+            className="hidden md:flex p-2 rounded-xl text-[#6b6b80] hover:bg-[#f8f7f4] hover:text-[#0f0f1a] transition-colors"
             title="Help"
           >
             <HelpCircle size={18} />
@@ -129,7 +138,7 @@ export function Header({ title, subtitle }: HeaderProps) {
           {/* Sign out — desktop only */}
           <button
             onClick={async () => { await releaseThisDevice(); await signOut({ callbackUrl: "/login" }); }}
-            className="hidden lg:flex p-2 rounded-xl text-[#6b6b80] hover:bg-[#f8f7f4] hover:text-red-500 transition-colors"
+            className="hidden md:flex p-2 rounded-xl text-[#6b6b80] hover:bg-[#f8f7f4] hover:text-red-500 transition-colors"
             title="Sign out"
           >
             <LogOut size={18} />
@@ -140,7 +149,7 @@ export function Header({ title, subtitle }: HeaderProps) {
             <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center text-xs font-bold text-white flex-shrink-0">
               {initials}
             </div>
-            <div className="hidden lg:block min-w-0">
+            <div className="hidden md:block min-w-0">
               <p className="text-xs font-semibold text-[#0f0f1a] truncate max-w-[120px]">{userName}</p>
               <p className="text-[10px] text-[#6b6b80] truncate max-w-[120px]">{userEmail}</p>
             </div>

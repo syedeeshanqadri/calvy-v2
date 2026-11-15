@@ -168,9 +168,27 @@ const LOG_SELECT = {
   attempts: true, error: true, createdAt: true, sentAt: true, expiresAt: true, deliveryStatus: true, deliveryError: true,
 } satisfies Prisma.NotificationOutboxSelect;
 
+/** "14 Nov, 8:44 pm IST": the time in the BUSINESS's own timezone (the log used to show the server's UTC). */
+export function logTimeLabel(instant: Date, timeZone: string): string {
+  const locale = timeZone === "Asia/Kolkata" || timeZone === "Asia/Calcutta" ? "en-IN" : "en-GB";
+  try { return new Intl.DateTimeFormat(locale, { timeZone, day: "numeric", month: "short", hour: "numeric", minute: "2-digit", hour12: locale === "en-IN", timeZoneName: "short" }).format(instant); }
+  catch { return new Intl.DateTimeFormat("en-GB", { timeZone: "UTC", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZoneName: "short" }).format(instant); }
+}
+
+/** The timezone of each business in a page of rows (admin sees many businesses; an owner sees one). Unknown = UTC, labelled as such. */
+async function zonesFor(businessIds: string[]): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  if (!businessIds.length) return out;
+  try {
+    const rows = await prisma.business.findMany({ where: { id: { in: [...new Set(businessIds)] } }, select: { id: true, timezone: true } });
+    for (const b of rows) if (b.timezone) out.set(b.id, b.timezone);
+  } catch { /* fall back to UTC below */ }
+  return out;
+}
+
 export interface LogRow {
   id: string; businessId: string | null; event: string; eventLabel: string; audience: string; channel: string; channelLabel: string;
-  recipient: string; status: string; attempts: number; error: string | null; createdAt: string; sentAt: string | null;
+  recipient: string; status: string; attempts: number; error: string | null; createdAt: string; /** In the business timezone, with its abbreviation. */ whenLabel: string; sentAt: string | null;
   resendable: boolean;
 }
 
@@ -190,6 +208,7 @@ export async function listLog(where: Prisma.NotificationOutboxWhereInput, page: 
     where, select: LOG_SELECT, orderBy: { createdAt: "desc" },
     skip: (page - 1) * LOG_PAGE_SIZE, take: LOG_PAGE_SIZE + 1,
   });
+  const zones = await zonesFor(rows.map((r) => r.businessId).filter((x): x is string => !!x));
   const labels = await pushRecipientLabels(rows.filter((r) => r.channel === "PUSH").map((r) => r.recipient));
   const recipientOf = (r: { channel: string; recipient: string }) =>
     r.channel === "PUSH" ? labels.get(r.recipient) ?? "Removed device" : opts.mask ? maskRecipient(r.channel, r.recipient) : r.recipient;
@@ -199,7 +218,7 @@ export async function listLog(where: Prisma.NotificationOutboxWhereInput, page: 
       id: r.id, businessId: r.businessId, event: r.event, eventLabel: eventLabel(r.event), audience: r.audience,
       channel: r.channel, channelLabel: channelLabel(r.channel), recipient: recipientOf(r),
       status: shownStatus(r).status, attempts: r.attempts, error: redactError(shownStatus(r).error),
-      createdAt: r.createdAt.toISOString(), sentAt: r.sentAt?.toISOString() ?? null,
+      createdAt: r.createdAt.toISOString(), whenLabel: logTimeLabel(r.createdAt, (r.businessId && zones.get(r.businessId)) || "UTC"), sentAt: r.sentAt?.toISOString() ?? null,
       resendable: resendBlocker(r, opts.now) === null,
     })),
   };

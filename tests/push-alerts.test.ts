@@ -7,7 +7,7 @@ import { NextRequest } from "next/server";
 const db = vi.hoisted(() => ({
   business: { findUnique: vi.fn() },
   whatsAppConfig: { findUnique: vi.fn(async () => null) },
-  pushDevice: { findMany: vi.fn(), findUnique: vi.fn(), upsert: vi.fn(), deleteMany: vi.fn(), count: vi.fn() },
+  pushDevice: { findMany: vi.fn(), findUnique: vi.fn(), upsert: vi.fn(), update: vi.fn(async () => ({})), deleteMany: vi.fn(), count: vi.fn() },
   pushPreference: { findUnique: vi.fn(), upsert: vi.fn() },
   teamMember: { findUnique: vi.fn(), findFirst: vi.fn(), update: vi.fn(), delete: vi.fn() },
   user: { deleteMany: vi.fn() },
@@ -183,6 +183,14 @@ describe("delivery and expired devices", () => {
     expect(await CHANNELS.PUSH(msg, "d1", "k")).toMatchObject({ kind: "skipped" });
     expect(db.pushDevice.deleteMany).toHaveBeenCalledWith({ where: { id: "d1" } });
     void status;
+  });
+  it("a 403 key mismatch deletes the device and the delivery log says why and what to do", async () => {
+    deliver.mockResolvedValue({ kind: "rejected", reason: "403 BadJwtToken" });
+    const out = await CHANNELS.PUSH(msg, "d1", "k");
+    expect(out).toMatchObject({ kind: "skipped" });
+    expect((out as { error: string }).error).toContain("403 BadJwtToken");
+    expect((out as { error: string }).error).toContain("Re-enable alerts on this device");
+    expect(db.pushDevice.deleteMany).toHaveBeenCalledWith({ where: { id: "d1" } });
   });
   it("other failures are retried or permanent, and keep the device", async () => {
     deliver.mockResolvedValue({ kind: "retry", error: "push service 503" });

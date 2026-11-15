@@ -22,7 +22,7 @@ const selectCls = "w-full sm:w-64 h-11 rounded-xl border border-[#e8e6e0] bg-whi
 function Toggle({ id, label, hint, checked, onChange, disabled }: { id: string; label: string; hint?: string; checked: boolean; onChange: (v: boolean) => void; disabled?: boolean }) {
   return (
     <div className="flex items-start justify-between gap-4 py-3 border-b border-[#f0ede8] last:border-0">
-      <label htmlFor={id} className="min-w-0">
+      <label htmlFor={id} className="min-w-0 flex-1 min-h-11 flex flex-col justify-center">
         <span className="block text-sm font-medium text-[#0f0f1a]">{label}</span>
         {hint ? <span className="block text-xs text-[#6b6b80] mt-0.5">{hint}</span> : null}
       </label>

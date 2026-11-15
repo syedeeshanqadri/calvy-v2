@@ -8,7 +8,7 @@ import { normalizePhone } from "@/lib/phone";
 import { whatsappTestSchema } from "@/lib/whatsapp/schemas";
 import { whatsappPlanBlock } from "@/lib/whatsapp/access";
 import { connectionTestMessage } from "@/lib/whatsapp/events";
-import { credentialsOf, usableLanguages } from "@/lib/whatsapp/store";
+import { CredentialsUnreadable, credentialsOf, usableLanguages } from "@/lib/whatsapp/store";
 import { sendTemplateMessage } from "@/lib/whatsapp/graph";
 import { templateName } from "@/lib/whatsapp/templates";
 
@@ -39,7 +39,9 @@ async function POST_handler(req: NextRequest) {
   const language = approved.includes("en") ? "en" : approved[0];
   if (!language) return NextResponse.json({ error: "The alert template (used for test messages) is not approved yet. Install templates and wait for Meta's approval.", code: "NO_APPROVED_TEMPLATE" }, { status: 409 });
 
-  const r = await sendTemplateMessage(credentialsOf(cfg), phone.replace(/\D/g, ""), { name: templateName("staff_alert"), language, params: testMsg.params, buttonSuffix: testMsg.buttonSuffix });
+  let creds;
+  try { creds = credentialsOf(cfg); } catch (e) { if (e instanceof CredentialsUnreadable) return NextResponse.json({ error: e.message }, { status: 409 }); throw e; }
+  const r = await sendTemplateMessage(creds, phone.replace(/\D/g, ""), { name: templateName("staff_alert"), language, params: testMsg.params, buttonSuffix: testMsg.buttonSuffix });
   if (!r.ok) return NextResponse.json({ error: r.reason }, { status: 502 });
   return NextResponse.json({ ok: true });
 }

@@ -262,7 +262,7 @@ export function NewAppointmentModal({
 
         <Input label="Notes (optional)" placeholder="Any notes..." value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
         {error && <p className="text-sm text-red-500" role="alert">{error}</p>}
-        <div className="flex gap-3 pt-2">
+        <div className="sheet-actions flex gap-3 pt-2">
           <Button variant="outline" onClick={onClose} className="flex-1 justify-center">Cancel</Button>
           <Button onClick={submit} disabled={saving || !form.clientName.trim() || !contactOk || form.serviceIds.length === 0 || !form.time} className="flex-1 justify-center">
             {saving ? "Saving..." : `Book ${Appt1}`}
@@ -500,7 +500,7 @@ export function AppointmentDetailModal({
 
           {error && <p className="text-sm text-red-500" role="alert">{error}</p>}
 
-          <div className="flex gap-3 pt-1">
+          <div className="sheet-actions flex gap-3 pt-1">
             <Button variant="outline" onClick={onClose} className="flex-1 justify-center">Close</Button>
             <Button onClick={saveChanges} disabled={saving || !dirty} className={cn("flex-1 justify-center gap-2", saved && !dirty && "bg-green-600 hover:bg-green-700")}>
               {saved && !dirty ? <><Check size={14} /> Saved</> : saving ? "Saving…" : "Save changes"}

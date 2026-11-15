@@ -2,7 +2,12 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
-import { disablePush, requestPushPermission } from "@/components/dashboard/PushSetup";
+import { disablePush, reenablePush, requestPushPermission } from "@/components/dashboard/PushSetup";
+import { getAppRegistration, isStandalone, pushBlock, pushStatus, subscriptionKey, type PushBlock, type PushStatus } from "@/lib/pwa";
+import { detectPlatform, fingerprint, type ChecklistFacts } from "@/lib/pushChecklist";
+import { PushChecklist } from "@/components/dashboard/PushChecklist";
+import { SoundSettings } from "@/components/dashboard/SoundSettings";
+import { IosInstallSteps } from "@/components/dashboard/IosInstallSteps";
 
 type Prefs = Record<string, boolean>;
 interface WaState { available: boolean; phoneMasked: string | null; verified: boolean; optIn: boolean }
@@ -53,6 +58,10 @@ export function AlertsClient({ offered, configured }: { offered: { field: string
   const [prefs, setPrefs] = useState<Prefs>({});
   const [devices, setDevices] = useState(0);
   const [here, setHere] = useState(false);
+  const [block, setBlock] = useState<PushBlock>(null);
+  const [testing, setTesting] = useState(false);
+  const [facts, setFacts] = useState<ChecklistFacts | null>(null);
+  const [needsReenable, setNeedsReenable] = useState(false); // this browser still holds a subscription the server no longer has
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
   const [error, setError] = useState("");
@@ -60,9 +69,24 @@ export function AlertsClient({ offered, configured }: { offered: { field: string
   async function load() {
     const r = await fetch("/api/push/preferences");
     if (r.ok) { const d = await r.json(); setPrefs(d.prefs); setDevices(d.devices); }
+    setBlock(pushBlock());
     try {
-      const reg = await navigator.serviceWorker?.getRegistration("/");
-      setHere(!!(await reg?.pushManager.getSubscription()));
+      const reg = await getAppRegistration();
+      const sub = await reg?.pushManager.getSubscription();
+      setHere(!!sub);
+      const status: PushStatus | null = sub ? await pushStatus(sub.endpoint) : null;
+      setNeedsReenable(!!sub && !!status && !status.registered);
+      const buildKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+      const made = sub ? subscriptionKey(sub) : null;
+      setFacts({
+        platform: detectPlatform(navigator.userAgent, navigator.platform, navigator.maxTouchPoints),
+        permission: typeof Notification === "undefined" ? "unsupported" : Notification.permission,
+        standalone: isStandalone(),
+        subscription: sub ? { endpointKnown: true, keyFingerprint: made ? fingerprint(made) : null } : null,
+        buildKeyFingerprint: buildKey ? fingerprint(buildKey) : null,
+        server: status,
+        now: new Date(),
+      });
     } catch { setHere(false); }
   }
   useEffect(() => { void load(); }, []);
@@ -79,6 +103,27 @@ export function AlertsClient({ offered, configured }: { offered: { field: string
     setBusy(false);
     if (r.ok) { setMsg("Phone alerts are on for this device."); await load(); } else setError(r.error ?? "Could not turn alerts on.");
   }
+  /** Sends one real alert to THIS device through the same path as a booking alert. */
+  async function sendTest() {
+    setTesting(true); setError(""); setMsg("");
+    try {
+      const reg = await getAppRegistration();
+      const sub = await reg?.pushManager.getSubscription();
+      if (!sub) { setError("This device is not subscribed. Turn phone alerts on first."); return; }
+      const r = await fetch("/api/push/test", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ endpoint: sub.endpoint }) });
+      const d = await r.json().catch(() => ({}));
+      if (r.ok) setMsg(`Delivered to the push service (${d.status}) in ${d.ms} ms via ${d.host}. It should appear on this device within a few seconds. If it does not, check the steps below.`);
+      else setError(d.error ?? "The test did not go through.");
+      await load();
+    } catch { setError("We could not reach the server. Check your connection."); }
+    finally { setTesting(false); }
+  }
+  async function reenable() {
+    setBusy(true); setError(""); setMsg("");
+    const r = await reenablePush();
+    setBusy(false);
+    if (r.ok) { setMsg("Alerts are on again for this device."); await load(); } else setError(r.error ?? "Could not re-enable alerts.");
+  }
   async function disable() {
     setBusy(true); setError(""); setMsg("");
     await disablePush();
@@ -92,15 +137,42 @@ export function AlertsClient({ offered, configured }: { offered: { field: string
         <CardContent className="space-y-3">
           <p className="text-sm text-[#6b6b80]">{here ? "Alerts are on for this device." : "Alerts are off for this device."} {devices > 0 && `You have ${devices} device${devices === 1 ? "" : "s"} registered.`}</p>
           {!configured && <p className="text-xs text-amber-800 bg-amber-50 rounded-lg px-3 py-2">Phone alerts are not set up on the server yet.</p>}
-          <div className="flex gap-2">
+          {needsReenable && (
+            <div role="alert" className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900" data-testid="reenable-push">
+              <p className="font-semibold">Alerts stopped working on this device</p>
+              <p className="mt-1 text-xs">The push service no longer accepts this device, so new bookings are not reaching it. Tap below to set it up again.</p>
+              <Button size="sm" className="mt-2" onClick={reenable} disabled={busy}>Re-enable alerts on this device</Button>
+            </div>
+          )}
+          {block === "ios-install" && <IosInstallSteps />}
+          {block === "unsupported" && <p className="text-xs text-amber-800 bg-amber-50 rounded-lg px-3 py-2">This browser cannot receive phone alerts. Use Chrome on Android, or the installed app on iPhone.</p>}
+          {block === "denied" && <p className="text-xs text-amber-800 bg-amber-50 rounded-lg px-3 py-2">Notifications are blocked for Calvy. Turn them on in your phone&apos;s Settings → Notifications → Calvy (iPhone) or the site settings (Android), then come back.</p>}
+          <div className="flex flex-wrap gap-2">
             {here
-              ? <Button variant="outline" size="sm" onClick={disable} disabled={busy}>Turn off on this device</Button>
-              : <Button size="sm" onClick={enable} disabled={busy || !configured}>Turn on for this device</Button>}
+              ? (
+                <>
+                  <Button variant="outline" size="sm" onClick={disable} disabled={busy || testing}>Turn off on this device</Button>
+                  <Button size="sm" onClick={sendTest} disabled={busy || testing} data-testid="send-test-push">{testing ? "Sending…" : "Send test notification"}</Button>
+                </>
+              )
+              : <Button size="sm" onClick={enable} disabled={busy || !configured || block === "ios-install" || block === "unsupported" || block === "denied"}>Turn on for this device</Button>}
           </div>
           <p className="text-xs text-[#6b6b80]">Signing out turns alerts off on this device only, so a shared phone never shows someone else&apos;s alerts. Your other devices keep theirs. On iPhone, install the app first (Share → Add to Home Screen).</p>
           {msg && <p role="status" className="text-sm text-green-700">{msg}</p>}
           {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
         </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader><CardTitle>Setup checklist</CardTitle></CardHeader>
+        <CardContent>
+          {facts ? <PushChecklist facts={facts} /> : <p className="text-sm text-[#6b6b80]">Checking this device…</p>}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader><CardTitle>Sound while the app is open</CardTitle></CardHeader>
+        <CardContent><SoundSettings /></CardContent>
       </Card>
 
       <Card>
@@ -110,7 +182,7 @@ export function AlertsClient({ offered, configured }: { offered: { field: string
             <ul className="divide-y divide-[#f0ede8]">
               {offered.map((o) => (
                 <li key={o.field} className="flex items-center justify-between py-3">
-                  <label htmlFor={`pref-${o.field}`} className="text-sm font-medium">{o.label}</label>
+                  <label htmlFor={`pref-${o.field}`} className="flex-1 min-h-11 flex items-center text-sm font-medium">{o.label}</label>
                   <input id={`pref-${o.field}`} type="checkbox" role="switch" className="size-5 accent-sky-600" checked={prefs[o.field] ?? true} onChange={(e) => toggle(o.field, e.target.checked)} />
                 </li>
               ))}

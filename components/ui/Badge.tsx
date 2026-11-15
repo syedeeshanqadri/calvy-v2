@@ -8,7 +8,7 @@ const statusConfig: Record<AppointmentStatus, { label: string; className: string
   completed: { label: "Completed", className: "bg-blue-50 text-blue-700 border border-blue-200" },
   "no-show": { label: "No Show", className: "bg-gray-100 text-gray-600 border border-gray-200" },
   pending_payment: { label: "Awaiting payment", className: "bg-amber-50 text-amber-700 border border-amber-200" },
-  expired: { label: "Payment expired", className: "bg-gray-100 text-gray-500 border border-gray-200" },
+  expired: { label: "Payment expired", className: "bg-gray-100 text-gray-600 border border-gray-200" },
 };
 
 export function StatusBadge({ status }: { status: AppointmentStatus }) {

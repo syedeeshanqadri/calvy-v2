@@ -1,4 +1,5 @@
 "use client";
+import { Modal } from "@/components/ui/Modal";
 import { useState } from "react";
 import { Plus, X, Send, MessageCircle, Clock, ChevronRight } from "lucide-react";
 
@@ -196,17 +197,23 @@ export function SupportClient({ tickets: initialTickets }: Props) {
         </div>
       )}
 
-      {/* New ticket modal */}
-      {showNew && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setShowNew(false)}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between px-6 py-4 border-b border-[#f0ede8]">
-              <h2 className="font-syne font-bold text-lg">New Support Ticket</h2>
-              <button onClick={() => setShowNew(false)} className="w-8 h-8 rounded-xl hover:bg-[#f8f7f4] flex items-center justify-center text-[#6b6b80] transition-colors">
-                <X size={16} />
-              </button>
-            </div>
-            <div className="p-6 space-y-4">
+      {/* New ticket modal: full-screen sheet on phones, buttons pinned above the keyboard */}
+      <Modal
+        isOpen={showNew}
+        onClose={() => setShowNew(false)}
+        title="New Support Ticket"
+        footer={
+          <>
+            <button onClick={() => setShowNew(false)} className="flex-1 py-2.5 rounded-xl border border-[#e8e6e0] text-sm font-medium hover:bg-[#f8f7f4] transition-colors">
+                  Cancel
+                </button>
+                <button onClick={createTicket} disabled={creating} className="flex-1 py-2.5 rounded-xl bg-[#0284c7] text-white text-sm font-semibold hover:bg-[#0369a1] disabled:opacity-60 transition-colors">
+                  {creating ? "Creating…" : "Submit ticket"}
+                </button>
+          </>
+        }
+      >
+        <div className="space-y-4">
               <div>
                 <label className="text-sm font-medium block mb-1.5">Subject</label>
                 <input
@@ -240,18 +247,8 @@ export function SupportClient({ tickets: initialTickets }: Props) {
                 />
               </div>
               {createError && <p className="text-sm text-red-500 bg-red-50 rounded-xl px-4 py-2">{createError}</p>}
-              <div className="flex gap-3">
-                <button onClick={() => setShowNew(false)} className="flex-1 py-2.5 rounded-xl border border-[#e8e6e0] text-sm font-medium hover:bg-[#f8f7f4] transition-colors">
-                  Cancel
-                </button>
-                <button onClick={createTicket} disabled={creating} className="flex-1 py-2.5 rounded-xl bg-[#0284c7] text-white text-sm font-semibold hover:bg-[#0369a1] disabled:opacity-60 transition-colors">
-                  {creating ? "Creating…" : "Submit ticket"}
-                </button>
-              </div>
-            </div>
-          </div>
         </div>
-      )}
+      </Modal>
 
       {/* Ticket detail panel */}
       {(activeTicket || loadingTicket) && (

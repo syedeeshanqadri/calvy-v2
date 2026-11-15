@@ -1,6 +1,7 @@
 "use client";
 import { useState, useMemo } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
+import { Modal } from "@/components/ui/Modal";
 import { Plus, Pencil, Trash2, X, TrendingDown, TrendingUp, DollarSign, Tag } from "lucide-react";
 import { useCurrency } from "@/components/providers/CurrencyProvider";
 import { CURRENCIES } from "@/lib/currency";
@@ -301,16 +302,28 @@ export function ExpensesClient({ initialExpenses, monthRevenue }: Props) {
         </div>
       </div>
 
-      {/* Add / Edit modal */}
-      {showForm && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setShowForm(false)} />
-          <div className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl p-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="font-syne font-bold text-base">{editing ? "Edit expense" : "Add expense"}</h3>
-              <button onClick={() => setShowForm(false)} className="p-1.5 rounded-xl text-[#6b6b80] hover:bg-[#f8f7f4] transition-colors"><X size={16} /></button>
-            </div>
-
+      {/* Add / Edit modal: full-screen sheet on phones, buttons pinned above the keyboard */}
+      <Modal
+        isOpen={showForm}
+        onClose={() => setShowForm(false)}
+        title={editing ? "Edit expense" : "Add expense"}
+        size="sm"
+        footer={
+          <>
+            <button onClick={() => setShowForm(false)} className="flex-1 px-4 py-2.5 border border-[#e8e6e0] rounded-xl text-sm font-medium text-[#6b6b80] hover:bg-[#f8f7f4] transition-colors">
+                Cancel
+              </button>
+              <button
+                onClick={save}
+                disabled={saving}
+                className="flex-1 px-4 py-2.5 bg-accent text-white rounded-xl text-sm font-semibold hover:bg-accent-hover transition-colors disabled:opacity-50"
+              >
+                {saving ? "Saving…" : editing ? "Save changes" : "Add expense"}
+              </button>
+          </>
+        }
+      >
+        <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-xs font-medium text-[#6b6b80] block mb-1">Amount ({currencySymbol}) *</label>
@@ -365,22 +378,8 @@ export function ExpensesClient({ initialExpenses, monthRevenue }: Props) {
             </div>
 
             {error && <p className="text-xs text-red-600 bg-red-50 rounded-xl px-3 py-2">{error}</p>}
-
-            <div className="flex gap-2 pt-1">
-              <button onClick={() => setShowForm(false)} className="flex-1 px-4 py-2.5 border border-[#e8e6e0] rounded-xl text-sm font-medium text-[#6b6b80] hover:bg-[#f8f7f4] transition-colors">
-                Cancel
-              </button>
-              <button
-                onClick={save}
-                disabled={saving}
-                className="flex-1 px-4 py-2.5 bg-accent text-white rounded-xl text-sm font-semibold hover:bg-accent-hover transition-colors disabled:opacity-50"
-              >
-                {saving ? "Saving…" : editing ? "Save changes" : "Add expense"}
-              </button>
-            </div>
-          </div>
         </div>
-      )}
+      </Modal>
     </DashboardLayout>
   );
 }

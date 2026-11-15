@@ -107,7 +107,7 @@ export function QuickActions({ services, staff, businessSlug }: { services: Serv
           />
           <Input label="Notes (optional)" placeholder="Any important info..." value={client.notes} onChange={e => setClient({ ...client, notes: e.target.value })} />
           {error && <p className="text-sm text-red-500">{error}</p>}
-          <div className="flex gap-3 pt-2">
+          <div className="sheet-actions flex gap-3 pt-2">
             <Button variant="outline" onClick={closeModal} className="flex-1 justify-center">Cancel</Button>
             <Button onClick={submitClient} disabled={loading || !client.firstName || (!client.email && !client.phone)} className="flex-1 justify-center">
               {loading ? "Saving..." : `Add ${Cli1}`}

@@ -1,4 +1,4 @@
-import { cn, getInitials } from "@/lib/utils";
+import { cn, getInitials, readableTextOn } from "@/lib/utils";
 import Image from "next/image";
 
 interface AvatarProps {
@@ -11,7 +11,7 @@ interface AvatarProps {
 
 const sizes = { sm: "w-8 h-8 text-xs", md: "w-9 h-9 text-sm", lg: "w-11 h-11 text-sm", xl: "w-14 h-14 text-base" };
 
-export function Avatar({ name, avatar, color = "#0284c7", size = "md", className }: AvatarProps) {
+export function Avatar({ name, avatar, color = "#0369a1", size = "md", className }: AvatarProps) {
   const initials = getInitials(name);
   if (avatar) {
     return (
@@ -21,7 +21,7 @@ export function Avatar({ name, avatar, color = "#0284c7", size = "md", className
     );
   }
   return (
-    <div className={cn("rounded-full flex-shrink-0 flex items-center justify-center font-syne font-700 text-white", sizes[size], className)} style={{ backgroundColor: color }}>
+    <div className={cn("rounded-full flex-shrink-0 flex items-center justify-center font-syne font-700", sizes[size], className)} style={{ backgroundColor: color, color: readableTextOn(color) }}>
       {initials}
     </div>
   );
