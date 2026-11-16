@@ -64,14 +64,19 @@ export function credentialsOf(c: ConfigRow): Credentials {
 export function publicView(c: ConfigRow | null) {
   if (!c) return null;
   const token = tryDecrypt(c.accessTokenEnc), appSecret = tryDecrypt(c.appSecretEnc), verifyToken = tryDecrypt(c.verifyTokenEnc);
+  const embedded = c.source === "EMBEDDED"; // Calvy's app: no app secret or webhook details of the business's own
   return {
-    credentialsUnreadable: token === null || appSecret === null || verifyToken === null,
+    source: c.source,
+    coexistence: c.coexistence,
+    paymentStatus: c.paymentStatus,
+    nameStatus: c.nameStatus,
+    credentialsUnreadable: token === null || (!embedded && (appSecret === null || verifyToken === null)),
     phoneNumberId: c.phoneNumberId,
     wabaId: c.wabaId,
     accessTokenMasked: token === null ? "" : maskSecret(token),
-    appSecretMasked: appSecret === null ? "" : maskSecret(appSecret),
-    callbackUrl: whatsappCallbackUrl(c.webhookKey),
-    verifyToken: verifyToken ?? "",
+    appSecretMasked: embedded || appSecret === null ? "" : maskSecret(appSecret),
+    callbackUrl: embedded ? "" : whatsappCallbackUrl(c.webhookKey),
+    verifyToken: embedded ? "" : verifyToken ?? "",
     status: c.status,
     statusReason: c.statusReason,
     displayPhone: c.displayPhone,

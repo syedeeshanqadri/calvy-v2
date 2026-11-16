@@ -5,12 +5,12 @@
 const csp = [
   "default-src 'self'",
   // Cashfree checkout SDK (online booking payments).
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://sdk.cashfree.com",
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://sdk.cashfree.com https://connect.facebook.net",
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https:",
   "font-src 'self' data:",
-  "frame-src https://www.google.com https://*.cashfree.com",
-  "connect-src 'self' https://*.public.blob.vercel-storage.com https://*.cashfree.com",
+  "frame-src https://www.google.com https://*.cashfree.com https://www.facebook.com https://web.facebook.com",
+  "connect-src 'self' https://*.public.blob.vercel-storage.com https://*.cashfree.com https://*.facebook.com https://*.facebook.net",
   "object-src 'none'",
   "base-uri 'self'",
   "form-action 'self' https://*.cashfree.com",

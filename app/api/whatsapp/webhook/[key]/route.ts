@@ -33,11 +33,11 @@ async function POST_handler(req: NextRequest, { params }: Ctx) {
   const rl = await rateLimit(`wa-webhook:${key}`, 600, 60_000);
   if (!rl.ok) return NextResponse.json({ error: "Too many requests" }, { status: 429 });
 
-  const cfg = await prisma.whatsAppConfig.findUnique({ where: { webhookKey: key }, select: { businessId: true, phoneNumberId: true, appSecretEnc: true } });
+  const cfg = await prisma.whatsAppConfig.findUnique({ where: { webhookKey: key }, select: { businessId: true, phoneNumberId: true, appSecretEnc: true, source: true } });
   const raw = await req.text();
   // An app secret this server cannot decrypt must reject everything: never verify against an empty key.
   const appSecret = cfg ? tryDecrypt(cfg.appSecretEnc) : null;
-  if (!cfg || !appSecret || !verifyMetaSignature(raw, req.headers.get("x-hub-signature-256"), appSecret)) {
+  if (!cfg || cfg.source === "EMBEDDED" || !appSecret || !verifyMetaSignature(raw, req.headers.get("x-hub-signature-256"), appSecret)) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
   }
   let payload: WebhookPayload;
