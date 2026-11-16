@@ -183,24 +183,17 @@ export default async function DashboardPage() {
         completedToday={completedToday}
       />
 
-      {/* Main grid */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-6">
-        <div className="xl:col-span-2">
-          <AppointmentList appointments={appointments} />
+      {/* Two independent columns from xl, so a tall right column never leaves a gap in the left one. Below xl the wrappers vanish
+          (display: contents) and the order classes give: appointments, calendar, actions, revenue, team. */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 xl:items-start">
+        <div className="contents xl:flex xl:flex-col xl:gap-6 xl:col-span-2">
+          <div className="order-1"><AppointmentList appointments={appointments} /></div>
+          <div className="order-4"><RevenueChart weekData={weekData} monthData={monthData} /></div>
         </div>
-        <div className="flex flex-col gap-6">
-          <MiniCalendar busyDays={busyDays} />
-          <QuickActions services={services} staff={staffOptions} businessSlug={session.user.businessSlug} />
-        </div>
-      </div>
-
-      {/* Charts + Team */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        <div className="xl:col-span-2">
-          <RevenueChart weekData={weekData} monthData={monthData} />
-        </div>
-        <div>
-          <TeamWidget staff={staff} />
+        <div className="contents xl:flex xl:flex-col xl:gap-6">
+          <div className="order-2"><MiniCalendar busyDays={busyDays} /></div>
+          <div className="order-3"><QuickActions services={services} staff={staffOptions} businessSlug={session.user.businessSlug} /></div>
+          <div className="order-5"><TeamWidget staff={staff} /></div>
         </div>
       </div>
     </DashboardLayout>
