@@ -1,51 +1,63 @@
-import { SUPPORT_EMAIL } from "@/lib/site";
+import Link from "next/link";
+import { CONTACT, SUPPORT_EMAIL } from "@/lib/site";
 import type { Metadata } from "next";
 import { LegalLayout } from "@/components/legal/LegalLayout";
 
 export const metadata: Metadata = {
-  title: "Refund Policy · Calvy",
-  description: "Calvy's refund and cancellation policy for subscriptions and bookings.",
+  title: "Refund & Cancellation Policy · Calvy",
+  description: "Calvy refund and cancellation policy: the ₹10 online booking fee, wallet credit for cancelled bookings, refunds issued by businesses, subscription refunds and the 5–7 working day timeline.",
   alternates: { canonical: "/refund-policy" },
 };
 
 export default function RefundPolicyPage() {
   return (
     <LegalLayout
-      title="Refund Policy"
-      lastUpdated="May 31, 2026"
-      intro="This Refund Policy explains how cancellations and refunds work for Calvy subscriptions, as well as for payments collected from clients through the platform."
+      title="Refund & Cancellation Policy"
+      lastUpdated="November 16, 2026"
+      intro="This policy explains cancellations and refunds for Calvy subscriptions, for the platform fee on online bookings, and for payments that customers make to businesses through Calvy."
     >
-      <h2>1. Subscription Cancellations</h2>
+      <h2>1. Booking Charges Are Not Refunded Once Confirmed</h2>
+      <p>Once an online booking is confirmed, the booking charges are not refunded. This includes the ₹10 platform fee that applies to each confirmed online booking on the Free plan in India, which is paid either by the business or by its customer, as the business chooses. If a confirmed booking is cancelled, the amount paid is not lost: it is added to the customer&apos;s wallet for allowed future bookings, as explained in section 2.</p>
+
+      <h2>2. Cancelled and Missed Bookings: Wallet Credit</h2>
+      <p>When a customer has paid online for a booking and the booking is cancelled, including a last-minute cancellation, or missed, the amount paid is not lost. It is kept as <strong>wallet credit</strong> for that customer with that business, and:</p>
+      <ul>
+        <li>the credit can be used to pay for a later booking with the same business;</li>
+        <li>the credit does not expire;</li>
+        <li>credit belongs to one customer and one business; it cannot be moved to another business or paid out as cash by Calvy.</li>
+      </ul>
+
+      <h2>3. Refunds Issued by Businesses</h2>
+      <p>A business can choose to refund a customer instead of leaving the amount as credit. The business is responsible for deciding when to refund, according to its own cancellation rules. When a business starts a refund, the matching wallet credit is removed first, so a customer is never paid twice. Calvy is not a party to the sale between a business and its customer. If you are a customer and want a refund, please contact the business you booked with.</p>
+
+      <h2>4. Refund Timeline</h2>
+      <p>Once a refund is approved and started, it is sent back to the original payment method through our payment partner, Cashfree, and normally reaches you in <strong>5–7 working days</strong>, depending on your bank, card issuer or UPI app. A booking that was charged twice, or a payment that was taken but did not create a booking, is refunded in full.</p>
+
+      <h2>5. Subscription Cancellations</h2>
       <p>You can cancel your Calvy subscription at any time from your billing dashboard. When you cancel:</p>
       <ul>
-        <li>Your plan remains active until the end of the current billing period;</li>
-        <li>You will not be charged again after cancellation;</li>
-        <li>Your account is downgraded to the free plan once the paid period ends.</li>
+        <li>your plan stays active until the end of the current billing period;</li>
+        <li>you will not be charged again after cancellation;</li>
+        <li>your account moves to the free plan when the paid period ends, and nothing is deleted.</li>
       </ul>
 
-      <h2>2. Subscription Refunds</h2>
-      <p>Subscription fees are billed in advance and are generally non-refundable, including for partially used billing periods. We may, at our sole discretion, issue a refund in the following cases:</p>
+      <h2>6. Subscription Refunds</h2>
+      <p>Subscription fees are billed in advance and are generally non-refundable for the period already started. We will refund a subscription charge in these cases:</p>
       <ul>
-        <li>A duplicate or accidental charge;</li>
-        <li>A verified technical issue on our side that prevented you from using the Service for a significant period;</li>
-        <li>A charge made after a valid cancellation request.</li>
+        <li>a duplicate or accidental charge;</li>
+        <li>a charge made after a valid cancellation request;</li>
+        <li>a verified technical problem on our side that stopped you from using the Service for a significant time.</li>
       </ul>
-      <p>Approved refunds are credited to the original payment method via Razorpay within 5–10 business days, depending on your bank or card issuer.</p>
+      <p>For yearly plans, you may ask for a full refund within 7 days of purchase if you have not substantially used the Service. Approved subscription refunds are returned to the original payment method within 5–7 working days.</p>
 
-      <h2>3. Annual Plans</h2>
-      <p>Annual plans are offered at a discount in exchange for an upfront yearly commitment and are non-refundable after the first 7 days from the date of purchase. Within the first 7 days, you may request a full refund of an annual plan if you have not substantially used the Service.</p>
+      <h2>7. How to Request a Refund</h2>
+      <p>For a subscription refund, email <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a> from the email address on your account, with your business name and the date of the charge. We aim to reply within 3 working days. For a booking refund, contact the business first; if you cannot reach it, write to us and we will help.</p>
 
-      <h2>4. Payments Between Businesses and Their Clients</h2>
-      <p>When a business uses Calvy to collect payment from its own clients (for example, prepaid bookings), the refund is the responsibility of that business, not Calvy. If you are a client seeking a refund for a booking, please contact the business you booked with directly. Calvy only provides the technology to facilitate these payments and is not a party to the transaction.</p>
+      <h2>8. Changes to This Policy</h2>
+      <p>We may update this policy from time to time. The &ldquo;Last updated&rdquo; date above shows the latest revision.</p>
 
-      <h2>5. How to Request a Refund</h2>
-      <p>To request a refund for your Calvy subscription, email <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a> from the email address associated with your account, including your business name and the date of the charge. We aim to respond to all refund requests within 3 business days.</p>
-
-      <h2>6. Changes to This Policy</h2>
-      <p>We may update this Refund Policy from time to time. The “Last updated” date above reflects the most recent revision.</p>
-
-      <h2>7. Contact Us</h2>
-      <p>For any questions about refunds or cancellations, reach us at <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>.</p>
+      <h2>9. Contact Us</h2>
+      <p>Questions about refunds or cancellations? Write to <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>, call <a href={CONTACT.phoneHref}>{CONTACT.phone}</a> or use the <Link href="/contact">Contact page</Link>.</p>
     </LegalLayout>
   );
 }

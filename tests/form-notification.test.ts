@@ -43,7 +43,7 @@ describe("sendFormNotification", () => {
   it("defaults to the support address when NOTIFY_EMAIL is unset", async () => {
     vi.stubEnv("NOTIFY_EMAIL", "");
     await sendFormNotification({ title: "New signup", fields: { Email: "a@b.test" } });
-    expect(send.mock.calls[0][0].to).toBe("qadri.eeshan@gmail.com");
+    expect(send.mock.calls[0][0].to).toBe("support@calvy.io");
   });
 
   it("escapes HTML in submitted values", async () => {

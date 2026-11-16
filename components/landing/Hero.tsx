@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { ArrowRight, Star, Check, Bell, DollarSign } from "lucide-react";
+import { ArrowRight, Check, Bell, DollarSign } from "lucide-react";
 import { ProductCarousel } from "./ProductCarousel";
 import { ClientPhone, OwnerPhone } from "./PhoneMockups";
 import { HeroLeadForm } from "./HeroLeadForm";
@@ -23,7 +23,7 @@ export function Hero() {
           <div className="min-w-0">
             <div className="inline-flex items-center gap-2 bg-sky-50 border border-sky-100 text-sky-700 rounded-full px-4 py-2 mb-6 text-sm font-medium">
               <span className="w-2 h-2 rounded-full bg-sky-500 animate-pulse" />
-              Trusted by 12,000+ service businesses
+              Free booking page and website for service businesses
             </div>
 
             <h1 className="font-syne font-extrabold text-4xl sm:text-5xl lg:text-6xl leading-[1.05] tracking-tight text-gray-900 mb-6">
@@ -38,7 +38,7 @@ export function Hero() {
             </h1>
 
             <p className="text-lg sm:text-xl text-gray-500 leading-relaxed mb-8 max-w-lg">
-              Stop managing bookings over WhatsApp. Calvy gives you a booking page, business website, and payment collection — ready in 60 seconds.
+              Build your business website and online booking page for free. Time slots or token queues, reminders on email, WhatsApp and push, and online payments, ready in minutes.
             </p>
 
             <div className="mb-5">
@@ -61,28 +61,6 @@ export function Hero() {
               ))}
             </div>
 
-            <div className="flex items-center gap-4">
-              <div className="flex -space-x-2">
-                {[
-                  { initials: "JM", color: "#0284c7" },
-                  { initials: "RC", color: "#0ea5e9" },
-                  { initials: "SR", color: "#ec4899" },
-                  { initials: "MB", color: "#f59e0b" },
-                  { initials: "TK", color: "#10b981" },
-                ].map(({ initials, color }) => (
-                  <div key={initials} className="w-9 h-9 rounded-full border-2 border-white flex items-center justify-center text-[10px] text-white font-bold shadow-sm" style={{ background: color }}>
-                    {initials}
-                  </div>
-                ))}
-              </div>
-              <div>
-                <div className="flex items-center gap-1 mb-0.5">
-                  {Array(5).fill(0).map((_, i) => <Star key={i} size={13} className="text-amber-400 fill-amber-400" />)}
-                  <span className="text-sm font-bold text-gray-800 ml-1">4.9</span>
-                </div>
-                <p className="text-xs text-gray-500">from 2,400+ reviews</p>
-              </div>
-            </div>
           </div>
 
           {/* Right — live product carousel */}

@@ -104,3 +104,6 @@ body {
   input[type="color"] { min-width: 44px; min-height: 44px; }
   label:has(> input[type="checkbox"]), label:has(> input[type="radio"]) { min-height: 44px; display: flex; align-items: center; gap: 0.5rem; }
 }
+
+/* Long marketing pages: sections below the fold are laid out and painted only when they scroll near the screen. */
+.cv-auto { content-visibility: auto; contain-intrinsic-size: auto 800px; }

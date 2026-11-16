@@ -18,8 +18,8 @@ export function NewsletterForm() {
 
   return (
     <div>
-      <h4 className="text-sm font-semibold text-white mb-3">Get growth tips</h4>
-      <p className="text-sm text-gray-500 mb-4 leading-relaxed">Practical playbooks for service businesses, twice a month. No fluff.</p>
+      <h3 className="text-sm font-semibold text-white mb-3">Get growth tips</h3>
+      <p className="text-sm text-gray-400 mb-4 leading-relaxed">Practical playbooks for service businesses, twice a month. No fluff.</p>
       {state === "done" ? (
         <div className="flex items-center gap-2 text-sm text-green-400">
           <Check size={16} /> Subscribed — talk soon!

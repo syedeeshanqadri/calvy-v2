@@ -4,6 +4,7 @@ import localFont from "next/font/local";
 import { Analytics } from "@vercel/analytics/next";
 import { Providers } from "@/components/Providers";
 import "./globals.css";
+import { SITE_URL } from "@/lib/site";
 
 const plusJakartaSans = localFont({
   src: "./fonts/plus-jakarta-sans.woff2",
@@ -20,7 +21,7 @@ const dmSans = localFont({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? "https://calvy.io"),
+  metadataBase: new URL(SITE_URL),
   title: "Calvy — Smart Appointment Booking",
   description: "The smartest appointment booking platform for salons, clinics, coaches, and every service business. Automate bookings, reminders, and payments.",
   keywords: ["appointment booking", "scheduling software", "booking system", "salon software", "clinic booking"],

@@ -10,9 +10,9 @@ import {
 
 function DashboardScreen() {
   const appts = [
-    { name: "Sarah R.", time: "10:00 AM", svc: "Haircut & Style", color: "#0284c7", status: "confirmed" },
-    { name: "Michael K.", time: "11:30 AM", svc: "Consultation", color: "#0ea5e9", status: "confirmed" },
-    { name: "Ana Lopez", time: "1:00 PM", svc: "Full Session", color: "#ec4899", status: "pending" },
+    { name: "Sarah R.", time: "10:00 AM", svc: "Haircut & Style", color: "#0369a1", status: "confirmed" },
+    { name: "Michael K.", time: "11:30 AM", svc: "Consultation", color: "#0369a1", status: "confirmed" },
+    { name: "Ana Lopez", time: "1:00 PM", svc: "Full Session", color: "#be185d", status: "pending" },
     { name: "James W.", time: "3:30 PM", svc: "Beard Trim", color: "#22c55e", status: "confirmed" },
   ];
   return (
@@ -36,7 +36,7 @@ function DashboardScreen() {
           ))}
         </div>
       </div>
-      <p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3">Today&apos;s schedule</p>
+      <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-3">Today&apos;s schedule</p>
       <div className="space-y-2.5">
         {appts.map(a => (
           <div key={a.name} className="flex items-center gap-3 p-3 rounded-xl bg-gray-50">
@@ -77,14 +77,14 @@ function CalendarScreen() {
           <p className="text-xs text-gray-500">Week of 21–26</p>
         </div>
         <div className="flex items-center gap-1.5">
-          <div className="w-7 h-7 rounded-lg border border-gray-200 flex items-center justify-center"><ChevronLeft size={14} className="text-gray-400" /></div>
-          <div className="w-7 h-7 rounded-lg border border-gray-200 flex items-center justify-center"><ChevronRight size={14} className="text-gray-400" /></div>
+          <div className="w-7 h-7 rounded-lg border border-gray-200 flex items-center justify-center"><ChevronLeft size={14} className="text-gray-500" /></div>
+          <div className="w-7 h-7 rounded-lg border border-gray-200 flex items-center justify-center"><ChevronRight size={14} className="text-gray-500" /></div>
         </div>
       </div>
       <div className="grid grid-cols-6 gap-2">
         {days.map((d, i) => (
           <div key={d} className="text-center">
-            <div className="text-[10px] font-semibold text-gray-400 mb-1.5">{d}</div>
+            <div className="text-[10px] font-semibold text-gray-500 mb-1.5">{d}</div>
             <div className={`text-xs font-bold rounded-lg py-1 ${i === 3 ? "bg-sky-600 text-white" : "text-gray-700"}`}>{21 + i}</div>
           </div>
         ))}
@@ -167,7 +167,7 @@ function AnalyticsScreen() {
     <div className="p-5 sm:p-6 h-full">
       <div className="flex items-center justify-between mb-4">
         <p className="font-syne font-bold text-lg text-gray-900">Analytics</p>
-        <span className="text-[10px] text-gray-400 border border-gray-200 rounded-lg px-2 py-1">Last 8 weeks</span>
+        <span className="text-[10px] text-gray-500 border border-gray-200 rounded-lg px-2 py-1">Last 8 weeks</span>
       </div>
       <div className="grid grid-cols-3 gap-3 mb-5">
         {[
@@ -185,7 +185,7 @@ function AnalyticsScreen() {
         ))}
       </div>
       <div className="rounded-xl border border-gray-100 p-4">
-        <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-3">Revenue trend</p>
+        <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500 mb-3">Revenue trend</p>
         <div className="flex items-end justify-between gap-2 h-[110px]">
           {bars.map((b, i) => (
             <div key={i} className="flex-1 flex flex-col items-center justify-end h-full">
@@ -195,7 +195,7 @@ function AnalyticsScreen() {
         </div>
       </div>
       <div className="mt-4 flex items-center gap-3 rounded-xl bg-gray-50 px-4 py-3">
-        <Users size={16} className="text-gray-400" />
+        <Users size={16} className="text-gray-500" />
         <span className="text-xs text-gray-600">Top client: <span className="font-semibold text-gray-800">Sarah R.</span> · $1,240 lifetime</span>
       </div>
     </div>
@@ -248,14 +248,15 @@ export function ProductCarousel() {
             <span className="w-3 h-3 rounded-full bg-amber-400" />
             <span className="w-3 h-3 rounded-full bg-green-400" />
           </div>
-          <div className="mx-auto flex items-center gap-2 bg-gray-100 rounded-lg px-4 py-1.5 text-xs text-gray-500 max-w-[16rem] w-full justify-center">
+          <div className="mx-auto flex items-center gap-2 bg-gray-100 rounded-lg px-4 py-1.5 text-xs text-gray-600 max-w-[16rem] w-full justify-center">
             <span className="w-2 h-2 rounded-full bg-green-500" />
             {SLIDES[active].url}
           </div>
         </div>
 
         {/* Slides track */}
-        <div className="relative bg-white">
+        {/* Decorative preview of the dashboard: hidden from screen readers (the tabs below are the real controls). */}
+        <div className="relative bg-white" aria-hidden="true">
           <div className="flex transition-transform duration-500 ease-out" style={{ transform: `translateX(-${active * 100}%)` }}>
             {SLIDES.map(({ id, Screen }) => (
               <div key={id} className="w-full flex-shrink-0 h-[420px] sm:h-[460px] overflow-hidden">

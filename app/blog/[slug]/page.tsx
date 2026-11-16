@@ -1,3 +1,4 @@
+import { SITE_URL } from "@/lib/site";
 import { jsonLdString } from "@/lib/jsonLd";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -10,7 +11,7 @@ import { ArrowLeft, Plus } from "lucide-react";
 
 export const revalidate = 60;
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://calvy.io";
+const APP_URL = SITE_URL;
 
 // The build must not depend on the database: if it is unreachable while building, prerender
 // nothing and let posts render on demand (dynamicParams) and then be cached (ISR).

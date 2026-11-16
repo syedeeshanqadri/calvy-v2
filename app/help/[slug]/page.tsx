@@ -1,3 +1,4 @@
+import { SITE_URL } from "@/lib/site";
 import { jsonLdString } from "@/lib/jsonLd";
 import { SUPPORT_EMAIL } from "@/lib/site";
 import type { Metadata } from "next";
@@ -9,7 +10,7 @@ import { HELP_ARTICLES, getArticle, articlesByCategory } from "@/lib/helpArticle
 import { Navbar } from "@/components/landing/Navbar";
 import { Footer } from "@/components/landing/Footer";
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://calvy.io";
+const APP_URL = SITE_URL;
 
 export function generateStaticParams() {
   return HELP_ARTICLES.map(a => ({ slug: a.slug }));

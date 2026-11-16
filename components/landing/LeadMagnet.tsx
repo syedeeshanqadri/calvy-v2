@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { Download, Check, Loader2, FileText, Star } from "lucide-react";
+import { Download, Check, Loader2, FileText } from "lucide-react";
 import { postLead, EMAIL_RE } from "./postLead";
 
 export function LeadMagnet() {
@@ -28,11 +28,7 @@ export function LeadMagnet() {
               <div className="w-56 sm:w-64 bg-gradient-to-br from-sky-500 to-sky-700 rounded-2xl shadow-2xl shadow-sky-900/50 p-7 rotate-[-4deg]">
                 <FileText size={28} className="text-white/80 mb-6" />
                 <p className="text-sky-200 text-xs font-bold tracking-widest uppercase mb-2">Free Playbook</p>
-                <p className="font-syne font-extrabold text-white text-2xl leading-tight">7 Ways to Cut No-Shows by 80%</p>
-                <div className="flex items-center gap-1 mt-6">
-                  {Array(5).fill(0).map((_, i) => <Star key={i} size={12} className="text-amber-300 fill-amber-300" />)}
-                  <span className="text-white/70 text-[11px] ml-1">Loved by 2,400+ owners</span>
-                </div>
+                <p className="font-syne font-extrabold text-white text-2xl leading-tight">7 Ways to Cut No-Shows</p>
               </div>
             </div>
           </div>
@@ -65,7 +61,7 @@ export function LeadMagnet() {
                     className="rounded-2xl bg-white/5 border border-white/15 text-white placeholder:text-gray-500 px-5 py-3.5 focus:outline-none focus:ring-4 focus:ring-sky-500/20 focus:border-sky-500 transition-all" />
                 </div>
                 <button type="submit" disabled={state === "loading"}
-                  className="group w-full inline-flex items-center justify-center gap-2 bg-sky-500 hover:bg-sky-400 text-white font-semibold px-6 py-4 rounded-2xl transition-all hover:-translate-y-0.5 disabled:opacity-70">
+                  className="group w-full inline-flex items-center justify-center gap-2 bg-sky-700 hover:bg-sky-600 text-white font-semibold px-6 py-4 rounded-2xl transition-all hover:-translate-y-0.5 disabled:opacity-70">
                   {state === "loading" ? <Loader2 size={18} className="animate-spin" /> : <><Download size={18} /> Send me the playbook</>}
                 </button>
                 {error && <p className="text-sm text-red-400 ml-1">{error}</p>}

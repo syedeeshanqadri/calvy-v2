@@ -1,7 +1,10 @@
 // Display-only pricing for the marketing site and signup, one config per region.
+// International (USD) prices come from PLAN_META in lib/plans.ts; the rupee prices are set here because plans.ts has no INR column.
 // Enforcement and billing still read limits and plan ids from PlanConfig and
 // lib/plans.ts; the internal id "professional" is shown as "Pro". The legacy
 // "starter" plan stays in the database but is not displayed.
+
+import { PLAN_META } from "@/lib/planMeta";
 
 export type Region = "IN" | "INTL";
 
@@ -31,6 +34,7 @@ export interface RegionPricing {
 
 export const REGION_COOKIE = "calvy_region";
 export const DEFAULT_REGION: Region = "INTL";
+export const WHATSAPP_NOTE = "WhatsApp on Pro and Business: message charges are billed by Meta directly to your own WhatsApp Business account.";
 export const PRICING_NOTE = "Flat price for your whole team — no per-staff fees.";
 
 // The mobile app is part of Pro and Business in every country; Business unlocks the full feature set.
@@ -60,9 +64,9 @@ const INTL: RegionPricing = {
     {
       id: "professional",
       name: "Pro",
-      monthly: 6,
-      yearlyPerMonth: 5,
-      yearlyTotal: 60,
+      monthly: PLAN_META.professional.price,
+      yearlyPerMonth: PLAN_META.professional.annualPrice,
+      yearlyTotal: PLAN_META.professional.annualPrice * 12,
       description: "For growing service businesses",
       features: [
         "Up to 3 staff",
@@ -80,9 +84,9 @@ const INTL: RegionPricing = {
     {
       id: "business",
       name: "Business",
-      monthly: 14,
-      yearlyPerMonth: 12,
-      yearlyTotal: 144,
+      monthly: PLAN_META.business.price,
+      yearlyPerMonth: PLAN_META.business.annualPrice,
+      yearlyTotal: PLAN_META.business.annualPrice * 12,
       description: "For teams and high-volume businesses",
       features: [
         "Unlimited staff",

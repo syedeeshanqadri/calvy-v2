@@ -1,9 +1,10 @@
+import { SITE_URL } from "@/lib/site";
 import { publicSiteUrl } from "@/lib/siteBase";
 import type { MetadataRoute } from "next";
 import { prisma } from "@/lib/prisma";
 import { HELP_ARTICLES } from "@/lib/helpArticles";
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://calvy.io";
+const APP_URL = SITE_URL;
 const ROOT_DOMAIN = process.env.NEXT_PUBLIC_ROOT_DOMAIN ?? "calvy.io";
 
 export const revalidate = 3600;
@@ -18,6 +19,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${APP_URL}/privacy`, changeFrequency: "yearly", priority: 0.3 },
     { url: `${APP_URL}/terms`, changeFrequency: "yearly", priority: 0.3 },
     { url: `${APP_URL}/refund-policy`, changeFrequency: "yearly", priority: 0.3 },
+    { url: `${APP_URL}/about`, changeFrequency: "yearly", priority: 0.4 },
+    { url: `${APP_URL}/contact`, changeFrequency: "yearly", priority: 0.4 },
+    { url: `${APP_URL}/service-delivery`, changeFrequency: "yearly", priority: 0.3 },
   ];
 
   let posts: { slug: string; updatedAt: Date }[] = [];
