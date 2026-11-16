@@ -36,6 +36,7 @@ export default function TermsPage() {
       <h2>5. Online Bookings, Platform Fee and Wallet Credit</h2>
       <ul>
         <li>On the Free plan in India, each confirmed online booking carries a platform fee of ₹10. The business chooses whether it or its customer pays this fee.</li>
+        <li>Once an online booking is confirmed, its booking charges are not refunded; if the booking is cancelled, the amount is added to the customer&apos;s wallet for allowed future bookings.</li>
         <li>When a customer pays for a booking online and the booking is cancelled or missed, the amount paid is kept as wallet credit for that customer with that business, to be used on a later booking. It does not expire. Refunds in cash are covered in the <Link href="/refund-policy">Refund &amp; Cancellation Policy</Link>.</li>
         <li>WhatsApp messages sent through a paid plan are charged by Meta to the business&apos;s own WhatsApp Business account.</li>
         <li>The Service is delivered digitally and is available as soon as your account is created. See <Link href="/service-delivery">Service Delivery</Link>.</li>

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { SUPPORT_EMAIL } from "@/lib/site";
+import { CONTACT, SUPPORT_EMAIL } from "@/lib/site";
 import type { Metadata } from "next";
 import { LegalLayout } from "@/components/legal/LegalLayout";
 
@@ -16,8 +16,8 @@ export default function RefundPolicyPage() {
       lastUpdated="November 16, 2026"
       intro="This policy explains cancellations and refunds for Calvy subscriptions, for the platform fee on online bookings, and for payments that customers make to businesses through Calvy."
     >
-      <h2>1. Platform Fee on Online Bookings</h2>
-      <p>On the Free plan in India, each confirmed online booking carries a platform fee of ₹10, paid either by the business or by its customer, as the business chooses. The fee covers payment processing and the booking service. It is charged when the booking is confirmed and is not refunded if the booking is later cancelled or missed, except where the booking itself is refunded in full under section 4.</p>
+      <h2>1. Booking Charges Are Not Refunded Once Confirmed</h2>
+      <p>Once an online booking is confirmed, the booking charges are not refunded. This includes the ₹10 platform fee that applies to each confirmed online booking on the Free plan in India, which is paid either by the business or by its customer, as the business chooses. If a confirmed booking is cancelled, the amount paid is not lost: it is added to the customer&apos;s wallet for allowed future bookings, as explained in section 2.</p>
 
       <h2>2. Cancelled and Missed Bookings: Wallet Credit</h2>
       <p>When a customer has paid online for a booking and the booking is cancelled, including a last-minute cancellation, or missed, the amount paid is not lost. It is kept as <strong>wallet credit</strong> for that customer with that business, and:</p>
@@ -57,7 +57,7 @@ export default function RefundPolicyPage() {
       <p>We may update this policy from time to time. The &ldquo;Last updated&rdquo; date above shows the latest revision.</p>
 
       <h2>9. Contact Us</h2>
-      <p>Questions about refunds or cancellations? Write to <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a> or use the <Link href="/contact">Contact page</Link>.</p>
+      <p>Questions about refunds or cancellations? Write to <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>, call <a href={CONTACT.phoneHref}>{CONTACT.phone}</a> or use the <Link href="/contact">Contact page</Link>.</p>
     </LegalLayout>
   );
 }

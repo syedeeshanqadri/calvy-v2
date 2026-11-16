@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { SUPPORT_EMAIL } from "@/lib/site";
+import { CONTACT, SUPPORT_EMAIL } from "@/lib/site";
 import type { Metadata } from "next";
 import { LegalLayout } from "@/components/legal/LegalLayout";
 
@@ -74,7 +74,7 @@ export default function PrivacyPolicyPage() {
       <p>We may update this Privacy Policy from time to time. We will revise the “Last updated” date above and, where appropriate, notify you of material changes.</p>
 
       <h2>11. Contact Us</h2>
-      <p>If you have questions about this Privacy Policy, contact us at <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a> or through the <Link href="/contact">Contact page</Link>.</p>
+      <p>If you have questions about this Privacy Policy, contact us at <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a> or on <a href={CONTACT.phoneHref}>{CONTACT.phone}</a>, or through the <Link href="/contact">Contact page</Link>.</p>
     </LegalLayout>
   );
 }

@@ -45,11 +45,23 @@ describe("step-21 honest public site", () => {
     expect(hits.sort()).toEqual(["lib/site.ts"]);
     expect(read("app/contact/page.tsx")).toContain("CONTACT.proprietor");
   });
+  it("the phone number appears only on the contact, refund and privacy pages", () => {
+    const hits: string[] = [];
+    const walk = (d: string) => {
+      for (const e of readdirSync(d, { withFileTypes: true })) {
+        const p = `${d}/${e.name}`;
+        if (e.isDirectory()) walk(p);
+        else if (/\.(tsx?)$/.test(e.name) && /CONTACT\.phone|60052 86335|6005286335/.test(read(p))) hits.push(p);
+      }
+    };
+    ["app", "components"].forEach(walk);
+    expect(hits.sort()).toEqual(["app/contact/page.tsx", "app/privacy/page.tsx", "app/refund-policy/page.tsx"]);
+  });
   it("legal pages name the processors and the refund rules", () => {
     const privacy = read("app/privacy/page.tsx");
     for (const n of ["Cashfree", "Meta", "Google", "Resend"]) expect(privacy).toContain(n);
     const refund = read("app/refund-policy/page.tsx");
-    for (const n of ["₹10", "wallet credit", "5–7 working days", "last-minute"]) expect(refund).toContain(n);
+    for (const n of ["₹10", "wallet credit", "5–7 working days", "last-minute", "charges are not refunded"]) expect(refund).toContain(n);
     expect(read("app/service-delivery/page.tsx")).toMatch(/digital/i);
     for (const f of ["app/privacy/page.tsx", "app/terms/page.tsx", "app/refund-policy/page.tsx"]) expect(read(f)).not.toContain("Razorpay");
   });
