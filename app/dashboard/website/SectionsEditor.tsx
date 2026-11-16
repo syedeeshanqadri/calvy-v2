@@ -40,7 +40,7 @@ function Preview({ children, themeColor, packId }: { children: ReactNode; themeC
   return (
     <div className="mt-3">
       <p className="text-xs font-semibold text-[#6b6b80] uppercase tracking-wider mb-1.5">Live preview</p>
-      <div className="st rounded-xl border border-[#e8e6e0] overflow-hidden" data-pack={packId} style={{ ...(themeVars(safeThemeColor(themeColor)) as React.CSSProperties), minHeight: 0, ["--sec" as string]: "24px" }}>
+      <div className="st st-preview rounded-xl border border-[#e8e6e0] overflow-hidden" data-pack={packId} style={{ ...(themeVars(safeThemeColor(themeColor)) as React.CSSProperties), minHeight: 0, ["--sec" as string]: "24px" }}>
         {children}
       </div>
     </div>
@@ -64,7 +64,7 @@ function Section({ title, enabled, shown, onToggle, status, children }: { title:
   );
 }
 
-const iconBtn = "min-h-[40px] min-w-[40px] inline-flex items-center justify-center rounded-lg border border-[#e8e6e0] hover:bg-[#f8f7f4] disabled:opacity-40";
+const iconBtn = "min-h-[44px] min-w-[44px] inline-flex items-center justify-center rounded-lg border border-[#e8e6e0] hover:bg-[#f8f7f4] disabled:opacity-40";
 
 export function SectionsEditor({ config, setConfig, packId, themeColor, timezone, currency, imageUpload, staff, services, businessName, hasReviewLink }: Props) {
   const [uploadError, setUploadError] = useState("");
@@ -144,14 +144,14 @@ export function SectionsEditor({ config, setConfig, packId, themeColor, timezone
         <Input label="Section heading" maxLength={SITE_CAPS.title} value={gallery.title} onChange={(e) => patch("gallery", { title: e.target.value })} />
         <ul className="space-y-2">
           {gallery.images.map((img, i) => (
-            <li key={img.url} className="flex items-start gap-3 rounded-xl border border-[#e8e6e0] p-2">
+            <li key={img.url} className="flex flex-wrap sm:flex-nowrap items-start gap-3 rounded-xl border border-[#e8e6e0] p-2">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={img.url} alt="" className="w-20 h-[60px] object-cover rounded-lg flex-shrink-0" />
-              <div className="flex-1 min-w-0">
+              <div className="order-last basis-full sm:order-none sm:basis-auto sm:flex-1 min-w-0">
                 <Input aria-label={`Description of photo ${i + 1}`} placeholder="Describe the photo (for screen readers)" maxLength={SITE_CAPS.altText} value={img.alt}
                   onChange={(e) => patch("gallery", { images: gallery.images.map((x, j) => (j === i ? { ...x, alt: e.target.value } : x)) })} />
               </div>
-              <div className="flex gap-1 flex-shrink-0">
+              <div className="flex gap-1 flex-shrink-0 ml-auto sm:ml-0">
                 <button type="button" className={iconBtn} aria-label={`Move photo ${i + 1} up`} disabled={i === 0} onClick={() => patch("gallery", { images: moveItem(gallery.images, i, i - 1) })}><ArrowUp size={14} /></button>
                 <button type="button" className={iconBtn} aria-label={`Move photo ${i + 1} down`} disabled={i === gallery.images.length - 1} onClick={() => patch("gallery", { images: moveItem(gallery.images, i, i + 1) })}><ArrowDown size={14} /></button>
                 <button type="button" className={iconBtn} aria-label={`Remove photo ${i + 1}`} onClick={() => patch("gallery", { images: gallery.images.filter((_, j) => j !== i) })}><Trash2 size={14} /></button>

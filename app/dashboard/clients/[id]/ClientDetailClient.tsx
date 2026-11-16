@@ -73,10 +73,10 @@ export function ClientDetailClient({ client }: { client: ClientData }) {
         <ArrowLeft size={14} /> Back to {t("client", { plural: true, cap: true })}
       </Link>
 
-      <div className="grid lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
         {/* ── Left: profile card ── */}
-        <div className="space-y-4">
+        <div className="space-y-4 min-w-0">
           <Card>
             <CardContent className="pt-6 flex flex-col items-center text-center">
               <Avatar name={client.name} color="#0284c7" size="xl" />
@@ -130,7 +130,7 @@ export function ClientDetailClient({ client }: { client: ClientData }) {
         </div>
 
         {/* ── Right: appointment ledger ── */}
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-2 min-w-0">
           <Card>
             <CardHeader>
               <CardTitle>{t("appointment", { cap: true })} Ledger</CardTitle>

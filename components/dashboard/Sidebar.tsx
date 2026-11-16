@@ -53,7 +53,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
       {/* Logo */}
       <div className={cn("flex items-center h-16 px-4 border-b border-[#e8e6e0]", collapsed ? "justify-center" : "justify-between")}>
         {!collapsed && (
-          <Link href="/">
+          <Link href="/" className="inline-flex items-center min-h-11" aria-label="Calvy home">
             <Logo width={80} />
           </Link>
         )}

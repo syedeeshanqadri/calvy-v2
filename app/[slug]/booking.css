@@ -133,7 +133,10 @@ textarea.bk-input { resize: none; }
 /* The last option must never end up behind the sticky bar: keyboard focus and scrollIntoView keep it clear, and on short screens
    (phones in landscape) the bar stops being sticky so it cannot eat half the viewport. */
 .bk-opt, .bk-slot, .bk-link { scroll-margin-bottom: 120px; }
-@media (max-height: 520px) { .bk-nav { position: static; margin: 20px 0 0; box-shadow: none; } }
+/* Phones: room under the last option for the sticky bar (about 72px) plus the home-indicator inset, so nothing ends up behind it. */
+@media (max-width: 767px) { .bk-step { padding-bottom: calc(72px + env(safe-area-inset-bottom)); } .bk-nav { margin-top: 0; } }
+@media (max-height: 520px) { .bk-step { padding-bottom: 0; } .bk-nav { position: static; margin: 20px 0 0; box-shadow: none; } }
+@media (min-width: 768px) { .bk-nav { position: static; margin: 28px 0 0; padding: 20px 0 0; background: transparent; border-top: 1px solid var(--line); box-shadow: none; } .bk-nav-total { display: none; } .bk-nav-total + .st-btn { margin-left: auto; } .bk-step { padding-bottom: 0; } }
 @media (min-width: 900px) { .bk-nav { position: static; margin: 28px 0 0; padding: 20px 0 0; background: transparent; border-top: 1px solid var(--line); box-shadow: none; } .bk-nav-total { display: none; } .bk-nav-total + .st-btn { margin-left: auto; } }
 
 /* Success */

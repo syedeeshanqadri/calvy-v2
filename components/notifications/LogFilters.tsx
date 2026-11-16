@@ -34,7 +34,7 @@ export function LogFilters({ action, filters, searchHint, showAudience = true }:
         <input name="q" defaultValue={filters.q ?? ""} placeholder={searchHint} className={field} maxLength={100} />
       </label>
       <button type="submit" className="h-9 rounded-lg bg-[#0f0f1a] px-4 text-sm font-medium text-white hover:bg-[#2a2a3a]">Apply</button>
-      <Link href={action} className="h-9 px-2 text-sm leading-9 text-[#6b6b80] hover:text-[#0f0f1a]">Reset</Link>
+      <Link href={action} className="min-h-11 px-3 inline-flex items-center text-sm text-[#6b6b80] hover:text-[#0f0f1a]">Reset</Link>
     </form>
   );
 }
@@ -55,9 +55,9 @@ export function LogPager({ action, filters, hasMore }: { action: string; filters
   if (filters.page === 1 && !hasMore) return null;
   return (
     <nav className="flex items-center justify-between pt-3 text-sm" aria-label="Pages">
-      {filters.page > 1 ? <Link href={href(filters.page - 1)} className="text-[#0284c7] hover:underline">← Newer</Link> : <span />}
+      {filters.page > 1 ? <Link href={href(filters.page - 1)} className="text-[#0284c7] hover:underline inline-flex items-center min-h-11 px-2">← Newer</Link> : <span />}
       <span className="text-[#6b6b80]">Page {filters.page}</span>
-      {hasMore ? <Link href={href(filters.page + 1)} className="text-[#0284c7] hover:underline">Older →</Link> : <span />}
+      {hasMore ? <Link href={href(filters.page + 1)} className="text-[#0284c7] hover:underline inline-flex items-center min-h-11 px-2">Older →</Link> : <span />}
     </nav>
   );
 }

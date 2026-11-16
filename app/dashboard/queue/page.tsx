@@ -24,7 +24,7 @@ export default async function QueuePage() {
         <div className="max-w-md bg-white rounded-2xl border border-[#e8e6e0] p-6 space-y-3">
           <p className="font-semibold">The queue is for businesses that book by token.</p>
           <p className="text-sm text-[#6b6b80]">Switch booking mode to Tokens in Settings to use it.</p>
-          <Link href="/dashboard/settings" className="inline-block bg-[#0f0f1a] text-white text-sm font-semibold px-4 py-2.5 rounded-xl">Open settings</Link>
+          <Link href="/dashboard/settings" className="bg-[#0f0f1a] text-white text-sm font-semibold px-4 min-h-11 inline-flex items-center rounded-xl">Open settings</Link>
         </div>
       </DashboardLayout>
     );

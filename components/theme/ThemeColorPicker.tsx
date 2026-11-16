@@ -24,14 +24,14 @@ export function ThemeColorPicker({ value, onChange, packId, id = "theme-color" }
         {themePresets(packId).map((c) => (
           <button
             key={c} type="button" onClick={() => pick(c)} aria-label={`Use ${c}`} aria-pressed={current === c}
-            className={`w-8 h-8 rounded-full border-2 transition-all ${current === c ? "border-brand-900 scale-110" : "border-transparent"}`}
+            className={`w-11 h-11 p-1.5 bg-clip-content rounded-full border-2 transition-all ${current === c ? "border-brand-900" : "border-transparent"}`}
             style={{ background: c }}
           />
         ))}
         <input
           type="color" aria-label="Pick a custom colour" value={isValidHex(current) && current.length === 7 ? current : "#0284c7"}
           onChange={(e) => pick(e.target.value)}
-          className="w-8 h-8 rounded-full border border-[#e8e6e0] cursor-pointer p-0.5 bg-white"
+          className="w-11 h-11 rounded-full border border-[#e8e6e0] cursor-pointer p-1.5 bg-white"
         />
         <input
           id={id} type="text" inputMode="text" maxLength={7} spellCheck={false} value={draft} aria-invalid={draftBad}

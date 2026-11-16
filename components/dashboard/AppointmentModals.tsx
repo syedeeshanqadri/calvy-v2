@@ -254,7 +254,7 @@ export function NewAppointmentModal({
               emptyText={form.serviceIds.length ? "No free times on this day." : `Choose a ${svc1} to see free times.`}
             />
           )}
-          <label className="mt-2 flex items-start gap-2 text-xs text-[#6b6b80] cursor-pointer">
+          <label className="mt-2 flex items-center gap-2 min-h-11 text-xs text-[#6b6b80] cursor-pointer">
             <input type="checkbox" className="mt-0.5" checked={allowOverlap} onChange={(e) => { setAllowOverlap(e.target.checked); setForm((f) => ({ ...f, time: "" })); }} />
             <span>Book at any time, even over an existing appointment{allowOverlap && !form.staffId ? " (pick a staff member)" : ""}</span>
           </label>
@@ -498,14 +498,16 @@ export function AppointmentDetailModal({
             </div>
           </div>
 
-          {error && <p className="text-sm text-red-500" role="alert">{error}</p>}
+        </div>
 
-          <div className="sheet-actions flex gap-3 pt-1">
-            <Button variant="outline" onClick={onClose} className="flex-1 justify-center">Close</Button>
-            <Button onClick={saveChanges} disabled={saving || !dirty} className={cn("flex-1 justify-center gap-2", saved && !dirty && "bg-green-600 hover:bg-green-700")}>
-              {saved && !dirty ? <><Check size={14} /> Saved</> : saving ? "Saving…" : "Save changes"}
-            </Button>
-          </div>
+        {/* Outside the status block so the pinned action row can stick for the whole dialog, not just its own section */}
+        {error && <p className="text-sm text-red-500" role="alert">{error}</p>}
+
+        <div className="sheet-actions flex gap-3 pt-1">
+          <Button variant="outline" onClick={onClose} className="flex-1 justify-center">Close</Button>
+          <Button onClick={saveChanges} disabled={saving || !dirty} className={cn("flex-1 justify-center gap-2", saved && !dirty && "bg-green-600 hover:bg-green-700")}>
+            {saved && !dirty ? <><Check size={14} /> Saved</> : saving ? "Saving…" : "Save changes"}
+          </Button>
         </div>
 
         {/* Delete */}

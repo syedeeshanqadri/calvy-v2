@@ -331,7 +331,19 @@ describe("notifications log and booking pages on phones", () => {
   it("the sticky Continue bar never hides the last option: scroll margin, and not sticky on short screens", () => {
     const css = readFileSync("app/[slug]/booking.css", "utf8");
     expect(css).toMatch(/\.bk-opt[^{]*\{ scroll-margin-bottom: 120px; \}/);
-    expect(css).toMatch(/@media \(max-height: 520px\) \{ \.bk-nav \{ position: static/);
+    expect(css).toMatch(/@media \(max-height: 520px\) \{ \.bk-step \{ padding-bottom: 0; \} \.bk-nav \{ position: static/);
+  });
+
+  it("step-20: phones keep room (bar height + safe area) under the last option; the bar is a plain row from 768px", () => {
+    const css = readFileSync("app/[slug]/booking.css", "utf8");
+    expect(css).toMatch(/@media \(max-width: 767px\) \{ \.bk-step \{ padding-bottom: calc\(72px \+ env\(safe-area-inset-bottom\)\)/);
+    expect(css).toMatch(/@media \(min-width: 768px\) \{ \.bk-nav \{ position: static/);
+    expect(readFileSync("app/[slug]/site.css", "utf8")).toMatch(/@media \(min-width: 768px\) \{ \.st-bar \{ display: none; \} \}/);
+  });
+
+  it("step-20: the shared Modal ignores sibling margins (space-y parents) and Phone alerts explains the iPhone sound", () => {
+    expect(readFileSync("components/ui/Modal.tsx", "utf8")).toContain('className="!m-0 fixed');
+    expect(readFileSync("components/dashboard/SoundSettings.tsx", "utf8")).toContain("iPhone plays its default notification sound when locked; keep Calvy open for the loud chime.");
   });
 });
 
