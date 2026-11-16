@@ -30,7 +30,7 @@ describe("pricing display", () => {
   });
   it("no trial wording, and one support address constant", () => {
     expect(JSON.stringify(DISPLAY_PLANS)).not.toMatch(/trial/i);
-    expect(SUPPORT_EMAIL).toBe("qadri.eeshan@gmail.com");
+    expect(SUPPORT_EMAIL).toBe("support@calvy.io");
   });
 });
 

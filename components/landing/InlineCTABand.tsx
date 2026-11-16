@@ -30,7 +30,7 @@ export function InlineCTABand() {
                 Turn no-shows into no-problem.
               </h3>
               <p className="text-sky-100 text-base max-w-md">
-                Join 12,000+ businesses getting more bookings on autopilot. Start free in 60 seconds.
+                Reminders go out on their own, so fewer people forget. Start free in minutes.
               </p>
             </div>
 

@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Check, ChevronDown } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
-import { PRICING_NOTE, formatMoney, getRegionPricing, isFeatureHeading, yearlySaveBadge, type Region } from "@/lib/pricing";
+import { PRICING_NOTE, WHATSAPP_NOTE, formatMoney, getRegionPricing, isFeatureHeading, yearlySaveBadge, type Region } from "@/lib/pricing";
 import { useRegion } from "./useRegion";
 
 const FREE_FAQ: Record<Region, string> = {
@@ -23,7 +23,7 @@ function FAQ({ region }: { region: Region }) {
   const [open, setOpen] = useState<number | null>(null);
   return (
     <div className="max-w-2xl mx-auto mt-16">
-      <h3 className="font-syne font-bold text-xl text-gray-900 text-center mb-6">Common questions</h3>
+      <h2 className="font-syne font-bold text-xl text-gray-900 text-center mb-6">Common questions</h2>
       <div className="space-y-3">
         {faqs(region).map((faq, i) => (
           <div key={i} className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
@@ -55,8 +55,11 @@ export default function PricingClient({
   fixedRegion?: boolean;
   headingLevel?: "h1" | "h2";
 }) {
-  const [yearly, setYearly] = useState(true);
   const region = useRegion(defaultRegion, fixedRegion);
+  // Yearly is the default for International; India starts on monthly. Once the visitor picks one, that choice wins.
+  const [choice, setChoice] = useState<boolean | null>(null);
+  const yearly = choice ?? region === "INTL";
+  const setYearly = setChoice;
   const pricing = getRegionPricing(region);
   const plans = pricing.plans;
   const money = (n: number) => formatMoney(n, pricing);
@@ -101,7 +104,7 @@ export default function PricingClient({
                   </span>
                   <span className={cn("text-sm font-medium", plan.highlight ? "text-sky-200" : "text-gray-500")}>{free ? "forever" : "/mo"}</span>
                 </div>
-                <div className={cn("text-xs font-semibold mb-6 min-h-4", plan.highlight ? "text-sky-200" : "text-green-600")}>
+                <div className={cn("text-xs font-semibold mb-6 min-h-4", plan.highlight ? "text-sky-200" : "text-green-700")}>
                   {!free && yearly ? `billed ${money(plan.yearlyTotal)} yearly` : ""}
                 </div>
                 <ul className="space-y-3 flex-1 mb-8">
@@ -127,6 +130,7 @@ export default function PricingClient({
         </div>
 
         <p className="text-center text-sm text-gray-600 mt-8 font-medium">{PRICING_NOTE}</p>
+        <p className="text-center text-sm text-gray-500 mt-2">{WHATSAPP_NOTE}</p>
         <p className="text-center text-sm text-gray-500 mt-2">No credit card required · Cancel anytime · Lifetime free plan available</p>
         <FAQ region={region} />
       </div>

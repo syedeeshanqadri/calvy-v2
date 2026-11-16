@@ -7,21 +7,22 @@ import { Logo } from "@/components/ui/Logo";
 const LINKS: Record<string, { label: string; href: string }[]> = {
   Product: [
     { label: "Features", href: "/#features" },
-    { label: "Pricing", href: "/#pricing" },
+    { label: "Pricing", href: "/pricing" },
   ],
   Company: [
+    { label: "About", href: "/about" },
+    { label: "Contact", href: "/contact" },
     { label: "Blog", href: "/blog" },
-    { label: "Contact", href: `mailto:${SUPPORT_EMAIL}` },
   ],
   Legal: [
     { label: "Privacy Policy", href: "/privacy" },
     { label: "Terms & Conditions", href: "/terms" },
-    { label: "Refund Policy", href: "/refund-policy" },
+    { label: "Refund & Cancellation", href: "/refund-policy" },
+    { label: "Service Delivery", href: "/service-delivery" },
   ],
   Support: [
     { label: "Help Center", href: "/help" },
-    { label: "Razorpay setup", href: "/help/connect-razorpay-to-accept-payments" },
-    { label: "Contact", href: `mailto:${SUPPORT_EMAIL}` },
+    { label: "Email support", href: `mailto:${SUPPORT_EMAIL}` },
   ],
 };
 
@@ -34,18 +35,18 @@ export function Footer() {
             <div className="mb-5">
               <Logo width={90} className="brightness-0 invert" />
             </div>
-            <p className="text-sm text-gray-500 leading-relaxed mb-5">The smartest appointment booking platform for modern service businesses.</p>
+            <p className="text-sm text-gray-400 leading-relaxed mb-5">The smartest appointment booking platform for modern service businesses.</p>
             <div className="mt-7 max-w-xs">
               <NewsletterForm />
             </div>
           </div>
           {Object.entries(LINKS).map(([category, links]) => (
             <div key={category}>
-              <h4 className="text-sm font-semibold text-white mb-4">{category}</h4>
+              <h3 className="text-sm font-semibold text-white mb-4">{category}</h3>
               <ul>
                 {links.map((link) => (
                   <li key={link.label}>
-                    <Link href={link.href} className="text-sm text-gray-500 hover:text-gray-300 transition-colors inline-flex items-center min-h-11">{link.label}</Link>
+                    <Link href={link.href} className="text-sm text-gray-400 hover:text-gray-200 transition-colors inline-flex items-center min-h-11">{link.label}</Link>
                   </li>
                 ))}
               </ul>

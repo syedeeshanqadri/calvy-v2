@@ -1,10 +1,11 @@
+import { SITE_URL } from "@/lib/site";
 import type { Metadata } from "next";
 import { HELP_ARTICLES, HELP_CATEGORIES } from "@/lib/helpArticles";
 import { Navbar } from "@/components/landing/Navbar";
 import { Footer } from "@/components/landing/Footer";
 import { HelpSearch } from "./HelpSearch";
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://calvy.io";
+const APP_URL = SITE_URL;
 
 export const metadata: Metadata = {
   title: "Help Center · Calvy",

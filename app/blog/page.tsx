@@ -1,3 +1,4 @@
+import { SITE_URL } from "@/lib/site";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
@@ -6,7 +7,7 @@ import { Footer } from "@/components/landing/Footer";
 
 export const revalidate = 60;
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://calvy.io";
+const APP_URL = SITE_URL;
 
 export const metadata: Metadata = {
   title: "Blog · Calvy",
