@@ -50,7 +50,7 @@ export function PackSettings({ initialPackId }: { initialPackId: PackId }) {
   return (
     <div className="space-y-3">
       <PackPicker value={packId} onChange={setPackId} legend="Business type" name="settings-pack" />
-      <label className="flex items-start gap-2 text-sm text-[#374151]">
+      <label className="flex items-center gap-2 min-h-11 text-sm text-[#374151]">
         <input type="checkbox" checked={applyDefaults} onChange={(e) => setApplyDefaults(e.target.checked)} className="mt-1" />
         <span>
           Add the default {pack.label} services ({pack.defaultServices.map((s) => s.name).join(", ")}). Services you already have are never changed.

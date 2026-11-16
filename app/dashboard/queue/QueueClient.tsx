@@ -235,7 +235,7 @@ export function QueueClient({ today, services, whatsappOffered = false }: { toda
                   </label>
                 )}
                 {whatsappOffered && (
-                  <label className="flex items-start gap-2 text-sm">
+                  <label className="flex items-center gap-2 min-h-11 text-sm">
                     <input type="checkbox" checked={walkWa} onChange={(e) => setWalkWa(e.target.checked)} className="mt-1 size-5" />
                     <span>Send WhatsApp updates <span className="text-[#6b6b80]">(customer agreed verbally)</span></span>
                   </label>

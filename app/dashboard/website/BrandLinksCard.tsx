@@ -161,7 +161,7 @@ export function BrandLinksCard({ businessName, themeColor, logoUrl: initialLogo,
               <li>Click <strong>Ask for reviews</strong> (or <strong>Get more reviews</strong>).</li>
               <li>Click <strong>Copy link</strong> and paste it here.</li>
             </ol>
-            <p className="mt-2">Or paste your <strong>Place ID</strong> (it starts with <code>ChIJ</code>). Find it with <a className="underline font-medium" href={PLACE_ID_FINDER_URL} target="_blank" rel="noopener noreferrer">Google&apos;s Place ID finder</a>; we build the review link for you. Every customer gets the same link.</p>
+            <p className="mt-2">Or paste your <strong>Place ID</strong> (it starts with <code>ChIJ</code>). Find it with <a className="underline font-medium inline-block py-3 -my-3" href={PLACE_ID_FINDER_URL} target="_blank" rel="noopener noreferrer">Google&apos;s Place ID finder</a>; we build the review link for you. Every customer gets the same link.</p>
           </details>
         </div>
 

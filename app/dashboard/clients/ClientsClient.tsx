@@ -79,7 +79,7 @@ export function ClientsClient({ clients, canEdit = true, canExport = true, csvEx
         <div className="flex gap-2">
           {canExport && !csvExport && <LockedExport compact upgradeHref={upgradeHref} />}
           {canExport && csvExport && (
-            <a href="/api/clients/export" download title="Download CSV" aria-label="Download CSV" data-testid="clients-export" className="h-9 px-3 rounded-xl border border-[#e8e6e0] bg-white text-[#6b6b80] hover:text-brand-800 flex items-center gap-2 text-sm transition-colors">
+            <a href="/api/clients/export" download title="Download CSV" aria-label="Download CSV" data-testid="clients-export" className="h-11 min-w-11 px-3 rounded-xl border border-[#e8e6e0] bg-white text-[#6b6b80] hover:text-brand-800 flex items-center justify-center gap-2 text-sm transition-colors">
               <Download size={14} />
             </a>
           )}

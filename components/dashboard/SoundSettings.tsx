@@ -33,6 +33,7 @@ export function SoundSettings() {
         {settings.on && audioState === "locked" && <span className="text-xs text-amber-800">Sound is locked until you tap anywhere once.</span>}
       </div>
       <p className="text-xs text-[#6b6b80]">Applies to this phone or computer. On Android the phone also vibrates. When the app is closed, the sound comes from your phone&apos;s notification settings (see the steps above).</p>
+      <p className="text-xs text-[#6b6b80]" data-testid="iphone-sound-note">iPhone plays its default notification sound when locked; keep Calvy open for the loud chime.</p>
     </div>
   );
 }

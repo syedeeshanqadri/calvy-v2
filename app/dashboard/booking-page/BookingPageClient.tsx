@@ -68,9 +68,9 @@ export function BookingPageClient({ bookingUrl, initialBusinessName, initialColo
 
   return (
     <DashboardLayout title="Booking Page" subtitle="Your public booking link">
-      <div className="grid xl:grid-cols-5 gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
         {/* Settings panel */}
-        <div className="xl:col-span-2 space-y-5">
+        <div className="xl:col-span-2 space-y-5 min-w-0">
           <Card>
             <CardHeader><CardTitle>Your booking link</CardTitle></CardHeader>
             <CardContent>

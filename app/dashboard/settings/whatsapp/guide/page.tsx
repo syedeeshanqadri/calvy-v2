@@ -29,7 +29,7 @@ export default async function WhatsAppGuidePage() {
             </li>
           ))}
         </ol>
-        <p className="text-sm"><Link href="/dashboard/settings/whatsapp" className="text-accent underline">Back to WhatsApp settings</Link></p>
+        <p className="text-sm"><Link href="/dashboard/settings/whatsapp" className="text-accent underline inline-flex items-center min-h-11">Back to WhatsApp settings</Link></p>
       </div>
     </DashboardLayout>
   );

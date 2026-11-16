@@ -54,7 +54,7 @@ function MemberForm({ staff, initial, onDone, onClose }: { staff: StaffOpt[]; in
           <div key={g.title}>
             <p className="text-[11px] font-bold uppercase tracking-wider text-[#9a98a8] mb-1">{g.title}</p>
             {g.items.map((i) => (
-              <label key={i.key} className="flex items-center gap-2 text-sm py-0.5">
+              <label key={i.key} className="flex items-center gap-2 text-sm min-h-11">
                 <input type="checkbox" checked={perms.has(i.key)} onChange={() => toggle(i.key)} data-testid={`perm-${i.key}`} /> {i.label}
               </label>
             ))}
@@ -96,11 +96,11 @@ export function TeamClient({ initial, staff, limit }: { initial: Member[]; staff
         <ul className="space-y-2" data-testid="member-list">
           {members.map((m) => (
             <li key={m.id} className="bg-white rounded-2xl border border-[#e8e6e0] p-4 flex flex-wrap items-center justify-between gap-3">
-              <div>
+              <div className="min-w-0 break-words">
                 <p className="font-medium text-sm">{m.name} <span className="text-[#6b6b80] font-normal">· {m.roleName}</span></p>
                 <p className="text-xs text-[#6b6b80]">{m.email} · {m.status === "active" ? "Active" : "Invite pending"}</p>
               </div>
-              <div className="flex gap-2 text-xs">
+              <div className="flex flex-wrap gap-2 text-xs">
                 <Button variant="outline" size="sm" onClick={() => setModal(m)}>Edit access</Button>
                 {m.status === "invited" && <>
                   <Button variant="outline" size="sm" onClick={() => call(`/api/team/${m.id}/invite`, "POST", "Invite sent again.")}>Resend</Button>

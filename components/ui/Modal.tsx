@@ -57,7 +57,7 @@ export function Modal({ isOpen, onClose, title, children, footer, size = "md", c
       role="dialog"
       aria-modal="true"
       aria-label={title}
-      className="fixed inset-x-0 top-[var(--vvt,0px)] h-[var(--vvh,100dvh)] z-50 flex md:inset-0 md:top-0 md:h-auto md:items-center md:justify-center md:p-4"
+      className="!m-0 fixed inset-x-0 top-[var(--vvt,0px)] h-[var(--vvh,100dvh)] z-50 flex md:inset-0 md:top-0 md:h-auto md:items-center md:justify-center md:p-4"
     >
       <div className="absolute inset-0 bg-brand-900/50 backdrop-blur-sm" aria-hidden="true" onClick={onClose} />
       <div

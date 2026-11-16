@@ -163,7 +163,7 @@ export function AppointmentsClient({ appointments, services, staff, csvExport = 
               <a
                 href={exportHref}
                 download
-                className="h-9 px-3 rounded-xl border border-[#e8e6e0] bg-white text-[#6b6b80] hover:text-brand-800 flex items-center gap-2 text-sm transition-colors"
+                className="h-11 min-w-11 px-3 rounded-xl border border-[#e8e6e0] bg-white text-[#6b6b80] hover:text-brand-800 flex items-center justify-center gap-2 text-sm transition-colors"
                 title="Download CSV"
                 aria-label="Download CSV"
               >
