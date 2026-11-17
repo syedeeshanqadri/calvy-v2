@@ -26,11 +26,11 @@ describe("webhook signatures are compared in constant time", () => {
     }
     expect(hmacSha256Matches(body, good, "")).toBe(false);
   });
-  it("both payment webhooks use it", () => {
-    for (const f of ["app/api/razorpay/webhook/route.ts", "app/api/billing/webhook/route.ts"]) {
+  it("every payment gateway adapter compares signatures in constant time", () => {
+    for (const f of ["lib/payments/cashfree.ts", "lib/payments/razorpay.ts", "lib/payments/phonepe.ts"]) {
       const src = readFileSync(f, "utf8");
-      expect(src, f).toContain("hmacSha256Matches");
-      expect(src, f).not.toMatch(/expected === signature/);
+      expect(src, f).toContain("timingSafeEqual");
+      expect(src, f).not.toMatch(/expected === (signature|given|got)/);
     }
   });
 });
@@ -71,10 +71,10 @@ describe("every API route is protected or on the reviewed public list", () => {
   /** Public on purpose. Each one validates its input, is rate limited or signed, and returns no private data. */
   const PUBLIC = new Set([
     "auth/[...nextauth]", "team/accept", "admin/logout", "auth/forgot-password", "auth/resend-verification", "auth/reset-password", "auth/verify-email",
-    "availability", "availability/month", "token-availability", "bookings", "bookings/confirm",
+    "availability", "availability/month", "token-availability", "bookings",
     "customer/forgot-password", "customer/resend-verification", "customer/reset-password", "customer/signup", "customer/verify-email",
     "flags", "geo/rate", "region", "health", "leads", "signup", "track/[code]",
-    "payments/status", "payments/mock/complete", "payments/cashfree/webhook", "whatsapp/webhook", "whatsapp/webhook/[key]", "unsubscribe",
+    "payments/status", "payments/mock/complete", "payments/cashfree/webhook", "payments/webhook/[key]", "whatsapp/webhook", "whatsapp/webhook/[key]", "unsubscribe",
   ]);
 
   const walk = (dir: string, out: string[] = []) => {

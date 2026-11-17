@@ -6,34 +6,49 @@ import { applyPaymentEvent, nextPayStatus, type PayStatus, type PaymentEventStor
 import { getPaymentProvider } from "@/lib/payments";
 import type { PaymentEvent } from "@/lib/payments/provider";
 
-describe("fee matrix", () => {
-  const base: ChargeInput = { country: "IN", platformFeeMinorIN: 1000, mode: "FULL_ONLINE", payer: "CUSTOMER", priceMinor: 50000 };
+describe("charge matrix (India only)", () => {
+  const business = { option: "ONLINE_FULL", advanceKind: "PERCENT", advanceValue: 30 } as const;
+  const base: ChargeInput = { country: "IN", platformFeeMinorIN: 1000, business, hasGateway: true, items: [{ priceMinor: 50000 }] };
 
-  it("India Free, full online, customer pays the fee: 500 -> 510 / 500", () => {
-    expect(computeCharge(base)).toEqual({ chargeMinor: 51000, platformFeeMinor: 1000, businessShareMinor: 50000 });
-  });
-  it("India Free, full online, business pays the fee: 500 -> 500 / 490", () => {
-    expect(computeCharge({ ...base, payer: "BUSINESS" })).toEqual({ chargeMinor: 50000, platformFeeMinor: 1000, businessShareMinor: 49000 });
-  });
-  it("India Free, booking fee only: Rs 10 to Calvy, service paid at venue", () => {
-    for (const payer of ["CUSTOMER", "BUSINESS"] as const) {
-      expect(computeCharge({ ...base, mode: "BOOKING_FEE_ONLY", payer })).toEqual({ chargeMinor: 1000, platformFeeMinor: 1000, businessShareMinor: 0 });
+  it("Basic: ONLY the Rs 10 confirmation fee to Calvy, whatever the business option is", () => {
+    for (const option of ["VENUE", "ONLINE_FULL", "ADVANCE"] as const) {
+      expect(computeCharge({ ...base, business: { ...business, option } })).toEqual({ chargeMinor: 1000, platformFeeMinor: 1000, businessShareMinor: 0, route: "CALVY" });
     }
   });
-  it("India paid plan: no fee; booking-fee-only charges nothing", () => {
-    const paid = { ...base, platformFeeMinorIN: 0 };
-    expect(computeCharge({ ...paid, mode: "BOOKING_FEE_ONLY" }).chargeMinor).toBe(0);
-    expect(computeCharge(paid)).toEqual({ chargeMinor: 50000, platformFeeMinor: 0, businessShareMinor: 50000 });
-    expect(computeCharge({ ...paid, payer: "BUSINESS" })).toEqual({ chargeMinor: 50000, platformFeeMinor: 0, businessShareMinor: 50000 });
+  it("Basic never uses a business gateway, even when one exists, and ignores per-service overrides", () => {
+    const c = computeCharge({ ...base, items: [{ priceMinor: 50000, override: { option: "ONLINE_FULL" } }] });
+    expect(c.route).toBe("CALVY");
+    expect(c.chargeMinor).toBe(1000);
   });
-  it("international: never charged online, in either mode", () => {
-    for (const mode of ["BOOKING_FEE_ONLY", "FULL_ONLINE"] as const) {
-      expect(computeCharge({ ...base, country: "US", mode }).chargeMinor).toBe(0);
-    }
+  it("Mid/Top: no Rs 10; in full goes to the business gateway", () => {
+    expect(computeCharge({ ...base, platformFeeMinorIN: 0 })).toEqual({ chargeMinor: 50000, platformFeeMinor: 0, businessShareMinor: 50000, route: "GATEWAY" });
   });
-  it("business payer never gets a negative share (free service)", () => {
-    expect(computeCharge({ ...base, payer: "BUSINESS", priceMinor: 0 })).toEqual({ chargeMinor: 0, platformFeeMinor: 0, businessShareMinor: 0 });
-    expect(computeCharge({ ...base, payer: "BUSINESS", priceMinor: 500 })).toEqual({ chargeMinor: 500, platformFeeMinor: 500, businessShareMinor: 0 });
+  it("Mid/Top: pay at venue charges nothing", () => {
+    expect(computeCharge({ ...base, platformFeeMinorIN: 0, business: { ...business, option: "VENUE" } }).chargeMinor).toBe(0);
+  });
+  it("Mid/Top: advance as a percentage and as a fixed amount, never above the price", () => {
+    const mid = { ...base, platformFeeMinorIN: 0 };
+    expect(computeCharge({ ...mid, business: { option: "ADVANCE", advanceKind: "PERCENT", advanceValue: 30 } }).chargeMinor).toBe(15000);
+    expect(computeCharge({ ...mid, business: { option: "ADVANCE", advanceKind: "FIXED", advanceValue: 20000 } }).chargeMinor).toBe(20000);
+    expect(computeCharge({ ...mid, business: { option: "ADVANCE", advanceKind: "FIXED", advanceValue: 900000 } }).chargeMinor).toBe(50000);
+    expect(computeCharge({ ...mid, business: { option: "ADVANCE", advanceKind: "PERCENT", advanceValue: 500 } }).chargeMinor).toBe(50000);
+  });
+  it("Mid/Top: a per-service override wins, services add up", () => {
+    const c = computeCharge({
+      ...base, platformFeeMinorIN: 0, business: { ...business, option: "VENUE" },
+      items: [{ priceMinor: 40000, override: { option: "ONLINE_FULL" } }, { priceMinor: 10000 }],
+    });
+    expect(c.chargeMinor).toBe(40000);
+  });
+  it("Mid/Top without a verified default gateway: nothing is charged online", () => {
+    expect(computeCharge({ ...base, platformFeeMinorIN: 0, hasGateway: false }).route).toBe("NONE");
+  });
+  it("international: never charged online", () => {
+    expect(computeCharge({ ...base, country: "US" }).chargeMinor).toBe(0);
+    expect(computeCharge({ ...base, country: "US", platformFeeMinorIN: 0 }).chargeMinor).toBe(0);
+  });
+  it("a free service charges nothing on a paid plan", () => {
+    expect(computeCharge({ ...base, platformFeeMinorIN: 0, items: [{ priceMinor: 0 }] }).chargeMinor).toBe(0);
   });
   it("helpers", () => {
     expect(toMinor(499.99)).toBe(49999);

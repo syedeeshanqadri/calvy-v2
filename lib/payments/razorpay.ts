@@ -123,7 +123,7 @@ export function createRazorpayProvider(config: RazorpayConfig, fetchImpl: typeof
       } catch (e) {
         const status = e instanceof PaymentProviderError ? e.status : undefined;
         if (status === 401) return { ok: false, reason: "Razorpay rejected these keys. Check the Key ID and Key Secret, and that they are for the right mode (test or live)." };
-        return { ok: false, reason: e instanceof Error ? e.message : "Could not reach Razorpay." };
+        return { ok: false, reason: e instanceof PaymentProviderError ? e.message : "Could not reach Razorpay. Try again in a moment." };
       }
     },
   };

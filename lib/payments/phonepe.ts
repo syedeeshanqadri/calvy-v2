@@ -110,7 +110,7 @@ export function createPhonePeProvider(config: PhonePeConfig, fetchImpl: typeof f
         await accessToken();
         return { ok: true };
       } catch (e) {
-        return { ok: false, reason: e instanceof PaymentProviderError && e.status && e.status < 500 ? "PhonePe rejected these credentials. Check the Client ID, Client Secret and Client Version, and the mode (test or live)." : e instanceof Error ? e.message : "Could not reach PhonePe." };
+        return { ok: false, reason: e instanceof PaymentProviderError && e.status && e.status < 500 ? "PhonePe rejected these credentials. Check the Client ID, Client Secret and Client Version, and the mode (test or live)." : e instanceof PaymentProviderError ? e.message : "Could not reach PhonePe. Try again in a moment." };
       }
     },
   };

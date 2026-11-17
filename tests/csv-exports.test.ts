@@ -10,6 +10,7 @@ const db = vi.hoisted(() => ({
   business: { findUnique: vi.fn() },
   planConfig: { findUnique: vi.fn() },
   appointment: { findMany: vi.fn() },
+  payment: { findMany: vi.fn(async () => []) },
 }));
 const session = vi.hoisted(() => ({ current: null as unknown }));
 

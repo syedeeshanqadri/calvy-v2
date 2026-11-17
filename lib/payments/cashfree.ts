@@ -150,7 +150,7 @@ export function createCashfreeProvider(config: CashfreeConfig, fetchImpl: typeof
         const status = e instanceof PaymentProviderError ? e.status : undefined;
         if (status === 404) return { ok: true };
         if (status === 401 || status === 403) return { ok: false, reason: "Cashfree rejected these keys. Check the App ID and Secret Key, and that they are for the right mode (test or live)." };
-        return { ok: false, reason: e instanceof Error ? e.message : "Could not reach Cashfree." };
+        return { ok: false, reason: e instanceof PaymentProviderError ? e.message : "Could not reach Cashfree. Try again in a moment." };
       }
     },
   };

@@ -14,7 +14,7 @@ const SAFE = new Set(["GET", "HEAD", "OPTIONS"]);
 // NextAuth (/api/auth: sign out, session) must keep working in a read-only view-as.
 const READ_ALLOWED = ["/api/admin/view-as/exit", "/api/admin/logout", "/api/admin/2fa/reauth", "/api/auth"];
 // Owner-only areas (payment and payout settings, billing, team, account) can never be changed while viewing as a business, even in ACT mode.
-const ACT_FORBIDDEN = ["/api/settings/payments", "/api/settings/gateways", "/api/team", "/api/account"];
+const ACT_FORBIDDEN = ["/api/settings/payments", "/api/settings/gateways", "/api/payments", "/api/team", "/api/account"];
 const SELF_AUDITED = ["/api/admin/businesses", "/api/admin/view-as", "/api/admin/2fa", "/api/admin/logout", "/api/admin/settings/limits"];
 
 export interface WriteTrace { ctx: AdminContext; method: string; path: string; viewAs: AdminContext["viewAs"] }

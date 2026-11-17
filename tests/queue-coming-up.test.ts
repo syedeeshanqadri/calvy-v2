@@ -9,11 +9,11 @@ const mocks = vi.hoisted(() => {
     $executeRaw: vi.fn(async () => 0),
   };
   db.$transaction = vi.fn(async (fn: (tx: unknown) => unknown) => fn(db));
-  return { db, notify: vi.fn(async (..._items: unknown[]) => {}), credit: vi.fn(async () => null) };
+  return { db, notify: vi.fn(async (..._items: unknown[]) => {}), credit: vi.fn(async () => false) };
 });
 vi.mock("@/lib/prisma", () => ({ prisma: mocks.db }));
 vi.mock("@/lib/notifications/enqueue", () => ({ notify: mocks.notify }));
-vi.mock("@/lib/creditDb", () => ({ creditClosedBooking: mocks.credit }));
+vi.mock("@/lib/waiver", () => ({ keepConfirmationFee: mocks.credit }));
 
 import { runQueueAction, type QueueBusiness } from "@/lib/queueDb";
 import { epochAllowed, nearTokens, planNear } from "@/lib/queueNear";

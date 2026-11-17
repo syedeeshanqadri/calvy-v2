@@ -15,11 +15,11 @@ const mocks = vi.hoisted(() => {
     $executeRaw: vi.fn(async () => 0),
   };
   db.$transaction = vi.fn(async (fn: (tx: unknown) => unknown) => fn(db));
-  return { db, notify: vi.fn(async (..._items: unknown[]) => {}), findOrCreate: vi.fn(), credit: vi.fn(async () => null) };
+  return { db, notify: vi.fn(async (..._items: unknown[]) => {}), findOrCreate: vi.fn(), credit: vi.fn(async () => false) };
 });
 vi.mock("@/lib/prisma", () => ({ prisma: mocks.db }));
 vi.mock("@/lib/notifications/enqueue", async () => ({ ...(await vi.importActual<object>("@/lib/notifications/enqueue")), notify: mocks.notify }));
-vi.mock("@/lib/creditDb", () => ({ creditClosedBooking: mocks.credit }));
+vi.mock("@/lib/waiver", () => ({ keepConfirmationFee: mocks.credit }));
 vi.mock("@/lib/clients", () => ({ findOrCreateClient: mocks.findOrCreate }));
 vi.mock("@/lib/getFeatures", () => ({
   getEffectiveLimits: vi.fn(async () => ({ maxMonthlyAppointments: -1 })),

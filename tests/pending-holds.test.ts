@@ -82,10 +82,10 @@ describe("money on cancel (owner rule 2026-10-25)", () => {
 });
 
 describe("when a charge applies", () => {
-  const cfg = { country: "IN", platformFeeMinorIN: 1000, mode: "BOOKING_FEE_ONLY" as const, payer: "CUSTOMER" as const };
-  it("India Free public booking: Rs 10; paid plan: nothing; international: nothing", () => {
-    expect(computeCharge({ ...cfg, priceMinor: 50000 }).chargeMinor).toBe(1000);
-    expect(computeCharge({ ...cfg, platformFeeMinorIN: 0, priceMinor: 50000 }).chargeMinor).toBe(0);
-    expect(computeCharge({ ...cfg, country: "US", priceMinor: 50000 }).chargeMinor).toBe(0);
+  const cfg = { country: "IN", platformFeeMinorIN: 1000, business: { option: "VENUE", advanceKind: "PERCENT", advanceValue: 30 } as const, hasGateway: false, items: [{ priceMinor: 50000 }] };
+  it("India Basic public booking: Rs 10; Mid/Top at the venue: nothing; international: nothing", () => {
+    expect(computeCharge(cfg).chargeMinor).toBe(1000);
+    expect(computeCharge({ ...cfg, platformFeeMinorIN: 0 }).chargeMinor).toBe(0);
+    expect(computeCharge({ ...cfg, country: "US" }).chargeMinor).toBe(0);
   });
 });

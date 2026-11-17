@@ -252,12 +252,12 @@ describe("view-as", () => {
     expect("block" in get).toBe(false);
   });
   it("the same rule runs in front of EVERY route (proxy), so a handler not wrapped in safeRoute is covered too", () => {
-    expect(viewAsBlock("READ", "PATCH", "/api/settings/payout")?.status).toBe(403);
+    expect(viewAsBlock("READ", "PATCH", "/api/settings/gateways")?.status).toBe(403);
     expect(viewAsBlock("READ", "POST", "/api/anything/new")?.status).toBe(403);
     expect(viewAsBlock("READ", "POST", "/api/admin/view-as/exit")).toBeNull();
     expect(viewAsBlock("READ", "POST", "/api/auth/signout")).toBeNull(); // logging out still works
     expect(viewAsBlock("READ", "GET", "/api/settings")).toBeNull();
-    expect(viewAsBlock("ACT", "PATCH", "/api/settings/payout")?.status).toBe(403);
+    expect(viewAsBlock("ACT", "PATCH", "/api/settings/gateways")?.status).toBe(403);
     expect(viewAsBlock("ACT", "PATCH", "/api/services/s1")).toBeNull();
     expect(viewAsBlock(undefined, "POST", "/api/services")).toBeNull();
   });
@@ -280,11 +280,11 @@ describe("view-as", () => {
     expect(res.status).toBe(200);
     expect(db.adminAuditLog.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ action: "view_as.end", businessId: "b1" }) }));
   });
-  it("ACT mode can edit, but owner-only areas (payments, billing, team) stay closed", async () => {
+  it("ACT mode can edit, but owner-only areas (payments, gateways, refunds, team) stay closed", async () => {
     asAdmin(); active("ACT");
     const ok = await adminWriteGate(new Request("http://localhost/api/services", { method: "POST", headers: { cookie: `${ADMIN_COOKIE}=${TOKEN}` } }));
     expect("trace" in ok && ok.trace?.viewAs?.mode).toBe("ACT");
-    for (const path of ["/api/settings/payout", "/api/settings/payments", "/api/billing/upgrade", "/api/team", "/api/razorpay/connect", "/api/wallet/withdraw"]) {
+    for (const path of ["/api/settings/gateways", "/api/settings/payments", "/api/payments/p1/refund", "/api/team"]) {
       const g = await adminWriteGate(new Request(`http://localhost${path}`, { method: "POST", headers: { cookie: `${ADMIN_COOKIE}=${TOKEN}` } }));
       expect("block" in g && g.block.status).toBe(403);
     }

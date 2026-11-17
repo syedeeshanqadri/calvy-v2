@@ -62,9 +62,7 @@ function matchesPrefix(pathname: string, prefix: string): boolean {
   return pathname === prefix || pathname.startsWith(prefix + "/");
 }
 
-const PAYMENT_PREFIXES = [
-  "/api/settings/gateways",
-];
+const PAYMENT_PREFIXES: string[] = [];
 const BROADCAST_PREFIXES = ["/api/broadcasts"];
 
 /**

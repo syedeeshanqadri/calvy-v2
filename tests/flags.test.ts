@@ -2,7 +2,6 @@ import { describe, it, expect } from "vitest";
 import { FEATURE_FLAGS, getFlags, isFeatureEnabled, featureForApiPath, type FeatureFlag } from "@/lib/flags";
 
 const VARS: Record<FeatureFlag, string> = {
-  wallet: "FEATURE_WALLET",
   payments: "FEATURE_PAYMENTS",
   chatWidget: "FEATURE_CHAT_WIDGET",
   broadcasts: "FEATURE_BROADCASTS",
@@ -26,32 +25,19 @@ describe("flags", () => {
   it.each([["1", true], ["true", true], ["TRUE", true], ["True", true], [" 1 ", true],
     ["0", false], ["false", false], ["", false], ["yes", false], ["on", false], ["2", false]])(
     "parses %j as %s", (value, expected) => {
-      expect(isFeatureEnabled("wallet", { FEATURE_WALLET: value })).toBe(expected);
+      expect(isFeatureEnabled("broadcasts", { FEATURE_BROADCASTS: value })).toBe(expected);
     });
 
   it("ignores undefined values", () => {
-    expect(isFeatureEnabled("wallet", { FEATURE_WALLET: undefined })).toBe(false);
+    expect(isFeatureEnabled("broadcasts", { FEATURE_BROADCASTS: undefined })).toBe(false);
   });
 });
 
 describe("featureForApiPath", () => {
   const table: [string, FeatureFlag | null][] = [
-    ["/api/wallet", "wallet"],
-    ["/api/wallet/withdraw", "wallet"],
-    ["/api/admin/withdrawals", "wallet"],
-    ["/api/admin/withdrawals/abc", "wallet"],
-    ["/api/razorpay/connect", "payments"],
-    ["/api/billing/portal", "payments"],
-    ["/api/billing/sync", "payments"],
-    ["/api/billing/upgrade", "payments"],
-    ["/api/billing/status", "payments"],
-    ["/api/settings/payout", "payments"],
-    ["/api/bookings/confirm", "payments"],
     ["/api/appointments/abc123/payment", "payments"],
     ["/api/broadcasts", "broadcasts"],
     ["/api/broadcasts/send", "broadcasts"],
-    ["/api/razorpay/webhook", null],
-    ["/api/billing/webhook", null],
     ["/api/bookings", null],
     ["/api/availability", null],
     ["/api/auth/providers", null],
@@ -69,10 +55,7 @@ describe("featureForApiPath", () => {
   });
 
   it("respects path segment boundaries", () => {
-    expect(featureForApiPath("/api/walletx")).toBeNull();
     expect(featureForApiPath("/api/broadcastsx")).toBeNull();
-    expect(featureForApiPath("/api/billing/upgradex")).toBeNull();
     expect(featureForApiPath("/api/appointments//payment")).toBeNull();
-    expect(featureForApiPath("/api/admin/withdrawalsx")).toBeNull();
   });
 });

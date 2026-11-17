@@ -26,7 +26,7 @@ add("reminder", createElement(BookingReminderEmail, base));
 add("cancellation", createElement(BookingCancellationEmail, { ...base, rebookUrl: "https://example.test/book" }));
 add("reschedule", createElement(BookingRescheduleEmail, { ...base, oldDate: "Sun", oldTime: "9:00 AM" }));
 add("queue moved back", createElement(QueueMovedBackEmail, { ...queue, place: 3 }));
-add("queue closed", createElement(QueueClosedEmail, { ...queue, reason: "missed", creditLabel: "Rs 500", loginUrl: "https://example.test/login" }));
+add("queue closed", createElement(QueueClosedEmail, { ...queue, reason: "missed", feeKept: true, loginUrl: "https://example.test/login" }));
 add("receipt", createElement(InvoiceEmail, { ...base, invoiceNumber: "INV-1", clientEmail: "riya@example.com" }));
 
 describe("booking emails carry the business's branding", () => {
