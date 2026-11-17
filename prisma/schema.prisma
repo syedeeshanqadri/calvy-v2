@@ -106,6 +106,8 @@ model Business {
   advanceKind              String              @default("PERCENT")
   advanceValue             Int                 @default(30)
   paymentGateways          PaymentGateway[]
+  subscriptions            Subscription[]
+  subscriptionInvoices     SubscriptionInvoice[]
   confirmationWaivers      ConfirmationWaiver[]
   termsOverride            Json?
   phone                    String?
@@ -1060,4 +1062,96 @@ model ConfirmationWaiver {
   client              Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
   @@index([businessId, clientId])
+}
+
+enum SubscriptionState {
+  /// Created at Cashfree; the owner has not finished authorising the mandate.
+  PENDING
+  /// Mandate authorised (eNACH, authorisation amount 0); the first charge has not succeeded yet.
+  AUTHORISED
+  ACTIVE
+  /// A renewal charge failed: dunning and the 7-day grace run; paid features stay until graceUntil.
+  PAST_DUE
+  /// Over: cancelled at period end, replaced by an upgrade, downgraded to Basic after the grace, or never authorised.
+  ENDED
+}
+
+/// A Calvy plan subscription for one business (India, Cashfree Subscriptions, ON_DEMAND plan: Calvy raises each charge so it can
+/// prorate and retry). The CURRENT one is the newest that is not ENDED. An upgrade is a new row (new mandate whose first charge is the
+/// price minus the prorated credit); the old row ends when the new one is paid. Business.plan is set from it (lib/subscriptions/state).
+model Subscription {
+  id                      String            @id @default(cuid())
+  businessId              String
+  planId                  String // professional | business (Mid / Top)
+  interval                String // MONTHLY | YEARLY
+  state                   SubscriptionState @default(PENDING)
+  /// Our id at Cashfree (subscription_id) and Cashfree's own (cf_subscription_id).
+  cashfreeSubscriptionId  String            @unique
+  cfSubscriptionId        String?
+  amountMinor             Int // the full price per cycle, GST included
+  /// Proration credit taken off the FIRST charge of an upgrade, and the first charge it produced.
+  creditMinor             Int               @default(0)
+  firstChargeMinor        Int               @default(0)
+  upgradeOfId             String?
+  /// upi_card (the authorisation payment IS the first charge) | enach (authorise for 0, then Calvy raises the first charge)
+  method                  String            @default("upi_card")
+  paymentMethodLabel      String?
+  currentPeriodStart      DateTime?         @db.Timestamptz(3)
+  currentPeriodEnd        DateTime?         @db.Timestamptz(3)
+  nextChargeAt            DateTime?         @db.Timestamptz(3)
+  /// A change that starts at the end of the period: "free" = cancel, or another paid plan (downgrade).
+  pendingPlanId           String?
+  pendingInterval         String?
+  /// The charge Calvy raised and is waiting on (payment id at Cashfree), and when.
+  chargePaymentId         String?
+  chargeRaisedAt          DateTime?         @db.Timestamptz(3)
+  /// Failed-payment handling.
+  failedCount             Int               @default(0)
+  firstFailedAt           DateTime?         @db.Timestamptz(3)
+  graceUntil              DateTime?         @db.Timestamptz(3)
+  dunningSent             Int               @default(0)
+  lastChargeRetryAt       DateTime?         @db.Timestamptz(3)
+  endedReason             String?
+  createdAt               DateTime          @default(now())
+  updatedAt               DateTime          @updatedAt
+  business                Business          @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  invoices                SubscriptionInvoice[]
+
+  @@index([businessId, createdAt])
+  @@index([state, nextChargeAt])
+}
+
+/// One issued invoice (GST registered: "Tax invoice") or receipt (no GSTIN yet: no GST line). Numbered per Indian financial year.
+model SubscriptionInvoice {
+  id             String       @id @default(cuid())
+  businessId     String
+  subscriptionId String
+  number         String       @unique
+  /// TAX_INVOICE | RECEIPT
+  kind           String
+  /// Idempotency: the Cashfree payment id of the charge, or "first:<subscription id>" for the first payment.
+  paymentKey     String       @unique
+  planId         String
+  interval       String
+  periodStart    DateTime     @db.Timestamptz(3)
+  periodEnd      DateTime     @db.Timestamptz(3)
+  /// Price before credit, credit, and the total paid (all GST inclusive, paise); taxable + GST = total paid.
+  grossMinor     Int
+  creditMinor    Int          @default(0)
+  amountMinor    Int
+  taxableMinor   Int
+  gstMinor       Int
+  gstRate        Float
+  paymentMethodLabel String?
+  issuedAt       DateTime     @default(now())
+  business       Business     @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  subscription   Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@index([businessId, issuedAt])
+}
+
+/// Last invoice number issued per financial year ("2026-27"), incremented inside the invoice's own transaction.
+model InvoiceCounter {
+  fy   String @id
+  last Int    @default(0)
 }

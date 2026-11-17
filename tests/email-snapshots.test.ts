@@ -11,6 +11,7 @@ const booking = {
 const SECRET = "https://x.test/reset?token=s3cret";
 
 const FIXTURES: Record<TemplateId, object> = {
+  subscription_notice: { kind: "upgraded", name: "Asha Rao", businessName: "Sunrise", planName: "Business", intervalLabel: "monthly", amountLabel: "₹624.50", creditLabel: "₹174.50", dateLabel: "17 Dec 2026", invoiceNumber: "CALVY/2026-27/0002", billingUrl: "https://x.test/dashboard/billing" },
   confirmation: { ...booking, online: { meetingUrl: "https://meet.test/abc" } },
   reminder: { ...booking, token: { number: 7, estimatedTime: "10:40 AM", sessionName: "Morning OPD", sessionStart: "9:00 AM" }, trackUrl: "https://x.test/track/a1" },
   reschedule: { ...booking, oldDate: "Sun, 1 Nov", oldTime: "9:00 AM" },

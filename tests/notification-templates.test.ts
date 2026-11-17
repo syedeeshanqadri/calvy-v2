@@ -10,6 +10,7 @@ const SECRET = "https://x.test/reset?token=s3cret";
 const alert = { kind: "created", clientName: "Riya Kapoor", serviceName: "Checkup", date: "Mon, 2 Nov", time: "10:00 AM", dashboardUrl: "https://x.test/dashboard" };
 
 const FIXTURES: Record<TemplateId, object> = {
+  subscription_notice: { kind: "upgraded", name: "Asha Rao", businessName: "Sunrise", planName: "Business", intervalLabel: "monthly", amountLabel: "₹624.50", creditLabel: "₹174.50", dateLabel: "17 Dec 2026", invoiceNumber: "CALVY/2026-27/0002", billingUrl: "https://x.test/dashboard/billing" },
   confirmation: { ...booking, ics: { appointmentId: "a1", start: "2026-11-02T04:30:00.000Z", durationMinutes: 30 } },
   reminder: booking,
   reschedule: { ...booking, oldDate: "Sun, 1 Nov", oldTime: "9:00 AM" },
@@ -40,7 +41,7 @@ const FIXTURES: Record<TemplateId, object> = {
 };
 const ids = Object.keys(TEMPLATES) as TemplateId[];
 const tenant = { name: "Sunrise", color: "#0f766e", fg: "#ffffff" };
-const NO_TENANT = new Set<TemplateId>(["team_invite", "owner_account_setup", "verification", "password_reset", "customer_verification", "customer_password_reset", "customer_account_setup", "lead", "form_notification"]);
+const NO_TENANT = new Set<TemplateId>(["team_invite", "owner_account_setup", "verification", "password_reset", "customer_verification", "customer_password_reset", "customer_account_setup", "lead", "form_notification", "subscription_notice"]);
 
 describe("every template", () => {
   it("has a fixture", () => expect(Object.keys(FIXTURES).sort()).toEqual([...ids].sort()));
