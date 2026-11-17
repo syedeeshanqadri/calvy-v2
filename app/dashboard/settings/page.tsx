@@ -8,7 +8,9 @@ import { redactSecrets } from "@/lib/admin/redact";
 import { serializeSession } from "@/lib/tokenSessionsDb";
 import { getEffectiveLimits } from "@/lib/getFeatures";
 import { isFeatureEnabled } from "@/lib/flags";
-import { FULL_ONLINE_ENABLED, countryFromCurrency } from "@/lib/fees";
+import { countryFromCurrency } from "@/lib/fees";
+import { canUseOwnGateway } from "@/lib/payments/access";
+import { listGateways } from "@/lib/payments/gatewayStore";
 
 export const dynamic = 'force-dynamic';
 
@@ -24,13 +26,8 @@ export default async function SettingsPage() {
         phone: true, email: true, address: true, website: true,
         description: true, primaryColor: true, availabilityJson: true, currency: true,
         slotInterval: true, maxPeoplePerBooker: true, followUpDays: true,
-        paymentMode: true, bankAccountName: true, bankAccountNumber: true,
-        bankRoutingNumber: true, bankIban: true,
-        legalBusinessName: true, rzpBusinessType: true, rzpCategory: true, rzpSubcategory: true,
-        panNumber: true, gstNumber: true,
-        addressStreet: true, addressCity: true, addressState: true, addressPostalCode: true,
-        routeStatus: true, razorpayConnectAccountId: true,
-        plan: true, planStatus: true, trialEndsAt: true, onlinePayMode: true, feePayer: true,
+        paymentMode: true,
+        plan: true, planStatus: true, trialEndsAt: true, payOption: true, advanceKind: true, advanceValue: true,
       },
     }),
     getBusinessFeatures(session.user.businessId),
@@ -44,7 +41,6 @@ export default async function SettingsPage() {
   return (
     <SettingsClient
       business={{
-        // A Calvy admin viewing this business never sees bank, PAN or gateway account details.
         ...(session.user.viewAs ? redactSecrets(business) : business),
         phone: business.phone ?? "",
         email: business.email ?? "",
@@ -54,31 +50,18 @@ export default async function SettingsPage() {
         availabilityJson: business.availabilityJson ?? "{}",
         currency: business.currency ?? "USD",
         paymentMode: business.paymentMode ?? "prepaid",
-        bankAccountName: business.bankAccountName ?? "",
-        bankAccountNumber: business.bankAccountNumber ?? "",
-        bankRoutingNumber: business.bankRoutingNumber ?? "",
-        bankIban: business.bankIban ?? "",
         slotInterval: business.slotInterval ?? 30,
         followUpDays: business.followUpDays ?? 0,
-        legalBusinessName: business.legalBusinessName ?? "",
-        rzpBusinessType: business.rzpBusinessType ?? "",
-        rzpCategory: business.rzpCategory ?? "",
-        rzpSubcategory: business.rzpSubcategory ?? "",
-        panNumber: business.panNumber ?? "",
-        gstNumber: business.gstNumber ?? "",
-        addressStreet: business.addressStreet ?? "",
-        addressCity: business.addressCity ?? "",
-        addressState: business.addressState ?? "",
-        addressPostalCode: business.addressPostalCode ?? "",
-        routeStatus: business.routeStatus ?? "not_started",
-        razorpayConnectAccountId: business.razorpayConnectAccountId ?? "",
       }}
       tokenSessions={tokenRows.map(serializeSession)}
       staff={staff}
       payments={{
-        mode: business.onlinePayMode, payer: business.feePayer, feeMinorIN: limits.platformFeeMinorIN,
         currency: business.currency ?? "INR", isIndia: countryFromCurrency(business.currency) === "IN",
-        live: isFeatureEnabled("onlinePayments"), fullOnlineAvailable: FULL_ONLINE_ENABLED,
+        live: isFeatureEnabled("onlinePayments"),
+        canUseOwnGateway: canUseOwnGateway(limits), feeMinorIN: limits.platformFeeMinorIN,
+        gateways: canUseOwnGateway(limits) && !session.user.viewAs ? await listGateways(business.id) : [],
+        payOption: business.payOption, advanceKind: business.advanceKind, advanceValue: business.advanceValue,
+        services: (await prisma.service.findMany({ where: { businessId: business.id, isActive: true }, select: { id: true, name: true, price: true, payOption: true, advanceKind: true, advanceValue: true }, orderBy: { name: "asc" } })),
       }}
       customSlotInterval={features.customSlotInterval}
       stripePayments={features.stripePayments}

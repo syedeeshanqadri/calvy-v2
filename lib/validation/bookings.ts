@@ -30,7 +30,6 @@ export const bookingSchema = z
     /** Signed ticket from the customer's "My bookings" follow-up link. Whether it makes the booking free is decided on the server. */
     followUpTicket: z.preprocess(blankToUndef, z.string().max(800).optional()),
     /** Signed ticket from the customer's "Use credit" link in My wallet: wallet credit at this business reduces the online charge. */
-    creditTicket: z.preprocess(blankToUndef, z.string().max(800).optional()),
     /** Signed ticket from a verified customer's "Book again" link: marks the booking as a verified customer's (admin-set limits apply). */
     verifiedTicket: z.preprocess(blankToUndef, z.string().max(800).optional()),
   })

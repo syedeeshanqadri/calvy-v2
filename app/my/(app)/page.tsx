@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, Bell, CalendarCheck, CalendarClock, CheckCircle2, Store, Wallet } from "lucide-react";
+import { ArrowRight, Bell, CalendarCheck, CalendarClock, CheckCircle2, Store, Ticket } from "lucide-react";
 import { getCustomerData } from "@/lib/customerData";
 import { BookingCard } from "@/components/my/BookingCard";
 import { PageHeader } from "@/components/my/PageHeader";
@@ -25,15 +25,15 @@ export default async function MyOverviewPage() {
     );
   }
 
-  const { upcoming, stats, updates, wallets } = data;
+  const { upcoming, stats, updates, waivers } = data;
   const next = upcoming[0];
-  const walletTotal = wallets.length === 0 ? "None" : wallets.length === 1 ? wallets[0].balanceLabel : `${wallets.length} balances`;
+  const waiverTotal = waivers.length === 0 ? "None" : waivers.length === 1 ? waivers[0].businessName : `${waivers.length} businesses`;
 
   const cards = [
     { label: "Upcoming", value: String(stats.upcoming), icon: CalendarClock, tone: "bg-sky-50 text-sky-600" },
     { label: "Next appointment", value: next ? next.dateLabel : "None booked", icon: CalendarCheck, tone: "bg-violet-50 text-violet-600" },
     { label: "Visits completed", value: String(stats.completed), icon: CheckCircle2, tone: "bg-green-50 text-green-600" },
-    { label: "Wallet credit", value: walletTotal, icon: Wallet, tone: "bg-amber-50 text-amber-600" },
+    { label: "Rebook without the Rs 10 fee", value: waiverTotal, icon: Ticket, tone: "bg-amber-50 text-amber-600" },
   ];
 
   return (

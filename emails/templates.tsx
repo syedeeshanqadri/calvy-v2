@@ -164,7 +164,7 @@ export function QueueMovedBackEmail(p: BookingProps & { place: number }) {
       <H>You were not here when we called you</H>
       <P>Hi {p.clientName.split(" ")[0]}, your place in the queue at <strong style={{ color: brand.ink }}>{p.businessName}</strong> came up but you were not present, so we moved you back in the queue. Please stay close.</P>
       <BookingDetails p={p} />
-      <P>You are now number {p.place} in line. You get four calls in all: if you are not present for the fourth, this {appt(p)} is closed and what you paid is saved in your wallet.</P>
+      <P>You are now number {p.place} in line. You get four calls in all: if you are not present for the fourth, this {appt(p)} is closed. Your Rs 10 confirmation fee is kept, and you can rebook once without paying it again.</P>
       {p.trackUrl ? <CTA color={p.tenant?.color} fg={p.tenant?.fg} href={p.trackUrl} label="Track your place in line" /> : null}
     </EmailLayout>
   );
@@ -182,8 +182,8 @@ export function QueueNextEmail(p: BookingProps & { ahead: number }) {
   );
 }
 
-/** A token was closed at the clinic (missed four calls, or cancelled). What was paid is in their wallet. */
-export function QueueClosedEmail(p: BookingProps & { reason: "missed" | "cancelled"; creditLabel?: string; loginUrl?: string }) {
+/** A token was closed at the clinic (missed four calls, or cancelled). The Rs 10 fee is kept for one rebooking. */
+export function QueueClosedEmail(p: BookingProps & { reason: "missed" | "cancelled"; feeKept?: boolean; loginUrl?: string }) {
   const missed = p.reason === "missed";
   return (
     <EmailLayout tenant={p.tenant} preview={`Your ${appt(p)} at ${p.businessName} was ${missed ? "missed" : "cancelled"}`}>
@@ -196,14 +196,14 @@ export function QueueClosedEmail(p: BookingProps & { reason: "missed" | "cancell
           : <>your {appt(p)} at <strong style={{ color: brand.ink }}>{p.businessName}</strong> was cancelled.</>}
       </P>
       <BookingDetails p={p} />
-      {p.creditLabel ? (
+      {p.feeKept ? (
         <P>
-          <strong style={{ color: brand.ink }}>{p.creditLabel}</strong> you paid is saved in your wallet at {p.businessName}. It does not expire, and you can use it for a new booking on any date.
+          Your Rs 10 confirmation fee is kept, and you can rebook once at {p.businessName} without paying it again.
         </P>
       ) : (
         <P>You can book again on any date.</P>
       )}
-      {p.loginUrl ? <CTA color={p.tenant?.color} fg={p.tenant?.fg} href={p.loginUrl} label={p.creditLabel ? "Sign in and book another date" : "Book another date"} /> : null}
+      {p.loginUrl ? <CTA color={p.tenant?.color} fg={p.tenant?.fg} href={p.loginUrl} label={p.feeKept ? "Book another date" : "Book another date"} /> : null}
     </EmailLayout>
   );
 }
@@ -396,7 +396,7 @@ export function CustomerVerifyEmail({ name, verifyUrl }: { name: string; verifyU
   return (
     <EmailLayout preview="Verify your email to see your bookings">
       <H>Verify your email</H>
-      <P>Hi {name.split(" ")[0]}, confirm your email address to see your bookings and wallet in one place.</P>
+      <P>Hi {name.split(" ")[0]}, confirm your email address to see your bookings in one place.</P>
       <CTA href={verifyUrl} label="Verify my email" />
       <P>This link expires in 24 hours. If you did not create an account, you can ignore this email.</P>
     </EmailLayout>
@@ -407,7 +407,7 @@ export function CustomerAccountSetupEmail({ name, setupUrl }: { name: string; se
   return (
     <EmailLayout preview="Verify your account to keep track of all your appointments">
       <H>Verify your account</H>
-      <P>Hi {name.split(" ")[0]}, thanks for your booking. We made an account for you with this email so you can keep track of all your appointments, move or cancel them, and see your wallet in one place.</P>
+      <P>Hi {name.split(" ")[0]}, thanks for your booking. We made an account for you with this email so you can keep track of all your appointments, move or cancel them, and see them in one place.</P>
       <CTA href={setupUrl} label="Verify and set my password" />
       <P>Your booking is confirmed either way; this step is optional. The link expires in 24 hours (you can get a new one with Forgot password). If you did not book anything, you can ignore this email.</P>
     </EmailLayout>

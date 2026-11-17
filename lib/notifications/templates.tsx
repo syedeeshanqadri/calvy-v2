@@ -134,12 +134,12 @@ export const TEMPLATES = {
   queue_moved_back: define<BookingPayload & { place: number }>({
     subject: (p) => `You are now #${p.place} in line at ${p.businessName}`,
     Email: (p) => <QueueMovedBackEmail {...p} />,
-    text: (p) => lines(`Hi ${first(p.clientName)}, you were not present when called at ${p.businessName}, so you were moved back. You are now number ${p.place} in line.`, `You get four calls in all: if you are not present for the fourth, this ${appt(p)} is closed and what you paid is saved in your wallet.`, p.trackUrl && `Track your place in line: ${p.trackUrl}`),
+    text: (p) => lines(`Hi ${first(p.clientName)}, you were not present when called at ${p.businessName}, so you were moved back. You are now number ${p.place} in line.`, `You get four calls in all: if you are not present for the fourth, this ${appt(p)} is closed. Your Rs 10 confirmation fee is kept, and you can rebook once without paying it again.`, p.trackUrl && `Track your place in line: ${p.trackUrl}`),
   }),
-  queue_closed: define<BookingPayload & { reason: "missed" | "cancelled"; creditLabel?: string; loginUrl?: string }>({
+  queue_closed: define<BookingPayload & { reason: "missed" | "cancelled"; feeKept?: boolean; loginUrl?: string }>({
     subject: (p) => (p.reason === "missed" ? `You missed your ${appt(p)} at ${p.businessName}` : `Your ${appt(p)} at ${p.businessName} was cancelled`),
     Email: (p) => <QueueClosedEmail {...p} />,
-    text: (p) => lines(p.reason === "missed" ? `Hi ${first(p.clientName)}, your number was called four times at ${p.businessName} and you were not present, so the ${appt(p)} was closed.` : `Hi ${first(p.clientName)}, your ${appt(p)} at ${p.businessName} was cancelled.`, p.creditLabel ? `${p.creditLabel} you paid is saved in your wallet at ${p.businessName}. It does not expire, and you can use it for a new booking on any date.` : "You can book again on any date.", p.loginUrl && `Book another date: ${p.loginUrl}`),
+    text: (p) => lines(p.reason === "missed" ? `Hi ${first(p.clientName)}, your number was called four times at ${p.businessName} and you were not present, so the ${appt(p)} was closed.` : `Hi ${first(p.clientName)}, your ${appt(p)} at ${p.businessName} was cancelled.`, p.feeKept ? "Your Rs 10 confirmation fee is kept, and you can rebook once at " + p.businessName + " without paying it again." : "You can book again on any date.", p.loginUrl && `Book another date: ${p.loginUrl}`),
   }),
   invoice: define<InvoicePayload>({
     subject: (p) => `Receipt from ${p.businessName}: ${formatCurrencyAmount(p.price ?? 0, p.currency ?? "INR")}`,
@@ -222,7 +222,7 @@ export const TEMPLATES = {
   customer_verification: define<AuthPayload>({
     subject: () => "Verify your email",
     Email: (p) => <CustomerVerifyEmail name={p.name} verifyUrl={p.secret} />,
-    text: (p) => lines(`Hi ${first(p.name)}, confirm your email address to see your bookings and wallet in one place.`, p.secret, "This link expires in 24 hours."),
+    text: (p) => lines(`Hi ${first(p.name)}, confirm your email address to see your bookings in one place.`, p.secret, "This link expires in 24 hours."),
   }),
   customer_account_setup: define<AuthPayload>({
     subject: () => "Verify your account to keep track of your appointments",

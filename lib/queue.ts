@@ -89,7 +89,7 @@ export const MAX_CALLS = 4;
 /**
  * Not present: the token being served did not show up. Misses 1 and 2 move it back 2 places, miss 3
  * moves it to the end of the queue, miss 4 closes the booking as missed (NO_SHOW). The next token is
- * called each time. Nothing moves to another day; a closed booking's payment becomes wallet credit.
+ * called each time. Nothing moves to another day; a closed booking keeps its Rs 10 fee and the customer can rebook once without paying it again.
  */
 export function planNotPresent(items: QueueItem[], id: string, now: Date): QueuePlan {
   const open = openQueue(items);
@@ -113,7 +113,7 @@ export function planNotPresent(items: QueueItem[], id: string, now: Date): Queue
   return { order, updates, outcome: "moved_back", subjectId: id };
 }
 
-/** Not coming: the customer cancels. The booking closes and what they paid becomes wallet credit. */
+/** Not coming: the customer cancels. The booking closes; the Rs 10 fee is kept and valid for one rebooking. */
 export function planNotComing(items: QueueItem[], id: string, now: Date): QueuePlan {
   const open = openQueue(items);
   const item = open.find((i) => i.id === id);
@@ -170,8 +170,8 @@ export interface OutcomeFacts {
   place?: number;
   /** The token now being served after the action. */
   called?: { token: number; name: string };
-  /** Wallet credit added, formatted (e.g. "Rs 10.00"); null when nothing had been paid online. */
-  credit?: string | null;
+  /** The Rs 10 confirmation fee was kept (cancelled or not attended): the customer can rebook once without paying it again. */
+  feeKept?: boolean;
   /** Whether the customer has an email on file (so one was sent). */
   emailed?: boolean;
 }
@@ -181,7 +181,7 @@ export function describeOutcome(f: OutcomeFacts): string {
   const who = f.token !== undefined ? `Token ${f.token}${f.name ? ` (${f.name})` : ""}` : "This token";
   const calling = f.called ? ` Now serving token ${f.called.token} (${f.called.name}).` : "";
   const mail = (sent: string, none: string) => (f.emailed ? ` ${sent}` : ` ${none}`);
-  const wallet = f.credit ? ` ${f.credit} was saved in their wallet for a future booking.` : " Nothing was paid online, so there is no credit.";
+  const wallet = f.feeKept ? " The Rs 10 confirmation fee is kept, and they can rebook once without paying it again." : "";
   switch (f.outcome) {
     case "advanced":
       return `${who} is done.${calling || " No one else is waiting."}`;

@@ -44,7 +44,7 @@ function LoginForm() {
   return (
     <>
       <h1 className="font-syne font-bold text-2xl text-[#0f0f1a] mb-1">Sign in to your bookings</h1>
-      <p className="text-[#6b6b80] text-sm mb-7">See your appointments, tokens and wallet in one place.</p>
+      <p className="text-[#6b6b80] text-sm mb-7">See your appointments and tokens in one place.</p>
       {notice && <p role="status" className="text-sm text-green-700 bg-green-50 rounded-xl px-4 py-3 mb-4">{notice}</p>}
       {error && <p role="alert" className="text-sm text-red-600 bg-red-50 rounded-xl px-4 py-3 mb-4">{error}</p>}
       <form onSubmit={handleSubmit} className="space-y-4">

@@ -5,7 +5,6 @@ import type { FeatureFlag } from "@/lib/flags";
 export type FlagState = Record<FeatureFlag, boolean>;
 
 const ALL_OFF: FlagState = {
-  wallet: false,
   payments: false,
   chatWidget: false,
   broadcasts: false,

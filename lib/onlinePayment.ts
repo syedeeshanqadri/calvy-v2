@@ -1,12 +1,14 @@
-// Online booking payments (Cashfree) on top of lib/fees, lib/holds and lib/payments.
+// Online booking payments on top of lib/fees, lib/holds and lib/payments. Basic: Calvy's Cashfree, Rs 10 only. Mid/Top: the business's
+// own default gateway (lib/payments/gateways); Calvy never touches that money.
 // Flow: booking -> pending_payment hold + Payment(CREATED) + gateway order -> checkout ->
 // webhook or return-page reconcile -> settlePaidPayment (confirm, or refund a lapsed hold).
 import { prisma } from "@/lib/prisma";
 import { isFeatureEnabled } from "@/lib/flags";
 import { getEffectiveLimits } from "@/lib/getFeatures";
-import { computeCharge, countryFromCurrency, effectivePayMode, toMinor, type Charge, type FeePayer, type OnlinePayMode } from "@/lib/fees";
+import { chargeForConfig, countryFromCurrency, isPayOption, overrideOf, type Charge, type PayConfig, type PaySetting } from "@/lib/fees";
 import { EXPIRED, PENDING_PAYMENT, onPaid } from "@/lib/holds";
-import { paymentLockKey, refundBlockedByCredit } from "@/lib/credit";
+import { feeKept } from "@/lib/waiver";
+import { providerForGateway, gatewayWebhookUrl } from "@/lib/payments/gateways";
 import { BOOKING_TX_OPTIONS } from "@/lib/booking";
 import { getPaymentProvider, type PaymentProvider } from "@/lib/payments";
 import { applyPaymentEvent } from "@/lib/payments/events";
@@ -25,16 +27,19 @@ import { trackingUrl } from "@/lib/tracking";
 import { bookingForLabel } from "@/lib/patients";
 import { meetingUrlFor } from "@/lib/online";
 import { receiptTax } from "@/lib/receiptTax";
-import { restoreUsedCredit } from "@/lib/creditDb";
 import { returnUrlFor, webhookUrlFor } from "@/lib/paymentUrls";
 
 
-/** What the booking page needs to show and compute the online charge (safe to send to the browser). */
-export interface PayConfig {
-  country: string;
-  platformFeeMinorIN: number;
-  mode: OnlinePayMode;
-  payer: FeePayer;
+export type { PayConfig } from "@/lib/fees";
+
+export interface GatewayChoice { id: string; provider: string; mode: string; keyIdEnc: string; keySecretEnc: string; webhookSecretEnc: string | null; extra: string | null; webhookKey: string }
+
+/** The business's default gateway: enabled, verified (CONNECTED) and marked default. Null when it has none. */
+export async function defaultGateway(businessId: string): Promise<GatewayChoice | null> {
+  return prisma.paymentGateway.findFirst({
+    where: { businessId, enabled: true, isDefault: true, status: "CONNECTED" },
+    select: { id: true, provider: true, mode: true, keyIdEnc: true, keySecretEnc: true, webhookSecretEnc: true, extra: true, webhookKey: true },
+  });
 }
 
 /**
@@ -42,29 +47,44 @@ export interface PayConfig {
  * (flag off, or no gateway available in this environment).
  */
 export async function getPayConfig(business: {
-  plan: string; planStatus: string; trialEndsAt?: Date | null; currency: string | null;
-  onlinePayMode: OnlinePayMode; feePayer: FeePayer;
+  id: string; plan: string; planStatus: string; trialEndsAt?: Date | null; currency: string | null;
+  payOption?: string | null; advanceKind?: string | null; advanceValue?: number | null;
 }): Promise<PayConfig | null> {
-  if (!isFeatureEnabled("onlinePayments") || !getPaymentProvider()) return null;
+  if (!isFeatureEnabled("onlinePayments")) return null;
   const limits = await getEffectiveLimits(business);
+  const fee = limits.platformFeeMinorIN;
+  // Basic pays Calvy's Rs 10 through Calvy's Cashfree; that needs Calvy's own gateway to exist in this environment.
+  if (fee > 0 && !getPaymentProvider()) return null;
+  const gateway = fee > 0 ? null : await defaultGateway(business.id);
+  const overrides: Record<string, Partial<PaySetting>> = {};
+  if (gateway) {
+    const rows = await prisma.service.findMany({ where: { businessId: business.id, payOption: { not: null } }, select: { id: true, payOption: true, advanceKind: true, advanceValue: true } });
+    for (const r of rows) { const o = overrideOf(r); if (o) overrides[r.id] = o; }
+  }
   return {
     country: countryFromCurrency(business.currency),
-    platformFeeMinorIN: limits.platformFeeMinorIN,
-    mode: effectivePayMode(business.onlinePayMode),
-    payer: business.feePayer,
+    platformFeeMinorIN: fee,
+    business: {
+      option: isPayOption(business.payOption) ? business.payOption : "VENUE",
+      advanceKind: business.advanceKind === "FIXED" ? "FIXED" : "PERCENT",
+      advanceValue: typeof business.advanceValue === "number" ? business.advanceValue : 30,
+    },
+    hasGateway: !!gateway,
+    overrides,
   };
 }
 
-/** The online charge for a booking of `priceTotal` (business currency, whole units). */
-export function chargeFor(cfg: PayConfig | null, priceTotal: number): Charge {
-  if (!cfg) return { chargeMinor: 0, platformFeeMinor: 0, businessShareMinor: 0 };
-  return computeCharge({ ...cfg, priceMinor: toMinor(priceTotal) });
+export function chargeFor(cfg: PayConfig | null, items: { serviceId: string; price: number }[]): Charge {
+  return chargeForConfig(cfg, items);
 }
 
 export interface CheckoutInfo {
-  provider: "CASHFREE" | "MOCK";
+  provider: "CASHFREE" | "MOCK" | "RAZORPAY" | "PHONEPE";
   orderId: string;
+  /** Cashfree payment_session_id, or (redirect gateways) the hosted payment page URL. */
   sessionId: string;
+  /** True when sessionId is a URL to send the customer to. */
+  redirect?: boolean;
   /** Cashfree JS SDK mode. */
   env: "sandbox" | "production";
 }
@@ -82,21 +102,28 @@ export async function startCheckout(p: {
   holdExpiresAt: Date;
   client: { id: string; name: string; email: string; phone: string };
   note: string;
+  /** The business's own gateway for a service payment (Mid/Top). Absent = Calvy's Rs 10 confirmation fee. */
+  gateway?: GatewayChoice | null;
 }): Promise<{ ok: true; checkout: CheckoutInfo } | { ok: false; error: string }> {
-  const provider = getPaymentProvider();
+  let provider: PaymentProvider | null;
+  try {
+    provider = p.gateway ? providerForGateway(p.gateway) : getPaymentProvider();
+  } catch {
+    provider = null;
+  }
   if (!provider) return { ok: false, error: "Online payments are temporarily unavailable. Please try again later." };
   const orderId = `calvy_${p.appointmentId}`;
   const payment = await prisma.payment.create({
     data: {
       businessId: p.businessId, appointmentId: p.appointmentId, provider: provider.name, providerOrderId: orderId,
-      amountMinor: p.charge.chargeMinor, platformFeeMinor: p.charge.platformFeeMinor,
+      gatewayId: p.gateway?.id ?? null, amountMinor: p.charge.chargeMinor, platformFeeMinor: p.charge.platformFeeMinor,
       businessShareMinor: p.charge.businessShareMinor, currency: p.currency.toUpperCase(),
     },
   });
   try {
     // Cashfree only calls public https URLs; locally the return page reconciles instead. On a Vercel preview both
     // URLs are the preview's own, and the webhook carries the Deployment Protection bypass (see lib/paymentUrls).
-    const notifyUrl = webhookUrlFor();
+    const notifyUrl = p.gateway ? gatewayWebhookUrl(p.gateway.webhookKey) : webhookUrlFor();
     const order = await provider.createOrder({
       orderId, amountMinor: p.charge.chargeMinor, currency: p.currency, customer: p.client,
       returnUrl: returnUrlFor(),
@@ -104,15 +131,15 @@ export async function startCheckout(p: {
       expiresAt: p.holdExpiresAt, note: `${p.note} · ${p.businessName}`,
       tags: { appointmentId: p.appointmentId, businessId: p.businessId },
     });
-    const env = process.env.CASHFREE_ENV === "production" ? "production" : "sandbox";
-    return { ok: true, checkout: { provider: provider.name, orderId: order.providerOrderId, sessionId: order.sessionId, env } };
+    if (order.gatewayRef) await prisma.payment.update({ where: { id: payment.id }, data: { gatewayRef: order.gatewayRef } });
+    const env = p.gateway ? (p.gateway.mode === "LIVE" ? "production" : "sandbox") : process.env.CASHFREE_ENV === "production" ? "production" : "sandbox";
+    return { ok: true, checkout: { provider: provider.name, orderId: order.providerOrderId, sessionId: order.sessionId, ...(order.redirect ? { redirect: true } : {}), env } };
   } catch (e) {
     logger.error("[Payments] createOrder failed", { err: e, orderId });
     await prisma.$transaction(async (tx) => {
       await tx.payment.update({ where: { id: payment.id }, data: { status: "FAILED" } });
-      // The booking will not happen: free its follow-up lock and hand back any wallet credit it spent.
-      const freed = await tx.appointment.updateMany({ where: { id: p.appointmentId, status: PENDING_PAYMENT }, data: { status: EXPIRED, followUpOfId: null } });
-      if (freed.count > 0) await restoreUsedCredit(tx, { businessId: p.businessId, clientId: p.client.id, appointmentId: p.appointmentId });
+      // The booking will not happen: free its follow-up lock.
+      await tx.appointment.updateMany({ where: { id: p.appointmentId, status: PENDING_PAYMENT }, data: { status: EXPIRED, followUpOfId: null } });
     });
     return { ok: false, error: "We couldn't start the online payment. Please try again." };
   }
@@ -191,25 +218,37 @@ export async function sendConfirmationFor(appointmentId: string, opts: ConfirmOp
   built.afterCommit();
 }
 
+/** The adapter that took a payment: the business's own gateway for a service payment, Calvy's Cashfree for the Rs 10 fee. */
+export async function providerForPayment(payment: { gatewayId: string | null }): Promise<PaymentProvider | null> {
+  if (!payment.gatewayId) return getPaymentProvider();
+  const g = await prisma.paymentGateway.findUnique({ where: { id: payment.gatewayId } });
+  if (!g) return null;
+  try { return providerForGateway(g); } catch { return null; }
+}
+
 /**
- * Refund (part of) a payment through its gateway. The payment is claimed (status REFUNDED) before
- * the gateway call so two callers can never refund twice; a gateway error rolls the claim back.
+ * Refund (part of) a payment through the gateway that took it. The payment is claimed (status REFUNDED) before
+ * the gateway call so two callers can never refund twice; a gateway error rolls the claim back. The Rs 10 confirmation
+ * fee is never refunded once the booking was cancelled or not attended (it is kept for one rebooking).
  */
-export async function refundPayment(paymentId: string, amountMinor: number, reason: string, provider: PaymentProvider | null = getPaymentProvider()): Promise<boolean> {
-  if (!provider || amountMinor <= 0) return false;
-  // Claim and credit-check under the payment lock: a payment that already became wallet credit is
-  // never refunded as well (the customer would be paid twice).
+export async function refundPayment(paymentId: string, amountMinor: number, reason: string, provider?: PaymentProvider | null): Promise<boolean> {
+  if (amountMinor <= 0) return false;
+  const found = await prisma.payment.findUnique({ where: { id: paymentId }, select: { gatewayId: true } });
+  if (!found) return false;
+  const gateway = provider === undefined ? await providerForPayment(found) : provider;
+  if (!gateway) return false;
+  // Claim and fee-kept check under the payment lock: a fee that was already kept is never refunded as well.
   const claimed = await prisma.$transaction(async (tx) => {
-    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${paymentLockKey(paymentId)}, 0))`;
-    const credits = await tx.customerCredit.findMany({ where: { paymentId }, select: { kind: true, amountMinor: true } });
-    if (refundBlockedByCredit(credits)) return { count: 0, blocked: true };
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${"payment:" + paymentId}, 0))`;
+    const pay = await tx.payment.findUnique({ where: { id: paymentId }, select: { appointmentId: true, platformFeeMinor: true } });
+    if (pay && pay.platformFeeMinor > 0 && (await feeKept(tx, pay.appointmentId))) return { count: 0, blocked: true };
     return { ...(await tx.payment.updateMany({ where: { id: paymentId, status: "PAID" }, data: { status: "REFUNDED", refundedMinor: amountMinor } })), blocked: false };
   }, BOOKING_TX_OPTIONS);
-  if (claimed.blocked) logger.warn("[Payments] refund refused: this payment already became wallet credit", { paymentId });
+  if (claimed.blocked) logger.warn("[Payments] refund refused: this booking already kept its confirmation fee", { paymentId });
   if (claimed.count === 0) return false;
   const payment = await prisma.payment.findUniqueOrThrow({ where: { id: paymentId } });
   try {
-    await provider.refund({ providerOrderId: payment.providerOrderId, refundId: `refund_${paymentId}`, amountMinor, note: reason });
+    await gateway.refund({ providerOrderId: payment.providerOrderId, gatewayRef: payment.gatewayRef, refundId: `refund_${paymentId}`, amountMinor, note: reason });
   } catch (e) {
     logger.error("[Payments] refund failed", { err: e, paymentId });
     await prisma.payment.update({ where: { id: paymentId }, data: { status: "PAID", refundedMinor: 0 } });
@@ -263,7 +302,6 @@ export async function settlePaidPayment(paymentId: string): Promise<SettleResult
       if (built) queuedIds = await enqueue(tx, [...built.owner, ...built.customer]);
     } else if (action === "refund" && appt.status === PENDING_PAYMENT) {
       await tx.appointment.update({ where: { id: appt.id }, data: { status: EXPIRED, followUpOfId: null } });
-      await restoreUsedCredit(tx, { businessId: payment.businessId, clientId: appt.clientId, appointmentId: appt.id });
     }
     return { action, appointmentId: appt.id, amountMinor: payment.amountMinor, paymentRef: payment.paymentRef, platformFeeMinor: payment.platformFeeMinor };
   }, BOOKING_TX_OPTIONS);
@@ -289,7 +327,7 @@ export async function settlePaidPayment(paymentId: string): Promise<SettleResult
 export async function releaseExpiredHolds(now: Date = new Date()): Promise<number> {
   const lapsed = await prisma.appointment.findMany({
     where: { status: PENDING_PAYMENT, holdExpiresAt: { lte: now } },
-    select: { id: true, businessId: true, clientId: true },
+    select: { id: true },
   });
   if (!lapsed.length) return 0;
   const ids = lapsed.map((a) => a.id);
@@ -297,8 +335,6 @@ export async function releaseExpiredHolds(now: Date = new Date()): Promise<numbe
     // Free the follow-up lock of a booking that never happened.
     await tx.appointment.updateMany({ where: { id: { in: ids }, status: PENDING_PAYMENT }, data: { status: EXPIRED, followUpOfId: null } });
     await tx.payment.updateMany({ where: { appointmentId: { in: ids }, status: { in: ["CREATED", "FAILED"] } }, data: { status: "EXPIRED" } });
-    // Wallet credit spent on a hold that lapsed goes back (once per booking).
-    for (const a of lapsed) await restoreUsedCredit(tx, { businessId: a.businessId, clientId: a.clientId, appointmentId: a.id });
   }, BOOKING_TX_OPTIONS);
   return ids.length;
 }
@@ -312,14 +348,14 @@ export type OrderView = "pending" | "confirmed" | "failed" | "expired" | "refund
 export async function reconcileOrder(orderId: string): Promise<{ view: OrderView; appointmentId: string | null }> {
   const payment = await prisma.payment.findUnique({ where: { providerOrderId: orderId } });
   if (!payment) return { view: "unknown", appointmentId: null };
-  const provider = getPaymentProvider();
+  const provider = await providerForPayment(payment);
 
   if ((payment.status === "CREATED" || payment.status === "FAILED") && provider && provider.name === payment.provider) {
-    const state = await provider.getOrderState(orderId).catch(() => "UNKNOWN" as const);
+    const state = await provider.getOrderState(orderId, payment.gatewayRef).catch(() => "UNKNOWN" as const);
     if (state === "PAID") {
       await applyPaymentEvent(prismaPaymentEventStore, payment.provider, {
         eventId: `reconcile:${orderId}`, kind: "PAID", providerOrderId: orderId, amountMinor: null, method: null, paymentRef: null,
-      });
+      }, { gatewayId: payment.gatewayId });
     }
   }
   const fresh = await prisma.payment.findUniqueOrThrow({ where: { id: payment.id } });

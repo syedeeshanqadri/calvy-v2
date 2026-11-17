@@ -156,20 +156,20 @@ export function TrackClient({ code, initial, back }: { code: string; initial: Tr
   );
 }
 
-/** What happens to the money after a missed or cancelled booking, and where to book again. */
+/** What happens to the Rs 10 confirmation fee after a missed or cancelled booking, and where to book again. */
 function WalletNote({ page, appt, color, fg }: { page: TrackingPage; appt: string; color: string; fg: string }) {
-  const { credit, business } = page;
+  const { feeKept, business } = page;
   return (
     <div className="mt-3 space-y-3">
-      {credit ? (
+      {feeKept ? (
         <p>
-          <strong>{formatCurrencyAmount(credit.amountMinor / 100, credit.currency)}</strong> you paid is saved in your wallet at {business.name}. It does not expire and works for a new {appt} on any date.
+          Not attended — confirmation still valid. Your Rs 10 confirmation fee is kept, and you can rebook once at {business.name} without paying it again.
         </p>
       ) : (
         <p>You can book again on any date.</p>
       )}
       <Link href="/my" className="block text-center font-semibold rounded-xl px-4 py-3" style={{ background: color, color: fg }}>
-        {credit ? "Sign in and book another date" : "Book another date"}
+        Book another date
       </Link>
     </div>
   );

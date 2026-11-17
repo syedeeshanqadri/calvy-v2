@@ -3,7 +3,6 @@
  * is "1" or "true" (case-insensitive). Safe in the Edge runtime (no Node APIs).
  */
 export type FeatureFlag =
-  | "wallet"
   | "payments"
   | "chatWidget"
   | "broadcasts"
@@ -12,7 +11,6 @@ export type FeatureFlag =
   | "onlinePayments";
 
 export const FEATURE_FLAGS: readonly FeatureFlag[] = [
-  "wallet",
   "payments",
   "chatWidget",
   "broadcasts",
@@ -22,7 +20,6 @@ export const FEATURE_FLAGS: readonly FeatureFlag[] = [
 ];
 
 const ENV_VARS: Record<FeatureFlag, string> = {
-  wallet: "FEATURE_WALLET",
   payments: "FEATURE_PAYMENTS",
   chatWidget: "FEATURE_CHAT_WIDGET",
   broadcasts: "FEATURE_BROADCASTS",
@@ -65,15 +62,8 @@ function matchesPrefix(pathname: string, prefix: string): boolean {
   return pathname === prefix || pathname.startsWith(prefix + "/");
 }
 
-const WALLET_PREFIXES = ["/api/wallet", "/api/admin/withdrawals"];
 const PAYMENT_PREFIXES = [
-  "/api/razorpay/connect",
-  "/api/billing/portal",
-  "/api/billing/sync",
-  "/api/billing/upgrade",
-  "/api/billing/status",
-  "/api/settings/payout",
-  "/api/bookings/confirm",
+  "/api/settings/gateways",
 ];
 const BROADCAST_PREFIXES = ["/api/broadcasts"];
 
@@ -104,7 +94,6 @@ export function normalizeApiPath(pathname: string): string {
 
 export function featureForApiPath(rawPathname: string): FeatureFlag | null {
   const pathname = normalizeApiPath(rawPathname);
-  if (WALLET_PREFIXES.some((p) => matchesPrefix(pathname, p))) return "wallet";
   if (PAYMENT_PREFIXES.some((p) => matchesPrefix(pathname, p))) return "payments";
   if (/^\/api\/appointments\/[^/]+\/payment(\/.*)?$/.test(pathname)) return "payments";
   if (BROADCAST_PREFIXES.some((p) => matchesPrefix(pathname, p))) return "broadcasts";

@@ -100,6 +100,13 @@ model Business {
   bookingMode              BookingMode         @default(SLOT)
   onlinePayMode            OnlinePayMode       @default(BOOKING_FEE_ONLY)
   feePayer                 FeePayer            @default(CUSTOMER)
+  /// Mid/Top plans: what customers pay online through the business's own gateway (VENUE | ONLINE_FULL | ADVANCE). Basic ignores it.
+  payOption                String              @default("VENUE")
+  /// ADVANCE: advanceValue is a percent of the price (PERCENT) or a fixed amount in minor units (FIXED).
+  advanceKind              String              @default("PERCENT")
+  advanceValue             Int                 @default(30)
+  paymentGateways          PaymentGateway[]
+  confirmationWaivers      ConfirmationWaiver[]
   termsOverride            Json?
   phone                    String?
   email                    String?
@@ -223,6 +230,10 @@ model Service {
   appointments    Appointment[]
   business        Business       @relation(fields: [businessId], references: [id], onDelete: Cascade)
   staff           StaffService[]
+  /// Per-service override of the business pay option (null = use the business setting).
+  payOption          String?
+  advanceKind        String?
+  advanceValue       Int?
 }
 
 model StaffService {
@@ -259,6 +270,7 @@ model Client {
   @@unique([businessId, email])
   @@unique([businessId, phone])
   @@index([businessId])
+  confirmationWaivers ConfirmationWaiver[]
 }
 
 model PlanConfig {
@@ -662,6 +674,8 @@ enum FeePayer {
 enum PayProvider {
   MOCK
   CASHFREE
+  RAZORPAY
+  PHONEPE
 }
 
 enum PayStatus {
@@ -686,6 +700,10 @@ model Payment {
   appointmentId      String?
   provider           PayProvider
   providerOrderId    String             @unique
+  /// The business's own gateway that took this payment; null for Calvy's Rs 10 confirmation fee (Calvy's Cashfree).
+  gatewayId          String?
+  /// The gateway's own id for this order or link (Razorpay plink_..., PhonePe orderId). Cashfree's is our order id.
+  gatewayRef         String?
   amountMinor        Int
   platformFeeMinor   Int
   businessShareMinor Int
@@ -699,9 +717,11 @@ model Payment {
   business           Business           @relation(fields: [businessId], references: [id], onDelete: Cascade)
   appointment        Appointment?       @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
   feeEntries         PlatformFeeEntry[]
+  gateway            PaymentGateway?    @relation(fields: [gatewayId], references: [id], onDelete: SetNull)
 
   @@index([businessId, createdAt])
   @@index([appointmentId])
+  @@index([gatewayId])
 }
 
 /// Append-only ledger of Calvy platform fees (never updated or deleted).
@@ -979,4 +999,65 @@ model WhatsAppOptOut {
   createdAt  DateTime @default(now()) @db.Timestamptz(3)
 
   @@id([businessId, phone])
+}
+
+enum GatewayProvider {
+  RAZORPAY
+  CASHFREE
+  PHONEPE
+}
+
+enum GatewayStatus {
+  PENDING
+  CONNECTED
+  ERROR
+}
+
+/// A payment gateway the business owns (Mid/Top plans). Calvy never touches this money. Credentials are AES-GCM encrypted
+/// (lib/notifications/secret) and never returned or logged. One row per provider and mode.
+model PaymentGateway {
+  id               String          @id @default(cuid())
+  businessId       String
+  provider         GatewayProvider
+  /// TEST | LIVE
+  mode             String          @default("TEST")
+  enabled          Boolean         @default(false)
+  isDefault        Boolean         @default(false)
+  /// Razorpay key id, Cashfree app id, PhonePe client id.
+  keyIdEnc         String
+  /// Razorpay key secret, Cashfree secret key, PhonePe client secret.
+  keySecretEnc     String
+  /// Razorpay webhook secret, PhonePe webhook "username:password". Cashfree signs with the secret key (none needed).
+  webhookSecretEnc String?
+  /// Non-secret extra setting (PhonePe client version).
+  extra            String?
+  /// Random path segment of this gateway's webhook URL (/api/payments/webhook/[key]).
+  webhookKey       String          @unique
+  status           GatewayStatus   @default(PENDING)
+  statusReason     String?
+  lastVerifiedAt   DateTime?       @db.Timestamptz(3)
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  business         Business        @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  payments         Payment[]
+
+  @@unique([businessId, provider, mode])
+  @@index([businessId])
+}
+
+/// A Rs 10 confirmation fee that was kept because the booking was cancelled or not attended. The customer's next booking
+/// at the same business skips the fee once. Replaces the money wallet (CustomerCredit is left in place until the
+/// pre-launch cleanup drops it).
+model ConfirmationWaiver {
+  id                  String    @id @default(cuid())
+  businessId          String
+  clientId            String
+  sourceAppointmentId String    @unique
+  usedAppointmentId   String?   @unique
+  createdAt           DateTime  @default(now())
+  usedAt              DateTime? @db.Timestamptz(3)
+  business            Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  client              Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([businessId, clientId])
 }

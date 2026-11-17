@@ -1,7 +1,6 @@
 import { safeRoute } from "@/lib/api";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { razorpay } from "@/lib/razorpay";
 import { notify as queueNotification } from "@/lib/notifications/enqueue";
 import { confirmation, type Notice } from "@/lib/notifications/events";
 import { ownerAlert } from "@/lib/notifications/business";
@@ -29,16 +28,16 @@ import { normalizePhone } from "@/lib/phone";
 import { assertNoDuplicatePatient, assertWithinPeopleCap, contactAtDailyCap, DuplicatePatientError } from "@/lib/patientsDb";
 import { isFeatureEnabled } from "@/lib/flags";
 import { PENDING_PAYMENT, holdExpiry } from "@/lib/holds";
-import { chargeFor, getPayConfig, startCheckout } from "@/lib/onlinePayment";
-import { effectivePayMode } from "@/lib/fees";
+import { chargeFor, defaultGateway, getPayConfig, startCheckout } from "@/lib/onlinePayment";
 import { resolveBookingMode, resolveMeetingUrl } from "@/lib/online";
 import { loadMeetingUrl } from "@/lib/onlineDb";
 import { Prisma } from "@prisma/client";
 import { suspended, suspendedResponse } from "@/lib/suspension";
 import { checkVerifiedLimits, getVerifiedLimits, isVerifiedBooker } from "@/lib/verifiedLimits";
 import { FollowUpTicketError, resolveFollowUp } from "@/lib/followUpDb";
-import { CreditTicketError, InsufficientCreditError, creditForTicket, spendCredit } from "@/lib/creditDb";
-import { applyCredit, reduceCharge } from "@/lib/credit";
+import { claimWaiver, waiverAvailable } from "@/lib/waiver";
+import { WaiverTakenError } from "@/lib/tokenBooking";
+import { toMinor } from "@/lib/fees";
 
 export const dynamic = 'force-dynamic';
 
@@ -84,7 +83,7 @@ async function bookingHandler(req: NextRequest) {
   if (!business) return NextResponse.json({ error: "Business not found." }, { status: 404 });
   if (suspended(business)) return suspendedResponse(business.name);
   // A verified customer (proved by one of their own signed links) is held to the admin-set limits; guests keep the guest rules below.
-  if (await isVerifiedBooker(prisma, [parsed.data.verifiedTicket, parsed.data.creditTicket, parsed.data.followUpTicket], clientEmail)) {
+  if (await isVerifiedBooker(prisma, [parsed.data.verifiedTicket, parsed.data.followUpTicket], clientEmail)) {
     const verdict = await checkVerifiedLimits(prisma, { businessId: business.id, businessName: business.name, email: clientEmail, limits: await getVerifiedLimits(prisma) });
     if (!verdict.ok) return NextResponse.json({ error: verdict.message, code: verdict.code }, { status: verdict.status });
   }
@@ -199,14 +198,14 @@ async function bookingHandler(req: NextRequest) {
   const totalDuration = orderedServices.reduce((sum, s) => sum + s.duration, 0);
   const serviceNamesLabel = orderedServices.map(s => s.name).join(" & ");
 
-  // Cashfree online payments (flag): when on, they decide for every business and the legacy
-  // Razorpay prepaid path below is skipped. Charge 0 confirms at once.
+  // Online payments (flag): Basic pays Calvy's Rs 10 confirmation fee, Mid/Top pay the business's own default gateway.
+  // Charge 0 confirms at once.
   const onlinePayments = isFeatureEnabled("onlinePayments");
   const payConfig = onlinePayments ? await getPayConfig(business) : null;
   if (onlinePayments && !payConfig && process.env.NODE_ENV === "production" && business.currency?.toUpperCase() === "INR") {
     return NextResponse.json({ error: "Online payments are temporarily unavailable. Please try again later." }, { status: 503 });
   }
-  const charge = chargeFor(payConfig, totalPrice);
+  const charge = chargeFor(payConfig, orderedServices.map((sv) => ({ serviceId: sv.id, price: followUpOfId ? 0 : sv.price })));
   if (charge.chargeMinor > 0 && !clientPhone) {
     return NextResponse.json({ error: "A phone number is needed to pay online." }, { status: 400 });
   }
@@ -219,13 +218,13 @@ async function bookingHandler(req: NextRequest) {
         business, services: orderedServices, tokenSessionId, date, tz: bizTz,
         client: { name: clientName, email: clientEmail, phone: clientPhone },
         notes, maxMonthlyAppointments: limits.maxMonthlyAppointments, monthStart, payConfig, patientName, patientDetails, followUpOfId,
-        maxPeoplePerBooker: business.maxPeoplePerBooker, isOnline, creditTicket: parsed.data.creditTicket ?? null,
+        maxPeoplePerBooker: business.maxPeoplePerBooker, isOnline,
       });
     } catch (err) {
       if (err instanceof DuplicatePatientError) return await duplicateResponse(err);
       if (err instanceof LimitReachedError) return await limitResponse();
       if (followUpTaken(err)) return followUpTakenResponse();
-      if (err instanceof InsufficientCreditError) return NextResponse.json({ error: err.message, code: "CREDIT_CHANGED" }, { status: 409 });
+      if (err instanceof WaiverTakenError) return NextResponse.json({ error: err.message, code: "WAIVER_CHANGED" }, { status: 409 });
       throw err;
     }
   }
@@ -282,7 +281,7 @@ async function bookingHandler(req: NextRequest) {
     paymentStatus: string,
     paymentModeVal: string,
     holdExpiresAt: Date | null = null,
-    creditMinor = 0,
+    waive = false,
   ) {
     for (const cand of candidates) {
       try {
@@ -331,8 +330,8 @@ async function bookingHandler(req: NextRequest) {
                 paymentMode: paymentModeVal,
               },
             });
-            // Wallet credit used on this booking: recorded in the same transaction as the booking itself.
-            if (creditMinor > 0) await spendCredit(tx, { businessId: business!.id, clientId, appointmentId: created.id, amountMinor: creditMinor, currency: business!.currency ?? DEFAULT_CURRENCY });
+            // The waiver is claimed in the booking's own transaction: two parallel bookings cannot both skip the fee.
+            if (waive && !(await claimWaiver(tx, { businessId: business!.id, clientId, appointmentId: created.id }))) throw new WaiverTakenError();
             return created;
           },
         );
@@ -416,26 +415,23 @@ async function bookingHandler(req: NextRequest) {
   // Online payments on: hold the slot while the customer pays, or confirm when nothing is due.
   if (onlinePayments) {
     client = await getOrCreateClient();
-    // Wallet credit (only through a verified customer's ticket) pays part or all of the online charge first.
-    let creditUsed = 0;
+    // A kept Rs 10 confirmation fee (earlier booking cancelled or not attended) waives the fee once at this business.
     let payCharge = charge;
-    if (parsed.data.creditTicket && charge.chargeMinor > 0) {
-      try {
-        const { balanceMinor } = await creditForTicket(prisma, parsed.data.creditTicket, business, client);
-        creditUsed = applyCredit(charge.chargeMinor, balanceMinor).usedMinor;
-        payCharge = reduceCharge(charge, creditUsed);
-      } catch (err) {
-        if (err instanceof CreditTicketError) return NextResponse.json({ error: err.message, code: "CREDIT_EXPIRED" }, { status: 400 });
-        throw err;
-      }
+    let waived = false;
+    if (charge.route === "CALVY" && charge.chargeMinor > 0 && (await waiverAvailable(prisma, business.id, client.id))) {
+      payCharge = { chargeMinor: 0, platformFeeMinor: 0, businessShareMinor: 0, route: "NONE" };
+      waived = true;
     }
+    const gateway = payCharge.route === "GATEWAY" ? await defaultGateway(business.id) : null;
+    if (payCharge.route === "GATEWAY" && !gateway) return NextResponse.json({ error: "Online payments are temporarily unavailable. Please try again later.", code: "PAYMENT_START_FAILED" }, { status: 503 });
     const hold = payCharge.chargeMinor > 0 ? holdExpiry() : null;
-    const venueMode = effectivePayMode(business.onlinePayMode) === "FULL_ONLINE" && hold ? "prepaid" : "postpaid";
+    // Paid in full online = prepaid; a deposit or the Rs 10 fee leaves the rest to pay at the venue.
+    const venueMode = payCharge.route === "GATEWAY" && payCharge.chargeMinor >= toMinor(totalPrice) && hold ? "prepaid" : "postpaid";
     let appointment;
     try {
-      appointment = await createAppointment(client.id, "unpaid", venueMode, hold, creditUsed);
+      appointment = await createAppointment(client.id, "unpaid", venueMode, hold, waived);
     } catch (err) {
-      if (err instanceof InsufficientCreditError) return NextResponse.json({ error: err.message, code: "CREDIT_CHANGED" }, { status: 409 });
+      if (err instanceof WaiverTakenError) return NextResponse.json({ error: err.message, code: "WAIVER_CHANGED" }, { status: 409 });
       if (err instanceof DuplicatePatientError) return await duplicateResponse(err);
       if (err instanceof SlotConflictError) return conflictResponse();
       if (err instanceof LimitReachedError) return await limitResponse();
@@ -450,93 +446,26 @@ async function bookingHandler(req: NextRequest) {
       appointmentId: appointment.id, businessId: business.id, businessName: business.name,
       currency: business.currency ?? DEFAULT_CURRENCY, charge: payCharge, holdExpiresAt: hold,
       client: { id: client.id, name: clientName, email: clientEmail, phone: clientPhone! },
-      note: `${serviceNamesLabel} ${date} ${time}`,
+      note: `${serviceNamesLabel} ${date} ${time}`, gateway,
     });
     if (!started.ok) return NextResponse.json({ error: started.error, code: "PAYMENT_START_FAILED" }, { status: 502 });
     return NextResponse.json({ success: true, appointmentId: appointment.id, pendingPayment: true, checkout: started.checkout, isOnline });
   }
 
-  // Postpaid path — create appointments directly, client pays at visit
-  // (A free follow-up owes nothing, so it never takes the legacy prepaid path.)
-  if (paymentMode === "postpaid" || followUpOfId) {
-    client = await getOrCreateClient();
-    let appointment;
-    try {
-      appointment = await createAppointment(client.id, "unpaid", "postpaid");
-    } catch (err) {
-      if (err instanceof DuplicatePatientError) return await duplicateResponse(err);
-      if (err instanceof SlotConflictError) return conflictResponse();
-      if (err instanceof LimitReachedError) return await limitResponse();
-      if (followUpTaken(err)) return followUpTakenResponse();
-      throw err;
-    }
-    await notify(appointment.id, 0);
-    return NextResponse.json({ success: true, appointmentId: appointment.id, paymentMode: "postpaid", confirmationWithheld: suppressContactMessages, isOnline, meetingUrl: isOnline ? await loadMeetingUrl(appointment.id) : null });
-  }
-
-  // Prepaid path — redirect to Razorpay Payment Link
-  const razorpayKey = process.env.RAZORPAY_KEY_ID;
-
-  // Fail closed in production: never create an unpaid appointment for a prepaid
-  // business just because Razorpay isn't configured. The free "demo" path below
-  // is only acceptable in non-production environments.
-  if (!razorpayKey && process.env.NODE_ENV === "production") {
-    return NextResponse.json(
-      { error: "Online payments are temporarily unavailable. Please try again later." },
-      { status: 503 },
-    );
-  }
-
-  if (razorpayKey) {
-    // The legacy payment-link flow rebuilds the appointment from link metadata and cannot carry the mode.
-    if (isOnline) {
-      return NextResponse.json({ error: "Online consultations can't be paid in advance yet. Please contact the business." }, { status: 400 });
-    }
-    // The slot was checked above (non-binding); it is stored once the payment confirms.
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? `http://localhost:${process.env.PORT ?? 3000}`;
-    const currency = (business.currency ?? DEFAULT_CURRENCY).toUpperCase();
-
-    const paymentLink = await (razorpay.paymentLink.create as any)({
-      amount: Math.round(totalPrice * 100),
-      currency,
-      description: `${serviceNamesLabel} · ${business.name}`,
-      customer: {
-        name: clientName,
-        email: clientEmail,
-        contact: clientPhone ?? "",
-      },
-      notify: { sms: false, email: false },
-      callback_url: `${appUrl}/booking/success`,
-      callback_method: "get",
-      notes: {
-        businessSlug,
-        serviceIds: JSON.stringify(serviceIds),
-        staffId: chosenStaffId ?? "",
-        date,
-        time,
-        clientName,
-        clientEmail,
-        clientPhone: clientPhone ?? "",
-        notes: notes ?? "",
-      },
-    });
-
-    return NextResponse.json({ url: paymentLink.short_url });
-  }
-
-  // Dev/demo mode — create appointments without payment
+  // Online payments off (or unavailable): the booking is confirmed and the client pays at the visit.
   client = await getOrCreateClient();
   let appointment;
   try {
-    appointment = await createAppointment(client.id, "unpaid", "prepaid");
+    appointment = await createAppointment(client.id, "unpaid", "postpaid");
   } catch (err) {
     if (err instanceof DuplicatePatientError) return await duplicateResponse(err);
-      if (err instanceof SlotConflictError) return conflictResponse();
+    if (err instanceof SlotConflictError) return conflictResponse();
     if (err instanceof LimitReachedError) return await limitResponse();
+    if (followUpTaken(err)) return followUpTakenResponse();
     throw err;
   }
-  await notify(appointment.id, totalPrice);
-  return NextResponse.json({ success: true, appointmentId: appointment.id, confirmationWithheld: suppressContactMessages, isOnline, meetingUrl: isOnline ? await loadMeetingUrl(appointment.id) : null });
+  await notify(appointment.id, 0);
+  return NextResponse.json({ success: true, appointmentId: appointment.id, paymentMode: "postpaid", confirmationWithheld: suppressContactMessages, isOnline, meetingUrl: isOnline ? await loadMeetingUrl(appointment.id) : null });
 }
 
 /**

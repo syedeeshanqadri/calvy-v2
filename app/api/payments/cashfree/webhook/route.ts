@@ -26,13 +26,13 @@ async function POST_handler(req: NextRequest) {
     return NextResponse.json({ received: true, result: "missing_amount" });
   }
 
-  const outcome = await applyPaymentEvent(prismaPaymentEventStore, "CASHFREE", event);
+  const outcome = await applyPaymentEvent(prismaPaymentEventStore, "CASHFREE", event, { gatewayId: null });
   if (outcome.result === "amount_mismatch" || outcome.result === "unknown_order") {
     logger.warn("[Cashfree] webhook not applied", { result: outcome.result, orderId: event.providerOrderId, kind: event.kind });
   }
   if (event.kind === "PAID") {
     // Also on a redelivery: settling is idempotent and finishes work a crashed attempt left undone.
-    const payment = await prisma.payment.findFirst({ where: { provider: "CASHFREE", providerOrderId: event.providerOrderId, status: "PAID" }, select: { id: true } });
+    const payment = await prisma.payment.findFirst({ where: { provider: "CASHFREE", providerOrderId: event.providerOrderId, gatewayId: null, status: "PAID" }, select: { id: true } });
     if (payment) await settlePaidPayment(payment.id);
   }
   // 200 for every verified event (including duplicates) so Cashfree stops retrying.

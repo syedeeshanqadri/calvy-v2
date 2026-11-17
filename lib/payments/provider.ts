@@ -1,7 +1,7 @@
 // Payment gateway interface. Implementations: mock.ts (tests, dev without keys) and cashfree.ts.
 // Money is in integer minor units; adapters convert to the gateway's format.
 
-export type ProviderName = "MOCK" | "CASHFREE";
+export type ProviderName = "MOCK" | "CASHFREE" | "RAZORPAY" | "PHONEPE";
 
 export interface CreateOrderInput {
   /** Our order id (also the gateway's order_id): unique, [A-Za-z0-9_-], max 45 chars. */
@@ -21,8 +21,12 @@ export interface CreateOrderInput {
 
 export interface CreatedOrder {
   providerOrderId: string;
-  /** Token the checkout page needs (Cashfree payment_session_id). */
+  /** Token the checkout page needs (Cashfree payment_session_id). For redirect gateways it is the hosted payment page URL. */
   sessionId: string;
+  /** The gateway's own id for the order when it differs from ours (Razorpay payment link id, PhonePe orderId). */
+  gatewayRef?: string;
+  /** True when sessionId is a URL to send the customer to (Razorpay, PhonePe) instead of a Cashfree SDK session. */
+  redirect?: boolean;
   expiresAt: Date | null;
 }
 
@@ -30,6 +34,7 @@ export type OrderState = "ACTIVE" | "PAID" | "EXPIRED" | "TERMINATED" | "UNKNOWN
 
 export interface RefundInput {
   providerOrderId: string;
+  gatewayRef?: string | null;
   /** Our refund id: unique per refund, makes retries safe. */
   refundId: string;
   amountMinor: number;
@@ -53,7 +58,9 @@ export interface PaymentEvent {
 export interface PaymentProvider {
   readonly name: ProviderName;
   createOrder(input: CreateOrderInput): Promise<CreatedOrder>;
-  getOrderState(providerOrderId: string): Promise<OrderState>;
+  getOrderState(providerOrderId: string, gatewayRef?: string | null): Promise<OrderState>;
+  /** A real, lightweight call that proves the credentials work (used by "Verify" in Settings). */
+  verify?(): Promise<{ ok: true } | { ok: false; reason: string }>;
   refund(input: RefundInput): Promise<{ refundRef: string }>;
   /** Returns the normalised event, or null when the signature is missing or wrong. */
   verifyWebhook(rawBody: string, headers: Headers): PaymentEvent | null;

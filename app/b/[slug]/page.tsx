@@ -6,7 +6,6 @@ import { getPayConfig } from "@/lib/onlinePayment";
 import { contactRequirements } from "@/lib/patients";
 import { parseSocialLinks, safeReviewLink } from "@/lib/brandLinks";
 import { followUpFromQuery } from "@/lib/followUpDb";
-import { creditOfferFromQuery } from "@/lib/creditDb";
 import { BookingClient } from "./BookingClient";
 import { siteFontClasses } from "@/app/[slug]/fonts";
 
@@ -57,5 +56,5 @@ export default async function BusinessBookingPage(props: { params: Promise<{ slu
     })),
   };
 
-  return <BookingClient credit={await creditOfferFromQuery((await props.searchParams).credit, business)} followUp={await followUpFromQuery((await props.searchParams).followUp, business)} business={data} fontClasses={await siteFontClasses(business.packId)} />;
+  return <BookingClient followUp={await followUpFromQuery((await props.searchParams).followUp, business)} business={data} fontClasses={await siteFontClasses(business.packId)} />;
 }

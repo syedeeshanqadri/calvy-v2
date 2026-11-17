@@ -18,7 +18,6 @@ const NAV: { label: string; href: string; icon: typeof LayoutDashboard; exact?: 
   { label: "Businesses", href: "/admin/businesses", icon: Building2 },
   { label: "Plans & Pricing", href: "/admin/plans", icon: CreditCard },
   { label: "Revenue", href: "/admin/revenue", icon: TrendingUp },
-  { label: "Withdrawals", href: "/admin/withdrawals", icon: ArrowDownToLine, flag: "wallet" },
   { label: "Notifications", href: "/admin/notifications", icon: Send, exact: true },
   { label: "Delivery log", href: "/admin/notifications/log", icon: ScrollText },
   { label: "WhatsApp review", href: "/admin/whatsapp-review", icon: Send },

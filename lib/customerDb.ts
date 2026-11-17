@@ -1,7 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { generateToken, hashToken, tokenExpiry, isExpired, RESET_TOKEN_TTL_MS, VERIFY_TOKEN_TTL_MS } from "@/lib/auth-tokens";
-import { splitBookings, walletsByBusiness } from "@/lib/customerView";
+import { splitBookings, waiversByBusiness } from "@/lib/customerView";
 
 type Db = Prisma.TransactionClient | typeof prisma;
 export type TokenPurpose = "verify" | "reset";
@@ -41,7 +41,7 @@ export async function overviewForCustomer(c: { email: string; verified: boolean 
  */
 export async function loadCustomerOverview(verifiedEmail: string, now: Date = new Date()) {
   const who = { email: { equals: verifiedEmail, mode: "insensitive" as const } };
-  const [appointments, credits] = await Promise.all([
+  const [appointments, waivers] = await Promise.all([
     prisma.appointment.findMany({
       // A token moved to another day leaves a "MOVED" placeholder on the old day: not a booking of its own.
       where: { client: who, OR: [{ queueState: null }, { queueState: { not: "MOVED" } }] },
@@ -55,13 +55,13 @@ export async function loadCustomerOverview(verifiedEmail: string, now: Date = ne
         business: { select: { name: true, slug: true, timezone: true, currency: true, phone: true, cancellationCutoffHours: true, followUpDays: true, googleReviewUrl: true } },
       },
     }),
-    prisma.customerCredit.findMany({
-      where: { client: who },
-      select: { amountMinor: true, currency: true, businessId: true, business: { select: { name: true, slug: true } } },
+    prisma.confirmationWaiver.findMany({
+      where: { client: who, usedAppointmentId: null },
+      select: { businessId: true, business: { select: { name: true, slug: true } } },
     }),
   ]);
   return {
     ...splitBookings(appointments, now),
-    wallets: walletsByBusiness(credits.map((c) => ({ businessId: c.businessId, businessName: c.business.name, businessSlug: c.business.slug, currency: c.currency, amountMinor: c.amountMinor }))),
+    waivers: waiversByBusiness(waivers.map((w) => ({ businessId: w.businessId, businessName: w.business.name, businessSlug: w.business.slug }))),
   };
 }

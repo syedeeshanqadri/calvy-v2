@@ -9,7 +9,7 @@ import { sendPushToBusiness } from "@/lib/push";
 import { shortName } from "@/lib/pushRouting";
 import { bookExclusive, SlotConflictError, conflictMessage, isPastBooking } from "@/lib/booking";
 import { loadAvailability, type AvailabilityQuery } from "@/lib/availability";
-import { creditClosedBooking } from "@/lib/creditDb";
+import { keepConfirmationFee } from "@/lib/waiver";
 import { formatDateLabel, formatTimeLabel, safeTimeZone, zonedTimeToUtc } from "@/lib/time";
 import { manageability } from "@/lib/customerView";
 import { beforeCancellationCutoff } from "@/lib/holds";
@@ -151,14 +151,14 @@ export async function rescheduleByCustomer(verifiedEmail: string, id: string, da
   return { ok: true, dateLabel, timeLabel };
 }
 
-/** Cancel the booking. Anything paid online becomes credit at that business; a customer cancellation is never refunded to the card. */
-export async function cancelByCustomer(verifiedEmail: string, id: string): Promise<{ ok: true; credit: { amountMinor: number; currency: string } | null } | Fail> {
+/** Cancel the booking. The Rs 10 confirmation fee is kept (valid for one rebooking at that business); a customer cancellation is never refunded to the card. */
+export async function cancelByCustomer(verifiedEmail: string, id: string): Promise<{ ok: true; feeKept: boolean } | Fail> {
   const a = await findOwned(verifiedEmail, id);
   if (!a) return fail(404, "Booking not found.");
   const can = manageability(a, new Date());
   if (!can.ok) return fail(409, can.reason, can.code);
 
-  const credit = await prisma.$transaction(async (tx) => {
+  const kept = await prisma.$transaction(async (tx) => {
     // Guarded on the status we just checked, so two quick clicks cancel once.
     // A queue token is closed on the queue screen too, and only while it is still waiting there.
     const token = a.tokenNumber ? { OR: [{ queueState: null }, { queueState: "WAITING" as const }] } : {};
@@ -167,9 +167,9 @@ export async function cancelByCustomer(verifiedEmail: string, id: string): Promi
       data: { status: "cancelled", ...(a.tokenNumber ? { queueState: "CANCELLED" as const } : {}) },
     });
     if (claimed.count !== 1) return "already" as const;
-    return creditClosedBooking(tx, { businessId: a.businessId, clientId: a.client.id, appointmentId: a.id, kind: "CANCELLED", note: "Cancelled by the customer" });
+    return keepConfirmationFee(tx, { businessId: a.businessId, clientId: a.client.id, appointmentId: a.id });
   });
-  if (credit === "already") return fail(409, "This booking was already cancelled.", "STATUS");
+  if (kept === "already") return fail(409, "This booking was already cancelled.", "STATUS");
 
   const tz = safeTimeZone(a.business.timezone);
   sendPushToBusiness(a.businessId, {
@@ -183,5 +183,5 @@ export async function cancelByCustomer(verifiedEmail: string, id: string): Promi
   } catch (err) {
     logger.error("[CustomerAppt] cancellation notification failed", { err });
   }
-  return { ok: true, credit };
+  return { ok: true, feeKept: kept };
 }

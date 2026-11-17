@@ -13,8 +13,7 @@ import { planNear } from "@/lib/queueNear";
 import { notifyTokenVisitCompleted } from "@/lib/notifications/completion";
 import { recordWhatsAppConsent, whatsappOffered } from "@/lib/whatsapp/consent";
 import { DEFAULT_CURRENCY } from "@/lib/currency";
-import { creditLabel } from "@/lib/credit";
-import { creditClosedBooking } from "@/lib/creditDb";
+import { keepConfirmationFee } from "@/lib/waiver";
 import { getEffectiveLimits } from "@/lib/getFeatures";
 import { assertMonthlyHeadroom, startOfBusinessMonth, LimitReachedError } from "@/lib/limits";
 import { logger } from "@/lib/logger";
@@ -250,19 +249,17 @@ export async function runQueueAction(
     const { etas } = await writePlan(tx, rows, plan, session, input.date, tz);
     const subject = plan.subjectId ? rows.find((r) => r.id === plan.subjectId) : undefined;
 
-    // A booking closed here (missed four calls, or cancelled) turns what was paid online into wallet
-    // credit for that customer at this clinic. Nothing is refunded and nothing moves to another day.
-    let credit: { amountMinor: number; currency: string } | null = null;
+    // A booking closed here (missed four calls, or cancelled) keeps its Rs 10 confirmation fee, and the customer can rebook once
+    // at this business without paying it again. Nothing is refunded and nothing moves to another day.
+    let feeKept = false;
     if (subject && (plan.outcome === "no_show" || plan.outcome === "cancelled")) {
-      credit = await creditClosedBooking(tx, {
-        businessId: biz.id, clientId: subject.clientId, appointmentId: subject.id, kind: plan.outcome === "no_show" ? "MISSED" : "CANCELLED",
-      });
+      feeKept = await keepConfirmationFee(tx, { businessId: biz.id, clientId: subject.clientId, appointmentId: subject.id });
     }
 
-    return { plan, subject, etas, credit, session, rows };
+    return { plan, subject, etas, feeKept, session, rows };
   }, BOOKING_TX_OPTIONS);
 
-  const { plan, subject, etas, credit, session } = done;
+  const { plan, subject, etas, feeKept, session } = done;
 
   // Customer emails are queued after the transaction; a failed one never undoes the queue action.
   if (subject && plan.subjectId && (subject.client.email || whatsappReachable(subject.client))) {
@@ -294,7 +291,7 @@ export async function runQueueAction(
             : await ownerAlert(notice, "status", { version: "no_show", statusLabel: "closed after missed calls" }));
           await notify(queueClosed(notice, {
             reason: plan.outcome === "no_show" ? "missed" : "cancelled",
-            creditLabel: credit ? creditLabel(credit.amountMinor, credit.currency) : undefined,
+            feeKept: feeKept || undefined,
             loginUrl: `${(process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000").replace(/\/$/, "")}/my`,
           }));
         }
@@ -318,7 +315,7 @@ export async function runQueueAction(
       place: plan.subjectId ? placeInLine(plan.order, plan.subjectId) : undefined,
       called: called ? { token: called.tokenNumber ?? 0, name: called.client.name } : undefined,
       misses: subject ? (plan.updates[subject.id]?.notPresentCount ?? subject.notPresentCount) : undefined,
-      credit: plan.outcome === "no_show" || plan.outcome === "cancelled" ? (credit ? creditLabel(credit.amountMinor, credit.currency) : null) : undefined,
+      feeKept: plan.outcome === "no_show" || plan.outcome === "cancelled" ? feeKept : undefined,
       emailed: !!subject?.client.email,
     }),
   };
