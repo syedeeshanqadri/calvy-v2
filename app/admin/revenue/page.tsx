@@ -51,7 +51,7 @@ export default async function AdminRevenuePage() {
   const maxRevenue = Math.max(...monthlyRevenue.map(m => m._sum.price ?? 0), 1);
 
   return (
-    <div className="p-8 space-y-8">
+    <div className="p-4 md:p-8 space-y-8">
       <div>
         <h1 className="font-syne font-bold text-2xl">Revenue</h1>
         <p className="text-[#6b6b80] text-sm mt-1">Platform-wide booking revenue across all tenants</p>
@@ -100,6 +100,7 @@ export default async function AdminRevenuePage() {
         {tenantRevenue.length === 0 ? (
           <div className="p-8 text-center text-[#6b6b80] text-sm">No paid appointments this month yet</div>
         ) : (
+          <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-[#fafaf8] border-b border-[#f0ede8]">
@@ -123,6 +124,7 @@ export default async function AdminRevenuePage() {
               })}
             </tbody>
           </table>
+          </div>
         )}
       </div>
     </div>

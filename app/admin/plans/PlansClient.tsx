@@ -193,7 +193,7 @@ export function PlansClient({ plans: initialPlans, tenantCounts }: Props) {
   }
 
   return (
-    <div className="p-8 space-y-8">
+    <div className="p-4 md:p-8 space-y-8">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="font-syne font-bold text-2xl">Plans & Pricing</h1>

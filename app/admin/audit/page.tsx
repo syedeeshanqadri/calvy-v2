@@ -33,7 +33,7 @@ export default async function AdminAuditPage(props: { searchParams: Promise<Reco
   const qs = (page: number) => { const p = new URLSearchParams(); for (const [k, v] of Object.entries({ ...f, page })) if (v !== undefined && v !== "" && !(k === "page" && v === 1)) p.set(k, String(v)); return `/admin/audit?${p}`; };
 
   return (
-    <div className="p-8 space-y-6">
+    <div className="p-4 md:p-8 space-y-6">
       <div><h1 className="font-syne font-bold text-2xl">Audit log</h1><p className="text-sm text-[#6b6b80]">{total} entries. Append-only: nothing here can be edited or deleted.</p></div>
       <form method="get" className="flex flex-wrap gap-2 items-end" aria-label="Filters">
         <select name="action" defaultValue={f.action ?? ""} className={field} aria-label="Action">

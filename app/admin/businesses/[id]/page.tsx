@@ -27,7 +27,7 @@ export default async function AdminBusinessPage(props: { params: Promise<{ id: s
   const limits = await getEffectiveLimits({ plan: b.plan, planStatus: b.planStatus });
 
   return (
-    <div className="p-8 space-y-6 max-w-6xl">
+    <div className="p-4 md:p-8 space-y-6 max-w-6xl">
       <div className="flex items-start justify-between flex-wrap gap-3">
         <div>
           <Link href="/admin/businesses" className="text-xs text-[#6b6b80] hover:underline">← Businesses</Link>

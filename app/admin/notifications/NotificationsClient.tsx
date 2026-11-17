@@ -49,7 +49,7 @@ export default function NotificationsClient() {
   }
 
   return (
-    <div className="max-w-xl">
+    <div className="p-4 md:p-8 max-w-xl">
       <div className="mb-6">
         <h1 className="font-syne font-bold text-xl">Send Notification</h1>
         <p className="text-sm text-[#6b6b80] mt-1">Push a notification to tenant dashboards in real-time.</p>

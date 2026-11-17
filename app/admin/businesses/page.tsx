@@ -21,7 +21,7 @@ export default async function AdminBusinessesPage(props: { searchParams: Promise
   };
 
   return (
-    <div className="p-8 space-y-6">
+    <div className="p-4 md:p-8 space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div><h1 className="font-syne font-bold text-2xl">Businesses</h1><p className="text-sm text-[#6b6b80]">{total} found</p></div>
         <Link href="/admin/businesses/new" className="h-10 px-4 inline-flex items-center rounded-xl bg-accent text-white text-sm font-semibold">Create business</Link>
