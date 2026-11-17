@@ -22,6 +22,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${APP_URL}/about`, changeFrequency: "yearly", priority: 0.4 },
     { url: `${APP_URL}/contact`, changeFrequency: "yearly", priority: 0.4 },
     { url: `${APP_URL}/service-delivery`, changeFrequency: "yearly", priority: 0.3 },
+    { url: `${APP_URL}/data-deletion`, changeFrequency: "yearly", priority: 0.3 },
   ];
 
   let posts: { slug: string; updatedAt: Date }[] = [];
