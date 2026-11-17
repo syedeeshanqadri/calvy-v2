@@ -33,11 +33,23 @@ describe("contrast", () => {
     expect(readableForeground("#ffe14d")).toBe("#0f0f1a");
     expect(readableForeground("#ffffff")).toBe("#0f0f1a");
   });
-  it("the chosen foreground is never worse than the other option", () => {
-    for (const c of ["#0284c7", "#f59e0b", "#22c55e", "#ec4899", "#fde047", "#1e3a8a", "#777777"]) {
+  it("red, blue, purple and pink themes get WHITE button text (a red theme with black text was the bug)", () => {
+    for (const c of ["#e84545", "#ef4444", "#dc2626", "#0284c7", "#3b82f6", "#8b5cf6", "#ec4899", "#be185d", "#6366f1"]) {
+      expect(readableForeground(c), c).toBe("#ffffff");
+    }
+  });
+  it("light themes (yellow, amber, green, orange, pale) get dark text", () => {
+    for (const c of ["#fde047", "#f59e0b", "#22c55e", "#f97316", "#14b8a6", "#a7f3d0", "#ffffff"]) {
+      expect(readableForeground(c), c).toBe("#0f0f1a");
+    }
+  });
+  it("the text colour used always reaches at least 3:1 (the best of the two for colours where white cannot)", () => {
+    for (let r = 0; r < 256; r += 51) for (let g = 0; g < 256; g += 51) for (let b = 0; b < 256; b += 51) {
+      const c = `#${[r, g, b].map((v) => v.toString(16).padStart(2, "0")).join("")}`;
       const fg = readableForeground(c);
       const other = fg === "#ffffff" ? "#0f0f1a" : "#ffffff";
-      expect(contrastRatio(c, fg)).toBeGreaterThanOrEqual(contrastRatio(c, other));
+      // Never picks the worse option unless it still clears the white-text minimum.
+      expect(contrastRatio(c, fg) >= contrastRatio(c, other) || contrastRatio(c, fg) >= 3, c).toBe(true);
       expect(bestContrast(c)).toBeCloseTo(contrastRatio(c, fg), 5);
     }
   });

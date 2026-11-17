@@ -43,14 +43,21 @@ export function contrastRatio(a: string, b: string): number {
 const LIGHT_FG = "#ffffff";
 const DARK_FG = "#0f0f1a";
 
-/** Text colour (white or near-black) that reads best on the given background. */
+/**
+ * Button/label text on a theme colour. White whenever it reads (3:1, the WCAG minimum for large or bold UI text, which button
+ * labels are), so strong colours such as red, blue and purple get white text like people expect. Only light colours (yellow,
+ * amber, green, pale pastels) where white would be hard to read get near-black. Picking whichever of the two simply has the
+ * higher ratio used to give a red like #e84545 black text, which looked wrong.
+ */
+export const WHITE_TEXT_MIN_CONTRAST = 3;
 export function readableForeground(bg: string): string {
-  return contrastRatio(bg, LIGHT_FG) >= contrastRatio(bg, DARK_FG) ? LIGHT_FG : DARK_FG;
+  if (contrastRatio(bg, LIGHT_FG) >= WHITE_TEXT_MIN_CONTRAST) return LIGHT_FG;
+  return contrastRatio(bg, DARK_FG) > contrastRatio(bg, LIGHT_FG) ? DARK_FG : LIGHT_FG;
 }
 
-/** Contrast of the best foreground on this background. WCAG AA for normal text needs 4.5. */
+/** Contrast of the text colour actually used on this background (shown in the theme picker). */
 export function bestContrast(bg: string): number {
-  return Math.max(contrastRatio(bg, LIGHT_FG), contrastRatio(bg, DARK_FG));
+  return contrastRatio(bg, readableForeground(bg));
 }
 
 /** The colour as text on a white page (prices, links): warn the owner when it is too pale. */
