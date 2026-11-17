@@ -30,7 +30,7 @@ const NAV_ITEMS: { label: string; href: string; icon: typeof LayoutDashboard; fl
   { label: "Booking Page", href: "/dashboard/booking-page", icon: Link2 },
   { label: "Website", href: "/dashboard/website", icon: Globe },
   { label: "Billing", href: "/dashboard/billing", icon: Sparkles, flag: "payments" },
-  { label: "Support", href: "/dashboard/support", icon: LifeBuoy },
+  { label: "Support", href: "/dashboard/contact", icon: LifeBuoy },
   { label: "Phone alerts", href: "/dashboard/alerts", icon: Bell },
   { label: "Settings", href: "/dashboard/settings", icon: SlidersHorizontal },
   { label: "Notification settings", href: "/dashboard/settings/notifications", icon: SlidersHorizontal, memberOnly: true },

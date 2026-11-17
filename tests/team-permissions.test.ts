@@ -19,9 +19,13 @@ describe("permission helper: route groups", () => {
     expect(pathAllowed(rec, "/dashboard/analytics")).toBe(false);
   });
   it("owner-only areas are never reachable, whatever is ticked", () => {
-    for (const p of ["/dashboard/billing", "/dashboard/wallet", "/dashboard/payments", "/dashboard/settings", "/dashboard/settings/team", "/dashboard/staff", "/dashboard/support", "/admin", "/crm"]) {
+    for (const p of ["/dashboard/billing", "/dashboard/payments", "/dashboard/settings", "/dashboard/settings/team", "/dashboard/staff", "/dashboard/support", "/admin", "/crm"]) {
       expect(pathAllowed([...PERMISSIONS], p), p).toBe(false);
     }
+  });
+  it("the Support contact page is open to every role, the ticket inbox stays owner-only", () => {
+    expect(pathAllowed([], "/dashboard/contact")).toBe(true);
+    expect(pathAllowed([...PERMISSIONS], "/dashboard/support")).toBe(false);
   });
   it("the dashboard landing page is always open and a prefix match cannot be tricked", () => {
     expect(pathAllowed([], "/dashboard")).toBe(true);

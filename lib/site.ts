@@ -11,6 +11,7 @@ export const SITE_NAME = "Calvy";
 
 /** Public contact address (footer, help, legal pages, push contact). Change it here only. */
 export const SUPPORT_EMAIL = "support@calvy.io";
+export const TEAM_EMAIL = "team@calvy.io";
 
 /** Contact details shown on the Contact page only (the proprietor's name is not repeated anywhere else). */
 export const CONTACT = {
@@ -18,6 +19,7 @@ export const CONTACT = {
   address: "174, Rajbagh, Srinagar",
   phone: "+91 60052 86335",
   phoneHref: "tel:+916005286335",
+  whatsappHref: "https://wa.me/916005286335",
 } as const;
 
 /** Footer "Donate to plant a tree" link. */
