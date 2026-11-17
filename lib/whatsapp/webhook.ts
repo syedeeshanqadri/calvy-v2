@@ -67,7 +67,9 @@ export async function handleWebhook(businessId: string, phoneNumberId: string, p
         result.statuses++;
       }
 
-      for (const m of v.messages ?? []) {
+      // Only the "messages" field carries customer replies. Echoes of messages the business sent from the WhatsApp Business app
+      // (smb_message_echoes) are a different field and never reach here, so they can never count as a reply or an opt-out.
+      for (const m of ch.field && ch.field !== "messages" ? [] : v.messages ?? []) {
         if (m.type === "text" && m.from && isStopMessage(m.text?.body)) {
           await prisma.whatsAppOptOut.upsert({
             where: { businessId_phone: { businessId, phone: toE164(m.from) } },

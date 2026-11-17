@@ -20,7 +20,7 @@ vi.mock("@/lib/whatsapp/webhook", () => ({ handleWebhook: db.handleWebhook }));
 import { NextRequest } from "next/server";
 import { encryptSecret, decryptSecret } from "@/lib/notifications/secret";
 import { connectEmbedded, disconnectEmbedded, finishWithPin, metaEnv } from "@/lib/whatsapp/embedded";
-import { loginOptions, parseSessionMessage } from "@/lib/whatsapp/embeddedSession";
+import { COEXISTENCE_UNSUPPORTED_MESSAGE, coexistenceEnabled, isCoexistenceUnsupported, loginOptions, parseSessionMessage } from "@/lib/whatsapp/embeddedSession";
 import { handleCalvyWebhook } from "@/lib/whatsapp/calvyWebhook";
 import { GET, POST } from "@/app/api/whatsapp/webhook/route";
 import { POST as PER_BUSINESS_POST } from "@/app/api/whatsapp/webhook/[key]/route";
@@ -120,12 +120,14 @@ describe("connectEmbedded", () => {
   });
 
   it("coexistence: never registers the number (it is already registered in the WhatsApp Business app)", async () => {
+    process.env.WA_COEXISTENCE_ENABLED = "true";
     freshThenConnected();
     const g = graphFake({ ...happy, "GET 222": () => json({}) });
     const r = await connectEmbedded("b1", { code: "CODE12345", wabaId: "222", phoneNumberId: "111", coexistence: true }, bases, env, g.f);
     expect(r.ok).toBe(true);
     expect(g.calls.some((c) => c.url.includes("/register"))).toBe(false);
     expect(db.cfgUpsert.mock.calls[0][0].create.coexistence).toBe(true);
+    delete process.env.WA_COEXISTENCE_ENABLED;
   });
 
   it("refuses to overwrite a manual connection (disconnect first)", async () => {
@@ -142,6 +144,40 @@ describe("connectEmbedded", () => {
     const noSub = graphFake({ "GET oauth/access_token": () => json({ access_token: "T" }), "POST 222/subscribed_apps": () => json({ error: { message: "nope" } }, 400) });
     expect(await connectEmbedded("b1", { code: "CODE12345", wabaId: "222", phoneNumberId: "111", coexistence: false }, bases, env, noSub.f)).toMatchObject({ ok: false });
     expect(db.installTemplates).not.toHaveBeenCalled();
+  });
+});
+
+describe("coexistence flag and Meta error 3441107 / 3441072", () => {
+  const input = { code: "CODE12345", wabaId: "222", phoneNumberId: "111", coexistence: true };
+  it("is off unless WA_COEXISTENCE_ENABLED is true/1", () => {
+    expect(coexistenceEnabled({})).toBe(false);
+    expect(coexistenceEnabled({ WA_COEXISTENCE_ENABLED: "false" })).toBe(false);
+    expect(coexistenceEnabled({ WA_COEXISTENCE_ENABLED: "true" })).toBe(true);
+  });
+  it("flag off: the server refuses a coexistence connect without calling Meta", async () => {
+    delete process.env.WA_COEXISTENCE_ENABLED;
+    const g = graphFake(happy);
+    expect(await connectEmbedded("b1", input, bases, env, g.f)).toEqual({ ok: false, error: COEXISTENCE_UNSUPPORTED_MESSAGE });
+    expect(g.f).not.toHaveBeenCalled();
+  });
+  it("flag on: Meta error 3441107 / 3441072 from the Graph API becomes the friendly message", async () => {
+    process.env.WA_COEXISTENCE_ENABLED = "true";
+    for (const code of [3441107, 3441072]) {
+      db.cfgFindUnique.mockResolvedValue(null);
+      const g = graphFake({ "GET oauth/access_token": () => json({ error: { code, message: "(#" + code + ") technical text" } }, 400) });
+      expect(await connectEmbedded("b1", input, bases, env, g.f)).toEqual({ ok: false, error: COEXISTENCE_UNSUPPORTED_MESSAGE });
+    }
+    const sub = graphFake({ ...happy, "POST 222/subscribed_apps": () => json({ error: { code: 3441072, message: "x" } }, 400) });
+    expect(await connectEmbedded("b1", input, bases, env, sub.f)).toEqual({ ok: false, error: COEXISTENCE_UNSUPPORTED_MESSAGE });
+    delete process.env.WA_COEXISTENCE_ENABLED;
+  });
+  it("the same errors reported by the sign-in pop-up (error_id or message) get the friendly text", () => {
+    expect(isCoexistenceUnsupported(3441107)).toBe(true);
+    expect(isCoexistenceUnsupported("Error 3441072: not eligible")).toBe(true);
+    expect(isCoexistenceUnsupported(100, "other")).toBe(false);
+    const ev = (data: object) => JSON.stringify({ type: "WA_EMBEDDED_SIGNUP", event: "CANCEL", data });
+    expect(parseSessionMessage("https://www.facebook.com", ev({ error_message: "failed", error_id: "3441107" }))).toEqual({ kind: "error", message: COEXISTENCE_UNSUPPORTED_MESSAGE });
+    expect(parseSessionMessage("https://www.facebook.com", ev({ error_message: "x (3441072)" }))).toEqual({ kind: "error", message: COEXISTENCE_UNSUPPORTED_MESSAGE });
   });
 });
 
@@ -215,6 +251,34 @@ describe("Calvy-level webhook route", () => {
     const p = { entry: [{ id: "222", time: 1, changes: [{ field: "template_category_update", value: { message_template_name: "calvy_x_v1", new_category: "MARKETING" } }] }] };
     await handleCalvyWebhook(p);
     expect(db.handleWebhook.mock.calls[0][2].entry[0].changes[0]).toMatchObject({ field: "template_category_update", value: { new_category: "MARKETING" } });
+  });
+  it("coexistence fields (history, smb_app_state_sync, smb_message_echoes): signature checked, 200, minimal sync state, never a reply or opt-out", async () => {
+    db.cfgFindFirst.mockResolvedValue({ businessId: "b1", phoneNumberId: "111" });
+    const mk = (field: string, value: object) => JSON.stringify({ entry: [{ id: "222", time: 5, changes: [{ field, value: { metadata: { phone_number_id: "111" }, ...value } }] }] });
+    const echo = mk("smb_message_echoes", { message_echoes: [{ id: "e1", from: "919800000000", to: "919811111111", type: "text", text: { body: "STOP" } }] });
+    const hist = mk("history", { history: [{ metadata: { phase: 1, chunk_order: 1, progress: 42 }, threads: [{ id: "919811111111", messages: [{ text: { body: "private chat" } }] }] }] });
+    const state = mk("smb_app_state_sync", { state_sync: [{ type: "contacts", contact: { full_name: "A", phone_number: "919811111111" }, action: "add" }] });
+    expect((await POST(post(echo, "sha256=00"))).status).toBe(401);
+    for (const raw of [echo, hist, state]) expect((await POST(post(raw, sign(raw)))).status).toBe(200);
+    expect(db.handleWebhook).not.toHaveBeenCalled(); // never reaches the reply / opt-out handler
+    const writes = db.cfgUpdate.mock.calls.map((c) => c[0].data);
+    expect(writes[0]).toHaveProperty("lastEchoAt");
+    expect(writes[1]).toMatchObject({ historyProgress: 42 });
+    expect(writes[2]).toHaveProperty("lastStateSyncAt");
+    // No message text, contact or phone number is stored.
+    expect(JSON.stringify(writes)).not.toMatch(/STOP|private chat|919811111111|full_name/);
+    // A retried echo is applied once.
+    const seen = new Set<string>();
+    db.evCreate.mockImplementation(async ({ data }: { data: { key: string } }) => { if (seen.has(data.key)) throw Object.assign(new Error("dup"), { code: "P2002" }); seen.add(data.key); });
+    db.cfgUpdate.mockClear();
+    await POST(post(echo, sign(echo))); await POST(post(echo, sign(echo)));
+    expect(db.cfgUpdate).toHaveBeenCalledTimes(1);
+  });
+  it("an echo shaped like a customer message cannot become an opt-out in the shared handler", async () => {
+    const { handleWebhook } = await vi.importActual<typeof import("@/lib/whatsapp/webhook")>("@/lib/whatsapp/webhook");
+    // Same shape as a reply, but arriving on the echoes field: ignored.
+    const r = await handleWebhook("b1", "111", { entry: [{ changes: [{ field: "smb_message_echoes", value: { metadata: { phone_number_id: "111" }, messages: [{ from: "919800000000", type: "text", text: { body: "STOP" } }] } }] }] });
+    expect(r.optOuts).toBe(0);
   });
   it("the per-business (manual) webhook never accepts an embedded row", async () => {
     db.cfgFindUnique.mockResolvedValue({ businessId: "b1", phoneNumberId: "111", appSecretEnc: encryptSecret("x"), source: "EMBEDDED" });

@@ -42,7 +42,7 @@ function CopyField({ label, value }: { label: string; value: string }) {
 const NAME_STATUS: Record<string, string> = { APPROVED: "Approved", AVAILABLE_WITHOUT_REVIEW: "Approved", PENDING_REVIEW: "In review by Meta", DECLINED: "Declined by Meta", EXPIRED: "Expired", NONE: "Not submitted" };
 const WA_MANAGER_URL = "https://business.facebook.com/wa/manage/home/";
 
-export function WhatsAppClient({ initialConfig, initialTemplates, embedded }: { initialConfig: Config | null; initialTemplates: Tpl[]; embedded: { appId: string; configId: string } | null }) {
+export function WhatsAppClient({ initialConfig, initialTemplates, embedded }: { initialConfig: Config | null; initialTemplates: Tpl[]; embedded: { appId: string; configId: string; coexistence: boolean } | null }) {
   const [config, setConfig] = useState(initialConfig);
   const [templates, setTemplates] = useState(initialTemplates);
   const [phoneNumberId, setPhoneNumberId] = useState(initialConfig?.phoneNumberId ?? "");
@@ -143,8 +143,12 @@ export function WhatsAppClient({ initialConfig, initialTemplates, embedded }: { 
               {embedded ? (
                 <>
                   <p className="text-sm text-[#3a3a4a]">Connect in a few clicks: sign in to Facebook, pick or create your WhatsApp Business Account and add your number. Calvy installs the message templates for you.</p>
-                  <ConnectWithCalvy appId={embedded.appId} configId={embedded.configId} onDone={applyConnect} />
-                  <p className="text-xs text-[#6b6b80]">Already use the WhatsApp Business app on your phone? Pick the first button to keep using the app and Calvy on the same number. Meta limits apply in that mode: the app must be opened at least once every 13 days, disappearing messages, view-once and live location are turned off in one-to-one chats, broadcast lists become read-only, sending is capped at 20 messages per second, and the blue tick is not available. It is not offered in every country; Meta tells you if your number cannot be used. The &quot;new number&quot; option needs a number that is not on WhatsApp yet.</p>
+                  <ConnectWithCalvy appId={embedded.appId} configId={embedded.configId} coexistence={embedded.coexistence} onDone={applyConnect} />
+                  {embedded.coexistence ? (
+                    <p className="text-xs text-[#6b6b80]">Already use the WhatsApp Business app on your phone? Pick the first button to keep using the app and Calvy on the same number. Meta limits apply in that mode: the app must be opened at least once every 13 days, disappearing messages, view-once and live location are turned off in one-to-one chats, broadcast lists become read-only, sending is capped at 20 messages per second, and the blue tick is not available. It is not offered in every country; Meta tells you if your number cannot be used. The &quot;new number&quot; option needs a number that is not on WhatsApp yet.</p>
+                  ) : (
+                    <p className="text-xs text-[#6b6b80]">Numbers that are already in the WhatsApp Business app aren&apos;t supported yet. Use a number that is not on WhatsApp.</p>
+                  )}
                 </>
               ) : (
                 <p className="text-sm text-[#6b6b80]">One-click connect is not available on this server yet. Use the advanced option below.</p>

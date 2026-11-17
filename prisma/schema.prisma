@@ -940,6 +940,11 @@ model WhatsAppConfig {
   /// Embedded only: what Meta last said about the payment method (OK | MISSING | UNKNOWN) and the display-name review.
   paymentStatus   String?
   nameStatus      String?
+  /// Coexistence sync state only (no message content is ever stored): last echo of a message sent from the WhatsApp Business app,
+  /// last contact/state sync, and history-import progress (0-100) as Meta reported it.
+  lastEchoAt      DateTime?      @db.Timestamptz(3)
+  lastStateSyncAt DateTime?      @db.Timestamptz(3)
+  historyProgress Int?
   createdAt       DateTime       @default(now()) @db.Timestamptz(3)
   updatedAt       DateTime       @updatedAt @db.Timestamptz(3)
 }

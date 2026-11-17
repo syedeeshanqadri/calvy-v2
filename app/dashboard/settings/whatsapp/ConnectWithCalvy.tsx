@@ -25,7 +25,7 @@ function loadSdk(appId: string): Promise<FB> {
 export interface ConnectOutcome { ok: boolean; needPin?: boolean; wrongPin?: boolean; error?: string; json?: Record<string, unknown> }
 
 /** The two "Connect" buttons: FB.login with Calvy's Embedded Signup configuration, the WA_EMBEDDED_SIGNUP listener, then our server. */
-export function ConnectWithCalvy({ appId, configId, disabled, onDone }: { appId: string; configId: string; disabled?: boolean; onDone: (o: ConnectOutcome) => void }) {
+export function ConnectWithCalvy({ appId, configId, coexistence, disabled, onDone }: { appId: string; configId: string; coexistence: boolean; disabled?: boolean; onDone: (o: ConnectOutcome) => void }) {
   const [busy, setBusy] = useState<"" | "existing" | "new">("");
   const session = useRef<SessionMessage | null>(null);
   const waiters = useRef<(() => void)[]>([]);
@@ -73,8 +73,8 @@ export function ConnectWithCalvy({ appId, configId, disabled, onDone }: { appId:
 
   return (
     <div className="flex flex-wrap gap-2">
-      <Button size="sm" loading={busy === "existing"} disabled={disabled || !!busy} onClick={() => start(true)}>Connect my existing WhatsApp Business app number</Button>
-      <Button size="sm" variant="outline" loading={busy === "new"} disabled={disabled || !!busy} onClick={() => start(false)}>Use a new number</Button>
+      {coexistence && <Button size="sm" loading={busy === "existing"} disabled={disabled || !!busy} onClick={() => start(true)}>Connect my existing WhatsApp Business app number</Button>}
+      <Button size="sm" variant={coexistence ? "outline" : "primary"} loading={busy === "new"} disabled={disabled || !!busy} onClick={() => start(false)}>Use a new number</Button>
     </div>
   );
 }

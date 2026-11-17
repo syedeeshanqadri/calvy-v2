@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { encryptSecret } from "@/lib/notifications/secret";
 import { graph, type Fetcher } from "@/lib/whatsapp/graph";
+import { COEXISTENCE_UNSUPPORTED_MESSAGE, coexistenceEnabled, isCoexistenceUnsupported } from "@/lib/whatsapp/embeddedSession";
 import { credentialsOf, installTemplates, newKey, tryDecrypt, verifyAndStore } from "@/lib/whatsapp/store";
 import type { UrlBases } from "@/lib/whatsapp/templates";
 
@@ -26,9 +27,12 @@ const genPin = () => String(randomInt(0, 1_000_000)).padStart(6, "0");
 /** Meta's "PIN mismatch" family (133005) or any register error that talks about the PIN. */
 const isPinError = (r: { error?: { code?: number; message: string } }) => r.error?.code === 133005 || /\bpin\b/i.test(r.error?.message ?? "");
 
+/** Meta's message, or the friendly coexistence text when Meta refuses an existing-app number with 3441107 / 3441072. */
+const metaMessage = (r: { error?: { code?: number; message: string } }, fallback: string) => isCoexistenceUnsupported(r.error?.code, r.error?.message) ? COEXISTENCE_UNSUPPORTED_MESSAGE : r.error?.message ?? fallback;
+
 export async function exchangeCode(code: string, env: MetaEnv, fetcher?: Fetcher): Promise<{ ok: true; token: string } | { ok: false; error: string }> {
   const r = await graph<{ access_token?: string }>("", "oauth/access_token", { query: { client_id: env.appId, client_secret: env.appSecret, code } }, fetcher);
-  if (!r.ok || !r.data.access_token) return { ok: false, error: r.error?.message ?? "Meta did not accept the sign-in. Press Connect WhatsApp and try again." };
+  if (!r.ok || !r.data.access_token) return { ok: false, error: metaMessage(r, "Meta did not accept the sign-in. Press Connect WhatsApp and try again.") };
   return { ok: true, token: r.data.access_token };
 }
 
@@ -68,6 +72,7 @@ async function register(token: string, phoneId: string, pin: string, fetcher?: F
 }
 
 export async function connectEmbedded(businessId: string, input: ConnectInput, bases: UrlBases, env: MetaEnv, fetcher?: Fetcher): Promise<ConnectResult> {
+  if (input.coexistence && !coexistenceEnabled()) return { ok: false, error: COEXISTENCE_UNSUPPORTED_MESSAGE };
   const existing = await prisma.whatsAppConfig.findUnique({ where: { businessId }, select: { source: true } });
   if (existing?.source === "MANUAL") return { ok: false, error: "A manual connection is already saved. Disconnect it first, then connect with Calvy." };
 
@@ -82,14 +87,15 @@ export async function connectEmbedded(businessId: string, input: ConnectInput, b
 
   const sub = await graph(ex.token, `${input.wabaId}/subscribed_apps`, { method: "POST" }, fetcher);
   if (!sub.ok) {
-    await prisma.whatsAppConfig.update({ where: { businessId }, data: { status: "ERROR", statusReason: `Could not subscribe Calvy to your WhatsApp account: ${sub.error?.message}` } });
-    return { ok: false, error: `Could not subscribe Calvy to your WhatsApp account: ${sub.error?.message}` };
+    const error = isCoexistenceUnsupported(sub.error?.code, sub.error?.message) ? COEXISTENCE_UNSUPPORTED_MESSAGE : `Could not subscribe Calvy to your WhatsApp account: ${sub.error?.message}`;
+    await prisma.whatsAppConfig.update({ where: { businessId }, data: { status: "ERROR", statusReason: error } });
+    return { ok: false, error };
   }
 
   // A number already in the WhatsApp Business app is registered; registering it again would break coexistence.
   if (!input.coexistence) {
     const d = await phoneDetails(ex.token, input.phoneNumberId, fetcher);
-    if (!d.ok) return { ok: false, error: `Could not read your number from Meta: ${d.error?.message}` };
+    if (!d.ok) return { ok: false, error: `Could not read your number from Meta: ${metaMessage(d, "no details")}` };
     if (d.data.status !== "CONNECTED") {
       if (d.data.is_pin_enabled && !input.pin) {
         await prisma.whatsAppConfig.update({ where: { businessId }, data: { statusReason: "Enter the two-step verification PIN of this number." } });
@@ -99,7 +105,7 @@ export async function connectEmbedded(businessId: string, input: ConnectInput, b
       const reg = await register(ex.token, input.phoneNumberId, pin, fetcher);
       if (!reg.ok) {
         if (isPinError(reg)) return { ok: false, needPin: true, wrongPin: true };
-        return { ok: false, error: `Could not register your number: ${reg.error?.message}` };
+        return { ok: false, error: `Could not register your number: ${metaMessage(reg, "no details")}` };
       }
       await prisma.whatsAppConfig.update({ where: { businessId }, data: { pinEnc: encryptSecret(pin) } });
     }

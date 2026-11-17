@@ -32,6 +32,7 @@ secret, own webhook URL) stays under **Advanced** and keeps working unchanged.
 | `META_APP_SECRET` | server only | App secret: code exchange and webhook signatures. Never in the browser. |
 | `META_ES_CONFIG_ID` | server | Embedded Signup configuration ID (from step 6 below). Passed to the page as a prop. |
 | `META_WEBHOOK_VERIFY_TOKEN` | server | Any long random string; paste the same one into Meta. |
+| `WA_COEXISTENCE_ENABLED` | server | `true` shows "Connect my existing WhatsApp Business app number". Off (unset) by default: the page offers only "Use a new number" and the server refuses coexistence. Turn on once Meta enables coexistence for the app. |
 | `SITE_URL` | server | Already used for canonical URLs; the webhook URL is built from it. |
 
 Without the first three the Connect buttons are hidden and only Advanced is shown. One Meta app per environment (production, preview/dev): use separate values per Vercel environment.
@@ -64,7 +65,7 @@ Use the existing "calvy test" app for now.
 
 **D. Webhook**
 17. **WhatsApp > Configuration > Webhook > Edit**: Callback URL `{SITE_URL}/api/whatsapp/webhook`, Verify token = `META_WEBHOOK_VERIFY_TOKEN` > **Verify and save**. (Deploy the code first or the handshake fails.)
-18. Under **Webhook fields**, subscribe: `messages`, `message_template_status_update`, `template_category_update`, `message_template_quality_update`, `phone_number_quality_update`, `phone_number_name_update`, `account_update`.
+18. Under **Webhook fields**, subscribe: `messages`, `message_template_status_update`, `template_category_update`, `message_template_quality_update`, `phone_number_quality_update`, `phone_number_name_update`, `account_update`, and for coexistence `history`, `smb_app_state_sync`, `smb_message_echoes`.
     Calvy calls `POST /{waba}/subscribed_apps` for every business it connects, so each WABA's events reach this one callback.
 
 **E. App Review (advanced access)**
@@ -87,6 +88,8 @@ Limits Meta imposes (check Meta's current page before launch; they change):
 - Not available for every country or number; Meta shows an error in the pop-up when a number is not eligible.
 - Business app version must be recent (Meta requires an up-to-date WhatsApp Business app).
 - One number per WABA, and a number can be linked to one partner at a time.
+
+The coexistence webhook fields `history`, `smb_app_state_sync` and `smb_message_echoes` are verified like any delivery and answered 200. Only sync state is kept (time of the last echo / contact sync, history-import progress); no message text, contact or number is stored, and echoes (messages the business sent from the app) are never treated as customer replies or STOP opt-outs. If Meta refuses an existing-app number with error 3441107 or 3441072, the owner sees "Existing WhatsApp Business app numbers aren't supported yet" instead of Meta's text.
 
 Calvy only sends templates and reads delivery status and STOP replies, so none of this changes how reminders work, but the limits are also shown in Settings.
 

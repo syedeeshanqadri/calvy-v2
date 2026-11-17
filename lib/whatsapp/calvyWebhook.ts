@@ -14,6 +14,8 @@ type Change = NonNullable<Entry["changes"]>[number];
 type Value = NonNullable<Change["value"]> & { message_template_id?: number | string };
 
 const REFRESH_FIELDS = new Set(["phone_number_quality_update", "phone_number_name_update", "account_update", "account_review_update"]);
+/** Coexistence fields: acknowledged and reduced to a little sync state. Never routed to the reply / opt-out handler. */
+const SYNC_FIELDS = new Set(["history", "smb_app_state_sync", "smb_message_echoes"]);
 const PRUNE_AFTER_MS = 7 * 24 * 3_600_000;
 
 const hash = (s: string) => createHash("sha256").update(s).digest("hex").slice(0, 40);
@@ -24,6 +26,17 @@ export async function claimEvent(key: string): Promise<boolean> {
     if ((e as { code?: string }).code === "P2002") return false;
     throw e;
   }
+}
+
+interface SyncValue { history?: { metadata?: { progress?: number } }[] }
+
+/** Minimal state only: when, and how far a history import is. No message text, contact or phone number is kept. */
+async function storeSyncState(businessId: string, field: string, v: SyncValue) {
+  const now = new Date();
+  if (field === "smb_message_echoes") { await prisma.whatsAppConfig.update({ where: { businessId }, data: { lastEchoAt: now } }); return; }
+  if (field === "smb_app_state_sync") { await prisma.whatsAppConfig.update({ where: { businessId }, data: { lastStateSyncAt: now } }); return; }
+  const p = v.history?.map((h) => h.metadata?.progress).find((x): x is number => typeof x === "number");
+  await prisma.whatsAppConfig.update({ where: { businessId }, data: { lastStateSyncAt: now, ...(p !== undefined ? { historyProgress: Math.max(0, Math.min(100, Math.round(p))) } : {}) } });
 }
 
 export interface RouteResult { events: number; duplicates: number; unknown: number }
@@ -43,6 +56,13 @@ export async function handleCalvyWebhook(payload: WebhookPayload, fetcher?: Fetc
         // Not (or no longer) connected through Calvy: answer 200 so Meta does not retry it forever.
         logger.warn("[WhatsApp] webhook for an unknown number or account", { field: ch.field, phoneNumberId: phoneId, wabaId });
         out.unknown++;
+        continue;
+      }
+
+      if (SYNC_FIELDS.has(ch.field)) {
+        if (!(await claimEvent(`c:${hash(`${ch.field}:${wabaId}:${entry.time ?? ""}:${JSON.stringify(v)}`)}`))) { out.duplicates++; continue; }
+        await storeSyncState(cfg.businessId, ch.field, v as SyncValue);
+        out.events++;
         continue;
       }
 
