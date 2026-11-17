@@ -35,6 +35,8 @@ const optionalVars = {
   CASHFREE_APP_ID: optional,
   CASHFREE_SECRET_KEY: optional,
   CASHFREE_ENV: optional,
+  CASHFREE_SUBS_WEBHOOK_SECRET: optional,
+  CALVY_CIN: optional,
   SHADOW_DATABASE_URL: optional,
   UPSTASH_REDIS_REST_URL: optional,
   UPSTASH_REDIS_REST_TOKEN: optional,
