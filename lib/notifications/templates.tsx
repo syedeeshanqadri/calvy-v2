@@ -6,6 +6,7 @@ import {
   SubscriptionNoticeEmail, subscriptionNoticeLines, subscriptionNoticeSubject,
   PasswordResetEmail, OwnerAccountSetupEmail, TeamInviteEmail, QueueClosedEmail, QueueMovedBackEmail, ReviewRequestEmail, StatusChangeEmail, WelcomeEmail, businessAlertHeadline,
   type SubscriptionNoticeProps, type BookingProps, type BusinessAlertProps, type DailySummaryProps, type InvoiceProps,
+  rewardLine,
 } from "@/emails/templates";
 import type { TenantBrand } from "@/emails/EmailLayout";
 import { formatCurrencyAmount } from "@/lib/currency";
@@ -100,7 +101,7 @@ export const TEMPLATES = {
   confirmation: define<ConfirmationPayload>({
     subject: (p) => (p.token ? `Queue number #${p.token.number} confirmed: ${p.businessName}` : `Booking confirmed: ${p.serviceName} at ${p.businessName}`),
     Email: (p) => <BookingConfirmationEmail {...p} />,
-    text: (p) => lines(`Hi ${first(p.clientName)}, your ${appt(p)} at ${p.businessName} is confirmed.`, detailsText(p), joinText(p), p.token && p.trackUrl && `Track your place in line: ${p.trackUrl}`),
+    text: (p) => lines(`Hi ${first(p.clientName)}, your ${appt(p)} at ${p.businessName} is confirmed.`, detailsText(p), joinText(p), p.token && p.trackUrl && `Track your place in line: ${p.trackUrl}`, p.reward && rewardLine(p.reward)),
     attachments: (p) => (p.ics ? [icsAttachment({ appointmentId: p.ics.appointmentId, serviceName: p.serviceName, businessName: p.businessName, staffName: p.staffName, durationMinutes: p.ics.durationMinutes, start: new Date(p.ics.start) })] : undefined),
   }),
   reminder: define<BookingPayload>({

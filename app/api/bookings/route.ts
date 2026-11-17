@@ -37,6 +37,8 @@ import { checkVerifiedLimits, getVerifiedLimits, isVerifiedBooker } from "@/lib/
 import { FollowUpTicketError, resolveFollowUp } from "@/lib/followUpDb";
 import { claimWaiver, waiverAvailable } from "@/lib/waiver";
 import { WaiverTakenError } from "@/lib/tokenBooking";
+import { claimReward, rewardAvailable, progressFor, RewardTakenError } from "@/lib/rewards/service";
+import { rewardApplies } from "@/lib/rewards/rules";
 import { toMinor } from "@/lib/fees";
 
 export const dynamic = 'force-dynamic';
@@ -83,7 +85,8 @@ async function bookingHandler(req: NextRequest) {
   if (!business) return NextResponse.json({ error: "Business not found." }, { status: 404 });
   if (suspended(business)) return suspendedResponse(business.name);
   // A verified customer (proved by one of their own signed links) is held to the admin-set limits; guests keep the guest rules below.
-  if (await isVerifiedBooker(prisma, [parsed.data.verifiedTicket, parsed.data.followUpTicket], clientEmail)) {
+  const verifiedBooker = await isVerifiedBooker(prisma, [parsed.data.verifiedTicket, parsed.data.followUpTicket], clientEmail);
+  if (verifiedBooker) {
     const verdict = await checkVerifiedLimits(prisma, { businessId: business.id, businessName: business.name, email: clientEmail, limits: await getVerifiedLimits(prisma) });
     if (!verdict.ok) return NextResponse.json({ error: verdict.message, code: verdict.code }, { status: verdict.status });
   }
@@ -218,13 +221,13 @@ async function bookingHandler(req: NextRequest) {
         business, services: orderedServices, tokenSessionId, date, tz: bizTz,
         client: { name: clientName, email: clientEmail, phone: clientPhone },
         notes, maxMonthlyAppointments: limits.maxMonthlyAppointments, monthStart, payConfig, patientName, patientDetails, followUpOfId,
-        maxPeoplePerBooker: business.maxPeoplePerBooker, isOnline,
+        maxPeoplePerBooker: business.maxPeoplePerBooker, isOnline, verifiedBooker,
       });
     } catch (err) {
       if (err instanceof DuplicatePatientError) return await duplicateResponse(err);
       if (err instanceof LimitReachedError) return await limitResponse();
       if (followUpTaken(err)) return followUpTakenResponse();
-      if (err instanceof WaiverTakenError) return NextResponse.json({ error: err.message, code: "WAIVER_CHANGED" }, { status: 409 });
+      if (err instanceof WaiverTakenError || err instanceof RewardTakenError) return NextResponse.json({ error: err.message, code: "WAIVER_CHANGED" }, { status: 409 });
       throw err;
     }
   }
@@ -282,6 +285,7 @@ async function bookingHandler(req: NextRequest) {
     paymentModeVal: string,
     holdExpiresAt: Date | null = null,
     waive = false,
+    reward = false,
   ) {
     for (const cand of candidates) {
       try {
@@ -332,6 +336,8 @@ async function bookingHandler(req: NextRequest) {
             });
             // The waiver is claimed in the booking's own transaction: two parallel bookings cannot both skip the fee.
             if (waive && !(await claimWaiver(tx, { businessId: business!.id, clientId, appointmentId: created.id }))) throw new WaiverTakenError();
+            // Same for the loyalty reward: spent inside the booking's own transaction.
+            if (reward && !(await claimReward(tx, { appointmentId: created.id, email: clientEmail, phone: clientPhone }))) throw new RewardTakenError();
             return created;
           },
         );
@@ -391,7 +397,7 @@ async function bookingHandler(req: NextRequest) {
         },
       };
       // The business is always told; the contact only when not over its daily cap.
-      await queueNotification(suppressContactMessages ? null : confirmation(notice, appointmentStart), await ownerAlert(notice, "created"));
+      await queueNotification(suppressContactMessages ? null : confirmation(notice, appointmentStart, await progressFor(prisma, { email: clientEmail, phone: clientPhone })), await ownerAlert(notice, "created"));
     } catch (err) {
       logger.error("[Notifications] confirmation failed:", { err });
     }
@@ -422,6 +428,13 @@ async function bookingHandler(req: NextRequest) {
       payCharge = { chargeMinor: 0, platformFeeMinor: 0, businessShareMinor: 0, route: "NONE" };
       waived = true;
     }
+    // A loyalty reward (every 8th attended visit) waives the Rs 10 the same way, for a verified customer only. The kept-fee
+    // rebooking above goes first, so one booking never spends both.
+    let rewarded = false;
+    if (!waived && verifiedBooker && rewardApplies(charge) && (await rewardAvailable(prisma, { email: clientEmail, phone: clientPhone }))) {
+      payCharge = { chargeMinor: 0, platformFeeMinor: 0, businessShareMinor: 0, route: "NONE" };
+      rewarded = true;
+    }
     const gateway = payCharge.route === "GATEWAY" ? await defaultGateway(business.id) : null;
     if (payCharge.route === "GATEWAY" && !gateway) return NextResponse.json({ error: "Online payments are temporarily unavailable. Please try again later.", code: "PAYMENT_START_FAILED" }, { status: 503 });
     const hold = payCharge.chargeMinor > 0 ? holdExpiry() : null;
@@ -429,9 +442,9 @@ async function bookingHandler(req: NextRequest) {
     const venueMode = payCharge.route === "GATEWAY" && payCharge.chargeMinor >= toMinor(totalPrice) && hold ? "prepaid" : "postpaid";
     let appointment;
     try {
-      appointment = await createAppointment(client.id, "unpaid", venueMode, hold, waived);
+      appointment = await createAppointment(client.id, "unpaid", venueMode, hold, waived, rewarded);
     } catch (err) {
-      if (err instanceof WaiverTakenError) return NextResponse.json({ error: err.message, code: "WAIVER_CHANGED" }, { status: 409 });
+      if (err instanceof WaiverTakenError || err instanceof RewardTakenError) return NextResponse.json({ error: err.message, code: "WAIVER_CHANGED" }, { status: 409 });
       if (err instanceof DuplicatePatientError) return await duplicateResponse(err);
       if (err instanceof SlotConflictError) return conflictResponse();
       if (err instanceof LimitReachedError) return await limitResponse();
@@ -440,7 +453,7 @@ async function bookingHandler(req: NextRequest) {
     }
     if (!hold) {
       await notify(appointment.id, 0);
-      return NextResponse.json({ success: true, appointmentId: appointment.id, paymentMode: "postpaid", confirmationWithheld: suppressContactMessages, isOnline, meetingUrl: isOnline ? await loadMeetingUrl(appointment.id) : null });
+      return NextResponse.json({ success: true, appointmentId: appointment.id, paymentMode: "postpaid", confirmationWithheld: suppressContactMessages, isOnline, meetingUrl: isOnline ? await loadMeetingUrl(appointment.id) : null, rewarded, reward: verifiedBooker ? await progressFor(prisma, { email: clientEmail, phone: clientPhone }) : null });
     }
     const started = await startCheckout({
       appointmentId: appointment.id, businessId: business.id, businessName: business.name,

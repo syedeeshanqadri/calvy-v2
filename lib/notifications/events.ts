@@ -97,11 +97,11 @@ const base = (n: Notice) => ({
 });
 
 /** booking.created: sent once per booking, with the calendar invite. */
-export function confirmation(n: Notice, start: Date): NotificationInput | null {
+export function confirmation(n: Notice, start: Date, reward?: { done: number; of: number; available: number } | null): NotificationInput | null {
   if (!n.to) return null;
   return {
     ...base(n), event: "booking.created", template: "confirmation",
-    payload: { ...n.payload, ics: { appointmentId: n.appointmentId, start: start.toISOString(), durationMinutes: n.payload.duration ?? 30 } },
+    payload: { ...n.payload, ...(reward ? { reward } : {}), ics: { appointmentId: n.appointmentId, start: start.toISOString(), durationMinutes: n.payload.duration ?? 30 } },
   };
 }
 

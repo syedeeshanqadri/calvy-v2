@@ -5,7 +5,7 @@ import { signOut, useSession } from "next-auth/react";
 import {
   LayoutDashboard, Building2, CreditCard, TrendingUp,
   ShieldCheck, LogOut, ChevronRight, Bell, X, Send,
-  Users, HelpCircle, LifeBuoy, Newspaper, Contact, ScrollText, Menu,
+  Users, Gift, HelpCircle, LifeBuoy, Newspaper, Contact, ScrollText, Menu,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useFlags } from "@/components/providers/FlagsProvider";
@@ -18,6 +18,7 @@ const NAV: { label: string; href: string; icon: typeof LayoutDashboard; exact?: 
   { label: "Businesses", href: "/admin/businesses", icon: Building2 },
   { label: "Plans & Pricing", href: "/admin/plans", icon: CreditCard },
   { label: "Revenue", href: "/admin/revenue", icon: TrendingUp },
+  { label: "Offers", href: "/admin/offers", icon: Gift },
   { label: "Notifications", href: "/admin/notifications", icon: Send, exact: true },
   { label: "Delivery log", href: "/admin/notifications/log", icon: ScrollText },
   { label: "WhatsApp review", href: "/admin/whatsapp-review", icon: Send },

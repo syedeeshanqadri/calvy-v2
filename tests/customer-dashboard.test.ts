@@ -72,6 +72,7 @@ const mocks = vi.hoisted(() => ({
   db: {
     appointment: { findFirst: vi.fn(), updateMany: vi.fn(), update: vi.fn() },
     service: { findUnique: vi.fn() },
+    rewardRedemption: { findUnique: vi.fn(async () => null) },
     $transaction: vi.fn(),
   },
   notify: vi.fn(async (..._items: unknown[]) => {}),

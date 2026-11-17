@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, Bell, CalendarCheck, CalendarClock, CheckCircle2, Store, Ticket } from "lucide-react";
+import { ArrowRight, Bell, CalendarCheck, CalendarClock, CheckCircle2, Gift, Store, Ticket } from "lucide-react";
 import { getCustomerData } from "@/lib/customerData";
 import { BookingCard } from "@/components/my/BookingCard";
 import { PageHeader } from "@/components/my/PageHeader";
@@ -25,7 +25,7 @@ export default async function MyOverviewPage() {
     );
   }
 
-  const { upcoming, stats, updates, waivers } = data;
+  const { upcoming, stats, updates, waivers, reward } = data;
   const next = upcoming[0];
   const waiverTotal = waivers.length === 0 ? "None" : waivers.length === 1 ? waivers[0].businessName : `${waivers.length} businesses`;
 
@@ -34,13 +34,14 @@ export default async function MyOverviewPage() {
     { label: "Next appointment", value: next ? next.dateLabel : "None booked", icon: CalendarCheck, tone: "bg-violet-50 text-violet-600" },
     { label: "Visits completed", value: String(stats.completed), icon: CheckCircle2, tone: "bg-green-50 text-green-600" },
     { label: "Rebook without the Rs 10 fee", value: waiverTotal, icon: Ticket, tone: "bg-amber-50 text-amber-600" },
+    ...(reward ? [{ label: "Free booking reward", value: reward.available > 0 ? (reward.available === 1 ? "1 free booking ready" : `${reward.available} free bookings ready`) : `${reward.done} of ${reward.of} visits`, icon: Gift, tone: "bg-rose-50 text-rose-600" }] : []),
   ];
 
   return (
     <>
       <PageHeader title={`Hi ${first}`} subtitle={`Bookings made with ${data.me.email}`} />
 
-      <section aria-label="Summary" className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      <section aria-label="Summary" className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
         {cards.map((c) => (
           <div key={c.label} className="bg-white rounded-2xl border border-[#e8e6e0] p-4">
             <span className={`h-9 w-9 rounded-xl grid place-items-center ${c.tone}`}><c.icon size={18} aria-hidden /></span>

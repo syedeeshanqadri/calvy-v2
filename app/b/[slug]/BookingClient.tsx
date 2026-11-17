@@ -122,6 +122,9 @@ export function BookingClient({ business, fontClasses, homeHref = "/", followUp 
   const [onlineResult, setOnlineResult] = useState<{ meetingUrl: string | null } | null>(null);
   // The server did not email/WhatsApp the confirmation (a contact over its daily quota): say so, never silently.
   const [confirmationWithheld, setConfirmationWithheld] = useState(false);
+  // Loyalty reward (every 8th attended visit is free): known only for a verified customer (their own signed link).
+  const [reward, setReward] = useState<{ done: number; of: number; available: number } | null>(null);
+  const [rewardUsed, setRewardUsed] = useState(false);
   /** "created" / "verify": the booker's account waits for its emailed verify link. */
   const [accountNotice, setAccountNotice] = useState<string | null>(null);
   const [tokenDate, setTokenDate] = useState("");
@@ -227,6 +230,18 @@ export function BookingClient({ business, fontClasses, homeHref = "/", followUp 
     return () => { cancelled = true; };
   }, [tokenMode, step, selectedServices, staffParam, monthKey, monthRequest, totalDuration, business.slug]);
 
+  // Loyalty reward: ask once the customer's own verified email is filled in (needs their signed link, ?vt=).
+  const vt = searchParams?.get("vt") ?? "";
+  useEffect(() => {
+    if (!vt || !/^\S+@\S+\.\S+$/.test(form.email) || business.payConfig?.country !== "IN") return;
+    let cancelled = false;
+    fetch("/api/rewards/preview", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: form.email, verifiedTicket: vt }) })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (!cancelled) setReward(d?.reward ?? null); })
+      .catch(() => { if (!cancelled) setReward(null); });
+    return () => { cancelled = true; };
+  }, [vt, form.email, business.payConfig?.country]);
+
   const monthReady = monthData?.key === monthRequest;
   const monthDays = monthReady ? monthData.days : null;
   const nextAvailable = monthReady ? monthData.next : null;
@@ -308,12 +323,13 @@ export function BookingClient({ business, fontClasses, homeHref = "/", followUp 
   // Online charge for this booking (same calculator as the server, which stays authoritative).
   const payConfig = business.payConfig ?? null;
   const onlineCharge = payConfig ? chargeForConfig(payConfig, selectedServiceObjs.map((sv) => ({ serviceId: sv.id, price: sv.price }))) : null;
+  const rewardFree = !!reward && reward.available > 0 && onlineCharge?.route === "CALVY";
   const payNowMinor = onlineCharge?.chargeMinor ?? 0;
   const payNowLabel = formatCurrencyAmount(payNowMinor / 100, business.currency);
   // Phone is required in India, and whenever an online payment is due.
   const phoneNeeded = !!business.phoneRequired || payNowMinor > 0;
   const paymentLabel = payConfig
-    ? payNowMinor === 0
+    ? rewardFree ? `This booking is free (reward), service paid at ${appt1}` : payNowMinor === 0
       ? `Pay at ${appt1}`
       : onlineCharge?.route === "CALVY" ? `${payNowLabel} confirmation fee now, service paid at ${appt1}` : onlineCharge && onlineCharge.chargeMinor < toMinorPrice(totalPrice) ? `${payNowLabel} advance now, rest at ${appt1}` : `${payNowLabel} now, online`
     : business.paymentMode === "postpaid" ? `Pay at ${appt1}` : "Pay now via card";
@@ -363,7 +379,7 @@ export function BookingClient({ business, fontClasses, homeHref = "/", followUp 
         return;
       }
       addMyBooking(business.slug, { ...kept, confirmed: true });
-      if (data.url) { window.location.href = data.url; } else { if (data.token) setTokenResult(data.token); if (data.isOnline) setOnlineResult({ meetingUrl: data.meetingUrl ?? null }); setConfirmationWithheld(!!data.confirmationWithheld); setAccountNotice(typeof data.account === "string" ? data.account : null); setBooked(true); }
+      if (data.url) { window.location.href = data.url; } else { if (data.token) setTokenResult(data.token); if (data.isOnline) setOnlineResult({ meetingUrl: data.meetingUrl ?? null }); setConfirmationWithheld(!!data.confirmationWithheld); setRewardUsed(!!data.rewarded); if (data.reward) setReward(data.reward); setAccountNotice(typeof data.account === "string" ? data.account : null); setBooked(true); }
     } catch (e) { setError(e instanceof Error && e.message.startsWith("Could not load") ? e.message : "Network error. Please try again."); }
     finally { setLoading(false); }
   }
@@ -403,6 +419,12 @@ export function BookingClient({ business, fontClasses, homeHref = "/", followUp 
             </p>
           ) : (
             <p className="st-muted" style={{ marginTop: 10 }}>A confirmation has been sent to <strong>{form.email}</strong>.</p>
+          )}
+          {rewardUsed && <p className="bk-note" role="status" style={{ marginTop: 14, textAlign: "left" }}>This booking was free: you used a loyalty reward.</p>}
+          {reward && (
+            <p className="bk-note" role="status" style={{ marginTop: 14, textAlign: "left" }}>
+              {reward.available > 0 ? "A free booking is ready for your next visit." : `Loyalty: ${reward.done} of ${reward.of} visits toward a free booking.`}
+            </p>
           )}
           {accountNotice && (
             <p className="bk-note" role="status" style={{ marginTop: 14, textAlign: "left" }}>
