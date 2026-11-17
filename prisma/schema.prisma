@@ -931,8 +931,30 @@ model WhatsAppConfig {
   lastCheckedAt   DateTime?      @db.Timestamptz(3)
   /// Set when the owner was emailed about the current ERROR; cleared on reconnect, so one email per failure.
   errorNotifiedAt DateTime?      @db.Timestamptz(3)
+  /// MANUAL = the owner's own System User token and app secret; EMBEDDED = connected through Calvy's Meta app (Embedded Signup).
+  source          String         @default("MANUAL")
+  /// Embedded only: the number is also used in the WhatsApp Business app (coexistence).
+  coexistence     Boolean        @default(false)
+  /// Embedded only: the two-step verification PIN used to register the number, AES-GCM encrypted. Never returned or logged.
+  pinEnc          String?
+  /// Embedded only: what Meta last said about the payment method (OK | MISSING | UNKNOWN) and the display-name review.
+  paymentStatus   String?
+  nameStatus      String?
+  /// Coexistence sync state only (no message content is ever stored): last echo of a message sent from the WhatsApp Business app,
+  /// last contact/state sync, and history-import progress (0-100) as Meta reported it.
+  lastEchoAt      DateTime?      @db.Timestamptz(3)
+  lastStateSyncAt DateTime?      @db.Timestamptz(3)
+  historyProgress Int?
   createdAt       DateTime       @default(now()) @db.Timestamptz(3)
   updatedAt       DateTime       @updatedAt @db.Timestamptz(3)
+}
+
+/// One processed Calvy-level webhook event, so a retried delivery is applied once. Rows older than a week are pruned.
+model WhatsAppWebhookEvent {
+  key       String   @id
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([createdAt])
 }
 
 /// Our message templates as installed on a business's WABA, with Meta's approval status.

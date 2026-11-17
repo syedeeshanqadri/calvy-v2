@@ -19,14 +19,14 @@ export type Fetcher = typeof fetch;
 export async function graph<T = Record<string, unknown>>(
   token: string,
   path: string,
-  init: { method?: "GET" | "POST"; body?: unknown; query?: Record<string, string> } = {},
+  init: { method?: "GET" | "POST" | "DELETE"; body?: unknown; query?: Record<string, string> } = {},
   fetcher: Fetcher = fetch,
 ): Promise<GraphResult<T>> {
   const qs = init.query ? `?${new URLSearchParams(init.query).toString()}` : "";
   try {
     const res = await fetcher(`${GRAPH_BASE}/${path}${qs}`, {
       method: init.method ?? "GET",
-      headers: { Authorization: `Bearer ${token}`, ...(init.body ? { "Content-Type": "application/json" } : {}) },
+      headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(init.body ? { "Content-Type": "application/json" } : {}) },
       body: init.body ? JSON.stringify(init.body) : undefined,
       cache: "no-store",
     });

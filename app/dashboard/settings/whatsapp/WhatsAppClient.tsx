@@ -3,8 +3,10 @@ import { useState } from "react";
 import Link from "next/link";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { Button } from "@/components/ui/Button";
+import { ConnectWithCalvy, type ConnectOutcome } from "./ConnectWithCalvy";
 
 interface Config {
+  source?: string; coexistence?: boolean; paymentStatus?: string | null; nameStatus?: string | null;
   phoneNumberId: string; wabaId: string; accessTokenMasked: string | null; appSecretMasked: string | null;
   credentialsUnreadable?: boolean; callbackUrl: string; verifyToken: string; status: "PENDING" | "CONNECTED" | "ERROR"; statusReason: string | null;
   displayPhone: string | null; verifiedName: string | null; qualityRating: string | null; messagingTier: string | null; lastCheckedAt: string | null;
@@ -37,7 +39,10 @@ function CopyField({ label, value }: { label: string; value: string }) {
   );
 }
 
-export function WhatsAppClient({ initialConfig, initialTemplates }: { initialConfig: Config | null; initialTemplates: Tpl[] }) {
+const NAME_STATUS: Record<string, string> = { APPROVED: "Approved", AVAILABLE_WITHOUT_REVIEW: "Approved", PENDING_REVIEW: "In review by Meta", DECLINED: "Declined by Meta", EXPIRED: "Expired", NONE: "Not submitted" };
+const WA_MANAGER_URL = "https://business.facebook.com/wa/manage/home/";
+
+export function WhatsAppClient({ initialConfig, initialTemplates, embedded }: { initialConfig: Config | null; initialTemplates: Tpl[]; embedded: { appId: string; configId: string; coexistence: boolean } | null }) {
   const [config, setConfig] = useState(initialConfig);
   const [templates, setTemplates] = useState(initialTemplates);
   const [phoneNumberId, setPhoneNumberId] = useState(initialConfig?.phoneNumberId ?? "");
@@ -47,6 +52,9 @@ export function WhatsAppClient({ initialConfig, initialTemplates }: { initialCon
   const [busy, setBusy] = useState("");
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [testTo, setTestTo] = useState("");
+  const [needPin, setNeedPin] = useState(!!initialConfig && initialConfig.source === "EMBEDDED" && initialConfig.status === "PENDING" && /PIN/.test(initialConfig.statusReason ?? ""));
+  const [wrongPin, setWrongPin] = useState(false);
+  const [pin, setPin] = useState("");
 
   const run = async (key: string, fn: () => Promise<void>) => { setBusy(key); setMsg(null); try { await fn(); } finally { setBusy(""); } };
 
@@ -76,11 +84,26 @@ export function WhatsAppClient({ initialConfig, initialTemplates }: { initialCon
   });
   const disconnect = () => run("disconnect", async () => {
     if (!confirm("Disconnect WhatsApp? Customers will get email only.")) return;
-    await call("/api/settings/whatsapp", "DELETE");
-    setConfig(null); setTemplates([]); setPhoneNumberId(""); setWabaId("");
+    const r = await call("/api/settings/whatsapp", "DELETE");
+    setConfig(null); setTemplates([]); setPhoneNumberId(""); setWabaId(""); setNeedPin(false);
+    if (config?.source === "EMBEDDED" && r.json.unsubscribed === false) setMsg({ ok: false, text: "Disconnected here. Meta could not be reached to remove Calvy from your account; you can remove it in WhatsApp Manager > Integrations." });
+  });
+  const applyConnect = (o: ConnectOutcome) => {
+    const j = (o.json ?? {}) as { config?: Config; templates?: Tpl[]; failures?: string[] };
+    if (j.config) setConfig(j.config);
+    if (j.templates) setTemplates(j.templates);
+    setNeedPin(!!o.needPin); setWrongPin(!!o.wrongPin); setPin("");
+    if (o.needPin) setMsg({ ok: false, text: o.wrongPin ? "That PIN was not accepted. Try again." : "This number has two-step verification. Enter its 6-digit PIN to continue." });
+    else if (o.ok) setMsg({ ok: true, text: j.failures?.length ? `Connected. Some templates could not be sent to Meta yet: ${j.failures.slice(0, 2).join("; ")}` : "Connected. Calvy templates were sent to Meta for approval." });
+    else setMsg({ ok: false, text: o.error ?? "Could not connect." });
+  };
+  const submitPin = () => run("pin", async () => {
+    const r = await call("/api/settings/whatsapp/embedded/pin", "POST", { pin });
+    applyConnect({ ok: !!r.json.ok, needPin: r.json.needPin, wrongPin: r.json.wrongPin, error: r.json.error, json: r.json });
   });
 
   const connected = config?.status === "CONNECTED";
+  const isEmbedded = config?.source === "EMBEDDED";
   return (
     <DashboardLayout title="WhatsApp" subtitle="Message customers from your own WhatsApp Business number">
       <div className="max-w-3xl space-y-6">
@@ -103,26 +126,80 @@ export function WhatsAppClient({ initialConfig, initialTemplates }: { initialCon
               <div><dt className="text-xs text-[#6b6b80]">Messaging limit</dt><dd>{TIER[config.messagingTier ?? ""] ?? config.messagingTier ?? "-"}</dd></div>
             </dl>
           )}
+          {isEmbedded && config?.coexistence && (
+            <p className="text-xs text-[#6b6b80] rounded-xl bg-[#f7f5f0] px-3 py-2">This number is also used in your WhatsApp Business app. Meta&apos;s limits apply: open the WhatsApp Business app at least once every 13 days or the link to Calvy is dropped; disappearing messages, view-once and live location are turned off in one-to-one chats; broadcast lists become read-only; sending is capped at 20 messages per second; and the official-business blue tick is not available.</p>
+          )}
+          {isEmbedded && needPin && (
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-[#6b6b80] block">Two-step verification PIN (6 digits)
+                <input type="password" inputMode="numeric" autoComplete="off" maxLength={6} className={`${input} mt-1 max-w-[12rem]`} value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))} aria-invalid={wrongPin} />
+              </label>
+              <p className="text-xs text-[#6b6b80]">This is the PIN you set for this number in WhatsApp. Forgot it? Reset it in WhatsApp &gt; Settings &gt; Account &gt; Two-step verification. Calvy never shows or logs it.</p>
+              <Button size="sm" loading={busy === "pin"} disabled={pin.length !== 6} onClick={submitPin}>Continue</Button>
+            </div>
+          )}
+          {!config && (
+            <div className="space-y-3">
+              {embedded ? (
+                <>
+                  <p className="text-sm text-[#3a3a4a]">Connect in a few clicks: sign in to Facebook, pick or create your WhatsApp Business Account and add your number. Calvy installs the message templates for you.</p>
+                  <ConnectWithCalvy appId={embedded.appId} configId={embedded.configId} coexistence={embedded.coexistence} onDone={applyConnect} />
+                  {embedded.coexistence ? (
+                    <p className="text-xs text-[#6b6b80]">Already use the WhatsApp Business app on your phone? Pick the first button to keep using the app and Calvy on the same number. Meta limits apply in that mode: the app must be opened at least once every 13 days, disappearing messages, view-once and live location are turned off in one-to-one chats, broadcast lists become read-only, sending is capped at 20 messages per second, and the blue tick is not available. It is not offered in every country; Meta tells you if your number cannot be used. The &quot;new number&quot; option needs a number that is not on WhatsApp yet.</p>
+                  ) : (
+                    <p className="text-xs text-[#6b6b80]">Numbers that are already in the WhatsApp Business app aren&apos;t supported yet. Use a number that is not on WhatsApp.</p>
+                  )}
+                </>
+              ) : (
+                <p className="text-sm text-[#6b6b80]">One-click connect is not available on this server yet. Use the advanced option below.</p>
+              )}
+            </div>
+          )}
+          {!isEmbedded && (
+            <details className="group" open={!!config}>
+              <summary className="cursor-pointer text-sm font-semibold text-[#3a3a4a]">Advanced: use your own Meta app credentials</summary>
+              <div className="mt-3 space-y-3">
           <div className="grid sm:grid-cols-2 gap-3">
-            <label className="text-xs font-semibold text-[#6b6b80]">Phone number ID<input className={`${input} mt-1`} value={phoneNumberId} onChange={(e) => setPhoneNumberId(e.target.value)} inputMode="numeric" autoComplete="off" /></label>
-            <label className="text-xs font-semibold text-[#6b6b80]">WhatsApp Business Account ID<input className={`${input} mt-1`} value={wabaId} onChange={(e) => setWabaId(e.target.value)} inputMode="numeric" autoComplete="off" /></label>
-            <label className="text-xs font-semibold text-[#6b6b80]">Permanent access token<input type="password" className={`${input} mt-1`} value={accessToken} onChange={(e) => setAccessToken(e.target.value)} placeholder={config?.accessTokenMasked ?? ""} autoComplete="off" /></label>
-            <label className="text-xs font-semibold text-[#6b6b80]">App secret<input type="password" className={`${input} mt-1`} value={appSecret} onChange={(e) => setAppSecret(e.target.value)} placeholder={config?.appSecretMasked ?? ""} autoComplete="off" /></label>
-          </div>
-          {config && <p className="text-xs text-[#6b6b80]">Leave the token and secret blank to keep the saved ones.</p>}
-          <div className="flex flex-wrap gap-2">
-            <Button size="sm" loading={busy === "save"} onClick={saveAndVerify} disabled={!phoneNumberId || !wabaId || (!config && (!accessToken || !appSecret))}>Save and verify</Button>
-            {config && <Button size="sm" variant="outline" loading={busy === "verify"} onClick={verify}>Verify again</Button>}
-            {config && <Button size="sm" variant="outline" loading={busy === "disconnect"} onClick={disconnect}>Disconnect</Button>}
-          </div>
+              <label className="text-xs font-semibold text-[#6b6b80]">Phone number ID<input className={`${input} mt-1`} value={phoneNumberId} onChange={(e) => setPhoneNumberId(e.target.value)} inputMode="numeric" autoComplete="off" /></label>
+              <label className="text-xs font-semibold text-[#6b6b80]">WhatsApp Business Account ID<input className={`${input} mt-1`} value={wabaId} onChange={(e) => setWabaId(e.target.value)} inputMode="numeric" autoComplete="off" /></label>
+              <label className="text-xs font-semibold text-[#6b6b80]">Permanent access token<input type="password" className={`${input} mt-1`} value={accessToken} onChange={(e) => setAccessToken(e.target.value)} placeholder={config?.accessTokenMasked ?? ""} autoComplete="off" /></label>
+              <label className="text-xs font-semibold text-[#6b6b80]">App secret<input type="password" className={`${input} mt-1`} value={appSecret} onChange={(e) => setAppSecret(e.target.value)} placeholder={config?.appSecretMasked ?? ""} autoComplete="off" /></label>
+            </div>
+            {config && <p className="text-xs text-[#6b6b80]">Leave the token and secret blank to keep the saved ones.</p>}
+            <div className="flex flex-wrap gap-2">
+              <Button size="sm" loading={busy === "save"} onClick={saveAndVerify} disabled={!phoneNumberId || !wabaId || (!config && (!accessToken || !appSecret))}>Save and verify</Button>
+              {config && <Button size="sm" variant="outline" loading={busy === "verify"} onClick={verify}>Verify again</Button>}
+              {config && <Button size="sm" variant="outline" loading={busy === "disconnect"} onClick={disconnect}>Disconnect</Button>}
+            </div>
+    </div>
+            </details>
+          )}
+          {isEmbedded && (
+            <div className="flex flex-wrap gap-2">
+              {config && <Button size="sm" variant="outline" loading={busy === "verify"} onClick={verify}>Check again</Button>}
+              {config && <Button size="sm" variant="outline" loading={busy === "disconnect"} onClick={disconnect}>Disconnect</Button>}
+            </div>
+          )}
         </section>
 
-        {config && (
+        {config && !isEmbedded && (
           <section className="bg-white rounded-2xl border border-[#e8e6e0] p-5 space-y-3">
             <h2 className="font-syne font-bold text-base">Webhook</h2>
             <p className="text-sm text-[#6b6b80]">In your Meta app: WhatsApp &gt; Configuration &gt; Webhook. Paste these two values, verify, then subscribe to <b>messages</b>, <b>message_template_status_update</b> and <b>template_category_update</b>. This is how delivery status and STOP replies reach Calvy.</p>
             <CopyField label="Callback URL" value={config.callbackUrl} />
             <CopyField label="Verify token" value={config.verifyToken} />
+          </section>
+        )}
+
+        {isEmbedded && config && (
+          <section className="bg-white rounded-2xl border border-[#e8e6e0] p-5 space-y-3">
+            <h2 className="font-syne font-bold text-base">Billing and display name</h2>
+            {config.paymentStatus === "MISSING" ? (
+              <p role="alert" className="text-sm rounded-xl px-3 py-2 bg-amber-50 text-amber-900">Meta reports no payment method on your WhatsApp account. Add one, or messages beyond Meta&apos;s free allowance will not be sent. <a href={WA_MANAGER_URL} target="_blank" rel="noopener noreferrer" className="underline font-semibold">Add a payment method in WhatsApp Manager</a></p>
+            ) : (
+              <p className="text-sm text-[#6b6b80]">Meta bills your business directly for WhatsApp messages. {config.paymentStatus === "OK" ? "A payment method is on file." : "Check that a payment method is added."} <a href={WA_MANAGER_URL} target="_blank" rel="noopener noreferrer" className="text-accent underline">Open WhatsApp Manager</a></p>
+            )}
+            <p className="text-sm"><span className="text-xs text-[#6b6b80]">Display name review: </span>{NAME_STATUS[config.nameStatus ?? ""] ?? "Checking with Meta"}{config.nameStatus === "DECLINED" && <span className="text-red-700"> Change it in WhatsApp Manager &gt; Phone numbers and submit it again.</span>}</p>
           </section>
         )}
 
