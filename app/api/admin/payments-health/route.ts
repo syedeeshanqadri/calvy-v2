@@ -32,7 +32,7 @@ async function GET_handler() {
   const deployment = process.env.VERCEL_ENV === "production" ? "production" : process.env.VERCEL_ENV === "preview" ? "preview" : "development";
   const cashfreeEnv = process.env.CASHFREE_ENV === "production" ? "production" : "sandbox";
   const verdict = evaluatePaymentsHealth({
-    flagOn: isFeatureEnabled("onlinePayments"), provider: provider ? provider.name : null, cashfreeEnv,
+    flagOn: isFeatureEnabled("onlinePayments"), flagSet: set(process.env.FEATURE_ONLINE_PAYMENTS), provider: provider ? provider.name : null, cashfreeEnv,
     appUrl: paymentBaseUrl(), cronSecretSet: set(process.env.CRON_SECRET), receiptCompanyDetailsSet: set(process.env.CALVY_LEGAL_NAME) && set(process.env.CALVY_ADDRESS), deployment,
   });
   const checks = {

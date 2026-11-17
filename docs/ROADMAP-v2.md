@@ -48,3 +48,9 @@ Rule: keep ALL features open during the build (PLAN_ENFORCEMENT off). Plan restr
 - Not included in the pasted brief for this chunk; to be added when the owner sends it.
 
 Open decisions: OTP provider (recommend WhatsApp auth templates via Meta Cloud API; SMS needs DLT; never OpenWA for OTP), roles (4 roles recommended), Google OAuth app setup.
+
+## Test data to delete before launch (pre-launch checklist)
+- All test accounts and demo businesses: the seeded `*.calvy.test` users, `demo@calvy.io`, `meta-reviewer@calvy.io` with the business `meta-review-clinic`, and the other owner test logins and businesses created while testing.
+- The Rs 10 end-to-end test booking on `clinic` (General Consultation, 18 Nov 2026 09:00, client `eeshan.aq+rs10e2e@gmail.com`) with its Payment row, plus the customer account created for that email.
+- Old Razorpay columns, `CustomerCredit` and `WithdrawalRequest` tables (dropped by the pre-launch migration).
+Write the deletion script with a dry run, and run it only after confirming which database it points at.

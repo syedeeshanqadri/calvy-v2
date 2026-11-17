@@ -381,6 +381,8 @@ Complete every item before the first real customer (see also S1-01, S9-02, S9-10
 - [ ] Remove or disable seed test accounts in production (`SEED_TEST_ACCOUNTS` unset).
 - [ ] Change demo and test passwords; no default passwords in production.
 - [ ] Fail-closed seed passwords: use the published defaults only when `DATABASE_URL` is localhost or `ALLOW_DEFAULT_SEED_PASSWORDS=1` is set (today only the Vercel gate exists in `prisma/seed.ts`).
+- [ ] **Delete the test data created while testing, with a dry run first against the right database:** all test accounts and businesses (see the list in `docs/ROADMAP-v2.md` "Test data to delete before launch"), and the Rs 10 end-to-end test booking on `clinic` (General Consultation, 18 Nov 2026 09:00, client `eeshan.aq+rs10e2e@gmail.com`, its Payment and Customer rows).
+- [ ] **Production env parity check:** every env var in Preview exists in Production (`npm run env:parity`, compares names only, exits 1 on a missing name). A missing `FEATURE_ONLINE_PAYMENTS` in Production once let Basic bookings confirm with no Rs 10 step.
 - [ ] Later: reset test account passwords, or start a fresh production DB with or without test accounts (write the reset script then).
 - [ ] Cashfree, R2 and Resend live keys exist only in the production environment, never in the repo.
 - [ ] Confirm the old calvy.io production database password was rotated by Aamir.

@@ -103,6 +103,11 @@ describe("go-live check in sandbox", () => {
   });
   it("is not ready when the flag is off, Cashfree is missing, or sandbox is on the production deployment", () => {
     expect(evaluatePaymentsHealth({ ...base, flagOn: false }).ready).toBe(false);
+    // A variable that is missing entirely in Production gets its own loud message (Basic bookings would skip the Rs 10 step).
+    const missing = evaluatePaymentsHealth({ ...base, deployment: "production", cashfreeEnv: "production", flagOn: false, flagSet: false });
+    expect(missing.ready).toBe(false);
+    expect(missing.problems.join(" ")).toMatch(/FEATURE_ONLINE_PAYMENTS is MISSING in Production/);
+    expect(evaluatePaymentsHealth({ ...base, flagOn: false, flagSet: true }).problems.join(" ")).toMatch(/is not on/);
     expect(evaluatePaymentsHealth({ ...base, provider: "MOCK" }).ready).toBe(false);
     expect(evaluatePaymentsHealth({ ...base, deployment: "production", cashfreeEnv: "sandbox" }).problems.join(" ")).toContain("sandbox");
     expect(evaluatePaymentsHealth({ ...base, deployment: "production", cashfreeEnv: "production", appUrl: "http://x", cronSecretSet: false }).ready).toBe(false);
