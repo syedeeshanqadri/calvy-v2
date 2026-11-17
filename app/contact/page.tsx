@@ -21,9 +21,8 @@ export default function ContactPage() {
       <p>Phone: <a href={CONTACT.phoneHref}>{CONTACT.phone}</a></p>
 
       <h2>Business details</h2>
-      <p>Calvy is a sole proprietorship.</p>
-      <p><strong>Proprietor:</strong> {CONTACT.proprietor}</p>
-      <p><strong>Address:</strong> {CONTACT.address}</p>
+      <p>Calvy is operated by <strong>{CONTACT.legalName}</strong>.</p>
+      <p><strong>Registered address:</strong> {CONTACT.address}</p>
 
       <h2>Before you write</h2>
       <p>For a refund on a booking, please contact the business you booked with first. For everything else, include your business name and the email address on your account, and we will reply as soon as we can. See also the <Link href="/help">Help Center</Link> and the <Link href="/refund-policy">Refund &amp; Cancellation Policy</Link>.</p>

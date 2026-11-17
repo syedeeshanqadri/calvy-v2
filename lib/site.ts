@@ -13,9 +13,9 @@ export const SITE_NAME = "Calvy";
 export const SUPPORT_EMAIL = "support@calvy.io";
 export const TEAM_EMAIL = "team@calvy.io";
 
-/** Contact details shown on the Contact page only (the proprietor's name is not repeated anywhere else). */
+/** The legal entity behind Calvy. Change the company name or address here only; the legal pages read these. */
 export const CONTACT = {
-  proprietor: "Eeshan Ajaz",
+  legalName: "Raybit Technologies Pvt Ltd",
   address: "174, Rajbagh, Srinagar",
   phone: "+91 60052 86335",
   phoneHref: "tel:+916005286335",
