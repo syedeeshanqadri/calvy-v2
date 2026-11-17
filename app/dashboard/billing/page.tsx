@@ -1,33 +1,57 @@
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
-import Link from "next/link";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { normalizePlanId } from "@/lib/plans";
-import { displayPlan } from "@/lib/pricingDisplay";
-import { SUPPORT_EMAIL } from "@/lib/site";
+import { isFeatureEnabled } from "@/lib/flags";
+import { REGION_PRICING } from "@/lib/pricing";
+import { INTERVALS, PAID_PLANS, overrideActive, plansAboveNoAfaLimit, planAmountMinor, planName } from "@/lib/subscriptions/rules";
+import { currentSubscription, reconcileSubscription } from "@/lib/subscriptions/service";
+import BillingClient, { type BillingData } from "./BillingClient";
 
 export const dynamic = "force-dynamic";
 
-/**
- * Plan page. There are no online plan payments yet (Cashfree Subscriptions come in step 25): until then Calvy changes a
- * business's plan from the admin panel, and the owner asks support.
- */
-export default async function BillingPage() {
+/** The owner's plan page: current plan, next bill, payment method, invoices, upgrade / downgrade / cancel. India only (international: coming soon). */
+export default async function BillingPage({ searchParams }: { searchParams: Promise<{ subscription_id?: string }> }) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.businessId) redirect("/login");
-  const business = await prisma.business.findUnique({ where: { id: session.user.businessId }, select: { plan: true } });
+  const businessId = session.user.businessId;
+
+  // Back from Cashfree's authorisation page: ask Cashfree where it stands, so the plan activates even before the webhook arrives.
+  const { subscription_id: returned } = await searchParams;
+  let returnState: string | null = null;
+  if (returned && /^calvy_sub_/.test(returned)) {
+    const owned = await prisma.subscription.findFirst({ where: { cashfreeSubscriptionId: returned, businessId }, select: { id: true } });
+    if (owned) returnState = await reconcileSubscription(returned).catch(() => "pending");
+  }
+
+  const business = await prisma.business.findUnique({ where: { id: businessId }, select: { plan: true, planStatus: true, currency: true, planOverridePlan: true, planOverrideUntil: true } });
   if (!business) redirect("/login");
-  const plan = normalizePlanId(business.plan);
-  const name = displayPlan(plan)?.name ?? plan;
-  return (
-    <div className="max-w-xl space-y-4">
-      <h1 className="font-syne font-bold text-2xl text-[#0f0f1a]">Your plan</h1>
-      <div className="bg-white rounded-2xl border border-[#e8e6e0] p-5 space-y-2">
-        <p className="text-sm text-[#6b6b80]">Current plan</p>
-        <p className="font-syne font-bold text-xl text-[#0f0f1a]">{name}</p>
-        <p className="text-sm text-[#6b6b80]">Plan changes are handled by our team for now. Email <a className="underline" href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a> or open the <Link className="underline" href="/dashboard/support">Support</Link> page and we will switch your plan.</p>
-      </div>
-    </div>
-  );
+  const sub = await currentSubscription(prisma, businessId);
+  const invoices = await prisma.subscriptionInvoice.findMany({ where: { businessId }, orderBy: { issuedAt: "desc" }, take: 36 });
+  const now = new Date();
+  const above = plansAboveNoAfaLimit();
+
+  const data: BillingData = {
+    isIndia: (business.currency ?? "").toUpperCase() === "INR",
+    paymentsOn: isFeatureEnabled("onlinePayments"),
+    planId: normalizePlanId(business.plan),
+    planLabel: planName(normalizePlanId(business.plan)),
+    override: overrideActive(business, now) ? { planLabel: planName(business.planOverridePlan ?? ""), until: business.planOverrideUntil?.toISOString() ?? null } : null,
+    returnState,
+    subscription: sub && sub.state !== "PENDING" ? {
+      state: sub.state, planId: sub.planId, planLabel: planName(sub.planId), interval: sub.interval, amountMinor: sub.amountMinor,
+      periodEnd: sub.currentPeriodEnd?.toISOString() ?? null, method: sub.paymentMethodLabel,
+      pendingPlanId: sub.pendingPlanId, pendingPlanLabel: sub.pendingPlanId ? (sub.pendingPlanId === "free" ? "Basic (cancelled)" : planName(sub.pendingPlanId)) : null, pendingInterval: sub.pendingInterval,
+      graceUntil: sub.graceUntil?.toISOString() ?? null, endedReason: sub.endedReason,
+    } : null,
+    plans: PAID_PLANS.map((id) => ({
+      id, name: planName(id), blurb: REGION_PRICING.IN.plans.find((p) => p.id === id)?.description ?? "",
+      features: (REGION_PRICING.IN.plans.find((p) => p.id === id)?.features ?? []).slice(0, 6),
+      prices: Object.fromEntries(INTERVALS.map((i) => [i, planAmountMinor(id, i)])) as Record<"MONTHLY" | "YEARLY", number>,
+    })),
+    invoices: invoices.map((i) => ({ id: i.id, number: i.number, kind: i.kind, issuedAt: i.issuedAt.toISOString(), amountMinor: i.amountMinor, planLabel: planName(i.planId), interval: i.interval })),
+    extraAuthPlans: above.map((a) => `${planName(a.planId)} ${a.interval === "YEARLY" ? "yearly" : "monthly"}`),
+  };
+  return <BillingClient data={data} />;
 }

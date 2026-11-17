@@ -3,8 +3,9 @@ import { render } from "@react-email/render";
 import {
   BookingCancellationEmail, QueueNextEmail, BookingConfirmationEmail, BookingReminderEmail, BookingRescheduleEmail, BusinessAlertEmail, BusinessLiveEmail,
   CustomerAccountSetupEmail, CustomerResetEmail, CustomerVerifyEmail, DailySummaryEmail, EmailVerificationEmail, InvoiceEmail, LeadAcknowledgmentEmail, MeetingLinkEmail,
+  SubscriptionNoticeEmail, subscriptionNoticeLines, subscriptionNoticeSubject,
   PasswordResetEmail, OwnerAccountSetupEmail, TeamInviteEmail, QueueClosedEmail, QueueMovedBackEmail, ReviewRequestEmail, StatusChangeEmail, WelcomeEmail, businessAlertHeadline,
-  type BookingProps, type BusinessAlertProps, type DailySummaryProps, type InvoiceProps,
+  type SubscriptionNoticeProps, type BookingProps, type BusinessAlertProps, type DailySummaryProps, type InvoiceProps,
 } from "@/emails/templates";
 import type { TenantBrand } from "@/emails/EmailLayout";
 import { formatCurrencyAmount } from "@/lib/currency";
@@ -165,6 +166,11 @@ export const TEMPLATES = {
     subject: () => "Welcome to Calvy",
     Email: (p) => <WelcomeEmail {...p} />,
     text: (p) => lines(`Hi ${first(p.name)}, your Calvy account is ready. Add your services and working hours, then share your booking page.`, `Open your dashboard: ${p.dashboardUrl}`),
+  }),
+  subscription_notice: define<SubscriptionNoticeProps>({
+    subject: (p) => subscriptionNoticeSubject(p),
+    Email: (p) => <SubscriptionNoticeEmail {...p} />,
+    text: (p) => lines(...subscriptionNoticeLines(p), p.billingUrl),
   }),
   business_live: define<{ name: string; businessName: string; websiteUrl: string }>({
     subject: (p) => `${p.businessName} is live`,
