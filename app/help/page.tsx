@@ -9,7 +9,7 @@ const APP_URL = SITE_URL;
 
 export const metadata: Metadata = {
   title: "Help Center · Calvy",
-  description: "Guides and answers for Calvy — bookings, billing, Razorpay payments, payouts, and more. Search 24+ help articles.",
+  description: "Guides and answers for Calvy — bookings, billing, online payments, and more. Search 24+ help articles.",
   alternates: { canonical: `${APP_URL}/help` },
 };
 

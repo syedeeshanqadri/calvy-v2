@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useFlags } from "@/components/providers/FlagsProvider";
-import { Check, Edit2, ExternalLink, X, Plus, Infinity } from "lucide-react";
+import { Check, Edit2, X, Plus, Infinity } from "lucide-react";
 
 interface PlanConfig {
   planId: string;
@@ -28,7 +28,6 @@ interface PlanConfig {
   broadcasts: boolean;
   csvExport: boolean;
   expenseTracking: boolean;
-  wallet: boolean;
   customSlotInterval: boolean;
   removeBranding: boolean;
   prioritySupport: boolean;
@@ -38,7 +37,6 @@ interface PlanConfig {
 interface Props {
   plans: PlanConfig[];
   tenantCounts: Record<string, number>;
-  envConfigured: Record<string, boolean>;
 }
 
 const PLAN_COLORS: Record<string, string> = {
@@ -84,7 +82,6 @@ const ALL_FLAG_GROUPS: FlagGroup[] = [
       { key: "analytics", label: "Analytics" },
       { key: "csvExport", label: "CSV export" },
       { key: "expenseTracking", label: "Expense tracking" },
-      { key: "wallet", label: "Wallet" },
     ],
   },
   {
@@ -97,7 +94,7 @@ const ALL_FLAG_GROUPS: FlagGroup[] = [
 ];
 
 
-export function PlansClient({ plans: initialPlans, tenantCounts, envConfigured }: Props) {
+export function PlansClient({ plans: initialPlans, tenantCounts }: Props) {
   const flags = useFlags();
   // UI-only flag: hide "Remove branding" unless FEATURE_REMOVE_BRANDING is on.
   const FEATURE_FLAG_GROUPS = ALL_FLAG_GROUPS
@@ -178,7 +175,6 @@ export function PlansClient({ plans: initialPlans, tenantCounts, envConfigured }
           broadcasts: form.broadcasts,
           csvExport: form.csvExport,
           expenseTracking: form.expenseTracking,
-          wallet: form.wallet,
           customSlotInterval: form.customSlotInterval,
           removeBranding: form.removeBranding,
           prioritySupport: form.prioritySupport,
@@ -209,7 +205,6 @@ export function PlansClient({ plans: initialPlans, tenantCounts, envConfigured }
       <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-4">
         {plans.map(plan => {
           const count = tenantCounts[plan.planId] ?? 0;
-          const stripeOk = plan.planId === "free" ? true : envConfigured[plan.planId];
           const features = parsedFeatures(plan.features).filter(f => flags.removeBranding || !/remove\s+(calvy\s+)?branding/i.test(f));
           const accent = PLAN_COLORS[plan.planId] ?? "#0284c7";
           const enabledFlags = ALL_FEATURE_FLAGS.filter(f => plan[f.key as keyof PlanConfig]);
@@ -228,11 +223,6 @@ export function PlansClient({ plans: initialPlans, tenantCounts, envConfigured }
               <div className="flex items-center gap-2 mb-4 pr-8">
                 <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: accent }} />
                 <span className="font-syne font-bold text-base">{plan.name}</span>
-                {plan.planId !== "free" && (
-                  <span className={`ml-auto text-[10px] font-bold px-2 py-0.5 rounded-full ${stripeOk ? "bg-green-50 text-green-700" : "bg-red-50 text-red-600"}`}>
-                    {stripeOk ? "Razorpay ✓" : "Not set"}
-                  </span>
-                )}
               </div>
 
               <p className="font-syne font-bold text-3xl mb-0.5">
@@ -275,33 +265,6 @@ export function PlansClient({ plans: initialPlans, tenantCounts, envConfigured }
             </div>
           );
         })}
-      </div>
-
-      {/* Razorpay config */}
-      <div className="bg-white rounded-2xl border border-[#e8e6e0] overflow-hidden">
-        <div className="px-6 py-4 border-b border-[#f0ede8]">
-          <h2 className="font-syne font-semibold text-[15px]">Razorpay Configuration</h2>
-        </div>
-        <div className="p-6 space-y-3">
-          {[
-            { label: "Key ID", ok: !!process.env.RAZORPAY_KEY_ID, key: "RAZORPAY_KEY_ID" },
-            { label: "Starter Plan ID", ok: envConfigured.starter, key: "RAZORPAY_PLAN_STARTER" },
-            { label: "Professional Plan ID", ok: envConfigured.professional, key: "RAZORPAY_PLAN_PROFESSIONAL" },
-            { label: "Business Plan ID", ok: envConfigured.business, key: "RAZORPAY_PLAN_BUSINESS" },
-          ].map(item => (
-            <div key={item.key} className="flex items-center gap-3 p-3 rounded-xl bg-[#f8f7f4]">
-              <div className={`w-2 h-2 rounded-full flex-shrink-0 ${item.ok ? "bg-green-500" : "bg-amber-400"}`} />
-              <span className="text-sm font-medium flex-1">{item.label}</span>
-              <code className="text-xs text-[#6b6b80] bg-white px-2 py-0.5 rounded border border-[#e8e6e0]">{item.key}</code>
-            </div>
-          ))}
-        </div>
-        <div className="px-6 pb-6">
-          <a href="https://dashboard.razorpay.com/app/subscriptions" target="_blank" rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 text-sm text-[#0284c7] font-medium hover:underline">
-            <ExternalLink size={14} /> Open Razorpay Dashboard
-          </a>
-        </div>
       </div>
 
       {/* Edit Modal */}

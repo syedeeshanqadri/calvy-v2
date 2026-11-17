@@ -153,7 +153,7 @@ function InvoiceScreen() {
       </div>
       <div className="mt-4 flex items-center gap-2 rounded-xl bg-sky-50 border border-sky-100 px-4 py-3">
         <Wallet size={16} className="text-sky-600" />
-        <span className="text-xs font-medium text-sky-700">Paid online via Razorpay</span>
+        <span className="text-xs font-medium text-sky-700">Paid online</span>
         <span className="ml-auto text-[10px] bg-sky-100 text-sky-700 px-2 py-0.5 rounded-full font-semibold">Settled</span>
       </div>
     </div>
