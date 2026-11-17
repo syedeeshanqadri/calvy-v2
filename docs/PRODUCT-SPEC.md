@@ -1,5 +1,7 @@
 # Calvy — Product Specification (as built)
 
+> **Payments changed in step 24 (Nov 2026).** The Razorpay billing, Route payouts, wallet and withdrawals described below were removed. Today: Basic pays only the Rs 10 confirmation fee (Calvy's Cashfree); Pro/Business connect their own gateway (Razorpay, Cashfree or PhonePe) and Calvy never touches the money; a cancelled or not-attended Rs 10 booking keeps the fee and allows one fee-free rebooking. See the step 24 decisions in `docs/ROADMAP-v2.md`. Sections below that mention Razorpay, wallet, withdrawals or Payout settings are out of date.
+
 **What this document is:** a plain-language description of what Calvy actually does today, written from the source code, not from the README or the marketing website. File paths in [square brackets] point to where each thing lives, for anyone who wants to check.
 
 **How it was written:** by reading the code and by opening the running app on a laptop and phone-sized screen (screenshots are in `docs/audit/screenshots/`). It was not tested with real email, WhatsApp, push or payment accounts, so "Working" means "the feature is built and reachable", not "proven in production". Where the website promises something the code does not do, this document says so in plain words.

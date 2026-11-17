@@ -2,9 +2,9 @@
 
 A production-ready multi-tenant appointment booking platform. Every business that signs up instantly gets a subdomain, a public website, a chatbot booking widget, a dedicated `/book-now` page, and a full management dashboard — in under 60 seconds.
 
-**Live:** [calvy.io](https://calvy.io) · **Stack:** Next.js 16 · React 19 · TypeScript · PostgreSQL · Prisma · Razorpay (Cashfree planned) · Resend · Vercel
+**Live:** [calvy.io](https://calvy.io) · **Stack:** Next.js 16 · React 19 · TypeScript · PostgreSQL · Prisma · Cashfree + business-owned gateways · Resend · Vercel
 
-> Payments: the live integration is **Razorpay** (behind feature flags, off by default). **Cashfree is planned** to replace it for India in Step 5 (`docs/PLAN.md`); there is **no Stripe integration**, so any Stripe mention below is legacy and not current behaviour.
+> Payments (India only): Calvy uses **Cashfree** for the Rs 10 confirmation fee on the Basic plan; on Pro and Business each business connects its **own** Razorpay, Cashfree or PhonePe gateway and Calvy never touches the money. See `docs/ROADMAP-v2.md` (step 24 decisions). There is no Stripe integration.
 
 ---
 
@@ -43,7 +43,6 @@ calvy/
 │   │   ├── analytics/                  # Revenue charts & KPIs (plan-gated)
 │   │   ├── services/                   # Service catalog (group booking capacity gated)
 │   │   ├── staff/                      # Staff management & working hours
-│   │   ├── wallet/                     # Wallet balance & withdrawal requests (plan-gated)
 │   │   ├── website/                    # Public website builder (image upload + SEO gated)
 │   │   ├── booking-page/               # Booking page preview & share link
 │   │   ├── broadcasts/                 # Broadcast message management (plan-gated)
@@ -72,7 +71,6 @@ calvy/
 │   ├── plans.ts                        # Plan limits and feature flags (defaults; live values in PlanConfig)
 │   ├── prisma.ts                       # Prisma client singleton
 │   ├── push.ts                         # Web Push (VAPID) + DB notification storage
-│   ├── razorpay.ts                     # Razorpay client (lazy; to be replaced by Cashfree in Step 5)
 │   ├── utils.ts                        # cn() + helpers
 │   ├── website.ts                      # WebsiteConfig types & defaults
 │   └── whatsapp.ts                     # Meta WhatsApp Business Cloud API
@@ -125,14 +123,14 @@ The `proxy.ts` file rewrites subdomain requests internally to `/{slug}{path}` wi
 | `/dashboard/analytics` | 12-month revenue, service distribution, top clients *(plan-gated)* |
 | `/dashboard/services` | Service catalog (group booking capacity per service) |
 | `/dashboard/staff` | Staff management & working hours |
-| `/dashboard/wallet` | Wallet balance & withdrawal requests *(plan-gated)* |
+| `/dashboard/contact` | Support: email, phone and WhatsApp for every role |
 | `/dashboard/website` | Website builder *(image upload + SEO gated by plan)* |
 | `/dashboard/booking-page` | Booking page share (`slug.calvy.io/book-now`) |
 | `/dashboard/broadcasts` | Send email/WhatsApp broadcasts to clients *(plan-gated)* |
 | `/dashboard/support` | Support tickets *(plan-gated: prioritySupport)* |
 | `/dashboard/settings` | Profile, slot interval, availability, payout settings |
 | `/dashboard/billing` | Plan & subscription management (dynamic, monthly/annual toggle) |
-| `/admin` | Super-admin: tenants, plans, revenue, withdrawals |
+| `/admin` | Super-admin: tenants, plans, revenue |
 | `/admin/support` | Admin support ticket inbox |
 
 ---
@@ -149,7 +147,7 @@ The `proxy.ts` file rewrites subdomain requests internally to `/{slug}{path}` wi
 | Auth | NextAuth.js v4 (JWT, Credentials) |
 | Email | Resend |
 | WhatsApp | Meta WhatsApp Business Cloud API |
-| Payments | Razorpay today (feature-flagged off); Cashfree planned (Step 5) |
+| Payments | Cashfree (Rs 10 fee) + business-owned Razorpay / Cashfree / PhonePe gateways (feature-flagged off) |
 | File Storage | Local disk in dev; S3-compatible (Cloudflare R2) in production; Vercel Blob legacy |
 | Push Notifications | Web Push (VAPID) + DB-backed notification panel |
 | Analytics | Vercel Analytics |
@@ -200,7 +198,6 @@ All flags live in `PlanConfig` DB and are editable from `/admin/plans`:
 | `csvExport` | CSV download on Appointments and Payments pages |
 | `expenseTracking` | Expenses page |
 | `analytics` | Analytics page |
-| `wallet` | Wallet & withdrawals page |
 | `customSlotInterval` | Slot interval picker in Settings |
 | `removeBranding` | Remove "Powered by Calvy" from tenant website |
 | `prioritySupport` | Support ticket system |
@@ -225,15 +222,6 @@ NEXT_PUBLIC_ROOT_DOMAIN="calvy.io"
 CASHFREE_APP_ID="..."
 CASHFREE_SECRET_KEY="..."
 CASHFREE_ENV="sandbox" # or "production"
-
-# Razorpay (payments are feature-flagged off; Cashfree replaces this in Step 5)
-RAZORPAY_KEY_ID="..."
-RAZORPAY_KEY_SECRET="..."
-RAZORPAY_WEBHOOK_SECRET="..."
-RAZORPAY_BILLING_WEBHOOK_SECRET="..."
-RAZORPAY_PLAN_STARTER="plan_..."
-RAZORPAY_PLAN_PROFESSIONAL="plan_..."
-RAZORPAY_PLAN_BUSINESS="plan_..."
 
 # Uploads (S3-compatible, e.g. Cloudflare R2). Required in production; dev uses local disk.
 S3_ENDPOINT="https://<account>.r2.cloudflarestorage.com"
