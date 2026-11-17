@@ -68,7 +68,7 @@ const EVENTS = {
   "booking.completed": () => statusChange(notice, "completed", "https://calvy.io/sunrise"),
   "booking.no_show": () => statusChange(notice, "no_show", "https://calvy.io/sunrise"),
   "booking.queue_moved_back": () => queueMovedBack(notice, 3, 1),
-  "booking.queue_closed": () => queueClosed(notice, { reason: "missed", creditLabel: "₹500" }),
+  "booking.queue_closed": () => queueClosed(notice, { reason: "missed", feeKept: true }),
 } as const;
 const names = Object.keys(EVENTS) as (keyof typeof EVENTS)[];
 const TRANSACTIONAL = names.filter((n) => !OPTIONAL_EVENTS.has(n));

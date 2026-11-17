@@ -29,7 +29,6 @@ import { actionSchema, createBusinessByAdmin, runBusinessAction } from "@/lib/ad
 import { expirePlanOverrides, overrideExpired } from "@/lib/planOverride";
 import { redactSecrets, MASK } from "@/lib/admin/redact";
 import { VERIFIED_DEFAULTS, checkVerifiedLimits, getVerifiedLimits, isVerifiedBooker, parseLimit, signVerifiedTicket } from "@/lib/verifiedLimits";
-import { signCreditTicket } from "@/lib/creditDb";
 import { suspended, suspendedResponse } from "@/lib/suspension";
 import { activeViewAs } from "@/lib/admin/viewAs";
 import { ADMIN_COOKIE, hashToken } from "@/lib/admin/constants";
@@ -184,7 +183,6 @@ describe("verified-customer booking limits (admin-set)", () => {
   it("only a verified customer's own ticket and email count; a guest typing an email is a guest", async () => {
     db.customer.findUnique.mockResolvedValue({ email: "riya@mail.test", emailVerified: new Date() });
     expect(await isVerifiedBooker(db as never, [signVerifiedTicket("c1")], "Riya@Mail.test")).toBe(true);
-    expect(await isVerifiedBooker(db as never, [signCreditTicket("c1", "b1")], "riya@mail.test")).toBe(true); // a credit link proves it too
     expect(await isVerifiedBooker(db as never, [signVerifiedTicket("c1")], "someone@else.test")).toBe(false);   // not their email
     expect(await isVerifiedBooker(db as never, [], "riya@mail.test")).toBe(false);                             // no ticket = guest
     expect(await isVerifiedBooker(db as never, ["forged.ticket.value"], "riya@mail.test")).toBe(false);

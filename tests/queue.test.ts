@@ -149,16 +149,16 @@ describe("plain-language outcomes", () => {
   it("miss 3: to the end of the line", () => {
     expect(describeOutcome({ outcome: "moved_back", token: 3, name: "Riya", misses: 3, place: 5, emailed: true })).toContain("missed call 3 of 4), so it moved to the end of the line");
   });
-  it("miss 4: closed, with the wallet credit", () => {
-    expect(describeOutcome({ outcome: "no_show", token: 3, name: "Riya", credit: "Rs 10.00", called, emailed: true })).toBe(
-      "Token 3 (Riya) closed: not present after being called 4 times. Rs 10.00 was saved in their wallet for a future booking. Now serving token 4 (Aman). They were emailed how to book another date.",
+  it("miss 4: closed, the Rs 10 confirmation fee is kept for one rebooking", () => {
+    expect(describeOutcome({ outcome: "no_show", token: 3, name: "Riya", feeKept: true, called, emailed: true })).toBe(
+      "Token 3 (Riya) closed: not present after being called 4 times. The Rs 10 confirmation fee is kept, and they can rebook once without paying it again. Now serving token 4 (Aman). They were emailed how to book another date.",
     );
   });
-  it("nothing paid online: says there is no credit", () => {
-    expect(describeOutcome({ outcome: "no_show", token: 3, name: "Walk-in", credit: null, emailed: false })).toContain("Nothing was paid online, so there is no credit.");
+  it("nothing paid online: no fee note", () => {
+    expect(describeOutcome({ outcome: "no_show", token: 3, name: "Walk-in", feeKept: false, emailed: false })).not.toContain("confirmation fee");
   });
   it("cancelled", () => {
-    expect(describeOutcome({ outcome: "cancelled", token: 3, name: "Riya", credit: "Rs 510.00", emailed: true })).toContain("Token 3 (Riya) cancelled. Rs 510.00 was saved in their wallet");
+    expect(describeOutcome({ outcome: "cancelled", token: 3, name: "Riya", feeKept: true, emailed: true })).toContain("Token 3 (Riya) cancelled. The Rs 10 confirmation fee is kept");
   });
   it("no email on file says so", () => {
     expect(describeOutcome({ outcome: "moved_back", token: 3, misses: 1, place: 2, emailed: false })).toContain("No email on file");

@@ -14,7 +14,7 @@ import { PackSettings } from "@/components/packs/PackSettings";
 import type { PackId } from "@/lib/packs/types";
 import { BookingModeSettings, type TokenSessionRow } from "@/components/tokens/BookingModeSettings";
 import { LinkGoogle } from "@/components/settings/LinkGoogle";
-import { PaymentsSettings, type PaymentsSettingsProps } from "@/components/settings/PaymentsSettings";
+import { GatewaySettings, type GatewaySettingsProps } from "@/components/settings/GatewaySettings";
 import { t as term } from "@/lib/terms";
 import { DEFAULT_MAX_PEOPLE_PER_BOOKER, MAX_PEOPLE_PER_BOOKER_LIMIT } from "@/lib/patients";
 
@@ -62,17 +62,12 @@ interface BusinessData {
   maxPeoplePerBooker?: number;
   followUpDays?: number;
   paymentMode?: string;
-  bankAccountName?: string; bankAccountNumber?: string; bankRoutingNumber?: string; bankIban?: string;
-  legalBusinessName?: string; rzpBusinessType?: string; rzpCategory?: string; rzpSubcategory?: string;
-  panNumber?: string; gstNumber?: string;
-  addressStreet?: string; addressCity?: string; addressState?: string; addressPostalCode?: string;
-  routeStatus?: string; razorpayConnectAccountId?: string;
   bookingMode?: "SLOT" | "TOKEN"; termsOverride?: unknown;
 }
 
-type Tab = "profile" | "availability" | "booking" | "payments" | "payout";
+type Tab = "profile" | "availability" | "booking" | "payments";
 
-export function SettingsClient({ business, customSlotInterval = false, stripePayments = false, tokenSessions = [], staff = [], payments }: { business: BusinessData; customSlotInterval?: boolean; stripePayments?: boolean; tokenSessions?: TokenSessionRow[]; staff?: { id: string; name: string }[]; payments?: PaymentsSettingsProps }) {
+export function SettingsClient({ business, customSlotInterval = false, stripePayments = false, tokenSessions = [], staff = [], payments }: { business: BusinessData; customSlotInterval?: boolean; stripePayments?: boolean; tokenSessions?: TokenSessionRow[]; staff?: { id: string; name: string }[]; payments?: GatewaySettingsProps }) {
   const router = useRouter();
   const { payments: paymentsEnabled } = useFlags();
   const [tab, setTab] = useState<Tab>("profile");
@@ -104,57 +99,6 @@ export function SettingsClient({ business, customSlotInterval = false, stripePay
   const [followUpDays, setFollowUpDays] = useState(String(business.followUpDays ?? 0));
   const [maxPeople, setMaxPeople] = useState(String(business.maxPeoplePerBooker ?? DEFAULT_MAX_PEOPLE_PER_BOOKER));
 
-  const [payout, setPayout] = useState({
-    paymentMode: business.paymentMode ?? "postpaid",
-    bankAccountName: business.bankAccountName ?? "",
-    bankAccountNumber: business.bankAccountNumber ?? "",
-    bankRoutingNumber: business.bankRoutingNumber ?? "",
-    bankIban: business.bankIban ?? "",
-    legalBusinessName: business.legalBusinessName ?? "",
-    rzpBusinessType: business.rzpBusinessType ?? "",
-    rzpCategory: business.rzpCategory ?? "",
-    rzpSubcategory: business.rzpSubcategory ?? "",
-    panNumber: business.panNumber ?? "",
-    gstNumber: business.gstNumber ?? "",
-    addressStreet: business.addressStreet ?? "",
-    addressCity: business.addressCity ?? "",
-    addressState: business.addressState ?? "",
-    addressPostalCode: business.addressPostalCode ?? "",
-  });
-
-  const [routeStatus, setRouteStatus] = useState(business.routeStatus ?? "not_started");
-  const [connecting, setConnecting] = useState(false);
-  const [connectError, setConnectError] = useState("");
-
-  const RZP_BUSINESS_TYPES = [
-    "individual", "proprietorship", "partnership", "private_limited",
-    "public_limited", "llp", "trust", "society", "ngo", "not_yet_registered",
-  ];
-
-  const connectRoute = async () => {
-    setConnecting(true);
-    setConnectError("");
-    try {
-      // Persist the latest payout/KYC fields first so the server has them.
-      const saveRes = await fetch("/api/settings/payout", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payout),
-      });
-      if (!saveRes.ok) throw new Error("Failed to save details before connecting");
-
-      const res = await fetch("/api/razorpay/connect", { method: "POST" });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to connect with Razorpay");
-      setRouteStatus(data.routeStatus ?? "needs_clarification");
-      router.refresh();
-    } catch (e) {
-      setConnectError((e as Error).message);
-    } finally {
-      setConnecting(false);
-    }
-  };
-
   const toggleDay = (key: string) => {
     setAvailability(prev => ({ ...prev, [key]: { ...prev[key], enabled: !prev[key].enabled } }));
   };
@@ -167,14 +111,7 @@ export function SettingsClient({ business, customSlotInterval = false, stripePay
     setSaving(true);
     setError("");
     try {
-      if (tab === "payout") {
-        const res = await fetch("/api/settings/payout", {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payout),
-        });
-        if (!res.ok) throw new Error("Failed to save payout settings");
-      } else {
+      {
         const res = await fetch("/api/settings", {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
@@ -192,16 +129,13 @@ export function SettingsClient({ business, customSlotInterval = false, stripePay
     }
   };
 
-  const hasBankDetails = !!(payout.bankAccountName.trim() && (payout.bankAccountNumber.trim() || payout.bankIban.trim()));
-
   const initials = profile.name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
 
   const TABS: { key: Tab; label: string; icon: React.ElementType }[] = [
     { key: "profile", label: "Business Profile", icon: Globe },
     { key: "availability", label: "Availability", icon: Phone },
     { key: "booking", label: "Booking", icon: Check },
-    ...(payments ? [{ key: "payments" as Tab, label: "Online payments", icon: Wallet }] : []),
-    ...(paymentsEnabled ? [{ key: "payout" as Tab, label: "Payout Settings", icon: Wallet }] : []),
+    ...(payments ? [{ key: "payments" as Tab, label: "Payments", icon: Wallet }] : []),
   ];
 
   return (
@@ -307,16 +241,6 @@ export function SettingsClient({ business, customSlotInterval = false, stripePay
           </Card>
         )}
 
-        {/* Payments are switched off: keep postpaid as the only choice; show an existing prepaid mode read-only. */}
-        {tab === "profile" && !paymentsEnabled && business.paymentMode === "prepaid" && (
-          <Card>
-            <CardHeader><CardTitle className="flex items-center gap-2"><CreditCard size={16} /> Booking Payment Mode</CardTitle></CardHeader>
-            <CardContent>
-              <p className="text-sm text-[#3d3d4d]">Online payment (currently unavailable)</p>
-            </CardContent>
-          </Card>
-        )}
-
         {tab === "booking" && (
           <div className="space-y-6">
             <Card>
@@ -351,7 +275,7 @@ export function SettingsClient({ business, customSlotInterval = false, stripePay
           </div>
         )}
 
-        {tab === "payments" && payments && <PaymentsSettings {...payments} />}
+        {tab === "payments" && payments && <GatewaySettings {...payments} />}
 
         {/* Availability tab */}
         {tab === "availability" && (
@@ -428,228 +352,8 @@ export function SettingsClient({ business, customSlotInterval = false, stripePay
           </>
         )}
 
-        {/* Payout tab */}
-        {paymentsEnabled && tab === "payout" && (
-          <div className="space-y-5">
-            {/* Payment Mode */}
-            <Card>
-              <CardHeader><CardTitle className="flex items-center gap-2"><CreditCard size={16} /> Booking Payment Mode</CardTitle></CardHeader>
-              <CardContent className="space-y-4">
-                <p className="text-sm text-[#6b6b80]">Choose how clients pay for their bookings.</p>
-                <div className="grid sm:grid-cols-2 gap-3">
-                  {/* Postpaid — always available */}
-                  <button
-                    onClick={() => setPayout(p => ({ ...p, paymentMode: "postpaid" }))}
-                    className={`text-left p-4 rounded-xl border-2 transition-all ${payout.paymentMode === "postpaid" ? "border-accent bg-accent/5" : "border-[#e8e6e0] hover:border-accent/40"}`}
-                  >
-                    <div className="flex items-center gap-2 mb-1.5">
-                      <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${payout.paymentMode === "postpaid" ? "border-accent" : "border-[#d1d1d8]"}`}>
-                        {payout.paymentMode === "postpaid" && <div className="w-2 h-2 rounded-full bg-accent" />}
-                      </div>
-                      <span className="text-sm font-semibold">Postpaid</span>
-                    </div>
-                    <p className="text-xs text-[#6b6b80] ml-6">Clients pay at the time of appointment. You collect and mark as paid.</p>
-                  </button>
-
-                  {/* Prepaid — locked until bank details are saved, or if plan doesn't support Stripe */}
-                  <button
-                    onClick={() => stripePayments && hasBankDetails && setPayout(p => ({ ...p, paymentMode: "prepaid" }))}
-                    disabled={!stripePayments || !hasBankDetails}
-                    className={`text-left p-4 rounded-xl border-2 transition-all relative ${
-                      !stripePayments || !hasBankDetails
-                        ? "border-[#e8e6e0] opacity-60 cursor-not-allowed"
-                        : payout.paymentMode === "prepaid"
-                          ? "border-accent bg-accent/5"
-                          : "border-[#e8e6e0] hover:border-accent/40"
-                    }`}
-                  >
-                    <div className="flex items-center gap-2 mb-1.5">
-                      <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${payout.paymentMode === "prepaid" && stripePayments && hasBankDetails ? "border-accent" : "border-[#d1d1d8]"}`}>
-                        {payout.paymentMode === "prepaid" && stripePayments && hasBankDetails && <div className="w-2 h-2 rounded-full bg-accent" />}
-                      </div>
-                      <span className="text-sm font-semibold">Prepaid</span>
-                      <Lock size={12} className="text-[#9ca3af] ml-auto" />
-                    </div>
-                    <p className="text-xs text-[#6b6b80] ml-6">
-                      {!stripePayments
-                        ? "Online payments require a higher plan."
-                        : hasBankDetails
-                          ? "Clients pay online when booking. Amount is added to your wallet."
-                          : "Add bank account details below to enable prepaid."}
-                    </p>
-                  </button>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Bank Account Details */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2"><Wallet size={16} /> Bank Account Details</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <p className="text-sm text-[#6b6b80]">Add your bank account details so the admin can process your withdrawal requests.</p>
-                <div className="grid sm:grid-cols-2 gap-4">
-                  <div className="sm:col-span-2">
-                    <Input
-                      label="Account holder name"
-                      placeholder="Jane Smith / Acme LLC"
-                      value={payout.bankAccountName}
-                      onChange={e => setPayout(p => ({ ...p, bankAccountName: e.target.value }))}
-                    />
-                  </div>
-                  <Input
-                    label="Account number"
-                    placeholder="••••••••1234"
-                    value={payout.bankAccountNumber}
-                    onChange={e => setPayout(p => ({ ...p, bankAccountNumber: e.target.value }))}
-                  />
-                  <Input
-                    label="IFSC code (India)"
-                    placeholder="HDFC0001234"
-                    value={payout.bankRoutingNumber}
-                    onChange={e => setPayout(p => ({ ...p, bankRoutingNumber: e.target.value.toUpperCase() }))}
-                  />
-                  <div className="sm:col-span-2">
-                    <Input
-                      label="IBAN (international)"
-                      placeholder="GB29 NWBK 6016 1331 9268 19"
-                      value={payout.bankIban}
-                      onChange={e => setPayout(p => ({ ...p, bankIban: e.target.value }))}
-                    />
-                  </div>
-                </div>
-                <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-xs text-amber-700">
-                  Your bank details are stored securely and used to settle automatic payouts to your account.
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Business KYC — required for Razorpay Route automatic payouts */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2"><CreditCard size={16} /> Business KYC</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <p className="text-sm text-[#6b6b80]">
-                  Required by Razorpay to pay you automatically. Booking payments are split to your account at checkout once verified.
-                </p>
-                <div className="grid sm:grid-cols-2 gap-4">
-                  <div className="sm:col-span-2">
-                    <Input
-                      label="Legal business name"
-                      placeholder="As registered with the government"
-                      value={payout.legalBusinessName}
-                      onChange={e => setPayout(p => ({ ...p, legalBusinessName: e.target.value }))}
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="settings-business-type-2" className="block text-sm font-medium text-[#374151] mb-1.5">Business type</label>
-                    <select id="settings-business-type-2"
-                      className="w-full h-11 rounded-xl border border-[#e8e6e0] bg-white px-4 text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent"
-                      value={payout.rzpBusinessType}
-                      onChange={e => setPayout(p => ({ ...p, rzpBusinessType: e.target.value }))}
-                    >
-                      <option value="">Select type…</option>
-                      {RZP_BUSINESS_TYPES.map(t => (
-                        <option key={t} value={t}>{t.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <Input
-                    label="PAN number"
-                    placeholder="ABCDE1234F"
-                    value={payout.panNumber}
-                    onChange={e => setPayout(p => ({ ...p, panNumber: e.target.value.toUpperCase() }))}
-                  />
-                  <Input
-                    label="Razorpay category"
-                    placeholder="e.g. healthcare"
-                    value={payout.rzpCategory}
-                    onChange={e => setPayout(p => ({ ...p, rzpCategory: e.target.value }))}
-                  />
-                  <Input
-                    label="Razorpay subcategory"
-                    placeholder="e.g. clinic"
-                    value={payout.rzpSubcategory}
-                    onChange={e => setPayout(p => ({ ...p, rzpSubcategory: e.target.value }))}
-                  />
-                  <div className="sm:col-span-2">
-                    <Input
-                      label="GST number (optional)"
-                      placeholder="22AAAAA0000A1Z5"
-                      value={payout.gstNumber}
-                      onChange={e => setPayout(p => ({ ...p, gstNumber: e.target.value.toUpperCase() }))}
-                    />
-                  </div>
-                  <div className="sm:col-span-2">
-                    <Input
-                      label="Registered address"
-                      placeholder="Street address"
-                      value={payout.addressStreet}
-                      onChange={e => setPayout(p => ({ ...p, addressStreet: e.target.value }))}
-                    />
-                  </div>
-                  <Input
-                    label="City"
-                    placeholder="Mumbai"
-                    value={payout.addressCity}
-                    onChange={e => setPayout(p => ({ ...p, addressCity: e.target.value }))}
-                  />
-                  <Input
-                    label="State"
-                    placeholder="Maharashtra"
-                    value={payout.addressState}
-                    onChange={e => setPayout(p => ({ ...p, addressState: e.target.value }))}
-                  />
-                  <Input
-                    label="Postal code"
-                    placeholder="400001"
-                    value={payout.addressPostalCode}
-                    onChange={e => setPayout(p => ({ ...p, addressPostalCode: e.target.value }))}
-                  />
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Automatic payouts — Razorpay Route connection */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2"><Wallet size={16} /> Automatic Payouts</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center gap-2 text-sm">
-                  <span className="text-[#6b6b80]">Status:</span>
-                  {routeStatus === "activated" ? (
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-green-50 text-green-700 text-xs font-medium">
-                      <Check size={12} /> Active — payouts are automatic
-                    </span>
-                  ) : routeStatus === "needs_clarification" || routeStatus === "created" ? (
-                    <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 text-xs font-medium">
-                      Submitted — pending Razorpay verification
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-gray-100 text-gray-600 text-xs font-medium">
-                      Not connected
-                    </span>
-                  )}
-                </div>
-                <p className="text-sm text-[#6b6b80]">
-                  Connect your account with Razorpay so booking payments are transferred to your bank automatically. Make sure your bank details and KYC above are saved first.
-                </p>
-                {connectError && <p className="text-sm text-red-500">{connectError}</p>}
-                {routeStatus !== "activated" && (
-                  <Button onClick={connectRoute} disabled={connecting} variant="outline" className="gap-2">
-                    {connecting ? "Connecting…" : routeStatus === "not_started" ? "Connect for automatic payouts" : "Resubmit / refresh status"}
-                  </Button>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        )}
-
         {error && <p className="text-sm text-red-500">{error}</p>}
-        <div className="flex justify-end">
+        <div className={tab === "payments" ? "hidden" : "flex justify-end"}>
           <Button onClick={save} disabled={saving} className="gap-2 px-8">
             {saved ? <><Check size={16} /> Saved!</> : saving ? "Saving..." : "Save settings"}
           </Button>

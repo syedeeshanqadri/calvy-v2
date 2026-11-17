@@ -17,7 +17,7 @@ const FIXTURES: Record<TemplateId, object> = {
   meeting_link: { ...booking, meetingUrl: "https://meet.test/abc", updated: false },
   queue_moved_back: { ...booking, place: 3 },
   queue_next: { ...booking, ahead: 3 },
-  queue_closed: { ...booking, reason: "missed", creditLabel: "₹500" },
+  queue_closed: { ...booking, reason: "missed", feeKept: true },
   invoice: { ...booking, invoiceNumber: "INV-1", clientEmail: "r@x.test" },
   status_change: { ...booking, status: "completed" },
   review_request: { clientName: "Riya Kapoor", businessName: "Sunrise", reviewUrl: "https://g.page/r/abc/review" },

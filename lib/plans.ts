@@ -23,7 +23,6 @@ export interface PlanLimits {
   broadcasts: boolean;
   csvExport: boolean;
   expenseTracking: boolean;
-  wallet: boolean;
   customSlotInterval: boolean;
   removeBranding: boolean;
   prioritySupport: boolean;
@@ -50,7 +49,6 @@ export const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
     broadcasts: false,
     csvExport: false,
     expenseTracking: true,
-    wallet: false,
     customSlotInterval: false,
     removeBranding: false,
     prioritySupport: false,
@@ -75,7 +73,6 @@ export const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
     broadcasts: false,
     csvExport: true,
     expenseTracking: true,
-    wallet: false,
     customSlotInterval: true,
     removeBranding: false,
     prioritySupport: false,
@@ -100,7 +97,6 @@ export const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
     broadcasts: false,
     csvExport: true,
     expenseTracking: true,
-    wallet: true,
     customSlotInterval: false,
     removeBranding: false,
     prioritySupport: false,
@@ -125,7 +121,6 @@ export const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
     broadcasts: true,
     csvExport: true,
     expenseTracking: true,
-    wallet: true,
     customSlotInterval: true,
     removeBranding: true,
     prioritySupport: true,
@@ -186,7 +181,7 @@ export interface PlanConfigRow {
   maxStaff: number; maxServices: number; maxMonthlyAppointments: number; maxBroadcastsPerMonth: number; maxTeamMembers: number; platformFeeMinorIN: number;
   analytics: boolean; customBranding: boolean; imageUpload: boolean; seoControls: boolean; chatbotWidget: boolean;
   groupBooking: boolean; multiService: boolean; stripePayments: boolean; emailReminders: boolean; smsReminders: boolean;
-  broadcasts: boolean; csvExport: boolean; expenseTracking: boolean; wallet: boolean; customSlotInterval: boolean;
+  broadcasts: boolean; csvExport: boolean; expenseTracking: boolean; customSlotInterval: boolean;
   removeBranding: boolean; prioritySupport: boolean;
 }
 
@@ -235,10 +230,3 @@ export function trialDaysLeft(_trialEndsAt: Date | null | undefined): number {
   return 0;
 }
 
-export function getRazorpayPlanId(plan: PlanId, interval: "monthly" | "annual" = "monthly"): string | null {
-  const meta = PLAN_META[plan];
-  if (!meta) return null;
-  const key = interval === "annual" ? meta.annualPlanIdEnvKey : meta.planIdEnvKey;
-  if (!key) return null;
-  return process.env[key] ?? null;
-}

@@ -30,7 +30,6 @@ const ALL_MORE_ITEMS: { label: string; href: string; icon: typeof UserCog; flag?
   { term: "appointment", label: "Bookings", href: "/dashboard/appointments", icon: Calendar },
   { label: "Staff", href: "/dashboard/staff", icon: UserCog },
   { label: "Payments", href: "/dashboard/payments", icon: CreditCard, flag: "payments" },
-  { label: "Wallet", href: "/dashboard/wallet", icon: Wallet, flag: "wallet" },
   { label: "Analytics", href: "/dashboard/analytics", icon: BarChart2 },
   { label: "Expenses", href: "/dashboard/expenses", icon: Receipt },
   { term: "service", label: "Services", href: "/dashboard/services", icon: Wrench },

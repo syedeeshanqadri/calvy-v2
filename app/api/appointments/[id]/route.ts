@@ -14,7 +14,7 @@ import { loadAvailability, type AvailabilityQuery } from "@/lib/availability";
 import { safeTimeZone, formatDateLabel, formatTimeLabel, zonedTimeToUtc, utcToZoned } from "@/lib/time";
 import { settleCancellation } from "@/lib/holds";
 import { refundPayment } from "@/lib/onlinePayment";
-import { removeCreditForReturn, restoreUsedCredit } from "@/lib/creditDb";
+import { releaseWaiver } from "@/lib/waiver";
 import { queuePush } from "@/lib/pushQueue";
 import { shortName } from "@/lib/pushRouting";
 import { meetingUrlFor } from "@/lib/online";
@@ -172,14 +172,9 @@ async function PATCH_handler(req: NextRequest, props: { params: Promise<{ id: st
     updated = await prisma.appointment.update({ where: { id: params.id }, data });
   }
 
-  // A fee returned by hand takes the matching credit out of the customer's wallet, so they are not paid twice.
-  if (willReturnFee) {
-    await prisma.$transaction((tx) => removeCreditForReturn(tx, { businessId, clientId: appointment.clientId, appointmentId: appointment.id }));
-  }
-
-  // The business cancelling a booking gives back any wallet credit it was paid with.
+  // The business cancelling a booking that used the customer's free rebooking gives that rebooking back.
   if (willCancel) {
-    await prisma.$transaction((tx) => restoreUsedCredit(tx, { businessId, clientId: appointment.clientId, appointmentId: appointment.id }));
+    await prisma.$transaction((tx) => releaseWaiver(tx, appointment.id));
   }
 
   // The business cancelling a booking paid online refunds it in full, platform fee included.
@@ -190,8 +185,8 @@ async function PATCH_handler(req: NextRequest, props: { params: Promise<{ id: st
       if (await refundPayment(paid.id, refundMinor, "Cancelled by the business")) {
         updated = await prisma.appointment.update({ where: { id: appointment.id }, data: { paymentStatus: "refunded" } });
       } else {
-        // Refused when the payment already became wallet credit (missed or cancelled at reception).
-        logger.warn("[Appointments] no refund on cancel: already credited to the wallet, or the gateway refused", { appointmentId: appointment.id, paymentId: paid.id });
+        // Refused when the Rs 10 was already kept (not attended or cancelled at reception), or the gateway refused.
+        logger.warn("[Appointments] no refund on cancel: fee already kept, or the gateway refused", { appointmentId: appointment.id, paymentId: paid.id });
       }
     }
   }

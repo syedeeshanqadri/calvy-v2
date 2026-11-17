@@ -42,7 +42,7 @@ function SignupForm() {
   return (
     <>
       <h1 className="font-syne font-bold text-2xl text-[#0f0f1a] mb-1">Track your bookings</h1>
-      <p className="text-[#6b6b80] text-sm mb-7">Create a free account to see your appointments, tokens and wallet across businesses. Booking never needs an account.</p>
+      <p className="text-[#6b6b80] text-sm mb-7">Create a free account to see your appointments and tokens across businesses. Booking never needs an account.</p>
       {error && <p role="alert" className="text-sm text-red-600 bg-red-50 rounded-xl px-4 py-3 mb-4">{error}</p>}
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>

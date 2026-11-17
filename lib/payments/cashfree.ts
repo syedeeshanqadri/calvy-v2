@@ -140,5 +140,18 @@ export function createCashfreeProvider(config: CashfreeConfig, fetchImpl: typeof
     verifyWebhook(rawBody, headers) {
       return parseCashfreeWebhook(rawBody, headers, config.secretKey);
     },
+
+    async verify() {
+      try {
+        // Looks up an order that does not exist: "not found" proves the keys were accepted, 401/403 means they were not.
+        await call("GET", "/orders/calvy_verify_probe");
+        return { ok: true };
+      } catch (e) {
+        const status = e instanceof PaymentProviderError ? e.status : undefined;
+        if (status === 404) return { ok: true };
+        if (status === 401 || status === 403) return { ok: false, reason: "Cashfree rejected these keys. Check the App ID and Secret Key, and that they are for the right mode (test or live)." };
+        return { ok: false, reason: e instanceof PaymentProviderError ? e.message : "Could not reach Cashfree. Try again in a moment." };
+      }
+    },
   };
 }

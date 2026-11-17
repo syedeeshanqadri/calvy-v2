@@ -1,14 +1,13 @@
 import type { Prisma, PrismaClient } from "@prisma/client";
 import { tryNormalizeEmail } from "@/lib/email-normalize";
 import { signTicket, verifyTicket } from "@/lib/signedTicket";
-import { readCreditTicket } from "@/lib/creditDb";
 import { readFollowUpTicket } from "@/lib/followUpDb";
 
 type Db = PrismaClient | Prisma.TransactionClient;
 
 /**
  * Booking limits for a VERIFIED customer: someone who signed in to My bookings with a verified email and came to the
- * booking page through one of their own links (Book again, Use credit, Free follow-up). A guest who just types an email
+ * booking page through one of their own links (Book again, Free follow-up). A guest who just types an email
  * proves nothing, so guests keep the existing guest rules (rate limit, one booking per person per day, the people cap, the
  * 30-a-day no-email rule). The numbers are set by a Calvy admin (Admin → Settings); 0 turns a limit off.
  */
@@ -43,7 +42,7 @@ export async function isVerifiedBooker(db: Db, tickets: (string | null | undefin
   const ids = new Set<string>();
   for (const t of tickets) {
     if (!t) continue;
-    const id = verifyTicket(PURPOSE, t, secret) ?? readCreditTicket(t)?.customerId ?? readFollowUpTicket(t)?.customerId ?? null;
+    const id = verifyTicket(PURPOSE, t, secret) ?? readFollowUpTicket(t)?.customerId ?? null;
     if (id) ids.add(id);
   }
   for (const id of ids) {

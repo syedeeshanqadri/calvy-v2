@@ -1,5 +1,4 @@
-// What /my shows (pure): bookings split into upcoming and past, and wallet balances per business.
-import { creditBalance } from "@/lib/credit";
+// What /my shows (pure): bookings split into upcoming and past, and the businesses where a kept Rs 10 fee is still valid.
 import { beforeCancellationCutoff } from "@/lib/holds";
 
 export interface BookingRow {
@@ -24,19 +23,14 @@ export function splitBookings<T extends BookingRow>(rows: T[], now: Date = new D
   return { upcoming, past };
 }
 
-export interface CreditRow { businessId: string; businessName: string; businessSlug: string; currency: string; amountMinor: number }
-export interface Wallet { businessId: string; businessName: string; businessSlug: string; currency: string; balanceMinor: number }
+export interface WaiverRow { businessId: string; businessName: string; businessSlug: string }
+export interface Waiver { businessId: string; businessName: string; businessSlug: string }
 
-/** One wallet per business: the ledger entries summed (a balance never mixes businesses or currencies). */
-export function walletsByBusiness(rows: CreditRow[]): Wallet[] {
-  const by = new Map<string, CreditRow[]>();
-  for (const r of rows) by.set(r.businessId, [...(by.get(r.businessId) ?? []), r]);
-  return [...by.values()]
-    .map((group) => ({
-      businessId: group[0].businessId, businessName: group[0].businessName, businessSlug: group[0].businessSlug,
-      currency: group[0].currency, balanceMinor: creditBalance(group),
-    }))
-    .sort((a, b) => a.businessName.localeCompare(b.businessName));
+/** One entry per business where the customer still has a valid (unused) kept confirmation fee. */
+export function waiversByBusiness(rows: WaiverRow[]): Waiver[] {
+  const by = new Map<string, Waiver>();
+  for (const r of rows) if (!by.has(r.businessId)) by.set(r.businessId, { businessId: r.businessId, businessName: r.businessName, businessSlug: r.businessSlug });
+  return [...by.values()].sort((a, b) => a.businessName.localeCompare(b.businessName));
 }
 
 /* ── Self-service changes (cancel, reschedule) ───────────────────────────── */
@@ -80,9 +74,9 @@ const DAY = 24 * 3_600_000;
 /**
  * A short feed of what changed or is coming, built from the bookings themselves (there is no separate
  * notification store): appointments in the next 24 hours, recent cancellations and completed visits,
- * and wallet credit. Newest and most urgent first, at most `limit`.
+ * and a kept confirmation fee. Newest and most urgent first, at most `limit`.
  */
-export function buildUpdates(rows: UpdateRow[], wallets: Wallet[], now: Date = new Date(), limit = 6): UpdateItem[] {
+export function buildUpdates(rows: UpdateRow[], waivers: Waiver[], now: Date = new Date(), limit = 6): UpdateItem[] {
   const out: UpdateItem[] = [];
   for (const r of rows) {
     const dt = r.date.getTime() - now.getTime();
@@ -94,8 +88,8 @@ export function buildUpdates(rows: UpdateRow[], wallets: Wallet[], now: Date = n
       out.push({ id: `done-${r.id}`, tone: "good", at: r.date, title: `${r.serviceName} completed`, detail: `Thanks for visiting ${r.businessName}` });
     }
   }
-  for (const w of wallets) {
-    if (w.balanceMinor > 0) out.push({ id: `wal-${w.businessId}`, tone: "good", at: now, title: "Credit in your wallet", detail: `Available at ${w.businessName}` });
+  for (const w of waivers) {
+    out.push({ id: `wal-${w.businessId}`, tone: "good", at: now, title: "Your Rs 10 confirmation is still valid", detail: `Rebook once at ${w.businessName} without paying it again` });
   }
   const rank = (u: UpdateItem) => (u.tone === "info" ? 0 : u.tone === "warn" ? 1 : 2);
   return out.sort((a, b) => rank(a) - rank(b) || b.at.getTime() - a.at.getTime()).slice(0, limit);

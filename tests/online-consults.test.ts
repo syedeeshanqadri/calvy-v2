@@ -15,7 +15,7 @@ const rows = vi.hoisted(() => ({ appt: null as unknown }));
 vi.mock("@/lib/prisma", () => ({
   prisma: {
     appointment: { findUnique: vi.fn(async () => rows.appt), findMany: vi.fn(async () => []) },
-    customerCredit: { findFirst: vi.fn(async () => null) },
+    confirmationWaiver: { count: vi.fn(async () => 0) },
   },
 }));
 

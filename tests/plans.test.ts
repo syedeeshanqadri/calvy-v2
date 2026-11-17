@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { getLimits, isActivePlan, getRazorpayPlanId, normalizePlanId, defaultPlanStatus } from "@/lib/plans";
+import { getLimits, isActivePlan, normalizePlanId, defaultPlanStatus } from "@/lib/plans";
 
 describe("getLimits", () => {
   it("returns free limits for unknown/free plans", () => {
@@ -47,24 +47,6 @@ describe("isActivePlan", () => {
     expect(isActivePlan("active", "professional", null)).toBe(true);
     expect(isActivePlan("past_due", "professional", null)).toBe(false);
     expect(isActivePlan("cancelled", "business", null)).toBe(false);
-  });
-});
-
-describe("getRazorpayPlanId", () => {
-  it("returns null for the free plan", () => {
-    expect(getRazorpayPlanId("free")).toBeNull();
-  });
-
-  it("reads the configured env var for monthly and annual", () => {
-    process.env.RAZORPAY_PLAN_STARTER = "plan_monthly_x";
-    process.env.RAZORPAY_PLAN_STARTER_ANNUAL = "plan_annual_x";
-    expect(getRazorpayPlanId("starter", "monthly")).toBe("plan_monthly_x");
-    expect(getRazorpayPlanId("starter", "annual")).toBe("plan_annual_x");
-  });
-
-  it("returns null when the env var is unset", () => {
-    delete process.env.RAZORPAY_PLAN_BUSINESS;
-    expect(getRazorpayPlanId("business", "monthly")).toBeNull();
   });
 });
 

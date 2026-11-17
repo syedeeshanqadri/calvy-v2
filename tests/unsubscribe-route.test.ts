@@ -117,22 +117,13 @@ describe("the signing key", () => {
   });
 });
 
-describe("Razorpay paths are untouched by the outbox (owner decision)", () => {
-  const RAZORPAY_PATHS = [
-    "app/api/razorpay/webhook/route.ts",
-    "app/api/razorpay/connect/route.ts",
-    "app/booking/success/page.tsx",
-    "app/api/bookings/confirm/route.ts",
-    "lib/razorpay.ts",
-  ];
-  it.each(RAZORPAY_PATHS)("%s does not use lib/notifications", (file) => {
-    expect(readFileSync(file, "utf8")).not.toContain("lib/notifications");
+describe("Razorpay is gone from the outbox and the codebase", () => {
+  it("the old Razorpay platform files no longer exist", () => {
+    for (const file of ["lib/razorpay.ts", "app/api/razorpay/webhook/route.ts", "app/api/razorpay/connect/route.ts", "app/booking/success/page.tsx", "app/api/bookings/confirm/route.ts", "app/api/wallet/route.ts", "app/api/billing/webhook/route.ts"]) {
+      expect(() => readFileSync(file, "utf8"), file).toThrow();
+    }
   });
-  it("the webhook and the success page still send through the direct sender", () => {
-    expect(readFileSync("app/api/razorpay/webhook/route.ts", "utf8")).toContain('from "@/lib/email"');
-    expect(readFileSync("app/booking/success/page.tsx", "utf8")).toContain('from "@/lib/email"');
-  });
-  it("the direct senders they need are still exported", () => {
+  it("the direct senders still exported", () => {
     const email = readFileSync("lib/email.tsx", "utf8");
     expect(email).toContain("export async function sendBookingConfirmation");
     expect(email).toContain("export async function sendInvoice");

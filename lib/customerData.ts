@@ -53,7 +53,7 @@ export interface BookingView {
   reviewUrl: string | null;
 }
 
-export interface WalletView { businessName: string; businessSlug: string; balanceLabel: string; balanceMinor: number; currency: string }
+export interface WaiverView { businessName: string; businessSlug: string }
 
 export const getCustomerData = cache(async () => {
   const me = await getCustomer();
@@ -101,12 +101,10 @@ export const getCustomerData = cache(async () => {
   const stats = buildStats(overview.upcoming, overview.past, all.map((a) => a.business.slug));
   const updates = buildUpdates(
     all.map((a) => ({ id: a.id, date: a.date, status: a.status, businessName: a.business.name, serviceName: a.service.name, isOnline: a.isOnline })),
-    overview.wallets, now,
+    overview.waivers, now,
   ).map((u) => ({ ...u, at: u.at.toISOString() }));
-  const wallets: WalletView[] = overview.wallets
-    .filter((w) => w.balanceMinor > 0)
-    .map((w) => ({ businessName: w.businessName, businessSlug: w.businessSlug, balanceMinor: w.balanceMinor, currency: w.currency, balanceLabel: formatCurrencyAmount(w.balanceMinor / 100, w.currency) }));
+  const waivers: WaiverView[] = overview.waivers.map((w) => ({ businessName: w.businessName, businessSlug: w.businessSlug }));
   const nextAt = stats.next ? { iso: stats.next.toISOString() } : null;
 
-  return { me, verified: true as const, upcoming, past, stats: { ...stats, next: nextAt }, updates, wallets };
+  return { me, verified: true as const, upcoming, past, stats: { ...stats, next: nextAt }, updates, waivers };
 });

@@ -4,7 +4,6 @@ import { requireAdminApi } from "@/lib/admin/auth";
 import { prisma } from "@/lib/prisma";
 import { isFeatureEnabled } from "@/lib/flags";
 import { getPaymentProvider } from "@/lib/payments";
-import { FULL_ONLINE_ENABLED } from "@/lib/fees";
 import { PENDING_PAYMENT } from "@/lib/holds";
 import { evaluatePaymentsHealth } from "@/lib/paymentsHealth";
 import { paymentBaseUrl, webhookUrlForDisplay } from "@/lib/paymentUrls";
@@ -48,7 +47,6 @@ async function GET_handler() {
     cronSecretSet: set(process.env.CRON_SECRET),
     receiptCompanyDetailsSet: set(process.env.CALVY_LEGAL_NAME) && set(process.env.CALVY_ADDRESS),
     receiptGstinSet: set(process.env.CALVY_GSTIN),
-    fullOnlineEnabled: FULL_ONLINE_ENABLED,
   };
   return NextResponse.json({
     ready: verdict.ready, mode: verdict.mode, problems: verdict.problems, warnings: verdict.warnings, checks,

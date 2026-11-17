@@ -12,11 +12,11 @@ const mocks = vi.hoisted(() => {
     $executeRaw: vi.fn(async () => 0),
   };
   db.$transaction = vi.fn(async (fn: (tx: unknown) => unknown) => fn(db));
-  return { db, notify: vi.fn(async (..._items: unknown[]) => {}), credit: vi.fn(async (..._a: unknown[]): Promise<null | { amountMinor: number; currency: string }> => null) };
+  return { db, notify: vi.fn(async (..._items: unknown[]) => {}), credit: vi.fn(async (..._a: unknown[]): Promise<boolean> => false) };
 });
 vi.mock("@/lib/prisma", () => ({ prisma: mocks.db }));
 vi.mock("@/lib/notifications/enqueue", () => ({ notify: mocks.notify }));
-vi.mock("@/lib/creditDb", () => ({ creditClosedBooking: mocks.credit }));
+vi.mock("@/lib/waiver", () => ({ keepConfirmationFee: mocks.credit }));
 
 import { runQueueAction, type QueueBusiness } from "@/lib/queueDb";
 
@@ -39,7 +39,7 @@ beforeEach(() => {
   mocks.db.tokenSession.findFirst.mockResolvedValue(session);
   mocks.db.appointment.findMany.mockResolvedValue([token(1), token(2), token(3)]);
   mocks.db.business.findUnique.mockResolvedValue({ name: "Sunrise", slug: "sunrise", packId: "CLINIC", termsOverride: null, currency: "INR" });
-  mocks.credit.mockResolvedValue(null);
+  mocks.credit.mockResolvedValue(false);
 });
 
 describe("runQueueAction customer notices", () => {
@@ -59,13 +59,13 @@ describe("runQueueAction customer notices", () => {
     expect(queued()[0].version).toBe(2);
   });
 
-  it("the fourth missed call closes the token and says what was saved in the wallet", async () => {
+  it("the fourth missed call closes the token and says the Rs 10 fee is kept", async () => {
     mocks.db.appointment.findMany.mockResolvedValue([token(1, { notPresentCount: 3 }), token(2), token(3)]);
-    mocks.credit.mockResolvedValue({ amountMinor: 50000, currency: "INR" });
+    mocks.credit.mockResolvedValue(true);
     const res = await act("not_present");
     expect(res.outcome).toBe("no_show");
     expect(queued()).toHaveLength(1);
-    expect(queued()[0]).toMatchObject({ event: "booking.queue_closed", template: "queue_closed", subjectId: "a1", payload: { reason: "missed", creditLabel: expect.stringContaining("500"), loginUrl: expect.stringMatching(/\/my$/) } });
+    expect(queued()[0]).toMatchObject({ event: "booking.queue_closed", template: "queue_closed", subjectId: "a1", payload: { reason: "missed", feeKept: true, loginUrl: expect.stringMatching(/\/my$/) } });
   });
 
   it("cancelling at reception closes it as cancelled", async () => {

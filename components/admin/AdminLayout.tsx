@@ -4,8 +4,8 @@ import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import {
   LayoutDashboard, Building2, CreditCard, TrendingUp,
-  ShieldCheck, LogOut, ChevronRight, ArrowDownToLine, Bell, X, Send,
-  Users, HelpCircle, LifeBuoy, Newspaper, Contact, ScrollText,
+  ShieldCheck, LogOut, ChevronRight, Bell, X, Send,
+  Users, HelpCircle, LifeBuoy, Newspaper, Contact, ScrollText, Menu,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useFlags } from "@/components/providers/FlagsProvider";
@@ -18,7 +18,6 @@ const NAV: { label: string; href: string; icon: typeof LayoutDashboard; exact?: 
   { label: "Businesses", href: "/admin/businesses", icon: Building2 },
   { label: "Plans & Pricing", href: "/admin/plans", icon: CreditCard },
   { label: "Revenue", href: "/admin/revenue", icon: TrendingUp },
-  { label: "Withdrawals", href: "/admin/withdrawals", icon: ArrowDownToLine, flag: "wallet" },
   { label: "Notifications", href: "/admin/notifications", icon: Send, exact: true },
   { label: "Delivery log", href: "/admin/notifications/log", icon: ScrollText },
   { label: "WhatsApp review", href: "/admin/whatsapp-review", icon: Send },
@@ -35,14 +34,20 @@ export function AdminLayout({ children, adminEmail }: { children: React.ReactNod
   const { data: session } = useSession();
   const [showNotifications, setShowNotifications] = useState(false);
   const [toast, setToast] = useState("");
+  const [menuOpen, setMenuOpen] = useState(false);
   const userName = session?.user?.name ?? "Admin";
   const userEmail = adminEmail ?? session?.user?.email ?? "";
   const initials = userName.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase();
 
   return (
     <div className="flex h-screen overflow-hidden bg-[#f8f7f4]">
-      {/* Sidebar */}
-      <aside className="w-60 flex flex-col bg-white border-r border-[#e8e6e0] flex-shrink-0">
+      {/* Phone: the sidebar is a drawer behind the menu button. md and up: always visible. */}
+      {menuOpen && <div className="fixed inset-0 z-40 bg-black/40 md:hidden" onClick={() => setMenuOpen(false)} aria-hidden />}
+      <aside className={cn(
+        "w-60 flex flex-col bg-white border-r border-[#e8e6e0] flex-shrink-0 overflow-y-auto",
+        "fixed inset-y-0 left-0 z-50 transition-transform duration-200 md:static md:translate-x-0 md:z-auto",
+        menuOpen ? "translate-x-0" : "-translate-x-full",
+      )}>
         {/* Logo */}
         <div className="flex items-center gap-2.5 px-5 h-16 border-b border-[#e8e6e0]">
           <Logo width={72} />
@@ -61,6 +66,7 @@ export function AdminLayout({ children, adminEmail }: { children: React.ReactNod
               <Link
                 key={item.href}
                 href={item.href}
+                onClick={() => setMenuOpen(false)}
                 className={cn(
                   "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all duration-200 group",
                   isActive ? "bg-sky-50 text-sky-700" : "text-[#6b6b80] hover:text-[#0f0f1a] hover:bg-[#f8f7f4]"
@@ -95,7 +101,8 @@ export function AdminLayout({ children, adminEmail }: { children: React.ReactNod
       {/* Main */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Top nav */}
-        <header className="bg-white border-b border-[#e8e6e0] flex items-center px-6 gap-2 sticky top-0 z-30 safe-header-16">
+        <header className="bg-white border-b border-[#e8e6e0] flex items-center px-4 md:px-6 gap-2 sticky top-0 z-30 safe-header-16">
+          <button type="button" onClick={() => setMenuOpen(true)} aria-label="Open admin menu" className="md:hidden p-2 -ml-2 rounded-xl text-[#6b6b80] hover:bg-[#f8f7f4]"><Menu size={20} /></button>
           <div className="flex-1" />
           <button
             onClick={() => { setToast("Help center coming soon!"); setTimeout(() => setToast(""), 3000); }}

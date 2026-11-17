@@ -6,7 +6,6 @@ import { PULL_THRESHOLD, usePullToRefresh } from "@/lib/usePullToRefresh";
 import { REFRESH_EVENT } from "@/lib/useLivePoll";
 import { Sidebar } from "./Sidebar";
 import { Header } from "./Header";
-import { TrialBanner } from "./TrialBanner";
 import { BottomNav } from "./BottomNav";
 import { PushSetup } from "./PushSetup";
 import { AlertCenter } from "./AlertCenter";
@@ -49,7 +48,6 @@ export function DashboardLayout({ children, title, subtitle }: DashboardLayoutPr
       {/* Main */}
       <div className="flex flex-col flex-1 min-w-0 overflow-clip">
         <Header title={title} subtitle={subtitle} />
-        <TrialBanner />
         <InstallPrompt />
         <PushBanner />
         <main ref={mainRef} className="flex-1 overflow-y-auto overscroll-contain">

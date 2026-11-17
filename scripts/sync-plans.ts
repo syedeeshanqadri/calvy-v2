@@ -38,7 +38,6 @@ async function main() {
       broadcasts: l.broadcasts,
       csvExport: l.csvExport,
       expenseTracking: l.expenseTracking,
-      wallet: l.wallet,
       customSlotInterval: l.customSlotInterval,
       removeBranding: l.removeBranding,
       prioritySupport: l.prioritySupport,

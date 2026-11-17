@@ -19,7 +19,7 @@ export interface PaymentEventStore<Tx> {
   transaction<R>(fn: (tx: Tx) => Promise<R>): Promise<R>;
   /** Record the event; false when (provider, eventId) was already recorded. */
   recordEvent(tx: Tx, provider: ProviderName, event: PaymentEvent): Promise<boolean>;
-  findPayment(tx: Tx, provider: ProviderName, providerOrderId: string): Promise<{ id: string; status: PayStatus; amountMinor: number } | null>;
+  findPayment(tx: Tx, provider: ProviderName, providerOrderId: string, gatewayId?: string | null): Promise<{ id: string; status: PayStatus; amountMinor: number } | null>;
   updatePayment(tx: Tx, id: string, data: { status: PayStatus; method: string | null; paymentRef: string | null }): Promise<void>;
 }
 
@@ -34,10 +34,16 @@ export type ApplyOutcome =
  * Apply a verified webhook exactly once. A redelivered event is a no-op; a PAID event whose amount
  * differs from the order is not applied (kept for review).
  */
-export async function applyPaymentEvent<Tx>(store: PaymentEventStore<Tx>, provider: ProviderName, event: PaymentEvent): Promise<ApplyOutcome> {
+export async function applyPaymentEvent<Tx>(
+  store: PaymentEventStore<Tx>, provider: ProviderName, rawEvent: PaymentEvent,
+  /** Which gateway the event came from: its payments only. null = Calvy's own Cashfree (the Rs 10 fee); omitted = no scoping. */
+  scope?: { gatewayId: string | null },
+): Promise<ApplyOutcome> {
+  // A business's gateway signs with ITS secret, so its events are scoped to its own payments and its own event ids.
+  const event = scope?.gatewayId ? { ...rawEvent, eventId: `${scope.gatewayId}:${rawEvent.eventId}` } : rawEvent;
   return store.transaction(async (tx) => {
     if (!(await store.recordEvent(tx, provider, event))) return { result: "duplicate" as const };
-    const payment = await store.findPayment(tx, provider, event.providerOrderId);
+    const payment = await store.findPayment(tx, provider, event.providerOrderId, scope ? scope.gatewayId : undefined);
     if (!payment) return { result: "unknown_order" as const };
     if (event.kind === "PAID" && event.amountMinor !== null && event.amountMinor !== payment.amountMinor) {
       return { result: "amount_mismatch" as const, paymentId: payment.id };

@@ -112,7 +112,7 @@ export function DeleteAccountCard({ email }: { email: string }) {
   return (
     <section aria-labelledby="del" className="bg-white rounded-2xl border border-[#e8e6e0] p-5">
       <h2 id="del" className="font-syne font-bold text-lg">Delete account</h2>
-      <p className="text-sm text-[#6b6b80] mt-1">This removes your Calvy login, your wallet view and your saved details. Businesses keep their own booking records, and any credit saved with them can no longer be reached from here.</p>
+      <p className="text-sm text-[#6b6b80] mt-1">This removes your Calvy login, your saved details. Businesses keep their own booking records, and any credit saved with them can no longer be reached from here.</p>
       {!open ? (
         <button type="button" onClick={() => setOpen(true)} className="mt-4 min-h-11 px-4 rounded-xl border border-red-200 text-red-700 text-sm font-semibold hover:bg-red-50">Delete my account</button>
       ) : (

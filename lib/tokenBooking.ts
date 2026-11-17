@@ -8,10 +8,9 @@ import { PENDING_PAYMENT, holdExpiry } from "@/lib/holds";
 import { BOOKING_TX_OPTIONS } from "@/lib/booking";
 import { trackingUrl } from "@/lib/tracking";
 import { assertNoDuplicatePatient, assertWithinPeopleCap, contactAtDailyCap } from "@/lib/patientsDb";
-import { chargeFor, sendConfirmationFor, startCheckout, type PayConfig } from "@/lib/onlinePayment";
+import { chargeFor, defaultGateway, sendConfirmationFor, startCheckout, type PayConfig } from "@/lib/onlinePayment";
 import { assertMonthlyHeadroom } from "@/lib/limits";
-import { CreditTicketError, creditForTicket, spendCredit } from "@/lib/creditDb";
-import { applyCredit, reduceCharge } from "@/lib/credit";
+import { claimWaiver, waiverAvailable } from "@/lib/waiver";
 import { loadMeetingUrl } from "@/lib/onlineDb";
 import { addDays, formatDateLabel, parseYMD, utcToZoned, weekdayOf, zonedToUtc } from "@/lib/time";
 import {
@@ -148,8 +147,10 @@ export interface TokenBookingInput {
   maxPeoplePerBooker: number;
   /** Set when this token is the free follow-up of an earlier appointment: it costs nothing. */
   followUpOfId?: string | null;
-  /** Signed ticket from the customer's "Use credit" link; wallet credit reduces the online charge. */
-  creditTicket?: string | null;
+}
+
+export class WaiverTakenError extends Error {
+  constructor() { super("Your confirmation changed while you were booking. Please try again."); }
 }
 
 /** Book the next token in a session: confirm at once, or hold it while the customer pays online. */
@@ -158,12 +159,6 @@ export async function bookToken(input: TokenBookingInput): Promise<NextResponse>
 
   const problem = dateProblem(business, date);
   if (problem) return err(400, problem);
-
-  // Without Cashfree online payments (flag off), never confirm an unpaid token where slot booking
-  // would send the customer to the legacy Razorpay checkout: refuse (fail closed).
-  if (!isFeatureEnabled("onlinePayments") && business.paymentMode === "prepaid" && process.env.RAZORPAY_KEY_ID) {
-    return err(409, `Online token booking isn't available yet. Please contact ${business.name}${business.phone ? ` on ${business.phone}` : ""}.`, "PAYMENT_REQUIRED");
-  }
 
   const session = await prisma.tokenSession.findFirst({ where: { id: tokenSessionId, businessId: business.id, isActive: true } });
   if (!session || !session.weekdays.includes(weekdayOf(date))) return err(400, "That session is not available on this date.");
@@ -187,24 +182,20 @@ export async function bookToken(input: TokenBookingInput): Promise<NextResponse>
   const notes = [services.length > 1 ? `__services__:${services.slice(1).map((s) => s.name).join("|")}` : "", input.notes ?? ""]
     .filter(Boolean).join("\n") || null;
 
-  const fullCharge = chargeFor(input.payConfig, totalPrice);
+  const fullCharge = chargeFor(input.payConfig, services.map((sv) => ({ serviceId: sv.id, price: input.followUpOfId ? 0 : sv.price })));
   if (fullCharge.chargeMinor > 0 && !input.client.phone) return err(400, "A phone number is needed to pay online.");
 
   const client = await findOrCreateClient(prisma, business.id, input.client, tz);
 
-  // Wallet credit (only through a verified customer's ticket) pays part or all of the online charge first.
-  let creditUsed = 0;
+  // A kept Rs 10 confirmation fee (earlier booking cancelled or not attended) waives the fee once at this business.
   let charge = fullCharge;
-  if (input.creditTicket && fullCharge.chargeMinor > 0) {
-    try {
-      const { balanceMinor } = await creditForTicket(prisma, input.creditTicket, business, client);
-      creditUsed = applyCredit(fullCharge.chargeMinor, balanceMinor).usedMinor;
-      charge = reduceCharge(fullCharge, creditUsed);
-    } catch (e) {
-      if (e instanceof CreditTicketError) return err(400, e.message, "CREDIT_EXPIRED");
-      throw e;
-    }
+  let waived = false;
+  if (fullCharge.route === "CALVY" && fullCharge.chargeMinor > 0 && (await waiverAvailable(prisma, business.id, client.id))) {
+    charge = { chargeMinor: 0, platformFeeMinor: 0, businessShareMinor: 0, route: "NONE" };
+    waived = true;
   }
+  const gateway = charge.route === "GATEWAY" ? await defaultGateway(business.id) : null;
+  if (charge.route === "GATEWAY" && !gateway) return err(503, "Online payments are temporarily unavailable. Please try again later.", "PAYMENT_START_FAILED");
   const holdExpiresAt = charge.chargeMinor > 0 ? holdExpiry() : null;
 
   // Over the contact's daily quota: still booked, but no email or WhatsApp goes to the contact.
@@ -227,8 +218,8 @@ export async function bookToken(input: TokenBookingInput): Promise<NextResponse>
         tokenSessionId: session.id, sessionDate: dateOnly(date), tokenNumber: a.number, estimatedAt,
       },
     });
-    // Wallet credit used on this token: recorded in the same transaction.
-    if (creditUsed > 0) await spendCredit(tx, { businessId: business.id, clientId: client.id, appointmentId: created.id, amountMinor: creditUsed, currency: business.currency ?? DEFAULT_CURRENCY });
+    // The waiver is claimed in the booking's own transaction: two parallel bookings cannot both skip the fee.
+    if (waived && !(await claimWaiver(tx, { businessId: business.id, clientId: client.id, appointmentId: created.id }))) throw new WaiverTakenError();
     return created;
   });
 
@@ -255,7 +246,7 @@ export async function bookToken(input: TokenBookingInput): Promise<NextResponse>
       appointmentId: appointment.id, businessId: business.id, businessName: business.name,
       currency: business.currency ?? DEFAULT_CURRENCY, charge, holdExpiresAt: holdExpiresAt!,
       client: { id: client.id, name: input.client.name, email: input.client.email, phone: input.client.phone! },
-      note: `Token #${number} ${session.name} ${date}`,
+      note: `Token #${number} ${session.name} ${date}`, gateway,
     });
     if (!started.ok) return err(502, started.error, "PAYMENT_START_FAILED");
     return NextResponse.json({ success: true, appointmentId: appointment.id, pendingPayment: true, checkout: started.checkout, token, isOnline: input.isOnline ?? false });

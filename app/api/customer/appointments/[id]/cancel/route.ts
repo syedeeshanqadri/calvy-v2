@@ -7,7 +7,7 @@ import { cancelByCustomer } from "@/lib/customerAppointments";
 export const dynamic = "force-dynamic";
 
 // A signed-in, verified customer cancels their own booking. The business sees it in its dashboard and is
-// notified; the customer gets a cancellation email. Whatever was paid online becomes wallet credit.
+// notified; the customer gets a cancellation email. The Rs 10 confirmation fee is kept and valid for one rebooking.
 async function POST_handler(_req: NextRequest, props: { params: Promise<{ id: string }> }) {
   const me = await getCustomer();
   if (!me) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -17,7 +17,7 @@ async function POST_handler(_req: NextRequest, props: { params: Promise<{ id: st
   const { id } = await props.params;
   const r = await cancelByCustomer(me.email, id);
   if (!r.ok) return NextResponse.json({ error: r.error, code: r.code }, { status: r.status });
-  return NextResponse.json({ ok: true, credit: r.credit });
+  return NextResponse.json({ ok: true, feeKept: r.feeKept });
 }
 
 export const POST = safeRoute(POST_handler);

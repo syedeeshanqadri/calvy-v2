@@ -12,8 +12,8 @@ export interface TrackingPage {
   /** The staff member whose queue this is (business information, not customer data). */
   staffName: string | null;
   view: TrackingView;
-  /** Wallet credit this booking turned into when it was missed or cancelled (the customer's own money). */
-  credit: { amountMinor: number; currency: string } | null;
+  /** The Rs 10 confirmation fee was kept because this booking was missed or cancelled: still valid for one rebooking. */
+  feeKept: boolean;
   /** Online consultation: the signed code is the credential, so the holder of this page may see the link. */
   online: { meetingUrl: string | null } | null;
 }
@@ -71,12 +71,10 @@ export async function loadTracking(code: string, slug?: string, now: Date = new 
       : null,
   });
 
-  const credit = ["no_show", "cancelled"].includes(view.state)
-    ? await prisma.customerCredit.findFirst({ where: { appointmentId: a.id, kind: { in: ["MISSED", "CANCELLED"] } }, select: { amountMinor: true, currency: true } })
-    : null;
+  const feeKept = ["no_show", "cancelled"].includes(view.state) && (await prisma.confirmationWaiver.count({ where: { sourceAppointmentId: a.id } })) > 0;
 
   return {
-    credit,
+    feeKept,
     // Only a confirmed booking that is still in the queue: never while payment is pending, or once expired, cancelled, missed or done.
     online: a.isOnline && a.status === "confirmed" && ["waiting", "serving"].includes(view.state) ? { meetingUrl: meetingUrlFor(a) } : null,
     business: {

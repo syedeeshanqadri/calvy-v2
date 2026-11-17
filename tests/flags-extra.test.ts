@@ -10,32 +10,20 @@ describe("env parsing edge cases", () => {
     expect(isFeatureEnabled("payments", { FEATURE_PAYMENTS: v })).toBe(expected);
   });
   it("does not read process.env when env is supplied", () => {
-    expect(isFeatureEnabled("wallet", {})).toBe(false);
+    expect(isFeatureEnabled("broadcasts", {})).toBe(false);
   });
 });
 
 describe("path boundaries", () => {
   it.each([
-    ["/api/walletx", null],
-    ["/api/wallet/", "wallet"],
-    ["/api/wallet?x=1", null], // pathname never contains a query; documents behaviour
-    ["/api/WALLET", "wallet"],
-    ["/api/Wallet", "wallet"],
-    ["/api//wallet", "wallet"],
-    ["/api/wallet%2Fx", "wallet"],
-    ["/api/wallet.", null],
+    ["/api/BROADCASTS", "broadcasts"],
+    ["/api/Broadcasts", "broadcasts"],
+    ["/api//broadcasts", "broadcasts"],
     ["/api/broadcasts/", "broadcasts"],
-    ["/api/billing/status/", "payments"],
-    ["/api/billing/statusx", null],
-    ["/api/settings/payout/", "payments"],
-    ["/api/settings/payoutx", null],
-    ["/api/bookings/confirm/", "payments"],
-    ["/api/bookings/confirmed", null],
     ["/api/appointments/abc/payment/", "payments"],
     ["/api/appointments/abc/payment/x/y", "payments"],
     ["/api/appointments/abc/paymentx", null],
     ["/api/appointments/a/b/payment", null],
-    ["/api/razorpay/connectx", null],
   ] as [string, FeatureFlag | null][])("%s -> %s", (p, f) => {
     expect(featureForApiPath(p)).toBe(f);
   });
@@ -43,15 +31,6 @@ describe("path boundaries", () => {
 
 describe("prefix to flag mapping", () => {
   const map: Record<string, FeatureFlag> = {
-    "/api/wallet": "wallet",
-    "/api/admin/withdrawals": "wallet",
-    "/api/razorpay/connect": "payments",
-    "/api/billing/portal": "payments",
-    "/api/billing/sync": "payments",
-    "/api/billing/upgrade": "payments",
-    "/api/billing/status": "payments",
-    "/api/settings/payout": "payments",
-    "/api/bookings/confirm": "payments",
     "/api/appointments/id1/payment": "payments",
     "/api/broadcasts": "broadcasts",
   };
@@ -59,43 +38,40 @@ describe("prefix to flag mapping", () => {
     expect(featureForApiPath(p)).toBe(f);
     expect(featureForApiPath(p + "/sub")).toBe(f);
   });
-  it("only wallet, payments, broadcasts are guarded at the API layer", () => {
+  it("only payments and broadcasts are guarded at the API layer", () => {
     const used = new Set(Object.values(map));
-    expect(Array.from(used).sort()).toEqual(["broadcasts", "payments", "wallet"]);
+    expect(Array.from(used).sort()).toEqual(["broadcasts", "payments"]);
     for (const f of FEATURE_FLAGS) if (!used.has(f)) expect(f).toMatch(/chatWidget|demoBooking|removeBranding|onlinePayments/);
   });
 });
 
 describe("webhook exemptions", () => {
   it.each([
-    "/api/razorpay/webhook", "/api/razorpay/webhook/", "/api/razorpay/webhook/x",
-    "/api/billing/webhook", "/api/billing/webhook/", "/api/billing/webhook/x",
+    "/api/payments/webhook/abc", "/api/payments/webhook/abc/", "/api/payments/cashfree/webhook", "/api/whatsapp/webhook",
   ])("%s is never guarded", (p) => {
     expect(featureForApiPath(p)).toBeNull();
   });
 });
 
 describe("non-API paths", () => {
-  it.each(["/dashboard/wallet", "/wallet", "/dashboard/broadcasts", "/billing/status", "/", "/dashboard/settings/payout"])(
+  it.each(["/dashboard/broadcasts", "/broadcasts", "/dashboard/broadcasts", "/billing/status", "/"])(
     "%s -> null", (p) => { expect(featureForApiPath(p)).toBeNull(); });
 });
 
 describe("featureForApiPath normalisation", () => {
   it.each([
-    "//api//wallet",
-    "/api/wallet/",
-    "/API/Wallet",
-    "/api/%77allet",
-    "/api/./wallet",
-    "/api/x/../wallet",
-    "/api%2Fwallet",
-    "/api\\wallet",
-    "/api/%2577allet",
+    "//api//broadcasts",
+    "/API/Broadcasts",
+    "/api/%62roadcasts",
+    "/api/./broadcasts",
+    "/api/x/../broadcasts",
+    "/api%2Fbroadcasts",
+    "/api\\broadcasts",
+    "/api/%2562roadcasts",
   ])("guards %s", (p) => {
-    expect(featureForApiPath(p)).toBe("wallet");
+    expect(featureForApiPath(p)).toBe("broadcasts");
   });
   it("does not guard unrelated paths or malformed encodings", () => {
-    expect(featureForApiPath("/api/walletx")).toBeNull();
     expect(featureForApiPath("/api/%E0%A4%A")).toBeNull();
   });
 });

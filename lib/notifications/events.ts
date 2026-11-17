@@ -192,7 +192,7 @@ export function queueMovedBack(n: Notice, place: number, missedCalls: number): N
 }
 
 /** booking.queue_closed: a token closed at the clinic (missed four calls, or cancelled). Once per booking. */
-export function queueClosed(n: Notice, closed: { reason: "missed" | "cancelled"; creditLabel?: string; loginUrl?: string }): NotificationInput | null {
+export function queueClosed(n: Notice, closed: { reason: "missed" | "cancelled"; feeKept?: boolean; loginUrl?: string }): NotificationInput | null {
   if (!reachable(n)) return null;
   return { ...base(n), event: "booking.queue_closed", template: "queue_closed", payload: { ...n.payload, ...closed } };
 }

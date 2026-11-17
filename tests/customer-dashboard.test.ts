@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
-import { manageability, buildUpdates, buildStats, type Wallet } from "@/lib/customerView";
+import { manageability, buildUpdates, buildStats } from "@/lib/customerView";
 
 // feat/customer-dashboard: customers see their bookings, can reschedule or cancel them, the business is
 // told and the customer is emailed. Only the verified owner of a booking may touch it.
@@ -37,7 +37,7 @@ describe("who can change a booking", () => {
 });
 
 describe("overview numbers and updates", () => {
-  const wallets: Wallet[] = [{ businessId: "b1", businessName: "Glow", businessSlug: "glow", currency: "INR", balanceMinor: 50000 }];
+  const wallets = [{ businessId: "b1", businessName: "Glow", businessSlug: "glow" }];
   const rows = [
     { id: "a1", date: at(5), status: "confirmed", businessName: "Glow", serviceName: "Haircut", isOnline: false },
     { id: "a2", date: at(100), status: "confirmed", businessName: "Glow", serviceName: "Colour" },
@@ -45,7 +45,7 @@ describe("overview numbers and updates", () => {
     { id: "a4", date: at(-24 * 3), status: "completed", businessName: "Sunrise", serviceName: "Checkup" },
     { id: "a5", date: at(-24 * 90), status: "completed", businessName: "Sunrise", serviceName: "Old visit" },
   ];
-  it("the feed has what is next, recent changes and credit, most urgent first", () => {
+  it("the feed has what is next, recent changes and a kept Rs 10 fee, most urgent first", () => {
     const u = buildUpdates(rows, wallets, now);
     expect(u[0]).toMatchObject({ id: "soon-a1", tone: "info" });
     const ids = u.map((x) => x.id);
@@ -76,7 +76,7 @@ const mocks = vi.hoisted(() => ({
   },
   notify: vi.fn(async (..._items: unknown[]) => {}),
   push: vi.fn(async (_id: string, _p: Record<string, unknown>) => {}),
-  creditClosedBooking: vi.fn(async () => null as null | { amountMinor: number; currency: string }),
+  keepConfirmationFee: vi.fn(async () => false),
   loadAvailability: vi.fn(),
   bookExclusive: vi.fn(),
 }));
@@ -86,7 +86,7 @@ vi.mock("@/lib/customerSession", () => ({ getCustomer: vi.fn(async () => mocks.c
 vi.mock("@/lib/ratelimit", () => ({ rateLimit: vi.fn(async () => ({ ok: true, retryAfter: 0 })), clientIp: () => "1.1.1.1" }));
 vi.mock("@/lib/notifications/enqueue", () => ({ notify: mocks.notify }));
 vi.mock("@/lib/push", () => ({ sendPushToBusiness: mocks.push }));
-vi.mock("@/lib/creditDb", () => ({ creditClosedBooking: mocks.creditClosedBooking }));
+vi.mock("@/lib/waiver", () => ({ keepConfirmationFee: mocks.keepConfirmationFee }));
 vi.mock("@/lib/availability", () => ({ loadAvailability: mocks.loadAvailability }));
 vi.mock("@/lib/booking", async (orig) => ({ ...(await orig<typeof import("@/lib/booking")>()), bookExclusive: mocks.bookExclusive }));
 
@@ -156,12 +156,12 @@ describe("cancel", () => {
     expect(call.where).toMatchObject({ id: "a1", OR: [{ queueState: null }, { queueState: "WAITING" }] });
     expect(call.data).toEqual({ status: "cancelled", queueState: "CANCELLED" });
   });
-  it("anything paid online comes back as credit, never as a card refund", async () => {
+  it("the Rs 10 confirmation fee is kept for one rebooking, never refunded to the card", async () => {
     mocks.db.appointment.findFirst.mockResolvedValue(row());
-    mocks.creditClosedBooking.mockResolvedValue({ amountMinor: 50000, currency: "INR" });
+    mocks.keepConfirmationFee.mockResolvedValue(true);
     const body = await (await cancelPost(req(), params())).json();
-    expect(body.credit).toEqual({ amountMinor: 50000, currency: "INR" });
-    expect((mocks.creditClosedBooking.mock.calls[0] as unknown[])[1]).toMatchObject({ kind: "CANCELLED", appointmentId: "a1", clientId: "c1" });
+    expect(body.feeKept).toBe(true);
+    expect((mocks.keepConfirmationFee.mock.calls[0] as unknown[])[1]).toMatchObject({ appointmentId: "a1", clientId: "c1" });
   });
   it("inside the cutoff, a past booking, a token being served or an already closed one is refused and nothing is sent", async () => {
     for (const over of [

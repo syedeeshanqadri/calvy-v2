@@ -16,9 +16,9 @@ export const prismaPaymentEventStore: PaymentEventStore<Prisma.TransactionClient
     }
   },
 
-  async findPayment(tx, provider, providerOrderId) {
+  async findPayment(tx, provider, providerOrderId, gatewayId) {
     return tx.payment.findFirst({
-      where: { provider, providerOrderId },
+      where: { provider, providerOrderId, ...(gatewayId !== undefined ? { gatewayId } : {}) },
       select: { id: true, status: true, amountMinor: true },
     });
   },

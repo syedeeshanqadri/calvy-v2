@@ -29,8 +29,8 @@ describe("step-21 honest public site", () => {
   it("yearly is the default for International only", () => {
     expect(read("components/landing/PricingClient.tsx")).toContain('choice ?? region === "INTL"');
   });
-  it("contact details: the proprietor's name appears on the Contact page only", () => {
-    expect(CONTACT.proprietor).toBe("Eeshan Ajaz");
+  it("contact details: the legal entity is Raybit Technologies Pvt Ltd and no sole proprietor is named anywhere", () => {
+    expect(CONTACT.legalName).toBe("Raybit Technologies Pvt Ltd");
     expect(SUPPORT_EMAIL).toBe("support@calvy.io");
     const dirs = ["app", "components", "lib"];
     const hits: string[] = [];
@@ -38,14 +38,15 @@ describe("step-21 honest public site", () => {
       for (const e of readdirSync(d, { withFileTypes: true })) {
         const p = `${d}/${e.name}`;
         if (e.isDirectory()) walk(p);
-        else if (/\.(tsx?|css)$/.test(e.name) && /Eeshan|Ajaz/.test(read(p))) hits.push(p);
+        else if (/\.(tsx?|css)$/.test(e.name) && /Eeshan|Ajaz|proprietor/i.test(read(p))) hits.push(p);
       }
     };
     dirs.forEach(walk);
-    expect(hits.sort()).toEqual(["lib/site.ts"]);
-    expect(read("app/contact/page.tsx")).toContain("CONTACT.proprietor");
+    expect(hits).toEqual([]);
+    expect(read("app/contact/page.tsx")).toContain("CONTACT.legalName");
+    expect(read("app/terms/page.tsx")).toContain("CONTACT.legalName");
   });
-  it("the phone number appears only on the contact, refund and privacy pages", () => {
+  it("the phone number appears only on the contact, refund and privacy pages (and the signed-in Support page)", () => {
     const hits: string[] = [];
     const walk = (d: string) => {
       for (const e of readdirSync(d, { withFileTypes: true })) {
@@ -55,13 +56,16 @@ describe("step-21 honest public site", () => {
       }
     };
     ["app", "components"].forEach(walk);
-    expect(hits.sort()).toEqual(["app/contact/page.tsx", "app/privacy/page.tsx", "app/refund-policy/page.tsx"]);
+    expect(hits.sort()).toEqual(["app/contact/page.tsx", "app/dashboard/contact/page.tsx", "app/privacy/page.tsx", "app/refund-policy/page.tsx"]);
   });
   it("legal pages name the processors and the refund rules", () => {
     const privacy = read("app/privacy/page.tsx");
     for (const n of ["Cashfree", "Meta", "Google", "Resend"]) expect(privacy).toContain(n);
     const refund = read("app/refund-policy/page.tsx");
-    for (const n of ["₹10", "wallet credit", "5–7 working days", "last-minute", "charges are not refunded"]) expect(refund).toContain(n);
+    for (const n of ["₹10", "non-refundable", "rebook", "does not collect or hold service fees", "own payment gateway", "5–7 working days", "last-minute", "partial billing periods"]) expect(refund).toContain(n);
+    const terms = read("app/terms/page.tsx");
+    for (const n of ["does not collect or hold service fees", "non-refundable", "one rebooking", "partial billing periods"]) expect(terms).toContain(n);
+    for (const f of ["app/refund-policy/page.tsx", "app/terms/page.tsx", "app/contact/page.tsx", "app/privacy/page.tsx"]) expect(read(f), f).not.toMatch(/wallet credit|wallet/i);
     expect(read("app/service-delivery/page.tsx")).toMatch(/digital/i);
     for (const f of ["app/privacy/page.tsx", "app/terms/page.tsx", "app/refund-policy/page.tsx"]) expect(read(f)).not.toContain("Razorpay");
   });

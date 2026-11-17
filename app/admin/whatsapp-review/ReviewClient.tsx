@@ -20,17 +20,17 @@ export default function ReviewClient({ connections }: { connections: Conn[] }) {
   }
 
   return (
-    <div className="max-w-2xl space-y-5">
+    <div className="p-4 md:p-8 max-w-2xl space-y-5">
       <div>
         <h1 className="font-syne font-bold text-2xl text-[#0f0f1a]">WhatsApp review template</h1>
-        <p className="text-sm text-[#6b6b80] mt-1">For the Meta App Review screen recording. Creates a UTILITY template (English) on a connected WhatsApp Business Account through the Graph API and shows Meta&apos;s response.</p>
+        <p className="text-sm text-[#6b6b80] mt-1 break-words">For the Meta App Review screen recording. Creates a UTILITY template (English) on a connected WhatsApp Business Account through the Graph API and shows Meta&apos;s response.</p>
       </div>
       {connections.length === 0 ? (
         <p className="text-sm rounded-xl bg-amber-50 text-amber-900 px-3 py-2">No business has a CONNECTED WhatsApp connection yet. Connect one in Settings &gt; WhatsApp first.</p>
       ) : (
-        <div className="bg-white rounded-2xl border border-[#e8e6e0] p-5 space-y-4">
+        <div className="bg-white rounded-2xl border border-[#e8e6e0] p-4 md:p-5 space-y-4 min-w-0">
           <label className="block text-xs font-semibold text-[#6b6b80]">Connected WhatsApp Business Account
-            <select value={businessId} onChange={(e) => setBusinessId(e.target.value)} className="mt-1 w-full h-10 px-3 rounded-xl bg-white border border-[#e8e6e0] text-sm">
+            <select value={businessId} onChange={(e) => setBusinessId(e.target.value)} className="mt-1 w-full min-w-0 h-10 px-3 rounded-xl bg-white border border-[#e8e6e0] text-sm truncate">
               {connections.map((c) => <option key={c.businessId} value={c.businessId}>{c.business} · {c.number ?? "number pending"} · WABA {c.wabaId} · {c.source === "EMBEDDED" ? "Connect WhatsApp" : "manual"}</option>)}
             </select>
           </label>
@@ -43,7 +43,7 @@ export default function ReviewClient({ connections }: { connections: Conn[] }) {
             <div role="status" className="rounded-xl bg-emerald-50 text-emerald-900 text-sm px-3 py-3 space-y-1">
               <p className="font-semibold">{result.alreadyExisted ? "Template already exists on this account (Meta's current record)" : "Meta accepted the template"}</p>
               <p>Name: <span className="font-mono">{result.name}</span></p>
-              <p>Template ID from Meta: <span className="font-mono">{result.id}</span></p>
+              <p className="break-all">Template ID from Meta: <span className="font-mono">{result.id}</span></p>
               <p>Status: <span className="font-mono">{result.status}</span> (Meta then reviews it; PENDING is normal)</p>
             </div>
           ) : (

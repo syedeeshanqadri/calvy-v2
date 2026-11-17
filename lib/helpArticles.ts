@@ -13,7 +13,7 @@ export const HELP_CATEGORIES = [
   "Getting Started",
   "Booking Flow",
   "Billing & Plans",
-  "Payments & Razorpay",
+  "Payments",
   "Account & Notifications",
 ] as const;
 
@@ -111,7 +111,7 @@ The number of staff you can add depends on your plan.`,
 2. They pick a **service** (and staff member, if you offer choices).
 3. They choose a **date and time** from your live availability.
 4. They enter their **name, email, and phone**.
-5. Depending on your payment mode, they either **pay online** (prepaid) or simply **confirm** (postpaid).
+5. Depending on your plan and payment options, they pay a **Rs 10 confirmation fee**, pay **online** to your own gateway, or simply **confirm** and pay at the visit.
 
 ## After booking
 - The client gets a **confirmation email** (and WhatsApp, on supported plans).
@@ -137,22 +137,23 @@ Calvy validates every booking on our server, so two clients can never grab the s
 > Tip: when someone messages you to book, just reply with your link instead of going back and forth on times. Most clients prefer booking themselves.`,
   },
   {
-    slug: "prepaid-vs-postpaid-bookings",
-    title: "Prepaid vs postpaid bookings",
+    slug: "how-customers-pay",
+    title: "How customers pay",
     category: "Booking Flow",
-    excerpt: "Choose whether clients pay online when booking or at the visit.",
-    keywords: ["prepaid", "postpaid", "payment mode", "deposit", "pay online"],
-    body: `Calvy supports two payment modes, set in **Settings → Payout**.
+    excerpt: "Choose whether clients pay at the venue, in full online, or an advance.",
+    keywords: ["pay online", "advance", "deposit", "pay at venue", "payment option"],
+    body: `Where a client pays depends on your plan.
 
-## Postpaid (default)
-Clients book without paying. You collect at the visit and mark the appointment as paid. Best when you're getting started or don't want online payments yet.
+## Basic plan
+Clients pay a **Rs 10 confirmation fee** online when they book, and pay for the service **at the venue**. The Rs 10 is Calvy's. If the booking is cancelled or the client doesn't attend, the Rs 10 is kept, the booking shows **Not attended — confirmation still valid**, and the client can rebook **once** at your business without paying the Rs 10 again.
 
-## Prepaid
-Clients **pay online at the moment they book**. This dramatically reduces no-shows because people who pay show up. Prepaid requires:
-- A supported plan with online payments
-- Your **bank/KYC details** added, and **Razorpay** connected
+## Pro and Business plans
+There is **no Rs 10 fee**. You connect **your own payment gateway** (**Settings → Payments → Add payment gateway**), and clients pay straight into your account. Calvy never holds your money. Choose what clients pay:
+- **Pay at venue**: nothing online.
+- **Pay online in full**.
+- **Advance**: a fixed amount or a percentage online, the rest at the venue.
 
-To switch to prepaid, add your bank details in **Settings → Payout**, then select **Prepaid**.`,
+You can set a different option for a single service.`,
   },
   {
     slug: "manage-and-reschedule-appointments",
@@ -199,7 +200,7 @@ Calvy shows clients how many spots are left and stops accepting bookings once th
 Calvy automatically reminds clients before their appointment by **email**, **WhatsApp**, and **push** (channels depend on your plan). Reminders go out the day before — nothing to send manually.
 
 ## Prepayment
-Switch to **prepaid** bookings so clients pay when they book. People who've paid show up. See *Prepaid vs postpaid bookings*.
+Take a payment when clients book (a Rs 10 confirmation fee on Basic, or an advance into your own gateway on Pro and Business). People who've paid show up. See *How customers pay*.
 
 ## Combine both
 Reminders + prepayment together is the most effective setup for keeping your calendar full and your revenue protected.`,
@@ -217,7 +218,7 @@ Reminders + prepayment together is the most effective setup for keeping your cal
 ## What changes between plans
 Higher plans raise your limits and unlock features such as:
 - More **staff**, **services**, and **monthly bookings**
-- **Online payments**, **wallet & withdrawals**
+- **Online payments** into your own gateway (no Rs 10 fee)
 - **WhatsApp reminders**, **broadcasts**, **analytics**
 - **Custom branding**, **chatbot widget**, **group booking**
 - **Remove "Powered by Calvy"** and **priority support** on the top tier
@@ -233,12 +234,9 @@ See the live pricing and full feature comparison on the **Pricing** section of o
     body: `Upgrade any time from **Dashboard → Billing**.
 
 ## Steps
-1. Open **Billing** and choose **monthly** or **annual** (annual is cheaper).
-2. Pick a plan and click upgrade.
-3. You'll be taken to a secure **Razorpay** checkout to start your subscription.
-4. Once payment is confirmed, your plan and limits update automatically.
-
-If your plan doesn't update within a minute, use the **Sync** button on the Billing page to refresh it from Razorpay.`,
+1. Open **Billing** to see your current plan.
+2. Ask support to change it.
+3. Online subscription payments are coming soon. For now, email **support@calvy.io** and we will switch your plan.`,
   },
   {
     slug: "change-or-cancel-subscription",
@@ -246,13 +244,13 @@ If your plan doesn't update within a minute, use the **Sync** button on the Bill
     category: "Billing & Plans",
     excerpt: "Switch plans or cancel — and what happens to your access.",
     keywords: ["cancel", "downgrade", "change plan", "subscription", "unsubscribe"],
-    body: `Manage your subscription in **Dashboard → Billing**.
+    body: `Plan changes are handled by our team for now: email **support@calvy.io**.
 
 ## Cancel
-Click **Cancel subscription**. You keep your paid features until the **end of the current billing period**, then your account moves to the Free plan. No cancellation fees.
+Ask support to cancel. You keep your paid features until the **end of the current billing period**, then your account moves to the Free plan. No cancellation fees.
 
 ## Change plans
-Upgrading or switching plans starts a new subscription and cancels the previous one so you're not billed twice.
+Upgrading or switching plans is done by support, so you're not billed twice.
 
 Your data, bookings, and clients are never deleted when you downgrade — some features just become unavailable until you upgrade again.`,
   },
@@ -277,9 +275,8 @@ You can see your plan price on the **Pricing** section and in **Dashboard → Bi
     body: `If a subscription charge fails, your plan status may show **past due**.
 
 ## How to fix it
-1. Open **Dashboard → Billing**.
-2. Click **Sync** to refresh the latest status from Razorpay.
-3. If it's still past due, re-subscribe to the plan — you'll be taken to a fresh Razorpay checkout to update payment.
+1. Email **support@calvy.io** with your business name.
+2. We will check the status and send you a fresh payment link.
 
 Common causes are an expired card, insufficient funds, or a bank decline. Using a different card usually resolves it. Your data is safe during this time.`,
   },
@@ -293,110 +290,91 @@ Common causes are an expired card, insufficient funds, or a bank decline. Using 
 Subscription fees are billed in advance and are generally non-refundable, but we may issue a refund for a duplicate charge, a verified technical issue on our side, or a charge made after a valid cancellation. Annual plans can be fully refunded within the first 7 days if largely unused. To request one, email **${SUPPORT_EMAIL}** from your account email.
 
 ## Booking refunds (your clients)
-When a client pays you for a booking, **you** handle any refund to that client — Calvy provides the payment technology but isn't a party to that transaction. Refund a client's booking payment from your Razorpay dashboard.
+When a client pays you for a booking, **you** handle any refund to that client — Calvy provides the payment technology but isn't a party to that transaction. Refund a client's booking payment from **Payments → Refund** (it uses your own payment gateway).
 
 Full details are on our **Refund Policy** page.`,
   },
 
-  // ─── Payments & Razorpay ──────────────────────────────────────────
+  // ─── Payments ──────────────────────────────────────────
   {
-    slug: "connect-razorpay-to-accept-payments",
-    title: "Connecting Razorpay to accept payments",
-    category: "Payments & Razorpay",
-    excerpt: "Set up Razorpay so clients can pay online when they book.",
-    keywords: ["razorpay", "connect", "payments", "online payment", "setup", "keys"],
-    body: `Calvy uses **Razorpay** to collect online (prepaid) booking payments.
-
-## What you need
-1. A **Razorpay account** (razorpay.com) — test mode is fine to start.
-2. Your **bank/KYC details** added in **Settings → Payout**.
-3. Choose **Prepaid** as your booking payment mode.
-
-Once prepaid is enabled, clients who book are sent to a secure Razorpay payment page. After they pay, Calvy confirms the booking and notifies you automatically.
-
-For automatic payouts to your own bank, see *Setting up automatic payouts (Razorpay Route)*.`,
-  },
-  {
-    slug: "set-up-automatic-payouts-razorpay-route",
-    title: "Setting up automatic payouts (Razorpay Route)",
-    category: "Payments & Razorpay",
-    excerpt: "Get booking payments sent straight to your bank automatically.",
-    keywords: ["payout", "route", "automatic", "linked account", "kyc", "settlement"],
-    body: `With **Razorpay Route**, prepaid booking payments are split to your own linked account automatically — no manual withdrawals.
+    slug: "connect-your-payment-gateway",
+    title: "Connecting your payment gateway",
+    category: "Payments",
+    excerpt: "Add Razorpay, Cashfree or PhonePe so clients pay straight into your account.",
+    keywords: ["gateway", "razorpay", "cashfree", "phonepe", "connect", "keys", "payments"],
+    body: `Available on the **Pro and Business** plans (India).
 
 ## Steps
-1. In **Settings → Payout**, fill in your **Business KYC** (legal name, business type, PAN, GST if any, registered address) and **bank details (account number + IFSC)**.
-2. Click **Connect for automatic payouts**.
-3. Razorpay verifies your details. Once your status shows **Active**, payments from bookings are transferred to your account at checkout.
+1. Open **Settings → Payments → Add payment gateway**.
+2. Pick **Razorpay**, **Cashfree** or **PhonePe PG**. A short guide shows where the keys are in that dashboard, with links.
+3. Choose **Test** or **Live** mode, paste the keys, and click **Save and verify**. Calvy makes a real, lightweight call to confirm the keys work, and shows **Connected** or the reason it failed.
+4. Copy the **webhook URL** shown and paste it into the provider's dashboard (the screen says exactly where). This is how your gateway tells Calvy a payment succeeded.
+5. Choose **how customers pay** below it: at the venue, in full online, or an advance.
 
-> Note: **Razorpay Route must be enabled on your Razorpay account** for this to work. If you see "Route feature not enabled," activate Route from your Razorpay dashboard (or contact Razorpay support), then click Connect again.`,
+You can add more than one gateway, make one the **default**, and enable or disable each. Your keys are encrypted and never shown again.`,
   },
   {
-    slug: "configure-razorpay-webhooks",
-    title: "Configuring Razorpay webhooks",
-    category: "Payments & Razorpay",
-    excerpt: "Webhooks let Razorpay tell Calvy when a payment succeeds.",
-    keywords: ["webhook", "razorpay", "signature", "secret", "events", "payment_link.paid"],
-    body: `Webhooks are how Razorpay notifies Calvy that a payment or subscription event happened. Without them, a payment can succeed but the booking/plan won't update.
+    slug: "refund-a-customer-payment",
+    title: "Refunding a customer's payment",
+    category: "Payments",
+    excerpt: "Refund an online payment through your own gateway, or mark it refunded manually.",
+    keywords: ["refund", "customer", "gateway", "manual"],
+    body: `Open **Payments**, find the booking, and click **Refund**. Calvy asks your gateway to refund the customer.
 
-## Set up two webhooks (Razorpay → Settings → Webhooks)
-| Endpoint | Events |
-|---|---|
-| \`https://calvy.io/api/razorpay/webhook\` | \`payment_link.paid\` |
-| \`https://calvy.io/api/billing/webhook\` | all \`subscription.*\` events |
+If the gateway can't do it (or you already refunded the customer yourself, for example from the gateway's dashboard or in cash), you are offered **Mark refunded manually**, which only records it in Calvy.
 
-For each webhook, set a **secret**, and make sure the **same secret** is configured for Calvy. After saving, send a test event and confirm it returns **200** in Razorpay's "Recent Deliveries".
+Calvy's **Rs 10 confirmation fee** (Basic plan) is not refunded from here: it is kept when a booking is cancelled or not attended.`,
+  },
+  {
+    slug: "gateway-webhooks",
+    title: "Gateway webhooks",
+    category: "Payments",
+    excerpt: "Webhooks let your gateway tell Calvy when a payment succeeds.",
+    keywords: ["webhook", "signature", "secret", "events", "payment"],
+    body: `A webhook is how your gateway tells Calvy that a payment succeeded. Each gateway you add has its **own webhook URL** (shown in **Settings → Payments**, with a copy button). Calvy checks each message with **your own** secret, so nobody else can confirm a payment.
 
-If bookings or plans aren't updating after payment, a missing or mismatched webhook secret is the most common cause.`,
+| Gateway | Where to paste it | What to tick |
+|---|---|---|
+| Razorpay | Account & Settings → Webhooks → Add New Webhook (choose a secret, then enter the same secret in Calvy) | \`payment_link.paid\` |
+| Cashfree | Developers → Webhooks → Add Webhook Endpoint | Payment success, failed, user dropped |
+| PhonePe | Developer Settings → Webhook (choose a username and password, then enter them in Calvy as username:password) | order completed, order failed |
+
+Without a webhook the customer still pays, and the booking is confirmed when they come back to the page.`,
   },
   {
     slug: "client-paid-but-no-booking",
     title: "A client paid but I didn't get the booking",
-    category: "Payments & Razorpay",
+    category: "Payments",
     excerpt: "What to check when a payment went through but no appointment appeared.",
     keywords: ["paid", "no booking", "missing", "payment received", "webhook"],
     body: `If a client paid but the appointment didn't appear, the cause is almost always the **booking webhook**.
 
 ## Checklist
-1. **Razorpay → Webhooks → Recent Deliveries**: is the \`payment_link.paid\` event returning **200**? A **400** means the webhook secret is missing or doesn't match.
-2. Confirm the booking webhook secret in Razorpay matches the one configured for Calvy.
+1. In your gateway's dashboard, open the webhook deliveries: is the payment event returning **200**? A **401** means the webhook secret (or username:password) doesn't match what you entered in Calvy.
+2. Confirm the webhook URL in your gateway is the one shown in **Settings → Payments** for that gateway.
 3. Open the appointment list — Calvy also has a **fallback** that creates the appointment when the client lands on the success page, so it may appear shortly after.
 
-Once the webhook returns 200, paid bookings appear instantly. See *Configuring Razorpay webhooks*.`,
+Once the webhook returns 200, paid bookings appear instantly. See *Gateway webhooks*.`,
   },
   {
-    slug: "wallet-balance-and-withdrawals",
-    title: "Wallet balance and withdrawals",
-    category: "Payments & Razorpay",
-    excerpt: "How your wallet balance is calculated and how withdrawals work.",
-    keywords: ["wallet", "withdraw", "balance", "payout", "earnings"],
-    body: `If you collect prepaid payments **without** automatic Route payouts, the funds are tracked as your **wallet balance** in **Dashboard → Wallet**.
+    slug: "kept-confirmation-fee",
+    title: "Not attended: the Rs 10 confirmation fee",
+    category: "Payments",
+    excerpt: "What happens to the Rs 10 when a booking is cancelled or not attended.",
+    keywords: ["not attended", "no show", "confirmation fee", "rebook", "rs 10"],
+    body: `On the Basic plan, the Rs 10 confirmation fee is **never refunded** when a confirmed booking is cancelled or not attended. The booking shows **Not attended — confirmation still valid**.
 
-## How the balance works
-Your withdrawable balance = **paid prepaid bookings − amounts already withdrawn**. Payments paid out automatically via Razorpay Route are **not** counted here (they already went to your bank).
-
-## Withdrawing
-Add your bank details in **Settings → Payout**, then request a withdrawal from the Wallet page. Withdrawals are reviewed and released by our team.
-
-For instant, automatic settlement instead, set up *Razorpay Route* payouts.`,
+The customer can **rebook once** at your business without paying the Rs 10 again (or use a free follow-up if you enabled them). There is no wallet balance and nothing to withdraw.`,
   },
   {
-    slug: "test-payments-with-razorpay-test-mode",
-    title: "Testing payments with Razorpay test mode",
-    category: "Payments & Razorpay",
-    excerpt: "Try the full payment flow safely using Razorpay test cards.",
-    keywords: ["test mode", "test card", "sandbox", "razorpay", "testing"],
-    body: `Before going live, test the whole flow using **Razorpay test mode** (test API keys, \`rzp_test_…\`).
+    slug: "test-payments-in-test-mode",
+    title: "Testing payments in test mode",
+    category: "Payments",
+    excerpt: "Try the full payment flow safely before going live.",
+    keywords: ["test mode", "sandbox", "test card", "testing"],
+    body: `Add your gateway in **Test mode** (test keys from the provider's dashboard) and book on your own page. Use the test cards or UPI IDs from your provider's documentation. When you're ready, add the gateway again in **Live mode** with live keys and make it the default.
 
-## Test card
-- **Card:** 4111 1111 1111 1111
-- **Expiry:** any future date · **CVV:** any 3 digits
-- **OTP:** use \`1234\` or choose "Success" on the test page
-
-## Test UPI
-- Success: \`success@razorpay\` · Failure: \`failure@razorpay\`
-
-Test mode uses **INR**, so keep your business currency on INR while testing. When you're ready, switch to your **live** Razorpay keys, re-create your webhooks for live mode, and complete Razorpay activation/KYC.`,
+Keep your business currency on INR while testing.`,
   },
 
   // ─── Account & Notifications ──────────────────────────────────────

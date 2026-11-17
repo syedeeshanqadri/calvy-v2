@@ -25,6 +25,11 @@ export async function launchCheckout(c: CheckoutInfo): Promise<void> {
     window.location.assign(new URL(`/booking/mock-checkout?order_id=${encodeURIComponent(c.orderId)}`, window.location.origin).href);
     return;
   }
+  // Razorpay and PhonePe send the customer to their hosted payment page.
+  if (c.redirect) {
+    window.location.assign(c.sessionId);
+    return;
+  }
   await loadScript(CASHFREE_SDK);
   const factory = (window as unknown as { Cashfree?: CashfreeFactory }).Cashfree;
   if (!factory) throw new Error("Could not load the payment page. Please try again.");

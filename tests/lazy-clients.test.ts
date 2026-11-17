@@ -31,21 +31,10 @@ describe("lazy third-party clients (no import-time crash)", () => {
     expect(typeof mod.POST).toBe("function");
   });
 
-  it("imports lib/razorpay without keys", async () => {
-    const mod = await import("@/lib/razorpay");
-    expect(mod.razorpay).toBeDefined();
-    expect(typeof mod.createRouteLinkedAccount).toBe("function");
-  });
-
-  it("throws a clear error only when razorpay is used without keys", async () => {
-    const { razorpay } = await import("@/lib/razorpay");
-    expect(() => razorpay.orders).toThrow("Razorpay is not configured");
-  });
-
-  it("builds the real client lazily once keys exist", async () => {
-    vi.stubEnv("RAZORPAY_KEY_ID", "rzp_test_x");
-    vi.stubEnv("RAZORPAY_KEY_SECRET", "secret_x");
-    const { razorpay } = await import("@/lib/razorpay");
-    expect(razorpay.orders).toBeDefined();
+  it("imports the gateway adapters without any keys (they are built per business, from stored credentials)", async () => {
+    for (const path of ["@/lib/payments/razorpay", "@/lib/payments/phonepe", "@/lib/payments/cashfree", "@/lib/payments/gateways"]) {
+      const mod = await import(path);
+      expect(mod, path).toBeDefined();
+    }
   });
 });

@@ -1,7 +1,7 @@
 /** Fields an admin must never see in clear, in view-as or anywhere in the admin console: bank, PAN and gateway account details. */
 const SECRET_FIELDS = [
   "bankAccountName", "bankAccountNumber", "bankRoutingNumber", "bankIban", "panNumber", "gstNumber",
-  "razorpayConnectAccountId", "razorpayStakeholderId", "razorpayRouteProductId", "razorpayCustomerId", "razorpaySubscriptionId",
+  "razorpayConnectAccountId", "razorpayStakeholderId", "razorpayRouteProductId", "razorpayCustomerId", "razorpaySubscriptionId", "keyIdEnc", "keySecretEnc", "webhookSecretEnc", "webhookKey",
 ] as const;
 
 export const MASK = "••••••";

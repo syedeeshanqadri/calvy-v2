@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { SUPPORT_EMAIL } from "@/lib/site";
+import { CONTACT, SUPPORT_EMAIL } from "@/lib/site";
 import type { Metadata } from "next";
 import { LegalLayout } from "@/components/legal/LegalLayout";
 
@@ -14,7 +14,7 @@ export default function TermsPage() {
     <LegalLayout
       title="Terms & Conditions"
       lastUpdated="November 16, 2026"
-      intro="These Terms & Conditions (“Terms”) govern your access to and use of Calvy (the “Service”), operated by Calvy. By creating an account or using the Service, you agree to be bound by these Terms. If you do not agree, do not use the Service."
+      intro="These Terms & Conditions (“Terms”) govern your access to and use of Calvy (the “Service”), operated by {CONTACT.legalName} (“Calvy”, “we”, “us”). By creating an account or using the Service, you agree to be bound by these Terms. If you do not agree, do not use the Service."
     >
       <h2>1. Eligibility &amp; Accounts</h2>
       <p>You must be at least 18 years old and capable of forming a binding contract to use the Service. You are responsible for maintaining the confidentiality of your account credentials and for all activity that occurs under your account.</p>
@@ -24,20 +24,21 @@ export default function TermsPage() {
 
       <h2>3. Subscriptions &amp; Billing</h2>
       <ul>
-        <li>Paid plans are billed in advance on a recurring monthly or annual basis through our payment partner.</li>
+        <li>Calvy subscriptions are billed by Calvy, in advance, on a recurring monthly or annual basis through our payment partner.</li>
         <li>Your subscription renews automatically until cancelled. You authorize us to charge the applicable fees to your selected payment method each billing cycle.</li>
-        <li>You may cancel at any time from your billing dashboard; access continues until the end of the current billing period.</li>
+        <li>You may cancel at any time. Access continues until the end of the current billing period.</li>
+        <li>We do not refund partial billing periods unless the law requires it. See the <Link href="/refund-policy">Refund &amp; Cancellation Policy</Link>.</li>
         <li>Fees are exclusive of taxes unless stated otherwise. You are responsible for any applicable taxes.</li>
       </ul>
 
       <h2>4. Payments to Businesses</h2>
-      <p>Where you use the Service to collect payments from your own clients, you are solely responsible for the goods or services you provide, for honoring bookings, and for any refunds owed to your clients. Calvy is not a party to transactions between businesses and their clients.</p>
+      <p>Service fees are paid by a customer to the business, either at the venue or online directly to the business through the business&apos;s own payment gateway. <strong>Calvy does not collect or hold service fees.</strong> The business is solely responsible for the goods or services it provides, for honoring bookings, and for refunding its customers, through its gateway or in person, according to its own policy. Calvy is not a party to transactions between businesses and their customers.</p>
 
-      <h2>5. Online Bookings, Platform Fee and Wallet Credit</h2>
+      <h2>5. Booking Confirmation Fee</h2>
       <ul>
-        <li>On the Free plan in India, each confirmed online booking carries a platform fee of ₹10. The business chooses whether it or its customer pays this fee.</li>
-        <li>Once an online booking is confirmed, its booking charges are not refunded; if the booking is cancelled, the amount is added to the customer&apos;s wallet for allowed future bookings.</li>
-        <li>When a customer pays for a booking online and the booking is cancelled or missed, the amount paid is kept as wallet credit for that customer with that business, to be used on a later booking. It does not expire. Refunds in cash are covered in the <Link href="/refund-policy">Refund &amp; Cancellation Policy</Link>.</li>
+        <li>On the Basic plan in India, a customer pays a ₹10 booking confirmation fee when booking online. The fee is paid to Calvy and is non-refundable.</li>
+        <li>If the booking is cancelled or not attended, the fee is not refunded, but the confirmation stays valid for one rebooking with the same business without paying the fee again.</li>
+        <li>Businesses on higher plans connect their own payment gateway and the ₹10 fee does not apply.</li>
         <li>WhatsApp messages sent through a paid plan are charged by Meta to the business&apos;s own WhatsApp Business account.</li>
         <li>The Service is delivered digitally and is available as soon as your account is created. See <Link href="/service-delivery">Service Delivery</Link>.</li>
       </ul>

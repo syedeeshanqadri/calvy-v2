@@ -46,7 +46,7 @@ export function HelpSearch({ index, categories }: { index: IndexItem[]; categori
           <h1 className="font-syne font-extrabold text-4xl sm:text-5xl tracking-tight text-[#0f0f1a] mb-3">
             How can we help?
           </h1>
-          <p className="text-lg text-[#6b6b80] mb-8">Search guides on bookings, billing, payments, and Razorpay setup.</p>
+          <p className="text-lg text-[#6b6b80] mb-8">Search guides on bookings, billing, payments, and gateway setup.</p>
 
           <div className="relative max-w-xl mx-auto">
             <Search size={20} className="absolute left-5 top-1/2 -translate-y-1/2 text-[#9b9b9b]" />

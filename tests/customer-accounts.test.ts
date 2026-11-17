@@ -3,14 +3,14 @@ import { NextRequest } from "next/server";
 import { createHash } from "crypto";
 
 // Customer accounts: the verification gate, linking bookings only after verification, role
-// isolation and wallet totals, with a mocked Prisma.
+// isolation and kept-fee waivers, with a mocked Prisma.
 
 const db = vi.hoisted(() => {
   const d: Record<string, any> = {
     customer: { findUnique: vi.fn(), create: vi.fn(), update: vi.fn() },
     customerToken: { findUnique: vi.fn(), findFirst: vi.fn(), create: vi.fn(), deleteMany: vi.fn(), updateMany: vi.fn() },
     appointment: { findMany: vi.fn() },
-    customerCredit: { findMany: vi.fn() },
+    confirmationWaiver: { findMany: vi.fn() },
   };
   d.$transaction = vi.fn(async (fn: (tx: unknown) => unknown) => fn(d));
   return d;
@@ -30,7 +30,7 @@ import { POST as reset } from "@/app/api/customer/reset-password/route";
 import { PATCH as profile } from "@/app/api/customer/profile/route";
 import { overviewForCustomer } from "@/lib/customerDb";
 import { canAccessOwnerArea, customerIdOf, customerSessionCurrent, isCustomerToken } from "@/lib/customerAccess";
-import { splitBookings, walletsByBusiness } from "@/lib/customerView";
+import { splitBookings, waiversByBusiness } from "@/lib/customerView";
 
 const TOKEN = "a".repeat(64);
 const hash = (t: string) => createHash("sha256").update(t).digest("hex");
@@ -119,13 +119,13 @@ describe("verification gate", () => {
 describe("bookings are linked only after verification", () => {
   beforeEach(() => {
     db.appointment.findMany.mockResolvedValue([]);
-    db.customerCredit.findMany.mockResolvedValue([]);
+    db.confirmationWaiver.findMany.mockResolvedValue([]);
   });
 
   it("an unverified account gets nothing and the database is not even asked", async () => {
     expect(await overviewForCustomer({ email: "a@x.com", verified: false })).toBeNull();
     expect(db.appointment.findMany).not.toHaveBeenCalled();
-    expect(db.customerCredit.findMany).not.toHaveBeenCalled();
+    expect(db.confirmationWaiver.findMany).not.toHaveBeenCalled();
   });
 
   it("a verified account is matched on its verified email, any case, across businesses", async () => {
@@ -134,7 +134,7 @@ describe("bookings are linked only after verification", () => {
     // Matched on the verified email across businesses; a moved token's placeholder on the old day is not a booking.
     expect(where).toEqual({ client: { email: { equals: "a@x.com", mode: "insensitive" } }, OR: [{ queueState: null }, { queueState: { not: "MOVED" } }] });
     expect(where.businessId).toBeUndefined();
-    expect(db.customerCredit.findMany.mock.calls[0][0].where).toEqual({ client: { email: { equals: "a@x.com", mode: "insensitive" } } });
+    expect(db.confirmationWaiver.findMany.mock.calls[0][0].where).toEqual({ client: { email: { equals: "a@x.com", mode: "insensitive" } }, usedAppointmentId: null });
   });
 });
 
@@ -180,20 +180,20 @@ describe("role isolation", () => {
   });
 });
 
-describe("wallet totals and booking lists", () => {
-  it("sums each business's ledger separately and keeps currencies apart", () => {
-    const w = walletsByBusiness([
-      { businessId: "b1", businessName: "Clinic", businessSlug: "clinic", currency: "INR", amountMinor: 50000 },
-      { businessId: "b1", businessName: "Clinic", businessSlug: "clinic", currency: "INR", amountMinor: -20000 },
-      { businessId: "b2", businessName: "Salon", businessSlug: "salon", currency: "USD", amountMinor: 1500 },
+describe("kept-fee waivers and booking lists", () => {
+  it("one entry per business, however many unused waivers it has", () => {
+    const w = waiversByBusiness([
+      { businessId: "b2", businessName: "Salon", businessSlug: "salon" },
+      { businessId: "b1", businessName: "Clinic", businessSlug: "clinic" },
+      { businessId: "b1", businessName: "Clinic", businessSlug: "clinic" },
     ]);
     expect(w).toEqual([
-      { businessId: "b1", businessName: "Clinic", businessSlug: "clinic", currency: "INR", balanceMinor: 30000 },
-      { businessId: "b2", businessName: "Salon", businessSlug: "salon", currency: "USD", balanceMinor: 1500 },
+      { businessId: "b1", businessName: "Clinic", businessSlug: "clinic" },
+      { businessId: "b2", businessName: "Salon", businessSlug: "salon" },
     ]);
   });
-  it("no ledger rows, no wallets", () => {
-    expect(walletsByBusiness([])).toEqual([]);
+  it("no waivers, nothing listed", () => {
+    expect(waiversByBusiness([])).toEqual([]);
   });
   it("splits upcoming from past; a lapsed payment hold or a closed booking is past", () => {
     const now = new Date("2026-10-26T10:00:00Z");
