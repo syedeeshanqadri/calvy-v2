@@ -215,14 +215,14 @@ describe("Calvy-level webhook route", () => {
     // Same JSON, different bytes (extra whitespace): a signature of the re-serialised body must NOT pass.
     expect((await POST(post(`${body} `, sign(body)))).status).toBe(401);
     expect(db.handleWebhook).not.toHaveBeenCalled();
-    db.cfgFindFirst.mockResolvedValue({ businessId: "b1", phoneNumberId: "111" });
+    db.cfgFindFirst.mockResolvedValue({ businessId: "b1", phoneNumberId: "111", source: "EMBEDDED" });
     expect((await POST(post(body, sign(body)))).status).toBe(200);
     expect(db.handleWebhook).toHaveBeenCalledOnce();
   });
   it("routes by WABA id to the business and calls the shared handler", async () => {
-    db.cfgFindFirst.mockResolvedValue({ businessId: "b7", phoneNumberId: "555" });
+    db.cfgFindFirst.mockResolvedValue({ businessId: "b7", phoneNumberId: "555", source: "EMBEDDED" });
     await POST(post(body, sign(body)));
-    expect(db.cfgFindFirst.mock.calls[0][0].where).toMatchObject({ wabaId: "222", source: "EMBEDDED" });
+    expect(db.cfgFindFirst.mock.calls[0][0].where).toMatchObject({ wabaId: "222" });
     expect(db.handleWebhook.mock.calls[0].slice(0, 2)).toEqual(["b7", "555"]);
   });
   it("unknown phone_number_id / waba_id: logged and answered 200, nothing handled", async () => {
@@ -236,7 +236,7 @@ describe("Calvy-level webhook route", () => {
     warn.mockRestore();
   });
   it("is idempotent per event: a retried delivery is applied once", async () => {
-    db.cfgFindFirst.mockResolvedValue({ businessId: "b1", phoneNumberId: "111" });
+    db.cfgFindFirst.mockResolvedValue({ businessId: "b1", phoneNumberId: "111", source: "EMBEDDED" });
     const seen = new Set<string>();
     db.evCreate.mockImplementation(async ({ data }: { data: { key: string } }) => { if (seen.has(data.key)) throw Object.assign(new Error("dup"), { code: "P2002" }); seen.add(data.key); });
     const payload = { entry: [{ id: "222", changes: [{ field: "messages", value: { metadata: { phone_number_id: "111" }, statuses: [{ id: "wamid.1", status: "delivered" }, { id: "wamid.2", status: "read" }] } }] }] };
@@ -247,13 +247,13 @@ describe("Calvy-level webhook route", () => {
     expect(db.handleWebhook.mock.calls[0][2].entry[0].changes[0].value.statuses).toHaveLength(2);
   });
   it("template_category_update reaches the shared handler (the send gate relies on it)", async () => {
-    db.cfgFindFirst.mockResolvedValue({ businessId: "b1", phoneNumberId: "111" });
+    db.cfgFindFirst.mockResolvedValue({ businessId: "b1", phoneNumberId: "111", source: "EMBEDDED" });
     const p = { entry: [{ id: "222", time: 1, changes: [{ field: "template_category_update", value: { message_template_name: "calvy_x_v1", new_category: "MARKETING" } }] }] };
     await handleCalvyWebhook(p);
     expect(db.handleWebhook.mock.calls[0][2].entry[0].changes[0]).toMatchObject({ field: "template_category_update", value: { new_category: "MARKETING" } });
   });
   it("coexistence fields (history, smb_app_state_sync, smb_message_echoes): signature checked, 200, minimal sync state, never a reply or opt-out", async () => {
-    db.cfgFindFirst.mockResolvedValue({ businessId: "b1", phoneNumberId: "111" });
+    db.cfgFindFirst.mockResolvedValue({ businessId: "b1", phoneNumberId: "111", source: "EMBEDDED" });
     const mk = (field: string, value: object) => JSON.stringify({ entry: [{ id: "222", time: 5, changes: [{ field, value: { metadata: { phone_number_id: "111" }, ...value } }] }] });
     const echo = mk("smb_message_echoes", { message_echoes: [{ id: "e1", from: "919800000000", to: "919811111111", type: "text", text: { body: "STOP" } }] });
     const hist = mk("history", { history: [{ metadata: { phase: 1, chunk_order: 1, progress: 42 }, threads: [{ id: "919811111111", messages: [{ text: { body: "private chat" } }] }] }] });

@@ -4,7 +4,8 @@ import { timingSafeEqual } from "crypto";
 import { rateLimit } from "@/lib/ratelimit";
 import { metaEnv } from "@/lib/whatsapp/embedded";
 import { verifyMetaSignature } from "@/lib/whatsapp/signature";
-import { handleCalvyWebhook } from "@/lib/whatsapp/calvyWebhook";
+import { addressedConfigs, handleCalvyWebhook } from "@/lib/whatsapp/calvyWebhook";
+import { tryDecrypt } from "@/lib/whatsapp/store";
 import type { WebhookPayload } from "@/lib/whatsapp/webhook";
 
 export const dynamic = "force-dynamic";
@@ -28,11 +29,30 @@ async function POST_handler(req: NextRequest) {
   if (!rl.ok) return NextResponse.json({ error: "Too many requests" }, { status: 429 });
   const secret = process.env.META_APP_SECRET?.trim();
   const raw = await req.text(); // raw text, never re-serialised JSON: the HMAC is over these exact bytes
-  if (!secret || !verifyMetaSignature(raw, req.headers.get("x-hub-signature-256"), secret)) return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
-  let payload: WebhookPayload;
-  try { payload = JSON.parse(raw) as WebhookPayload; } catch { return NextResponse.json({ error: "Bad JSON" }, { status: 400 }); }
-  await handleCalvyWebhook(payload);
-  return NextResponse.json({ received: true });
+  const sig = req.headers.get("x-hub-signature-256");
+  let payload: WebhookPayload | null = null;
+  try { payload = JSON.parse(raw) as WebhookPayload; } catch { /* decided below, after the signature */ }
+
+  // 1. Calvy's own app secret: every business connected through (or running on) the Calvy app.
+  if (secret && verifyMetaSignature(raw, sig, secret)) {
+    if (!payload) return NextResponse.json({ error: "Bad JSON" }, { status: 400 });
+    await handleCalvyWebhook(payload);
+    return NextResponse.json({ received: true });
+  }
+  // 2. A manual number from another Meta app: signed with that business's OWN stored app secret. The body is read only to find
+  // which businesses it is addressed to; it is acted on only for a business whose own secret verifies, and for no one else.
+  if (payload) {
+    const allowed = new Set<string>();
+    for (const cfg of await addressedConfigs(payload)) {
+      const own = cfg.source === "MANUAL" ? tryDecrypt(cfg.appSecretEnc) : null;
+      if (own && verifyMetaSignature(raw, sig, own)) allowed.add(cfg.businessId);
+    }
+    if (allowed.size) {
+      await handleCalvyWebhook(payload, undefined, (cfg) => allowed.has(cfg.businessId));
+      return NextResponse.json({ received: true });
+    }
+  }
+  return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
 }
 
 export const GET = safeRoute(GET_handler);

@@ -41,7 +41,32 @@ async function storeSyncState(businessId: string, field: string, v: SyncValue) {
 
 export interface RouteResult { events: number; duplicates: number; unknown: number }
 
-export async function handleCalvyWebhook(payload: WebhookPayload, fetcher?: Fetcher): Promise<RouteResult> {
+export interface MatchedConfig { businessId: string; phoneNumberId: string; source: string; appSecretEnc: string }
+const SELECT = { businessId: true, phoneNumberId: true, source: true, appSecretEnc: true } as const;
+
+/** The business a change belongs to (EMBEDDED or MANUAL): by phone_number_id first, then by the WABA id (entry.id). */
+export async function findConfig(phoneId: string | undefined, wabaId: string): Promise<MatchedConfig | null> {
+  if (phoneId) {
+    const byPhone = await prisma.whatsAppConfig.findFirst({ where: { phoneNumberId: phoneId }, select: SELECT });
+    if (byPhone) return byPhone;
+  }
+  return wabaId ? prisma.whatsAppConfig.findFirst({ where: { wabaId }, select: SELECT }) : null;
+}
+
+/** Every config this delivery is addressed to (read from the not-yet-trusted body; nothing is acted on from this). */
+export async function addressedConfigs(payload: WebhookPayload): Promise<MatchedConfig[]> {
+  const found = new Map<string, MatchedConfig>();
+  for (const entry of ((payload.entry ?? []) as Entry[])) {
+    for (const ch of entry.changes ?? []) {
+      const cfg = await findConfig((ch.value as Value | undefined)?.metadata?.phone_number_id, entry.id ? String(entry.id) : "");
+      if (cfg) found.set(cfg.businessId, cfg);
+    }
+  }
+  return [...found.values()];
+}
+
+/** `allow` limits which businesses this delivery may touch (used when it was signed with a business's own app secret). */
+export async function handleCalvyWebhook(payload: WebhookPayload, fetcher?: Fetcher, allow?: (cfg: MatchedConfig) => boolean): Promise<RouteResult> {
   const out: RouteResult = { events: 0, duplicates: 0, unknown: 0 };
   for (const entry of ((payload.entry ?? []) as Entry[])) {
     const wabaId = entry.id ? String(entry.id) : "";
@@ -49,15 +74,17 @@ export async function handleCalvyWebhook(payload: WebhookPayload, fetcher?: Fetc
       const v = ch.value as Value | undefined;
       if (!v || !ch.field) continue;
       const phoneId = v.metadata?.phone_number_id;
-      const cfg = phoneId
-        ? await prisma.whatsAppConfig.findFirst({ where: { phoneNumberId: phoneId, source: "EMBEDDED" }, select: { businessId: true, phoneNumberId: true } })
-        : wabaId ? await prisma.whatsAppConfig.findFirst({ where: { wabaId, source: "EMBEDDED" }, select: { businessId: true, phoneNumberId: true } }) : null;
+      const cfg = await findConfig(phoneId, wabaId);
       if (!cfg) {
-        // Not (or no longer) connected through Calvy: answer 200 so Meta does not retry it forever.
+        // Not (or no longer) connected: answer 200 so Meta does not retry it forever.
         logger.warn("[WhatsApp] webhook for an unknown number or account", { field: ch.field, phoneNumberId: phoneId, wabaId });
         out.unknown++;
         continue;
       }
+      if (allow && !allow(cfg)) { out.unknown++; continue; } // signed with another business's secret: not theirs to touch
+
+      // Manual setups have no Embedded Signup sync or name/payment state to refresh: acknowledge only.
+      if (cfg.source !== "EMBEDDED" && (SYNC_FIELDS.has(ch.field) || REFRESH_FIELDS.has(ch.field))) { out.events++; continue; }
 
       if (SYNC_FIELDS.has(ch.field)) {
         if (!(await claimEvent(`c:${hash(`${ch.field}:${wabaId}:${entry.time ?? ""}:${JSON.stringify(v)}`)}`))) { out.duplicates++; continue; }

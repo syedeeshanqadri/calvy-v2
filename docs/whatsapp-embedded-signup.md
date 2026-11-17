@@ -24,6 +24,14 @@ secret, own webhook URL) stays under **Advanced** and keeps working unchanged.
 5. **After connect**: Settings shows the payment-method status (link to WhatsApp Manager; Meta bills the business) and the display-name review status.
 6. **Disconnect**: `DELETE /{waba}/subscribed_apps`, then the config, tokens and PIN are deleted. If Meta cannot be reached the local delete still happens and the owner is told.
 
+## One webhook for both kinds of connection
+
+`/api/whatsapp/webhook` routes EMBEDDED and MANUAL configs alike, by `phone_number_id` first, then WABA id, into the same handlers
+(statuses, STOP opt-outs, template status and category updates). The signature is checked on the raw body with `META_APP_SECRET` first;
+if that fails and the matched config is MANUAL, with that config's own stored app secret (a manual number from another Meta app). A
+delivery signed with one business's secret can only touch that business. `/api/whatsapp/webhook/[key]` keeps working unchanged for
+Advanced setups that prefer it. Manual numbers have no coexistence sync or payment state, so those fields are only acknowledged for them.
+
 ## Environment variables
 
 | Name | Where | Notes |
