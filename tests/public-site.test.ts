@@ -65,10 +65,15 @@ describe("step-21 honest public site", () => {
     expect(read("app/service-delivery/page.tsx")).toMatch(/digital/i);
     for (const f of ["app/privacy/page.tsx", "app/terms/page.tsx", "app/refund-policy/page.tsx"]) expect(read(f)).not.toContain("Razorpay");
   });
+  it("the data deletion page says how to ask, what is deleted and what may be kept, with no phone number or proprietor name", () => {
+    const page = read("app/data-deletion/page.tsx");
+    for (const t of ["SUPPORT_EMAIL", "Delete my data", "What we delete", "What we may keep", "Disconnect", "/privacy"]) expect(page).toContain(t);
+    expect(page).not.toMatch(/Eeshan|CONTACT\.phone|60052 86335/);
+  });
   it("footer links the legal and company pages, and the sitemap lists them", () => {
     const footer = read("components/landing/Footer.tsx");
     const sitemap = read("app/sitemap.ts");
-    for (const path of ["/about", "/contact", "/privacy", "/terms", "/refund-policy", "/service-delivery"]) {
+    for (const path of ["/about", "/contact", "/privacy", "/terms", "/refund-policy", "/service-delivery", "/data-deletion"]) {
       expect(footer).toContain(`"${path}"`);
       expect(sitemap).toContain(`${path}\``);
     }

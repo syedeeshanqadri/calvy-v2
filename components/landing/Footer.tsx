@@ -19,6 +19,7 @@ const LINKS: Record<string, { label: string; href: string }[]> = {
     { label: "Terms & Conditions", href: "/terms" },
     { label: "Refund & Cancellation", href: "/refund-policy" },
     { label: "Service Delivery", href: "/service-delivery" },
+    { label: "Data Deletion", href: "/data-deletion" },
   ],
   Support: [
     { label: "Help Center", href: "/help" },
