@@ -21,6 +21,7 @@ const NAV: { label: string; href: string; icon: typeof LayoutDashboard; exact?: 
   { label: "Withdrawals", href: "/admin/withdrawals", icon: ArrowDownToLine, flag: "wallet" },
   { label: "Notifications", href: "/admin/notifications", icon: Send, exact: true },
   { label: "Delivery log", href: "/admin/notifications/log", icon: ScrollText },
+  { label: "WhatsApp review", href: "/admin/whatsapp-review", icon: Send },
   { label: "Blog", href: "/admin/blog", icon: Newspaper },
   { label: "CRM (Leads)", href: "/crm", icon: Contact },
   { label: "Support", href: "/admin/support", icon: LifeBuoy },
