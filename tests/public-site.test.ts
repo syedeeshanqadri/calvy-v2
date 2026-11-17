@@ -45,7 +45,7 @@ describe("step-21 honest public site", () => {
     expect(hits.sort()).toEqual(["lib/site.ts"]);
     expect(read("app/contact/page.tsx")).toContain("CONTACT.proprietor");
   });
-  it("the phone number appears only on the contact, refund and privacy pages", () => {
+  it("the phone number appears only on the contact, refund and privacy pages (and the signed-in Support page)", () => {
     const hits: string[] = [];
     const walk = (d: string) => {
       for (const e of readdirSync(d, { withFileTypes: true })) {
@@ -55,7 +55,7 @@ describe("step-21 honest public site", () => {
       }
     };
     ["app", "components"].forEach(walk);
-    expect(hits.sort()).toEqual(["app/contact/page.tsx", "app/privacy/page.tsx", "app/refund-policy/page.tsx"]);
+    expect(hits.sort()).toEqual(["app/contact/page.tsx", "app/dashboard/contact/page.tsx", "app/privacy/page.tsx", "app/refund-policy/page.tsx"]);
   });
   it("legal pages name the processors and the refund rules", () => {
     const privacy = read("app/privacy/page.tsx");
