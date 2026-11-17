@@ -18,9 +18,9 @@ const post = (body: unknown) => new NextRequest("http://x/api/admin/whatsapp-rev
 beforeEach(() => { vi.resetAllMocks(); db.cfgFindUnique.mockResolvedValue(cfg()); db.audit.mockResolvedValue("a1"); });
 
 describe("App Review demo template", () => {
-  it("is a UTILITY template named calvy_app_review_demo with a sample for every variable", () => {
+  it("is a UTILITY template named calvy_app_review_demo_2 with a sample for every variable", () => {
     const p = reviewTemplatePayload();
-    expect(p).toMatchObject({ name: "calvy_app_review_demo", category: "UTILITY", language: "en" });
+    expect(p).toMatchObject({ name: "calvy_app_review_demo_2", category: "UTILITY", language: "en" });
     const body = p.components[0] as { text: string; example: { body_text: string[][] } };
     expect(body.example.body_text[0]).toHaveLength((body.text.match(/\{\{\d\}\}/g) ?? []).length);
   });
@@ -31,12 +31,12 @@ describe("App Review demo template", () => {
     const [url, init] = f.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toContain("/222/message_templates");
     expect(new Headers(init.headers).get("authorization")).toBe("Bearer TOKEN");
-    expect(JSON.parse(String(init.body))).toMatchObject({ name: "calvy_app_review_demo", category: "UTILITY" });
+    expect(JSON.parse(String(init.body))).toMatchObject({ name: "calvy_app_review_demo_2", category: "UTILITY" });
   });
   it("when it already exists, shows Meta's current id and status instead of an error", async () => {
     const f = vi.fn(async (url: string | URL | Request, init?: RequestInit) => init?.method === "POST"
       ? json({ error: { code: 2388024, message: "Content in this language already exists" } }, 400)
-      : json({ data: [{ id: "77", name: "calvy_app_review_demo", language: "en", status: "APPROVED", category: "UTILITY" }] }));
+      : json({ data: [{ id: "77", name: "calvy_app_review_demo_2", language: "en", status: "APPROVED", category: "UTILITY" }] }));
     expect(await createReviewTemplate("biz12345", f as unknown as typeof fetch)).toEqual({ ok: true, id: "77", status: "APPROVED", name: REVIEW_TEMPLATE_NAME, alreadyExisted: true });
   });
   it("shows Meta's message when it refuses, and refuses a business that is not connected", async () => {
