@@ -33,7 +33,7 @@ export async function register() {
 
   const missingStorage = missingStorageEnv();
   if (missingStorage.length > 0) {
-    console.warn(`[env] uploads will fail: storage driver is s3 but these are missing: ${missingStorage.join(", ")}`);
+    console.warn(`[env] uploads will fail: no image storage is configured (Vercel Blob is the default; or set STORAGE_DRIVER=s3 with S3_*). Missing: ${missingStorage.join(", ")}`);
   }
 
   if (missingRequired.length > 0 && process.env.NODE_ENV === "production") {

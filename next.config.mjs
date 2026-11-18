@@ -12,7 +12,8 @@ const csp = [
   "default-src 'self'",
   `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""} https://sdk.cashfree.com https://connect.facebook.net`,
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob: https:",
+  // Tenant uploads live on Vercel Blob (*.public.blob.vercel-storage.com); any other https image (an R2 domain, a pasted link) is allowed too.
+  "img-src 'self' data: blob: https: https://*.public.blob.vercel-storage.com",
   "font-src 'self' data:",
   "frame-src https://www.google.com https://*.cashfree.com https://www.facebook.com https://web.facebook.com",
   `connect-src 'self' https://*.public.blob.vercel-storage.com https://*.cashfree.com https://*.facebook.com https://*.facebook.net https://*.ingest.sentry.io https://*.ingest.us.sentry.io${isDev ? " ws://localhost:* http://localhost:*" : ""}`,

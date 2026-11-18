@@ -228,7 +228,9 @@ CASHFREE_APP_ID="..."
 CASHFREE_SECRET_KEY="..."
 CASHFREE_ENV="sandbox" # or "production"
 
-# Uploads (S3-compatible, e.g. Cloudflare R2). Required in production; dev uses local disk.
+# Uploads. Production: Vercel Blob (set BLOB_READ_WRITE_TOKEN below, the default) or optionally S3-compatible storage such as
+# Cloudflare R2 (the S3_* variables, with STORAGE_DRIVER=s3). Development uses local disk (public/uploads): files saved there
+# do not exist on Vercel, so never put dev image URLs in a shared database. `npm run images:check` lists broken image records.
 S3_ENDPOINT="https://<account>.r2.cloudflarestorage.com"
 S3_BUCKET="..."
 S3_ACCESS_KEY_ID="..."
@@ -246,7 +248,7 @@ NEXT_PUBLIC_VAPID_PUBLIC_KEY="..."
 VAPID_PRIVATE_KEY="..."
 VAPID_SUBJECT="mailto:support@calvy.io"
 
-# File Storage
+# File Storage: the production upload driver
 BLOB_READ_WRITE_TOKEN="..."
 
 # Admin

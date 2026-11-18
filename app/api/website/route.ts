@@ -7,6 +7,8 @@ import { revalidateSite } from "@/lib/revalidateSite";
 import { parseBody } from "@/lib/validation/common";
 
 import { websitePatchSchema } from "@/lib/validation/misc";
+import { checkLimit, denialResponse } from "@/lib/limits";
+import { hiddenInWebsiteJson } from "@/lib/calvyBadge";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +20,12 @@ async function PATCH_handler(req: NextRequest) {
   const parsed = await parseBody(req, websitePatchSchema);
   if (!parsed.ok) return parsed.res;
   const { websiteJson } = parsed.data;
+
+  // Hiding the "Bookings by Calvy" footer is plan-gated here as well as in the editor.
+  if (hiddenInWebsiteJson(websiteJson)) {
+    const denied = await checkLimit(session.user.businessId, "branding", { owner: true });
+    if (denied) return denialResponse(denied);
+  }
 
   await prisma.business.update({
     where: { id: session.user.businessId },

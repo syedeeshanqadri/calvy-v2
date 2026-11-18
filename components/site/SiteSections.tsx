@@ -1,5 +1,6 @@
-import Image from "next/image";
 import Link from "next/link";
+import { SafeFrame, SafeImage } from "@/components/site/SafeImage";
+import { usableImageUrl } from "@/lib/images";
 import { Video } from "lucide-react";
 import { formatCurrencyAmount } from "@/lib/currency";
 import { offersOnline, onlineBadge, type ServiceModeValue } from "@/lib/online";
@@ -23,11 +24,7 @@ export function GallerySection({ title, images }: { title: string; images: Galle
       <div className="st-wrap">
         <div className="st-head-sec"><h2>{title}</h2></div>
         <ul className="st-gallery">
-          {images.map((img) => (
-            <li key={img.url} className="st-gallery-item">
-              <Image src={img.url} alt={img.alt} fill sizes="(max-width: 900px) 50vw, 25vw" unoptimized />
-            </li>
-          ))}
+          {images.map((img) => <SafeFrame key={img.url} as="li" className="st-gallery-item" src={img.url} alt={img.alt} sizes="(max-width: 900px) 50vw, 25vw" />)}
         </ul>
       </div>
     </section>
@@ -60,8 +57,8 @@ export function TeamCards({ staff }: { staff: TeamCardMember[] }) {
     <ul className="st-team">
       {staff.map((m) => (
         <li key={m.id} className="st-person">
-          {m.photoUrl ? (
-            <div className="st-person-photo"><Image src={m.photoUrl} alt={m.name} fill sizes="(max-width: 900px) 74vw, 25vw" unoptimized /></div>
+          {usableImageUrl(m.photoUrl) ? (
+            <div className="st-person-photo"><SafeImage src={usableImageUrl(m.photoUrl)!} alt={m.name} fill sizes="(max-width: 900px) 74vw, 25vw" unoptimized fallback={<div className="st-avatar" aria-hidden>{initialsOf(m.name)}</div>} /></div>
           ) : (
             <div className="st-avatar" aria-hidden>{initialsOf(m.name)}</div>
           )}
@@ -82,7 +79,7 @@ export function ServiceCards({ services, bookingUrl, currency }: { services: Ser
     <ul className="st-svc-cards">
       {services.map((svc) => (
         <li key={svc.id} className="st-svc-card">
-          {svc.imageUrl && <div className="st-svc-card-img"><Image src={svc.imageUrl} alt="" fill sizes="(max-width: 900px) 100vw, 33vw" unoptimized /></div>}
+          {usableImageUrl(svc.imageUrl) && <SafeFrame className="st-svc-card-img" src={usableImageUrl(svc.imageUrl)!} alt="" sizes="(max-width: 900px) 100vw, 33vw" />}
           <div className="st-svc-card-body">
             <div className="st-svc-name">
               {svc.name}

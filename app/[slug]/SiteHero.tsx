@@ -1,4 +1,4 @@
-import Image from "next/image";
+import { SafeImage } from "@/components/site/SafeImage";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { splitHeadline, type HeroLayout } from "@/lib/siteLayout";
@@ -87,7 +87,7 @@ export function SiteHero({ layout, businessName, badge, headline, subheadline, c
         {image && (
           <div className="st-hero-media">
             <div className="st-hero-frame">
-              <Image src={image} alt={businessName} fill priority sizes={layout === "immersive" ? "100vw" : "(max-width: 900px) 100vw, 50vw"} style={{ objectPosition: focusPosition(imageFocus) }} unoptimized />
+              <SafeImage src={image} alt={businessName} fill priority sizes={layout === "immersive" ? "100vw" : "(max-width: 900px) 100vw, 50vw"} style={{ objectPosition: focusPosition(imageFocus) }} unoptimized />
             </div>
             {layout === "arch" && (
               <svg className="st-seal" viewBox="0 0 120 120" role="img" aria-label="Book online">

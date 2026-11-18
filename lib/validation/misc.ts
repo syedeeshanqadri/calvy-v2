@@ -43,6 +43,8 @@ export const websiteConfigSchema = z.looseObject({
   offer: offerSchema.optional(),
   faq: faqSchema.optional(),
   reviews: z.looseObject({ enabled: z.boolean().optional() }).optional(),
+  /** Hide the "Bookings by Calvy" footer: Business plan only (enforced in app/api/website). */
+  calvyBadge: z.looseObject({ hidden: z.boolean().optional() }).optional(),
 });
 
 export const websitePatchSchema = z.object({

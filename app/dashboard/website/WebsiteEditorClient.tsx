@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { publicSiteUrl } from "@/lib/siteBase";
 import { useEffect, useState } from "react";
 import Image from "next/image";
@@ -19,7 +20,7 @@ import type { TeamCardMember, ServiceCardItem } from "@/components/site/SiteSect
 
 interface Props {
   terms?: TermsSource;
-  slug: string; businessName: string; businessType: string; websiteJson: string; imageUpload?: boolean; seoControls?: boolean;
+  slug: string; businessName: string; businessType: string; websiteJson: string; imageUpload?: boolean; seoControls?: boolean; removeBranding?: boolean;
   themeColor: string; logoUrl: string | null; socialLinks: SocialLinks; googleReviewUrl: string | null;
   packId: string; timezone: string; currency: string; staff: TeamCardMember[]; services: ServiceCardItem[];
 }
@@ -237,7 +238,7 @@ function SectionCard({ title, enabled, onToggle, children, defaultOpen = true }:
 }
 
 // ── Main ─────────────────────────────────────────────────────────────────────
-export function WebsiteEditorClient({ terms, slug, businessName, businessType, websiteJson, imageUpload = false, seoControls = false, themeColor, logoUrl, socialLinks, googleReviewUrl, packId, timezone, currency, staff, services }: Props) {
+export function WebsiteEditorClient({ terms, slug, businessName, businessType, websiteJson, imageUpload = false, seoControls = false, removeBranding = false, themeColor, logoUrl, socialLinks, googleReviewUrl, packId, timezone, currency, staff, services }: Props) {
   const initial = parseWebsiteConfig(websiteJson) ?? defaultWebsiteConfig(businessName, businessType, terms);
   const [config, setConfig] = useState<WebsiteConfig>(initial);
   const [saving, setSaving] = useState(false);
@@ -345,6 +346,19 @@ export function WebsiteEditorClient({ terms, slug, businessName, businessType, w
             </CardContent>
           </Card>
         )}
+
+        {/* ── FOOTER: "Bookings by Calvy" (Business plan can hide it) ── */}
+        <Card>
+          <CardHeader><CardTitle>&ldquo;Bookings by Calvy&rdquo; footer</CardTitle></CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-sm text-[#6b6b80]">A small &ldquo;Bookings by Calvy&rdquo; line shows at the bottom of your website, booking page and queue page, in your colours.</p>
+            {removeBranding ? (
+              <ToggleField label="Hide the footer" value={config.calvyBadge?.hidden === true} onChange={(v) => setConfig({ ...config, calvyBadge: { ...config.calvyBadge, hidden: v } })} />
+            ) : (
+              <p className="text-sm text-[#6b6b80]">Hiding it is on the Business plan. <Link href="/dashboard/billing" className="font-semibold text-sky-700 underline">See plans</Link></p>
+            )}
+          </CardContent>
+        </Card>
 
         {/* ── BRAND & LINKS ── */}
         <BrandLinksCard businessName={businessName} themeColor={themeColor} logoUrl={logoUrl} socialLinks={socialLinks} googleReviewUrl={googleReviewUrl} />

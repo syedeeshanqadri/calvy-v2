@@ -10,6 +10,8 @@ import { followUpFromQuery } from "@/lib/followUpDb";
 import { BookingClient } from "@/components/booking/BookingClient";
 import { headers } from "next/headers";
 import { siteBase } from "@/lib/siteBase";
+import { showCalvyBadge } from "@/lib/calvyBadge";
+import { calvyBadgeUrl } from "@/lib/calvyBadgeUrl";
 import { siteFontClasses } from "@/app/[slug]/fonts";
 
 export const dynamic = "force-dynamic";
@@ -47,6 +49,8 @@ export default async function BookNowPage(props: { params: Promise<{ slug: strin
     slug: business.slug,
     name: business.name,
     primaryColor: business.primaryColor,
+    showCalvyBadge: await showCalvyBadge(business.id, business.websiteJson),
+    calvyHref: calvyBadgeUrl(business.slug),
     logoUrl: business.logoUrl,
     socialLinks: parseSocialLinks(business.socialLinks),
     googleReviewUrl: safeReviewLink(business.googleReviewUrl),

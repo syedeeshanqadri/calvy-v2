@@ -44,6 +44,14 @@ describe("sign-up", () => {
     expect(String(notify.mock.calls[0][0].secret)).toContain("/reset-password?setup=1&token=");
     expect((await res.json()).ticket).toEqual(expect.any(String));
   });
+  it("stores which business's \"Bookings by Calvy\" link the person came from (calvy_ref cookie), and ignores a forged one", async () => {
+    const body = { name: "Asha Rao", email: "asha@glow.test", phone: "+91 98765 43210", packId: "SALON_SPA", timezone: "Asia/Kolkata" };
+    const withCookie = (value: string) => new NextRequest("http://localhost/api/signup", { method: "POST", headers: { "content-type": "application/json", cookie: `calvy_ref=${value}` }, body: JSON.stringify(body) });
+    await signup(withCookie("glow-salon.tenant_site"));
+    expect(db.user.create).toHaveBeenLastCalledWith({ data: { name: "Asha Rao", email: "asha@glow.test", signupRef: "glow-salon", signupSource: "tenant_site" } });
+    await signup(withCookie("Evil%20Value"));
+    expect(db.user.create).toHaveBeenLastCalledWith({ data: { name: "Asha Rao", email: "asha@glow.test" } });
+  });
   it("India without a phone is refused; outside India the phone is optional", async () => {
     expect((await signup(post("/api/signup", { name: "A", email: "a@x.co", packId: "OTHER", timezone: "Asia/Kolkata" }))).status).toBe(400);
     expect((await signup(post("/api/signup", { name: "A", email: "a@x.co", packId: "OTHER", timezone: "Europe/Paris" }))).status).toBe(201);

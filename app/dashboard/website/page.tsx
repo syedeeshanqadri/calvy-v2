@@ -31,6 +31,7 @@ export default async function WebsitePage() {
       websiteJson={business.websiteJson ?? "{}"}
       imageUpload={features.imageUpload}
       seoControls={features.seoControls}
+      removeBranding={features.removeBranding}
       themeColor={business.primaryColor}
       logoUrl={business.logoUrl}
       socialLinks={parseSocialLinks(business.socialLinks)}

@@ -1,9 +1,10 @@
-// Storage adapter for tenant uploads. Local disk in development, S3-compatible
-// (Cloudflare R2) in production, so uploads do not depend on Vercel.
-//
-// Env (production): STORAGE_DRIVER=s3 (default when NODE_ENV=production),
-// S3_ENDPOINT (R2: https://<account>.r2.cloudflarestorage.com), S3_BUCKET,
-// S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY, S3_PUBLIC_URL (public base URL of the bucket).
+// Storage adapter for tenant uploads (logos, website photos). Three drivers:
+//   blob   Vercel Blob. The production default: used whenever BLOB_READ_WRITE_TOKEN is set.
+//   s3     S3-compatible (Cloudflare R2), optional: S3_ENDPOINT, S3_BUCKET, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY, S3_PUBLIC_URL.
+//   local  files under public/uploads. Development only: those files exist on one machine, so a URL saved with this
+//          driver is broken anywhere else (see usableImageUrl in lib/images.ts).
+// Choice: STORAGE_DRIVER if set, else blob when the token is set, else s3 when its variables are all set, else local in
+// development. In production with none of them configured there is no driver: uploads say "not available" (never local disk).
 import { promises as fs } from "fs";
 import path from "path";
 
@@ -100,9 +101,57 @@ function s3Adapter(): Storage {
   };
 }
 
+function blobAdapter(): Storage {
+  const token = process.env.BLOB_READ_WRITE_TOKEN;
+  if (!token) throw new Error("Object storage is not configured");
+  return {
+    async put(key, body, contentType) {
+      assertSafeKey(key);
+      const { put } = await import("@vercel/blob");
+      const r = await put(key, body, { access: "public", contentType, addRandomSuffix: false, allowOverwrite: true, cacheControlMaxAge: 31536000, token });
+      return { key, url: r.url };
+    },
+    async remove(key) {
+      assertSafeKey(key);
+      const { del } = await import("@vercel/blob");
+      await del(key, { token });
+    },
+    keyFromUrl(url) {
+      try {
+        const u = new URL(url);
+        return /\.public\.blob\.vercel-storage\.com$/.test(u.hostname) ? decodeURIComponent(u.pathname.slice(1)) : null;
+      } catch {
+        return null;
+      }
+    },
+    async usage(prefix, limit) {
+      assertSafeKey(prefix.replace(/\/$/, ""));
+      const { list } = await import("@vercel/blob");
+      const res = await list({ prefix, limit, token });
+      return { files: res.blobs.length, bytes: res.blobs.reduce((n, b) => n + b.size, 0) };
+    },
+  };
+}
+
+export type StorageDriver = "blob" | "s3" | "local" | "none";
+
+/** Which driver applies for this environment (pure, for tests and the health/env checks). */
+export function storageDriver(env: Record<string, string | undefined> = process.env): StorageDriver {
+  const set = (n: string) => !!env[n]?.trim();
+  const explicit = env.STORAGE_DRIVER?.trim().toLowerCase();
+  if (explicit === "blob" || explicit === "s3" || explicit === "local") return explicit;
+  if (set("BLOB_READ_WRITE_TOKEN")) return "blob";
+  if (["S3_ENDPOINT", "S3_BUCKET", "S3_ACCESS_KEY_ID", "S3_SECRET_ACCESS_KEY", "S3_PUBLIC_URL"].every(set)) return "s3";
+  return env.NODE_ENV === "production" ? "none" : "local";
+}
+
 export function getStorage(): Storage {
-  const driver = process.env.STORAGE_DRIVER ?? (process.env.NODE_ENV === "production" ? "s3" : "local");
-  return driver === "s3" ? s3Adapter() : localStorageAdapter;
+  switch (storageDriver()) {
+    case "blob": return blobAdapter();
+    case "s3": return s3Adapter();
+    case "local": return localStorageAdapter;
+    default: throw new Error("Object storage is not configured");
+  }
 }
 
 /** Absolute form of a stored URL (emails need it; local uploads are site-relative). */
