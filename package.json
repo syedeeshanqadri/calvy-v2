@@ -23,6 +23,7 @@
     "admin:grant": "dotenv -e .env.local -- tsx scripts/admin-grant.ts grant",
     "admin:revoke": "dotenv -e .env.local -- tsx scripts/admin-grant.ts revoke",
     "admin:reset-2fa": "dotenv -e .env.local -- tsx scripts/admin-grant.ts reset-2fa",
+    "images:check": "dotenv -e .env.local -- tsx scripts/image-records.ts",
     "marketing:demo": "dotenv -e .env.local -- tsx scripts/marketing-demo.ts",
     "marketing:shots": "dotenv -e .env.local -- tsx scripts/marketing-shots.ts",
     "db:e2e-fixtures": "dotenv -e .env.local -- tsx scripts/e2e-fixtures.ts",

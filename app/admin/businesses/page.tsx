@@ -41,7 +41,7 @@ export default async function AdminBusinessesPage(props: { searchParams: Promise
 
       <div className="bg-white rounded-2xl border border-[#e8e6e0] overflow-x-auto">
         <table className="w-full text-sm">
-          <thead><tr className="bg-[#fafaf8] text-left text-xs text-[#6b6b80]">{["Business", "Owner", "Type", "Region", "Plan", "Status", "Bookings", "Signed up"].map((h) => <th key={h} className="px-4 py-3 font-semibold">{h}</th>)}</tr></thead>
+          <thead><tr className="bg-[#fafaf8] text-left text-xs text-[#6b6b80]">{["Business", "Owner", "Type", "Region", "Plan", "Status", "Bookings", "Signed up", "Came from"].map((h) => <th key={h} className="px-4 py-3 font-semibold">{h}</th>)}</tr></thead>
           <tbody>
             {rows.map((b) => (
               <tr key={b.id} className="border-t border-[#f0ede8] hover:bg-[#fafaf8]">
@@ -53,9 +53,10 @@ export default async function AdminBusinessesPage(props: { searchParams: Promise
                 <td className="px-4 py-3">{b.suspendedAt ? <span className="text-red-700 font-semibold">Suspended</span> : b.onboardingCompletedAt ? "Live" : "Setting up"}</td>
                 <td className="px-4 py-3">{b._count.appointments}</td>
                 <td className="px-4 py-3 text-[#6b6b80]">{b.createdAt.toISOString().slice(0, 10)}</td>
+                <td className="px-4 py-3 text-[#6b6b80]">{b.owner.signupRef ? `${b.owner.signupRef} (${b.owner.signupSource ?? "?"})` : ""}</td>
               </tr>
             ))}
-            {rows.length === 0 && <tr><td colSpan={8} className="px-4 py-10 text-center text-[#6b6b80]">No businesses match.</td></tr>}
+            {rows.length === 0 && <tr><td colSpan={9} className="px-4 py-10 text-center text-[#6b6b80]">No businesses match.</td></tr>}
           </tbody>
         </table>
       </div>

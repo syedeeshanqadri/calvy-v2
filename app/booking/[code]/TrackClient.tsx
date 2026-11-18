@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Check, Clock, Video, X } from "lucide-react";
 import { BrandMark } from "@/components/site/Brand";
+import { CalvyBadge } from "@/components/site/CalvyBadge";
 import { safeThemeColor, readableForeground, themeVars } from "@/lib/theme";
 import { t } from "@/lib/terms";
 import { formatCurrencyAmount } from "@/lib/currency";
@@ -151,6 +152,7 @@ export function TrackClient({ code, initial, back }: { code: string; initial: Tr
         <p className="text-center text-xs text-[#6b6b80]">
           {problem || `Updates automatically every 15 seconds · last updated ${updatedAt.toLocaleTimeString()}`}
         </p>
+        {business.showCalvyBadge !== false && <div className="flex justify-center pt-2"><CalvyBadge slug={business.slug} color={color} href={business.calvyHref} /></div>}
       </div>
     </main>
   );

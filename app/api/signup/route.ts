@@ -7,6 +7,7 @@ import { notify } from "@/lib/notifications/enqueue";
 import { authEmail } from "@/lib/notifications/events";
 import { logger } from "@/lib/logger";
 import { rateLimit, clientIp } from "@/lib/ratelimit";
+import { parseRefCookie } from "@/lib/calvyBadge";
 import { parseBody } from "@/lib/validation/common";
 import { signupSchema } from "@/lib/validation/public";
 import { detectRegion, detectCountry, currencyFor } from "@/lib/onboarding";
@@ -42,7 +43,9 @@ async function POST_handler(req: NextRequest) {
     return NextResponse.json({ error: "An account with this email already exists. Try signing in, or use Forgot password." }, { status: 409 });
   }
 
-  const user = await prisma.user.create({ data: { name, email } }); // no password yet, email not verified yet
+  // Came from a business's "Bookings by Calvy" link? The cookie (set by components/RefCapture) says which site; first touch wins.
+  const referral = parseRefCookie(req.cookies.get("calvy_ref")?.value);
+  const user = await prisma.user.create({ data: { name, email, ...(referral ? { signupRef: referral.ref, signupSource: referral.source } : {}) } }); // no password yet, email not verified yet
   await createBusinessForUser({
     ownerId: user.id,
     ownerName: name,

@@ -1,5 +1,4 @@
 import { safeRoute } from "@/lib/api";
-import { put, list } from "@vercel/blob";
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
@@ -61,16 +60,8 @@ async function POST_handler(req: NextRequest) {
     const quotaResponse = () =>
       NextResponse.json({ error: "Upload limit reached. Delete unused images or contact support." }, { status: 403 });
 
-    // Vercel Blob when its token is set (existing deployments); otherwise the storage adapter,
-    // which is local disk in development and S3/R2 in production (same as logo uploads).
-    // Both enforce the same per-tenant quota (files and total bytes).
-    if (process.env.BLOB_READ_WRITE_TOKEN) {
-      const existing = await list({ prefix, limit: TENANT_UPLOAD_MAX_FILES + 1 });
-      if (overQuota(existing.blobs.length, existing.blobs.reduce((n, b) => n + b.size, 0))) return quotaResponse();
-      const blob = await put(`${prefix}${name}`, photo.webp, { access: "public", contentType: "image/webp" });
-      return NextResponse.json({ url: blob.url });
-    }
-
+    // One storage adapter for every driver (Vercel Blob by default in production, S3/R2 optional, local disk in development),
+    // with the same per-tenant quota (files and total bytes) on each.
     let storage;
     try {
       storage = getStorage();

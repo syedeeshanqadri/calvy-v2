@@ -14,6 +14,10 @@ model User {
   id                  String               @id @default(cuid())
   name                String
   email               String               @unique
+  /// Slug of the tenant site whose "Bookings by Calvy" link this person came from (first touch, from the calvy_ref cookie).
+  signupRef           String?
+  /// utm_source of that link (e.g. tenant_site).
+  signupSource        String?
   password            String? // null for OAuth-only accounts (Google/Facebook)
   /// Google account id (profile.sub). Set only on a verified Google sign-up or an explicit "Link Google" by the logged-in owner; never linked silently by email.
   googleId            String?              @unique
@@ -41,6 +45,8 @@ model User {
   whatsappOptIn       Boolean              @default(false)
   whatsappVerifiedAt  DateTime?            @db.Timestamptz(3)
   passwordResetTokens PasswordResetToken[]
+
+  @@index([signupRef])
 }
 
 model PasswordResetToken {

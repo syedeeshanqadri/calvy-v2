@@ -4,10 +4,12 @@ import { safeTimeZone, formatDateLabel, utcToZoned, zonedToUtc } from "@/lib/tim
 import { minToHhmm } from "@/lib/tokens";
 import type { QueueItem } from "@/lib/queue";
 import { meetingUrlFor } from "@/lib/online";
+import { showCalvyBadge as showCalvyBadge_ } from "@/lib/calvyBadge";
+import { calvyBadgeUrl } from "@/lib/calvyBadgeUrl";
 
 /** Everything the public tracking page needs. Contains no other customer's details. */
 export interface TrackingPage {
-  business: { name: string; slug: string; logoUrl: string | null; primaryColor: string; packId: string; termsOverride: unknown };
+  business: { name: string; slug: string; logoUrl: string | null; primaryColor: string; packId: string; termsOverride: unknown; showCalvyBadge: boolean; calvyHref: string };
   session: { name: string; dateLabel: string; startTime: string; endTime: string };
   /** The staff member whose queue this is (business information, not customer data). */
   staffName: string | null;
@@ -29,7 +31,7 @@ export async function loadTracking(code: string, slug?: string, now: Date = new 
       id: true, status: true, tokenNumber: true, queuePosition: true, queueState: true, notPresentCount: true, carriedFromId: true,
       estimatedAt: true, sessionDate: true, tokenSessionId: true, isOnline: true, meetingUrl: true,
       service: { select: { meetingUrl: true } }, staff: { select: { meetingUrl: true } },
-      business: { select: { name: true, slug: true, logoUrl: true, primaryColor: true, packId: true, termsOverride: true, timezone: true } },
+      business: { select: { id: true, name: true, slug: true, logoUrl: true, primaryColor: true, packId: true, termsOverride: true, timezone: true, websiteJson: true } },
       tokenSession: { select: { name: true, startMin: true, endMin: true, minutesPerToken: true, staff: { select: { name: true } } } },
       carriedTo: { select: { id: true, tokenNumber: true, sessionDate: true } },
     },
@@ -37,6 +39,7 @@ export async function loadTracking(code: string, slug?: string, now: Date = new 
   if (!a || !a.tokenSession || !a.tokenSessionId || !a.sessionDate || a.tokenNumber === null) return null;
   if (slug && a.business.slug !== slug) return null;
 
+  const showCalvyBadge = await showCalvyBadge_(a.business.id, a.business.websiteJson);
   const tz = safeTimeZone(a.business.timezone);
   const dateStr = a.sessionDate.toISOString().slice(0, 10);
 
@@ -79,7 +82,7 @@ export async function loadTracking(code: string, slug?: string, now: Date = new 
     online: a.isOnline && a.status === "confirmed" && ["waiting", "serving"].includes(view.state) ? { meetingUrl: meetingUrlFor(a) } : null,
     business: {
       name: a.business.name, slug: a.business.slug, logoUrl: a.business.logoUrl, primaryColor: a.business.primaryColor,
-      packId: a.business.packId, termsOverride: a.business.termsOverride,
+      packId: a.business.packId, termsOverride: a.business.termsOverride, showCalvyBadge, calvyHref: calvyBadgeUrl(a.business.slug),
     },
     session: {
       name: a.tokenSession.name, dateLabel: formatDateLabel(zonedToUtc(dateStr, 12 * 60, tz), tz),

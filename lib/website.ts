@@ -1,4 +1,5 @@
 import { t, type TermsSource } from "@/lib/terms";
+import { usableImageUrl } from "@/lib/images";
 import type { FaqSection, GallerySection, HeroLook, OfferSection, ServiceLayout } from "@/lib/siteSections";
 /** Which part of a photo the fixed-size frame keeps when it has to crop. */
 export type ImageFocus = "top" | "center" | "bottom";
@@ -81,6 +82,8 @@ export interface WebsiteConfig {
   faq?: FaqSection;
   /** "Review us on Google" block; on when a review link is set unless switched off. */
   reviews?: { enabled?: boolean };
+  /** The "Bookings by Calvy" footer shows unless `hidden` is set, which only plans with removeBranding honour. */
+  calvyBadge?: { hidden?: boolean };
 }
 
 const HERO_IMAGES: Record<string, string> = {
@@ -133,7 +136,9 @@ const RETIRED_PHOTOS = [
  * Show the current default for the business type instead; any other photo is left alone.
  */
 export function currentPhoto(url: string, businessType: string, slot: "hero" | "about"): string {
-  if (!url || !RETIRED_PHOTOS.some((id) => url.includes(id))) return url;
+  if (!url) return url;
+  // A retired default, or an upload whose file cannot exist on this server (a local-disk path in production): use the default.
+  if (usableImageUrl(url) !== null && !RETIRED_PHOTOS.some((id) => url.includes(id))) return url;
   return pickImage(slot === "hero" ? HERO_IMAGES : ABOUT_IMAGES, businessType, slot);
 }
 

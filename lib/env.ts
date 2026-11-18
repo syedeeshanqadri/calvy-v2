@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { storageDriver } from "@/lib/storage";
 
 // Describes every environment variable the app reads. This module only
 // reports names (never values) and is not used to refactor existing reads.
@@ -52,7 +53,7 @@ export const envSchema = z.object({ ...requiredInProduction, ...optionalVars });
 export const REQUIRED_ENV = Object.keys(requiredInProduction);
 export const OPTIONAL_ENV = Object.keys(optionalVars);
 
-/** lib/storage.ts uses the s3 driver in production, so all of these are needed there. */
+/** Needed only when the s3 driver is chosen (lib/storage.ts); Vercel Blob needs just BLOB_READ_WRITE_TOKEN. */
 export const S3_ENV = ["S3_ENDPOINT", "S3_BUCKET", "S3_ACCESS_KEY_ID", "S3_SECRET_ACCESS_KEY", "S3_PUBLIC_URL"];
 
 /** What each group of optional variables switches on (for startup logging). */
@@ -83,10 +84,13 @@ export function checkEnv(env: NodeJS.ProcessEnv = process.env): EnvCheck {
   };
 }
 
-/** Names of S3 variables still missing when uploads will use the s3 driver (production default). */
+/** What is missing so uploads can work: nothing when Vercel Blob or S3 is configured (or in development); otherwise the Blob token. */
 export function missingStorageEnv(env: NodeJS.ProcessEnv = process.env): string[] {
-  const driver = env.STORAGE_DRIVER ?? (env.NODE_ENV === "production" ? "s3" : "local");
-  return driver === "s3" ? S3_ENV.filter((n) => !isSet(env, n)) : [];
+  const driver = storageDriver(env as Record<string, string | undefined>);
+  if (driver === "none") return ["BLOB_READ_WRITE_TOKEN"];
+  if (driver === "s3") return S3_ENV.filter((n) => !isSet(env, n));
+  if (driver === "blob" && !isSet(env, "BLOB_READ_WRITE_TOKEN")) return ["BLOB_READ_WRITE_TOKEN"];
+  return [];
 }
 
 /**

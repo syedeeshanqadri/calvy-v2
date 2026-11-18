@@ -3,7 +3,7 @@ import { NextRequest } from "next/server";
 import sharp from "sharp";
 
 // step-6/redesign-site-foundation: website photo uploads work without Vercel Blob (local disk in
-// development, S3/R2 in production), keep using Blob where its token is set, and crop to a fixed size.
+// development, Vercel Blob or S3/R2 in production, all through lib/storage), and crop to a fixed size.
 
 const mocks = vi.hoisted(() => ({
   storage: { put: vi.fn(), remove: vi.fn(), keyFromUrl: vi.fn(), usage: vi.fn() },
@@ -61,22 +61,6 @@ describe("website photo upload storage", () => {
     expect([meta.width, meta.height]).toEqual([1200, 900]);
   });
 
-  it("with a Blob token, keeps using Vercel Blob (and its quota)", async () => {
-    process.env.BLOB_READ_WRITE_TOKEN = "token";
-    mocks.list.mockResolvedValue({ blobs: [] });
-    mocks.put.mockResolvedValue({ url: "https://blob.example/x.webp" });
-    const res = await POST(await request());
-    expect((await res.json()).url).toBe("https://blob.example/x.webp");
-    expect(mocks.storage.put).not.toHaveBeenCalled();
-  });
-
-  it("a full Blob quota is refused", async () => {
-    process.env.BLOB_READ_WRITE_TOKEN = "token";
-    mocks.list.mockResolvedValue({ blobs: Array.from({ length: 51 }, () => ({ size: 1 })) });
-    const res = await POST(await request());
-    expect(res.status).toBe(403);
-    expect(mocks.put).not.toHaveBeenCalled();
-  });
 
   it("a full quota on the storage adapter (S3/local) is refused too", async () => {
     mocks.storage.usage.mockResolvedValue({ files: 51, bytes: 1 });

@@ -1,4 +1,6 @@
 import { Facebook, Globe, Instagram, Linkedin, MessageCircle, Star, Twitter, Youtube } from "lucide-react";
+import { SafeLogo } from "@/components/site/SafeImage";
+import { usableImageUrl } from "@/lib/images";
 import { SOCIAL_LABELS, SOCIAL_PLATFORMS, type SocialLinks, type SocialPlatform } from "@/lib/brandLinks";
 
 const ICONS: Record<SocialPlatform, typeof Globe> = {
@@ -13,11 +15,7 @@ export function initialsOf(name: string): string {
 export function BrandMark({ name, logoUrl, color, fg, size = 36, rounded = "rounded-xl" }: {
   name: string; logoUrl?: string | null; color: string; fg: string; size?: number; rounded?: string;
 }) {
-  if (logoUrl) {
-    // eslint-disable-next-line @next/next/no-img-element
-    return <img src={logoUrl} alt={`${name} logo`} width={size} height={size} className={`${rounded} object-contain shrink-0`} style={{ width: size, height: size }} />;
-  }
-  return (
+  const initials = (
     <span
       aria-hidden
       className={`${rounded} shrink-0 inline-flex items-center justify-center font-black`}
@@ -26,6 +24,9 @@ export function BrandMark({ name, logoUrl, color, fg, size = 36, rounded = "roun
       {initialsOf(name)}
     </span>
   );
+  const src = usableImageUrl(logoUrl);
+  // A logo that cannot load (a stale local-disk path, a deleted file) falls back to the initials mark.
+  return src ? <SafeLogo src={src} alt={`${name} logo`} size={size} className={`${rounded} object-contain shrink-0`} fallback={initials} /> : initials;
 }
 
 export function SocialIcons({ links, className = "", tone = "light" }: { links: SocialLinks; className?: string; tone?: "light" | "dark" }) {

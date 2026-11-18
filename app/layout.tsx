@@ -3,6 +3,7 @@ import SentryClient from "@/components/providers/SentryClient";
 import localFont from "next/font/local";
 import { Analytics } from "@vercel/analytics/next";
 import { Providers } from "@/components/Providers";
+import { RefCapture } from "@/components/RefCapture";
 import "./globals.css";
 import { SITE_URL } from "@/lib/site";
 
@@ -65,7 +66,7 @@ export const viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" data-scroll-behavior="smooth" className={`${plusJakartaSans.variable} ${dmSans.variable} ${bricolage.variable}`}>
-      <body><Providers>{children}<SentryClient /></Providers><Analytics /></body>
+      <body><Providers>{children}<SentryClient /><RefCapture /></Providers><Analytics /></body>
     </html>
   );
 }

@@ -3,7 +3,10 @@ import { Unavailable } from "@/components/site/Unavailable";
 import { notFound } from "next/navigation";
 import { Metadata } from "next";
 import Link from "next/link";
-import Image from "next/image";
+import { SafeImage } from "@/components/site/SafeImage";
+import { usableImageUrl } from "@/lib/images";
+import { CalvyBadge } from "@/components/site/CalvyBadge";
+import { showCalvyBadge } from "@/lib/calvyBadge";
 import { prisma } from "@/lib/prisma";
 import { t } from "@/lib/terms";
 import { parseWebsiteConfig, defaultWebsiteConfig, WebsiteConfig, currentPhoto, focusPosition } from "@/lib/website";
@@ -148,7 +151,7 @@ export default async function TenantWebsitePage(props: { params: Promise<{ slug:
   const groups = groupByCategory(business.services);
   const hasTeam = cfg.team.enabled && business.staff.length > 0;
   const showOffer = offerVisible(cfg.offer, new Date(), business.timezone);
-  const galleryImages = cfg.gallery && cfg.gallery.enabled !== false ? sanitizeGallery(cfg.gallery.images) : [];
+  const galleryImages = cfg.gallery && cfg.gallery.enabled !== false ? sanitizeGallery(cfg.gallery.images).filter((i) => usableImageUrl(i.url) !== null) : [];
   const faqItems = cfg.faq && cfg.faq.enabled !== false ? sanitizeFaq(cfg.faq.items) : [];
   const faqLd = faqJsonLd(faqItems);
   const serviceCards = parseServiceLayout(cfg.serviceLayout) === "cards";
@@ -160,6 +163,7 @@ export default async function TenantWebsitePage(props: { params: Promise<{ slug:
   const aboutImage = currentPhoto(cfg.about.image, business.businessType, "about");
   const onInvert = primaryFg === "#ffffff" ? brandInk(primary) : primary;
   const footerHours = summarizeHours(hours);
+  const showBadge = await showCalvyBadge(business.id, business.websiteJson);
   const pack = getPack(business.packId);
   const serviceCount = business.services.length;
   const staffCount = business.staff.length;
@@ -339,7 +343,7 @@ export default async function TenantWebsitePage(props: { params: Promise<{ slug:
             <div className="st-wrap st-about">
               {aboutImage && (
                 <div className="st-about-media">
-                  <Image src={aboutImage} alt={business.name} fill sizes="(max-width: 900px) 100vw, 50vw" style={{ objectPosition: focusPosition(cfg.about.imageFocus) }} unoptimized />
+                  <SafeImage src={aboutImage} alt={business.name} fill sizes="(max-width: 900px) 100vw, 50vw" style={{ objectPosition: focusPosition(cfg.about.imageFocus) }} unoptimized />
                 </div>
               )}
               <div>
@@ -475,7 +479,7 @@ export default async function TenantWebsitePage(props: { params: Promise<{ slug:
         <div className="st-foot-base">
           <div className="st-wrap">
             <span>&copy; {new Date().getFullYear()} {business.name}</span>
-            <span>Want a site like this? <a href="https://calvy.io">Grab it on Calvy</a></span>
+            {showBadge && <CalvyBadge slug={business.slug} />}
           </div>
         </div>
       </footer>

@@ -43,7 +43,7 @@ export async function listBusinesses(f: BusinessFilters) {
       where, orderBy: { createdAt: "desc" }, skip: (f.page - 1) * PAGE_SIZE, take: PAGE_SIZE,
       select: {
         id: true, name: true, slug: true, packId: true, region: true, plan: true, planOverridePlan: true, suspendedAt: true, createdAt: true, onboardingCompletedAt: true,
-        owner: { select: { email: true } }, _count: { select: { appointments: true } },
+        owner: { select: { email: true, signupRef: true, signupSource: true } }, _count: { select: { appointments: true } },
       },
     }),
   ]);

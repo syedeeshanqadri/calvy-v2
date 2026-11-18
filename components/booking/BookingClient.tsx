@@ -8,6 +8,7 @@ import { formatCurrencyAmount, fromMinorUnits, toMinorUnits } from "@/lib/curren
 import { bookableServices, providerOptions } from "@/lib/staffMatch";
 import { safeThemeColor, readableForeground, themeVars } from "@/lib/theme";
 import { BrandMark, SocialIcons, ReviewButton, initialsOf } from "@/components/site/Brand";
+import { CalvyBadge } from "@/components/site/CalvyBadge";
 import { parseSocialLinks, safeReviewLink, type SocialLinks } from "@/lib/brandLinks";
 import { TokenPicker, type TokenOption } from "@/components/tokens/TokenPicker";
 import { chargeForConfig } from "@/lib/fees";
@@ -43,7 +44,7 @@ const BUSINESS_TYPE_LABELS: Record<string, string> = {
 interface Service { id: string; name: string; description: string; duration: number; price: number; color: string; capacity: number; mode?: "IN_PERSON" | "ONLINE" | "BOTH"; }
 interface StaffMember { id: string; name: string; role: string; color: string; serviceIds: string[]; }
 interface Business {
-  slug: string; name: string; primaryColor: string; businessType: string;
+  slug: string; name: string; primaryColor: string; businessType: string; showCalvyBadge?: boolean; calvyHref?: string;
   description: string; phone: string; address: string; website: string;
   currency: string; paymentMode: string;
   /** India needs a phone number as well as an email. */
@@ -492,6 +493,7 @@ export function BookingClient({ business, fontClasses, homeHref = "/", followUp 
               {hasSocial && <SocialIcons links={social} tone="dark" className={reviewUrl ? "mt-4" : ""} />}
             </div>
           )}
+          {business.showCalvyBadge !== false && <div className="mt-10 flex justify-center"><CalvyBadge slug={business.slug} color={color} href={business.calvyHref} /></div>}
         </main>
       </div>
     );
@@ -897,6 +899,7 @@ export function BookingClient({ business, fontClasses, homeHref = "/", followUp 
               </button>
             )}
           </nav>
+          {business.showCalvyBadge !== false && <div className="mt-10 flex justify-center"><CalvyBadge slug={business.slug} color={color} href={business.calvyHref} /></div>}
         </main>
 
         <aside className="bk-side">
