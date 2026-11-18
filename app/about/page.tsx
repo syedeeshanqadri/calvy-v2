@@ -1,3 +1,5 @@
+import { photosFor } from "@/lib/marketingConfig";
+import { RegionPhoto } from "@/components/marketing/RegionPhoto";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight, BellRing, CalendarClock, CreditCard, Gift, Globe, Users } from "lucide-react";
@@ -20,13 +22,17 @@ const WHAT_YOU_GET = [
   { Svg: Gift, title: "Rewards for loyal customers", body: "Customers who keep coming back earn rewards, and there is more on the way." },
 ];
 
+const aboutPhotos = photosFor("about");
+
 export default function AboutPage() {
   return (
     <PageShell>
       <PageHero
         title="Bookings for small service businesses, made simple"
         intro="Calvy gives small service businesses a website and an online booking page they can set up in minutes, without a developer."
-        visual={<Phone name="booking" alt="A Calvy booking page on a phone" priority className="max-w-[280px]" />}
+        visual={aboutPhotos.IN || aboutPhotos.INTL ? (
+          <div className="relative aspect-[4/5] w-full overflow-hidden rounded-mk-img bg-cv-blue"><RegionPhoto photos={aboutPhotos} sizes="(max-width: 1024px) 92vw, 40vw"><span /></RegionPhoto></div>
+        ) : <Phone name="booking" alt="A Calvy booking page on a phone" priority className="max-w-[280px]" />}
       >
         <div className="mt-9 flex flex-wrap gap-3">
           <PrimaryLink href="/signup">Start free</PrimaryLink>

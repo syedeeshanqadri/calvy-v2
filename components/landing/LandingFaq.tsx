@@ -3,7 +3,8 @@ import { LANDING_FAQ } from "@/lib/landingFaq";
 import { Section, Heading } from "@/components/marketing/ui";
 import { Reveal } from "@/components/marketing/Reveal";
 import { ReceptionScene } from "@/components/marketing/Illustrations";
-import { CalvyCards } from "@/components/marketing/CalvyCards";
+import { RegionPhoto } from "@/components/marketing/RegionPhoto";
+import { photosFor } from "@/lib/marketingConfig";
 import { SUPPORT_EMAIL } from "@/lib/site";
 
 export function LandingFaq() {
@@ -13,7 +14,7 @@ export function LandingFaq() {
       <div className="grid items-start gap-12 lg:grid-cols-5 lg:gap-16">
         <Reveal className="lg:col-span-2 lg:sticky lg:top-28">
           <div className="relative aspect-[4/5] overflow-hidden rounded-mk-img bg-cv-blue max-sm:aspect-[5/4]">
-            <ReceptionScene className="absolute inset-0 h-full w-full" />
+            <RegionPhoto photos={photosFor("faq")} sizes="(max-width: 1024px) 92vw, 40vw"><ReceptionScene className="absolute inset-0 h-full w-full" /></RegionPhoto>
           </div>
           <p className="mt-6 text-sm text-cv-mute">Still have a question? <a href={`mailto:${SUPPORT_EMAIL}`} className="font-semibold text-cv-blue underline underline-offset-4">{SUPPORT_EMAIL}</a></p>
         </Reveal>

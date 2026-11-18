@@ -3,19 +3,18 @@ import { AtHomeScene } from "@/components/marketing/PackScenes";
 import { Section } from "@/components/marketing/ui";
 import { Reveal } from "@/components/marketing/Reveal";
 import { BASE } from "@/lib/landingFeatures";
-import { photoFor } from "@/lib/marketingConfig";
-import Image from "next/image";
+import { photosFor } from "@/lib/marketingConfig";
+import { RegionPhoto } from "@/components/marketing/RegionPhoto";
 
 /** The signature feature: the token queue. A person waiting at home, and the card that tells them their turn is coming. */
 export function TokenSpotlight() {
   const f = BASE.find((x) => x.title === "Time slots and token queues")!;
-  const photo = photoFor("at-home", "intl");
   return (
     <Section tone="card" id="token-queue">
       <div className="grid items-center gap-14 lg:grid-cols-[1.1fr_1fr] lg:gap-20">
         <Reveal className="relative">
           <div className="relative aspect-[8/7] overflow-hidden rounded-mk-img bg-cv-blue">
-            {photo ? <Image src={photo} alt="" fill sizes="(max-width: 1024px) 92vw, 50vw" className="object-cover" /> : <AtHomeScene className="absolute inset-0 h-full w-full" />}
+            <RegionPhoto photos={photosFor("at-home")} sizes="(max-width: 1024px) 92vw, 50vw"><AtHomeScene className="absolute inset-0 h-full w-full" /></RegionPhoto>
           </div>
           <div className="absolute bottom-[-24px] right-4 w-[260px] rounded-mk-card border border-[rgba(15,23,42,0.06)] bg-white p-5 [box-shadow:var(--mk-shadow-card)] mk-float sm:right-[-24px] sm:w-[300px] sm:p-6">
             <p className="m-0 text-xs font-bold uppercase tracking-widest text-cv-mute">Your number</p>

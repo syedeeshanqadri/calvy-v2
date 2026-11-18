@@ -1,3 +1,5 @@
+import { photosFor, PACK_PHOTO } from "@/lib/marketingConfig";
+import { RegionPhoto } from "@/components/marketing/RegionPhoto";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -52,6 +54,8 @@ export default async function ForPackPage(props: { params: Promise<{ pack: strin
     { n: "3", title: `Share the link, get ${terms.appointment.plural}`, body: `Your ${client} book any time of day. You get an alert, and reminders go out on their own.` },
   ];
   // Clinics run on tokens, so they see the live queue; everyone else sees the booking page.
+  const heroPhotos = photosFor(PACK_PHOTO[page.pack]);
+  const hasPhoto = !!(heroPhotos.IN || heroPhotos.INTL);
   const heroShot = page.sample.queue ? { name: "queue", alt: "The live token queue on a phone" } : { name: "booking", alt: "A booking page on a phone: choose a service and a time" };
   return (
     <main className="bg-cv-paper">
@@ -73,7 +77,11 @@ export default async function ForPackPage(props: { params: Promise<{ pack: strin
               ))}
             </ul>
           </div>
-          <div className="min-w-0"><Phone name={heroShot.name} alt={heroShot.alt} priority className="max-w-[280px]" /></div>
+          <div className="min-w-0">
+            {hasPhoto ? (
+              <div className="relative aspect-[4/5] w-full overflow-hidden rounded-mk-img bg-cv-blue"><RegionPhoto photos={heroPhotos} sizes="(max-width: 1024px) 92vw, 40vw"><span /></RegionPhoto></div>
+            ) : <Phone name={heroShot.name} alt={heroShot.alt} priority className="max-w-[280px]" />}
+          </div>
         </div>
       </section>
 

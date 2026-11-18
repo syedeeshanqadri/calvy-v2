@@ -1,12 +1,9 @@
 import { ALL_PACKS, type PackId } from "@/lib/packs";
 import { FOR_PAGES } from "@/lib/forPages";
 import { PackShowcase, type ShowcasePack } from "@/components/marketing/PackShowcase";
-import { photoFor, type PhotoScene } from "@/lib/marketingConfig";
+import { photosFor, PACK_PHOTO } from "@/lib/marketingConfig";
 import { Section, Heading } from "@/components/marketing/ui";
 import { Reveal } from "@/components/marketing/Reveal";
-
-// Which photo scene suits which kind of business, when photos are switched on (lib/marketingConfig.ts).
-const PHOTO: Record<PackId, PhotoScene> = { CLINIC: "hero-doctor", SALON_SPA: "salon", FITNESS: "trainer", LAWYER: "advisor", CONSULTANT: "advisor", OTHER: "team" };
 
 /** What Calvy does for each kind of business, in that business's own words, as one tabbed showcase (the same wording as before). */
 export function BusinessTypes() {
@@ -24,7 +21,7 @@ export function BusinessTypes() {
       ],
       href: forPage ? `/for/${forPage.slug}` : null,
       more: `More for ${p.label.toLowerCase()}`,
-      photos: { IN: photoFor(PHOTO[p.id], "india"), INTL: photoFor(PHOTO[p.id], "intl") },
+      photos: photosFor(PACK_PHOTO[p.id]),
     };
   });
   return (

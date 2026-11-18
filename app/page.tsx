@@ -10,7 +10,7 @@ import { LeadMagnet } from "@/components/landing/LeadMagnet";
 import { BusinessTypes } from "@/components/landing/BusinessTypes";
 import { BuiltForStrip } from "@/components/landing/BuiltForStrip";
 import { TokenSpotlight } from "@/components/landing/TokenSpotlight";
-import { PricingTeaser } from "@/components/landing/PricingTeaser";
+import { Pricing } from "@/components/landing/Pricing";
 import { LandingFaq } from "@/components/landing/LandingFaq";
 import { LANDING_FAQ } from "@/lib/landingFaq";
 import { LeadCapture } from "@/components/landing/LeadCapture";
@@ -86,7 +86,7 @@ export default function HomePage() {
       <InlineCTABand />
       <Features />
       <LeadMagnet />
-      <PricingTeaser />
+      <Pricing />
       <LandingFaq />
       <LeadCapture />
       <CTA />

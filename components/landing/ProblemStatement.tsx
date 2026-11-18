@@ -1,4 +1,4 @@
-import { Phone, BookOpen, AlertTriangle, CreditCard, Globe } from "lucide-react";
+import { Phone, BookOpen, AlertTriangle, CreditCard, Globe, Users } from "lucide-react";
 import { Heading, WRAP } from "@/components/marketing/ui";
 import { Chat } from "@/components/marketing/BeforeAfter";
 import { CalvyCards } from "@/components/marketing/CalvyCards";
@@ -10,6 +10,7 @@ const PAINS = [
   { Icon: CreditCard, headline: "Chasing payment is awkward", body: "Asking for payment after a session is uncomfortable and slow. Half the time it never comes." },
   { Icon: BookOpen, headline: "Paper diaries and spreadsheets break down", body: "Double bookings, lost records, no overview of your week — the old way doesn't scale." },
   { Icon: Globe, headline: "You have no online presence", body: "Clients can't find you, can't book you, and go to a competitor who makes it easy." },
+  { Icon: Users, headline: "Your team works from different diaries", body: "Staff schedules live in separate notebooks and chats, so nobody sees who is free and clients get double-booked." },
 ];
 
 /** A full-width deep-blue band: the old way (a chat thread over a paper diary) against composed Calvy cards, then the pains. */
