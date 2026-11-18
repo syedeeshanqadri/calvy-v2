@@ -1,16 +1,22 @@
 import { Logo } from "@/components/ui/Logo";
 
-/** Dark full-height background + logo + white card used by every auth screen. */
-export default function AuthShell({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+/**
+ * Dark full-height background + logo + white card used by every auth screen. With `aside`, laptop screens (lg and up) get a
+ * wide two-panel card (benefits on the left, the form on the right); phones and tablets keep the single narrow card.
+ */
+export default function AuthShell({ children, className = "", aside }: { children: React.ReactNode; className?: string; aside?: React.ReactNode }) {
   return (
     <div
       className="min-h-dvh bg-[#0f0f1a] flex items-center justify-center px-4 safe-pt-4 safe-pb-4"
     >
-      <div className="w-full max-w-md">
-        <div className="flex justify-center mb-10">
+      <div className={`w-full max-w-md ${aside ? "sm:max-w-xl lg:max-w-5xl" : ""}`}>
+        <div className="flex justify-center mb-8 sm:mb-10">
           <Logo width={120} className="brightness-0 invert" priority />
         </div>
-        <div className={`bg-white rounded-3xl p-6 sm:p-8 shadow-2xl ${className}`}>{children}</div>
+        <div className={`bg-white rounded-3xl shadow-2xl overflow-hidden ${aside ? "lg:grid lg:grid-cols-5" : ""}`}>
+          {aside && <div className="hidden lg:flex lg:col-span-2 relative overflow-hidden bg-gradient-to-br from-sky-600 to-sky-800 p-10 flex-col justify-center">{aside}</div>}
+          <div className={`p-6 sm:p-8 ${aside ? "lg:col-span-3 lg:p-10" : ""} ${className}`}>{children}</div>
+        </div>
         <p className="text-center text-white/60 text-xs mt-6">© 2026 Calvy · All rights reserved</p>
       </div>
     </div>

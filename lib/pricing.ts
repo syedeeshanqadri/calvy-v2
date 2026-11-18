@@ -39,7 +39,7 @@ export const PRICING_NOTE = "Flat price for your whole team — no per-staff fee
 
 // The mobile app is part of Pro and Business in every country; Business unlocks the full feature set.
 const MOBILE_APP_PRO = "Mobile app: notifications, check, cancel & reschedule bookings";
-const MOBILE_APP_BUSINESS = "Premium mobile app: approve booking requests, full client database";
+const MOBILE_APP_BUSINESS = "Premium mobile app: 40+ features";
 
 const INTL: RegionPricing = {
   region: "INTL",
@@ -58,6 +58,8 @@ const INTL: RegionPricing = {
         "Up to 60 appointments/month",
         "Booking page + business website",
         "Email confirmations & reminders",
+        "Calendar sync",
+        MOBILE_APP_PRO,
       ],
       highlight: false,
     },
@@ -70,13 +72,14 @@ const INTL: RegionPricing = {
       description: "For growing service businesses",
       features: [
         "Up to 3 staff",
-        "Up to 1,000 appointments/month",
+        "Up to 2,000 appointments/month",
         "Everything in Free, plus:",
         "WhatsApp confirmations & reminders",
         "Custom branding & colours",
         "Analytics dashboard",
         "Image uploads & SEO controls",
         "CSV export & expense tracking",
+        "Calendar sync",
         MOBILE_APP_PRO,
       ],
       highlight: false,
@@ -92,7 +95,7 @@ const INTL: RegionPricing = {
         "Unlimited staff",
         "Unlimited appointments",
         "Everything in Pro, plus:",
-        "WhatsApp, email & SMS alerts",
+        "WhatsApp & email alerts",
         "Calendar sync",
         "Custom business options",
         "Group bookings",
@@ -121,10 +124,12 @@ const IN: RegionPricing = {
       description: "No monthly fee, no credit card required",
       features: [
         "Unlimited bookings",
-        "A nominal platform fee per confirmed online booking",
+        "A nominal platform fee per confirmed online booking, paid by customers",
         "Booking page + business website",
         "Email notifications",
         "1 staff member",
+        "Calendar sync",
+        MOBILE_APP_PRO,
       ],
       highlight: false,
     },
@@ -138,13 +143,14 @@ const IN: RegionPricing = {
       features: [
         "No platform fee",
         "Up to 3 staff",
-        "Up to 1,000 appointments/month",
+        "Up to 2,000 appointments/month",
         "Everything in Free, plus:",
         "WhatsApp confirmations & reminders",
         "Custom branding & colours",
         "Analytics dashboard",
         "Image uploads & SEO controls",
         "CSV export & expense tracking",
+        "Calendar sync",
         MOBILE_APP_PRO,
       ],
       highlight: false,
@@ -161,7 +167,6 @@ const IN: RegionPricing = {
         "Unlimited staff",
         "Unlimited appointments",
         "Everything in Pro, plus:",
-        "SMS reminders",
         "Calendar sync",
         "Custom business options",
         "Group bookings",

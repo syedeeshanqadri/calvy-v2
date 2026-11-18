@@ -8,6 +8,24 @@ import AuthShell, { inputClass, primaryBtn, linkClass } from "@/components/auth/
 import { PackPicker } from "@/components/packs/PackPicker";
 import type { PackId } from "@/lib/packs/types";
 import { detectRegion } from "@/lib/onboarding";
+import { Check } from "lucide-react";
+import { ReminderCard } from "@/components/marketing/Mockups";
+
+function SignupAside() {
+  return (
+    <>
+      <div className="absolute -top-16 -right-10 w-56 h-56 rounded-full bg-white/10 blur-2xl" aria-hidden />
+      <h2 className="relative font-syne font-extrabold text-3xl text-white leading-tight text-balance">Your website and booking page, ready in minutes</h2>
+      <p className="relative mt-3 text-sky-100">Start free. No password needed now, and no credit card.</p>
+      <ul className="relative mt-7 space-y-3 text-sky-50">
+        {["Time slots or token queues", "Reminders that go out on their own", "Your own words for your kind of business"].map((t) => (
+          <li key={t} className="flex items-start gap-3"><span className="mt-0.5 w-5 h-5 rounded-full bg-white/20 flex items-center justify-center shrink-0"><Check size={12} strokeWidth={3} aria-hidden /></span>{t}</li>
+        ))}
+      </ul>
+      <div className="relative mt-9" aria-hidden><ReminderCard appointmentWord="appointment" /></div>
+    </>
+  );
+}
 
 /** Passwordless sign-up: name, email, phone (required in India) and business type. The emailed link verifies the address and sets the password. */
 export default function SignupPage() {
@@ -74,11 +92,12 @@ export default function SignupPage() {
   }
 
   return (
-    <AuthShell>
+    <AuthShell aside={<SignupAside />}>
       <h1 className="font-syne font-bold text-2xl text-[#0f0f1a] mb-1">Create your account</h1>
       <p className="text-[#6b6b80] text-sm mb-7">Get your website in under 10 minutes. No password needed now.</p>
 
       <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="grid gap-4 sm:grid-cols-2">
         <div>
           <label htmlFor="signup-name" className="text-sm font-medium text-[#0f0f1a] block mb-1.5">Your name</label>
           <input id="signup-name" type="text" required autoComplete="name" value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="Alex Johnson" className={inputClass} />
@@ -86,6 +105,7 @@ export default function SignupPage() {
         <div>
           <label htmlFor="signup-email" className="text-sm font-medium text-[#0f0f1a] block mb-1.5">Email</label>
           <input id="signup-email" type="email" required autoComplete="email" value={form.email} onChange={(e) => set("email", e.target.value)} placeholder="you@business.com" className={inputClass} />
+        </div>
         </div>
         <div>
           <label htmlFor="signup-phone" className="text-sm font-medium text-[#0f0f1a] block mb-1.5">
