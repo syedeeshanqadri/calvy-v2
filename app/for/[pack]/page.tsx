@@ -79,7 +79,7 @@ export default async function ForPackPage(props: { params: Promise<{ pack: strin
           </div>
           <div className="min-w-0">
             {hasPhoto ? (
-              <div className="relative aspect-[4/5] w-full overflow-hidden rounded-mk-img bg-cv-blue"><RegionPhoto photos={heroPhotos} sizes="(max-width: 1024px) 92vw, 40vw"><span /></RegionPhoto></div>
+              <div className="relative aspect-[5/4] w-full overflow-hidden rounded-mk-img bg-cv-blue"><RegionPhoto photos={heroPhotos} sizes="(max-width: 1024px) 92vw, 40vw"><span /></RegionPhoto></div>
             ) : <Phone name={heroShot.name} alt={heroShot.alt} priority className="max-w-[280px]" />}
           </div>
         </div>
