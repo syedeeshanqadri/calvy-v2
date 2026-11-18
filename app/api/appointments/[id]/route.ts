@@ -170,7 +170,7 @@ async function PATCH_handler(req: NextRequest, props: { params: Promise<{ id: st
       return NextResponse.json({ error: conflictMessage(capacity), code: "SLOT_CONFLICT" }, { status: 409 });
     }
   } else {
-    updated = await prisma.appointment.update({ where: { id: params.id }, data });
+    updated = await prisma.appointment.update({ where: { id: params.id, businessId: session.user.businessId }, data });
   }
 
   // The business cancelling a booking that used the customer's free rebooking gives that rebooking back.
@@ -267,7 +267,7 @@ async function DELETE_handler(req: NextRequest, props: { params: Promise<{ id: s
     return NextResponse.json({ error: "Appointment not found" }, { status: 404 });
   }
 
-  await prisma.appointment.delete({ where: { id: params.id } });
+  await prisma.appointment.delete({ where: { id: params.id, businessId: session.user.businessId } });
   return NextResponse.json({ success: true });
 }
 

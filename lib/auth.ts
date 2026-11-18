@@ -4,7 +4,7 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
-import { rateLimit } from "@/lib/ratelimit";
+import { rateLimit, clientIp } from "@/lib/ratelimit";
 import { revalidateBusinessClaims } from "@/lib/sessionBusiness";
 import { cookies } from "next/headers";
 import { activeViewAs } from "@/lib/admin/viewAs";
@@ -99,12 +99,15 @@ export const authOptions: NextAuthOptions = {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
       },
-      async authorize(credentials) {
+      async authorize(credentials, req) {
         if (!credentials?.email || !credentials?.password) return null;
 
-        // Throttle brute-force attempts per email address.
+        // Throttle brute-force attempts per email address AND per IP (one IP spraying many emails).
         const rl = await rateLimit(`login:${credentials.email.toLowerCase()}`, 10, 60_000);
         if (!rl.ok) throw new Error("TooManyAttempts");
+        const ip = clientIp(new Request("http://localhost", { headers: new Headers(Object.entries(req?.headers ?? {}).filter((e): e is [string, string] => typeof e[1] === "string")) }));
+        const rlIp = await rateLimit(`login-ip:${ip}`, 30, 60_000);
+        if (!rlIp.ok) throw new Error("TooManyAttempts");
 
         try {
           const user = await findUserByEmail(credentials.email);
@@ -286,4 +289,7 @@ export const authOptions: NextAuthOptions = {
   },
   pages: { signIn: "/login" },
   secret: process.env.NEXTAUTH_SECRET,
+  // Session cookies: NextAuth sets httpOnly + sameSite=lax always, and the `__Secure-` prefix + secure flag whenever NEXTAUTH_URL
+  // is https (so in production). Not forced here: the middleware reads the cookie by the same rule, and forcing it breaks an
+  // `next start` check over plain http.
 };

@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { accessSession, appointmentWhere } from "@/lib/access";
 import { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
+import { isFeatureEnabled } from "@/lib/flags";
 import { notify } from "@/lib/notifications/enqueue";
 import { noticeFrom, receipt } from "@/lib/notifications/events";
 import { ownerAlert } from "@/lib/notifications/business";
@@ -10,6 +11,7 @@ import { ownerAlert } from "@/lib/notifications/business";
 export const dynamic = 'force-dynamic';
 
 async function PATCH_handler(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  if (!isFeatureEnabled("payments")) return NextResponse.json({ error: "Not found" }, { status: 404 });
   const params = await props.params;
   const session = await accessSession("appointments.write");
   if (!session?.user?.businessId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

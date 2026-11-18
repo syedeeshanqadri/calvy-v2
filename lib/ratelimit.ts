@@ -21,6 +21,8 @@ export interface RateLimiterOptions {
   now?: () => number;
   /** Redis call timeout in ms (default 1000). */
   redisTimeoutMs?: number;
+  /** True = when no Redis is configured, refuse (429) instead of using the per-instance memory limiter. */
+  failClosed?: () => boolean;
 }
 
 type Bucket = { count: number; resetAt: number };
@@ -233,6 +235,7 @@ export function createRateLimiter(opts: RateLimiterOptions = {}) {
     } catch {
       redis = undefined;
     }
+    if (!redis && opts.failClosed?.()) return { ok: false, retryAfter: 30 };
     if (!redis || windowMs <= 0) return memoryLimit(key, limit, windowMs);
 
     let wasProbe = false;
@@ -256,27 +259,51 @@ export function createRateLimiter(opts: RateLimiterOptions = {}) {
 let cachedRedis: Redis | undefined;
 let warnedUnconfigured = false;
 
+/** Upstash credentials. Both name pairs work: the Vercel Marketplace integration creates KV_REST_API_*, Upstash's own docs use UPSTASH_REDIS_REST_*. */
+export function upstashConfig(env: Record<string, string | undefined> = process.env): { url: string; token: string } | null {
+  const url = env.UPSTASH_REDIS_REST_URL || env.KV_REST_API_URL;
+  const token = env.UPSTASH_REDIS_REST_TOKEN || env.KV_REST_API_TOKEN;
+  return url && token ? { url, token } : null;
+}
+
+/** RATE_LIMIT_FAIL_CLOSED=1 (set at launch): without Upstash, requests to rate-limited routes are refused instead of using per-instance memory. */
+export function rateLimitFailClosed(env: Record<string, string | undefined> = process.env): boolean {
+  const v = (env.RATE_LIMIT_FAIL_CLOSED ?? "").trim().toLowerCase();
+  return v === "1" || v === "true";
+}
+
+/** For the health check: is the shared limiter configured, and is a missing one a problem? */
+export function rateLimitStatus(env: Record<string, string | undefined> = process.env): { shared: boolean; failClosed: boolean; warning: string | null } {
+  const shared = upstashConfig(env) !== null;
+  const failClosed = rateLimitFailClosed(env);
+  const warning = shared
+    ? null
+    : failClosed
+      ? "Upstash not configured and RATE_LIMIT_FAIL_CLOSED is on: rate-limited routes refuse every request."
+      : "Upstash not configured: rate limits are per-instance and advisory.";
+  return { shared, failClosed, warning };
+}
+
 // Built lazily on first use; never at import time.
 function defaultRedis(): RedisLike | undefined {
-  const url = process.env.UPSTASH_REDIS_REST_URL;
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
-  if (!url || !token) {
+  const cfg = upstashConfig();
+  if (!cfg) {
     if (process.env.NODE_ENV === "production" && !warnedUnconfigured) {
       warnedUnconfigured = true;
       console.warn(
-        "[ratelimit] UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN not set: rate limits are per-instance and advisory.",
+        `[ratelimit] ${rateLimitStatus().warning} Set UPSTASH_REDIS_REST_URL/TOKEN (or KV_REST_API_URL/TOKEN).`,
       );
     }
     return undefined;
   }
-  if (!cachedRedis) cachedRedis = new Redis({ url, token, retry: false });
+  if (!cachedRedis) cachedRedis = new Redis({ url: cfg.url, token: cfg.token, retry: false });
   const client = cachedRedis;
   return {
     eval: (script, keys, args) => client.eval(script, keys, args),
   };
 }
 
-export const rateLimit = createRateLimiter({ redis: defaultRedis });
+export const rateLimit = createRateLimiter({ redis: defaultRedis, failClosed: () => process.env.NODE_ENV === "production" && rateLimitFailClosed() });
 
 const IPV4 = /^(?:(?:25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(?:25[0-5]|2[0-4]\d|1?\d?\d)$/;
 

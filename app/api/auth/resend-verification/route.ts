@@ -5,7 +5,7 @@ import { rateLimit, clientIp } from "@/lib/ratelimit";
 import { notify } from "@/lib/notifications/enqueue";
 import { authEmail } from "@/lib/notifications/events";
 import { resendVerificationSchema } from "@/lib/validation/auth";
-import { generateToken, tokenExpiry, VERIFY_TOKEN_TTL_MS } from "@/lib/auth-tokens";
+import { generateToken, hashToken, tokenExpiry, VERIFY_TOKEN_TTL_MS } from "@/lib/auth-tokens";
 import { readJsonBody, parseWith, tooManyRequests, testTokenHookEnabled } from "@/lib/auth-http";
 import { logger } from "@/lib/logger";
 
@@ -47,7 +47,7 @@ async function POST_handler(req: NextRequest) {
       await prisma.$transaction([
         prisma.verificationToken.deleteMany({ where: { email: user.email } }),
         prisma.verificationToken.create({
-          data: { token, email: user.email, expiresAt: tokenExpiry(VERIFY_TOKEN_TTL_MS) },
+          data: { token: hashToken(token), email: user.email, expiresAt: tokenExpiry(VERIFY_TOKEN_TTL_MS) },
         }),
       ]);
       rawToken = token;

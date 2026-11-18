@@ -23,7 +23,7 @@ async function POST_handler(_req: NextRequest, { params }: Ctx) {
   const result = await verifyGateway(g);
   const hasDefault = (await prisma.paymentGateway.count({ where: { businessId, isDefault: true, NOT: { id } } })) > 0;
   const updated = await prisma.paymentGateway.update({
-    where: { id },
+    where: { id, businessId },
     data: result.ok
       ? { status: "CONNECTED", statusReason: null, lastVerifiedAt: new Date(), enabled: true, isDefault: g.isDefault || !hasDefault }
       : { status: "ERROR", statusReason: result.reason, enabled: false, isDefault: false },

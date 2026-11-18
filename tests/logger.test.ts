@@ -49,7 +49,7 @@ describe("GET /api/health", () => {
     queryRaw.mockResolvedValue([{ "?column?": 1 }]);
     const res = await health();
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ status: "ok", db: "up" });
+    expect(await res.json()).toMatchObject({ status: "ok", db: "up" });
     expect(res.headers.get("cache-control")).toBe("no-store");
   });
   it("503 when the database is down, without leaking the error", async () => {

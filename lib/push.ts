@@ -165,3 +165,12 @@ export function vapidHealth() {
     subjectScheme: VAPID_SUBJECT.split(":")[0] + ":",
   };
 }
+
+const PUSH_HOSTS = [/(^|\.)fcm\.googleapis\.com$/, /(^|\.)push\.services\.mozilla\.com$/, /(^|\.)notify\.windows\.com$/, /(^|\.)push\.apple\.com$/, /(^|\.)web\.push\.apple\.com$/];
+/** Only real browser push services: the server will POST to this URL, so an arbitrary host would be an SSRF vector. */
+export function isKnownPushHost(endpoint: string): boolean {
+  try {
+    const u = new URL(endpoint);
+    return u.protocol === "https:" && PUSH_HOSTS.some((r) => r.test(u.hostname));
+  } catch { return false; }
+}

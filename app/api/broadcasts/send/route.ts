@@ -9,6 +9,7 @@ import { Resend } from "resend";
 import { getBusinessFeatures } from "@/lib/getFeatures";
 import { rateLimit } from "@/lib/ratelimit";
 import { logger } from "@/lib/logger";
+import { isFeatureEnabled } from "@/lib/flags";
 
 export const dynamic = "force-dynamic";
 
@@ -41,6 +42,7 @@ function buildEmailHtml(rawBusinessName: string, rawSubject: string, message: st
 
 
 async function POST_handler(req: NextRequest) {
+  if (!isFeatureEnabled("broadcasts")) return NextResponse.json({ error: "Not found" }, { status: 404 });
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 

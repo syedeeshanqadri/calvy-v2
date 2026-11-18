@@ -25,6 +25,7 @@ const call = () => PATCH(new NextRequest("http://localhost/api/appointments/x/pa
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.stubEnv("FEATURE_PAYMENTS", "1");
   session.mockResolvedValue({ user: { businessId: "b1" } });
   db.transaction.mockResolvedValue([{ ...basic, paymentStatus: "paid" }, {}]);
   db.findFirst.mockReset().mockResolvedValueOnce(basic).mockResolvedValueOnce(full);

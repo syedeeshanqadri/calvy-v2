@@ -26,8 +26,14 @@ const { ok, retryAfter } = await rateLimit(key, limit, windowMs);
 | --- | --- |
 | `UPSTASH_REDIS_REST_URL` | Upstash REST URL |
 | `UPSTASH_REDIS_REST_TOKEN` | Upstash REST token |
+| `KV_REST_API_URL` / `KV_REST_API_TOKEN` | Same thing under the names the Vercel Marketplace Upstash integration creates; either pair works |
+| `RATE_LIMIT_FAIL_CLOSED` | `1` (set at launch): in production, with no Upstash configured, rate-limited routes answer 429 instead of using the per-instance memory limiter. Default off: memory fallback, a log line and a `/api/health` warning. A Redis outage (as opposed to missing config) still falls back to memory, so an Upstash incident cannot take the site down |
 
-Redis is activated in Step 7 (set both in Vercel). Locally nothing is needed.
+Locally nothing is needed. `/api/health` shows `rateLimit: "shared" | "memory"` and a `warnings` list.
+
+## Global buckets (proxy.ts, lib/apiGuard.ts)
+
+Under the route-specific limits below, every `/api/*` request passes through: per IP 600/min (`api-ip:`; webhooks use their own `api-webhook:` bucket), and for signed-in writes per account 240/min (`api-acct:<uid>`). Cron and health are skipped. Writes from a browser must also pass the CSRF origin check (same origin or a tenant subdomain; webhooks, cron and NextAuth exempt).
 
 ## Limits per route
 
@@ -37,6 +43,7 @@ Redis is activated in Step 7 (set both in Vercel). Locally nothing is needed.
 | `POST /api/signup` | IP | 5 / min |
 | `POST /api/bookings` | IP | 10 / min |
 | NextAuth credentials login (`lib/auth.ts`) | lowercased email | 10 / min |
+| NextAuth credentials login (`lib/auth.ts`) | IP | 30 / min |
 | `POST /api/upload` | `businessId` (session) | 10 / min |
 | `POST /api/support` (create ticket) | `businessId` (session) | 20 / min (shared with next row) |
 | `POST /api/support/[id]` (message) | `businessId` (session) | 20 / min (shared counter `support:<businessId>`) |

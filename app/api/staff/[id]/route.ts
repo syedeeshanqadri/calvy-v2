@@ -27,7 +27,7 @@ async function PATCH_handler(request: NextRequest, props: { params: Promise<{ id
   const { name, role, email, phone, color, isActive, meetingUrl, photoUrl, bio, specialisation } = parsed.data;
 
   const staff = await prisma.staff.update({
-    where: { id: params.id },
+    where: { id: params.id, businessId: session.user.businessId },
     data: {
       ...(name !== undefined && { name }),
       ...(role !== undefined && { role }),
@@ -58,7 +58,7 @@ async function DELETE_handler(_: NextRequest, props: { params: Promise<{ id: str
   });
   if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  await prisma.staff.delete({ where: { id: params.id } });
+  await prisma.staff.delete({ where: { id: params.id, businessId: session.user.businessId } });
   return NextResponse.json({ success: true });
 }
 

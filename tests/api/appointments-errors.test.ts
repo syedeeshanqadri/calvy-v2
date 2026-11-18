@@ -110,7 +110,7 @@ describe("DELETE /api/appointments/[id]", () => {
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ success: true });
     expect(db.appointment.findFirst).toHaveBeenCalledWith({ where: { id: "a1", businessId: "biz" } });
-    expect(db.appointment.delete).toHaveBeenCalledWith({ where: { id: "a1" } });
+    expect(db.appointment.delete).toHaveBeenCalledWith({ where: { id: "a1", businessId: "biz" } });
   });
 
   it("404 JSON for another business's appointment, nothing deleted", async () => {

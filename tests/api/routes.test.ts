@@ -146,7 +146,7 @@ describe("PATCH /api/services/[id]", () => {
     db.service.update.mockResolvedValue({ id: "s1" });
     const res = await servicePatch(json({ price: 20, businessId: "biz-B", id: "other" }, "PATCH"), { params: Promise.resolve({ id: "s1" }) });
     expect(res.status).toBe(200);
-    expect(db.service.update).toHaveBeenCalledWith({ where: { id: "s1" }, data: { price: 20 } });
+    expect(db.service.update).toHaveBeenCalledWith({ where: { id: "s1", businessId: "biz-A" }, data: { price: 20 } });
   });
   it("400 on negative price / zero duration", async () => {
     asUser();

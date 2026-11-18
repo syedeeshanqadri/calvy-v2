@@ -251,8 +251,7 @@ test.describe("reset-password", () => {
     await expect(toggle).toHaveAttribute("aria-pressed", "false");
   });
 
-  // TODO(chore/e2e-ci): not diagnosed yet. After the Tab order was corrected, Enter on the password field never shows the mocked "Invalid email or password." message.
-  test.fixme("keyboard-only flow", async ({ page }) => {
+  test("keyboard-only flow", async ({ page }) => {
     const calls = await mockApi(page, "reset-password", json(200, { ok: true }));
     await page.goto(`/reset-password?token=${TOKEN}`);
     await hydrated(page);
@@ -361,8 +360,7 @@ test.describe("login", () => {
     await shot(page, "login-too-many-attempts");
   });
 
-  // TODO(chore/e2e-ci): not diagnosed yet. After the Tab order was corrected, Enter on the password field never shows the mocked "Invalid email or password." message.
-  test.fixme("keyboard-only flow", async ({ page }) => {
+  test("keyboard-only flow", async ({ page }) => {
     await mockSignIn(page, "CredentialsSignin");
     await page.goto("/login");
     await hydrated(page);
@@ -380,6 +378,8 @@ test.describe("login", () => {
     await page.keyboard.press("Shift+Tab");
     await expect(page.getByLabel("Email")).toBeFocused();
     await page.keyboard.press("Tab");
+    await page.keyboard.press("Tab");
+    await expect(page.getByLabel("Password", { exact: true })).toBeFocused();
     await page.keyboard.type("badpass123");
     await page.keyboard.press("Enter");
     await expect(page.locator("[role=alert]:not(#__next-route-announcer__)").filter({ hasText: "Invalid email or password." })).toBeVisible();
