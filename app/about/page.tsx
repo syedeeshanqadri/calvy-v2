@@ -12,7 +12,7 @@ export default function AboutPage() {
   return (
     <LegalLayout
       title="About Calvy"
-      lastUpdated="November 16, 2026"
+      lastUpdated="November 18, 2026"
       intro="Calvy gives small service businesses a website and an online booking page they can set up in minutes, without a developer."
     >
       <h2>What we do</h2>
@@ -24,7 +24,8 @@ export default function AboutPage() {
         <li>Time slots, token queues, or both;</li>
         <li>Confirmations and reminders by email, WhatsApp (paid plans) and push alerts on your phone;</li>
         <li>Team logins with roles, reviews, follow-ups and a business app you can install on your phone;</li>
-        <li>Online payments through Cashfree, with wallet credit for cancelled bookings.</li>
+        <li>Online payments straight into your own account: connect your own payment gateway (Razorpay, Cashfree, PhonePe, PayU, CCAvenue or Paytm in India, Stripe or PayPal elsewhere) on a paid plan. Calvy never holds your money;</li>
+        <li>Rewards for customers who keep coming back, and lots more rewards on the way.</li>
       </ul>
 
       <h2>How we work</h2>

@@ -13,7 +13,7 @@ export default function RefundPolicyPage() {
   return (
     <LegalLayout
       title="Refund & Cancellation Policy"
-      lastUpdated="November 16, 2026"
+      lastUpdated="November 18, 2026"
       intro={`This policy explains cancellations and refunds for the booking confirmation fee, for service fees paid to businesses, and for Calvy subscriptions. Calvy is operated by ${CONTACT.legalName}.`}
     >
       <h2>1. Booking Confirmation Fee (₹10)</h2>
@@ -37,6 +37,8 @@ export default function RefundPolicyPage() {
         <li>you will not be charged again after cancellation;</li>
         <li>your account moves to the free plan when the paid period ends, and nothing is deleted.</li>
       </ul>
+
+      <p>When you upgrade in the middle of a billing period, the unused part of your current plan is credited against the new plan at once, so you are not charged twice for the same days. The credit is shown at checkout and on your invoice.</p>
 
       <h2>6. Calvy Subscriptions: Refunds</h2>
       <p>Subscription fees are billed in advance. We do not refund partial billing periods unless the law requires it. We will refund a subscription charge in these cases:</p>

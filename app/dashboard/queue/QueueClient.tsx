@@ -96,7 +96,7 @@ export function QueueClient({ today, services, whatsappOffered = false }: { toda
   };
 
   function notComing(row: QueueRow) {
-    const text = `Cancel token ${row.tokenNumber} (${row.clientName})? Whatever they paid online is saved in their wallet for a future booking. Nothing is refunded automatically.`;
+    const text = `Cancel token ${row.tokenNumber} (${row.clientName})? If they paid the Rs 10 confirmation fee, it is kept and they can rebook once at your business without paying it again. Nothing else is refunded automatically.`;
     if (window.confirm(text)) void act("not_coming", row);
   }
 

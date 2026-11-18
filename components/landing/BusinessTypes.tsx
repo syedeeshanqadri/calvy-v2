@@ -1,5 +1,7 @@
 import { Stethoscope, Scissors, Scale, Dumbbell, UserRound, Briefcase, type LucideIcon } from "lucide-react";
+import Link from "next/link";
 import { ALL_PACKS, type PackId } from "@/lib/packs";
+import { FOR_PAGES } from "@/lib/forPages";
 
 const ICONS: Record<PackId, LucideIcon> = {
   CLINIC: Stethoscope, SALON_SPA: Scissors, LAWYER: Scale, FITNESS: Dumbbell, CONSULTANT: UserRound, OTHER: Briefcase,
@@ -30,6 +32,7 @@ export function BusinessTypes() {
                   {token ? " Token queue: patients take a number and you call the next one." : " Choose time slots that fit your day."}
                 </p>
                 <p className="text-xs text-gray-500">Ready-made: {p.defaultServices.map((s) => s.name).join(", ")}</p>
+                {FOR_PAGES.find((f) => f.pack === p.id) && <Link href={`/for/${FOR_PAGES.find((f) => f.pack === p.id)!.slug}`} className="mt-3 inline-flex items-center min-h-11 text-sm font-semibold text-sky-700 underline">More for {p.label.toLowerCase()}</Link>}
               </li>
             );
           })}
