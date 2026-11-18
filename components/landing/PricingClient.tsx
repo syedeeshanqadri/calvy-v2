@@ -48,12 +48,15 @@ export default function PricingClient({
   defaultRegion = "INTL",
   fixedRegion = false,
   headingLevel = "h2",
+  showNotes = true,
 }: {
   /** Region rendered on the server; the visitor's cookie / detection replaces it unless fixedRegion */
   defaultRegion?: Region;
   /** India-only page: always shows defaultRegion */
   fixedRegion?: boolean;
   headingLevel?: "h1" | "h2";
+  /** The three lines under the plans (flat price, WhatsApp billing, no card); the home page leaves them out */
+  showNotes?: boolean;
 }) {
   const region = useRegion(defaultRegion, fixedRegion);
   // Yearly is the default for International; India starts on monthly. Once the visitor picks one, that choice wins.
@@ -122,9 +125,13 @@ export default function PricingClient({
           })}
         </div>
 
+        {showNotes && (
+          <>
         <p className="text-sm text-cv-ink mt-8 font-medium">{PRICING_NOTE}</p>
         <p className="text-sm text-cv-mute mt-2">{WHATSAPP_NOTE}</p>
         <p className="text-sm text-cv-mute mt-2">No credit card required · Cancel anytime · Lifetime free plan available</p>
+          </>
+        )}
         <FAQ region={region} />
       </div>
     </section>

@@ -4,5 +4,5 @@ import PricingClient from "./PricingClient";
 // the plan table, billing reads the Razorpay plan ids. Server-rendered as
 // International; the client swaps to the visitor's region.
 export function Pricing() {
-  return <PricingClient />;
+  return <PricingClient showNotes={false} />;
 }
