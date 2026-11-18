@@ -124,7 +124,7 @@ const IN: RegionPricing = {
       description: "No monthly fee, no credit card required",
       features: [
         "Unlimited bookings",
-        "A nominal platform fee per confirmed online booking",
+        "A nominal platform fee per confirmed online booking, paid by customers",
         "Booking page + business website",
         "Email notifications",
         "1 staff member",
