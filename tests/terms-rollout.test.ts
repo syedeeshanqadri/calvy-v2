@@ -28,7 +28,7 @@ describe("emails use the pack wording", () => {
       const p = { ...base, terms: { packId: id } };
       const { appt, svc } = expected[id];
       expect(await text(createElement(BookingConfirmationEmail, p))).toContain(`your ${appt} at Acme is confirmed`);
-      expect(await text(createElement(BookingConfirmationEmail, p))).toContain(`${svc}Thing`);
+      expect(await text(createElement(BookingConfirmationEmail, p))).toContain(`${svc} Thing`);
       expect(await text(createElement(BookingReminderEmail, p))).toContain(`Your ${appt} is coming up`);
       expect(await text(createElement(BookingCancellationEmail, p))).toContain(`Your ${appt} was cancelled`);
       expect(await text(createElement(BookingRescheduleEmail, { ...p, oldDate: "Sun", oldTime: "9:00 AM" }))).toContain(`Your ${appt} has moved`);

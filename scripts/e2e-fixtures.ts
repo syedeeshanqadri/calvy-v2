@@ -22,6 +22,8 @@ async function main() {
   if (!business) throw new Error("Demo salon not found: run `npm run db:seed` first.");
   // The demo salon takes slot bookings (the seed default); a hand-edited database may have switched it to queue mode.
   await prisma.business.update({ where: { id: business.id }, data: { bookingMode: "SLOT" } });
+  // The demo clinic runs on tokens (prisma/seed.ts); the queue-booking smoke test needs that, and a hand-edited database may have switched it.
+  await prisma.business.updateMany({ where: { slug: "city-care-clinic" }, data: { bookingMode: "TOKEN" } });
   const existing = await prisma.service.findFirst({ where: { businessId: business.id, name: "Online Consultation" } });
   if (!existing) {
     const service = await prisma.service.create({
