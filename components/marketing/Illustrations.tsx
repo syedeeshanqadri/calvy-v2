@@ -1,18 +1,16 @@
 // One illustration style for the marketing site: 3px line-art, flat tinted shapes for light and depth, marigold used for two or
-// three small accents. No faces, no gradients, no glows. Two palettes: "dark" (cream lines on the deep-blue panel) and "light"
-// (blue lines on a cream panel).
+// three small accents. No faces, no gradients, no glows. Cream lines on the deep-blue panel.
 const MARIGOLD = "#E8A317";
 const SKIN = "#F6E3B4";
 const HAIR = "#1B2430";
 
 const PALETTE = {
   dark: { line: "#FAF7F2", beam1: "#1B62AD", beam1o: 0.7, beam2: "#2A78C8", beam2o: 0.45, win: "#1E67B4", deskTop: "#FAF7F2", deskFront: "#093A70", jacket: "#2A78C8", tablet: "#2A78C8", leaf: "#FAF7F2", head: SKIN, steth: "#FAF7F2" },
-  light: { line: "#0B4A8F", beam1: "#E6EEF8", beam1o: 1, beam2: "#D3E1F3", beam2o: 0.9, win: "#DCE8F6", deskTop: "#FFFFFF", deskFront: "#0B4A8F", jacket: "#0B4A8F", tablet: "#FFFFFF", leaf: "#0B4A8F", head: SKIN, steth: "#FAF7F2" },
 } as const;
 
 /** A calm reception: window light, a plant, a framed picture, and a person at the desk with a tablet. Decorative. */
-export function ReceptionScene({ className = "", tone = "dark" }: { className?: string; tone?: "dark" | "light" }) {
-  const c = PALETTE[tone];
+export function ReceptionScene({ className = "" }: { className?: string }) {
+  const c = PALETTE.dark;
   const line = { fill: "none", stroke: c.line, strokeWidth: 3, strokeLinecap: "round", strokeLinejoin: "round" } as const;
   return (
     <svg viewBox="0 0 480 560" preserveAspectRatio="xMidYMid slice" className={className} aria-hidden focusable="false">
@@ -39,11 +37,11 @@ export function ReceptionScene({ className = "", tone = "dark" }: { className?: 
       <path d="M172 306 C168 352 184 372 208 372 C232 372 248 352 244 306" {...line} stroke={c.steth} strokeWidth={2.5} />
       <circle cx="244" cy="306" r="5" fill={MARIGOLD} stroke={c.steth} strokeWidth="2" />
       <path d="M208 304 V352" stroke={MARIGOLD} strokeWidth="4" strokeLinecap="round" />
-      <rect x="198" y="350" width="20" height="26" rx="4" fill="#FAF7F2" stroke={c.line} strokeWidth={tone === "light" ? 2 : 0} />
+      <rect x="198" y="350" width="20" height="26" rx="4" fill="#FAF7F2" stroke={c.line} strokeWidth={0} />
       {/* the desk */}
-      <rect x="30" y="396" width="420" height="22" rx="11" fill={c.deskTop} stroke={c.line} strokeWidth={tone === "light" ? 3 : 0} />
+      <rect x="30" y="396" width="420" height="22" rx="11" fill={c.deskTop} stroke={c.line} strokeWidth={0} />
       <path d="M52 418 H428 V560 H52 Z" fill={c.deskFront} stroke={c.line} strokeWidth="3" strokeLinejoin="round" />
-      <path d="M52 462 H428" stroke={tone === "light" ? "#FAF7F2" : c.line} strokeWidth="2" strokeLinecap="round" opacity="0.35" />
+      <path d="M52 462 H428" stroke={c.line} strokeWidth="2" strokeLinecap="round" opacity="0.35" />
       {/* tablet on the desk */}
       <rect x="318" y="338" width="86" height="58" rx="8" fill={c.tablet} stroke={c.line} strokeWidth="3" />
       <path d="M332 356 H390 M332 370 H372" {...line} strokeWidth={2.5} />
