@@ -1,7 +1,7 @@
 // Payment gateway interface. Implementations: mock.ts (tests, dev without keys) and cashfree.ts.
 // Money is in integer minor units; adapters convert to the gateway's format.
 
-export type ProviderName = "MOCK" | "CASHFREE" | "RAZORPAY" | "PHONEPE";
+export type ProviderName = "MOCK" | "CASHFREE" | "RAZORPAY" | "PHONEPE" | "PAYU" | "CCAVENUE" | "PAYTM" | "STRIPE" | "PAYPAL";
 
 export interface CreateOrderInput {
   /** Our order id (also the gateway's order_id): unique, [A-Za-z0-9_-], max 45 chars. */
@@ -25,8 +25,10 @@ export interface CreatedOrder {
   sessionId: string;
   /** The gateway's own id for the order when it differs from ours (Razorpay payment link id, PhonePe orderId). */
   gatewayRef?: string;
-  /** True when sessionId is a URL to send the customer to (Razorpay, PhonePe) instead of a Cashfree SDK session. */
+  /** True when sessionId is a URL to send the customer to (Razorpay, PhonePe, Stripe, PayPal) instead of a Cashfree SDK session. */
   redirect?: boolean;
+  /** PayU, CCAvenue and Paytm take the customer to their page with a form POST: the browser submits these fields to `url`. */
+  post?: { url: string; fields: Record<string, string> };
   expiresAt: Date | null;
 }
 
@@ -62,8 +64,8 @@ export interface PaymentProvider {
   /** A real, lightweight call that proves the credentials work (used by "Verify" in Settings). */
   verify?(): Promise<{ ok: true } | { ok: false; reason: string }>;
   refund(input: RefundInput): Promise<{ refundRef: string }>;
-  /** Returns the normalised event, or null when the signature is missing or wrong. */
-  verifyWebhook(rawBody: string, headers: Headers): PaymentEvent | null;
+  /** Returns the normalised event, or null when the signature is missing or wrong. May be async (PayPal verifies with a call). */
+  verifyWebhook(rawBody: string, headers: Headers): PaymentEvent | null | Promise<PaymentEvent | null>;
 }
 
 export class PaymentProviderError extends Error {

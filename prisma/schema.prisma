@@ -678,6 +678,11 @@ enum PayProvider {
   CASHFREE
   RAZORPAY
   PHONEPE
+  PAYU
+  CCAVENUE
+  PAYTM
+  STRIPE
+  PAYPAL
 }
 
 enum PayStatus {
@@ -1007,6 +1012,11 @@ enum GatewayProvider {
   RAZORPAY
   CASHFREE
   PHONEPE
+  PAYU
+  CCAVENUE
+  PAYTM
+  STRIPE
+  PAYPAL
 }
 
 enum GatewayStatus {

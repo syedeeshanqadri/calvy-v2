@@ -8,7 +8,8 @@ export type FeatureFlag =
   | "broadcasts"
   | "demoBooking"
   | "removeBranding"
-  | "onlinePayments";
+  | "onlinePayments"
+  | "intlSubscriptions";
 
 export const FEATURE_FLAGS: readonly FeatureFlag[] = [
   "payments",
@@ -17,6 +18,7 @@ export const FEATURE_FLAGS: readonly FeatureFlag[] = [
   "demoBooking",
   "removeBranding",
   "onlinePayments",
+  "intlSubscriptions",
 ];
 
 const ENV_VARS: Record<FeatureFlag, string> = {
@@ -27,6 +29,8 @@ const ENV_VARS: Record<FeatureFlag, string> = {
   removeBranding: "FEATURE_REMOVE_BRANDING",
   // Cashfree online booking payments (Rs 10 fee / full online). Off in production until the settings screen ships.
   onlinePayments: "FEATURE_ONLINE_PAYMENTS",
+  // International Calvy plan subscriptions (Cashfree). Parked: while OFF (and until built) the Billing page shows "Coming soon" outside India.
+  intlSubscriptions: "CF_INTL_SUBSCRIPTIONS",
 };
 
 type Env = Record<string, string | undefined>;

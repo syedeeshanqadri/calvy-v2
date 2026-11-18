@@ -209,7 +209,8 @@ async function bookingHandler(req: NextRequest) {
     return NextResponse.json({ error: "Online payments are temporarily unavailable. Please try again later." }, { status: 503 });
   }
   const charge = chargeFor(payConfig, orderedServices.map((sv) => ({ serviceId: sv.id, price: followUpOfId ? 0 : sv.price })));
-  if (charge.chargeMinor > 0 && !clientPhone) {
+  // A phone number is needed for the Indian gateways; a card or PayPal payment abroad does not need one.
+  if (charge.chargeMinor > 0 && !clientPhone && payConfig?.country === "IN") {
     return NextResponse.json({ error: "A phone number is needed to pay online." }, { status: 400 });
   }
 
@@ -439,7 +440,7 @@ async function bookingHandler(req: NextRequest) {
     if (payCharge.route === "GATEWAY" && !gateway) return NextResponse.json({ error: "Online payments are temporarily unavailable. Please try again later.", code: "PAYMENT_START_FAILED" }, { status: 503 });
     const hold = payCharge.chargeMinor > 0 ? holdExpiry() : null;
     // Paid in full online = prepaid; a deposit or the Rs 10 fee leaves the rest to pay at the venue.
-    const venueMode = payCharge.route === "GATEWAY" && payCharge.chargeMinor >= toMinor(totalPrice) && hold ? "prepaid" : "postpaid";
+    const venueMode = payCharge.route === "GATEWAY" && payCharge.chargeMinor >= toMinor(totalPrice, business.currency) && hold ? "prepaid" : "postpaid";
     let appointment;
     try {
       appointment = await createAppointment(client.id, "unpaid", venueMode, hold, waived, rewarded);
@@ -458,7 +459,7 @@ async function bookingHandler(req: NextRequest) {
     const started = await startCheckout({
       appointmentId: appointment.id, businessId: business.id, businessName: business.name,
       currency: business.currency ?? DEFAULT_CURRENCY, charge: payCharge, holdExpiresAt: hold,
-      client: { id: client.id, name: clientName, email: clientEmail, phone: clientPhone! },
+      client: { id: client.id, name: clientName, email: clientEmail, phone: clientPhone ?? "" },
       note: `${serviceNamesLabel} ${date} ${time}`, gateway,
     });
     if (!started.ok) return NextResponse.json({ error: started.error, code: "PAYMENT_START_FAILED" }, { status: 502 });

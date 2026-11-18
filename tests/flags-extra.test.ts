@@ -41,7 +41,7 @@ describe("prefix to flag mapping", () => {
   it("only payments and broadcasts are guarded at the API layer", () => {
     const used = new Set(Object.values(map));
     expect(Array.from(used).sort()).toEqual(["broadcasts", "payments"]);
-    for (const f of FEATURE_FLAGS) if (!used.has(f)) expect(f).toMatch(/chatWidget|demoBooking|removeBranding|onlinePayments/);
+    for (const f of FEATURE_FLAGS) if (!used.has(f)) expect(f).toMatch(/chatWidget|demoBooking|removeBranding|onlinePayments|intlSubscriptions/);
   });
 });
 

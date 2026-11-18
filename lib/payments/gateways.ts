@@ -6,6 +6,11 @@ import { webhookBaseUrl } from "@/lib/paymentUrls";
 import { createCashfreeProvider } from "./cashfree";
 import { createRazorpayProvider } from "./razorpay";
 import { createPhonePeProvider } from "./phonepe";
+import { createPayUProvider } from "./payu";
+import { createCCAvenueProvider } from "./ccavenue";
+import { createPaytmProvider } from "./paytm";
+import { createStripeProvider } from "./stripe";
+import { createPayPalProvider } from "./paypal";
 import type { PaymentProvider } from "./provider";
 import type { GatewayMode, GatewayProviderId } from "./gatewayMeta";
 
@@ -39,15 +44,28 @@ export function providerForGateway(row: GatewayRow, fetchImpl: typeof fetch = fe
     case "RAZORPAY": return createRazorpayProvider({ keyId, keySecret, webhookSecret }, fetchImpl);
     case "CASHFREE": return createCashfreeProvider({ appId: keyId, secretKey: keySecret, env: mode === "LIVE" ? "production" : "sandbox" }, fetchImpl);
     case "PHONEPE": return createPhonePeProvider({ clientId: keyId, clientSecret: keySecret, clientVersion: row.extra || "1", mode, webhookCredentials: webhookSecret }, fetchImpl);
+    case "PAYU": return createPayUProvider({ merchantKey: keyId, salt: keySecret, mode }, fetchImpl);
+    case "CCAVENUE": return createCCAvenueProvider({ merchantId: keyId, workingKey: keySecret, accessCode: row.extra ?? "", mode }, fetchImpl);
+    case "PAYTM": return createPaytmProvider({ mid: keyId, merchantKey: keySecret, website: row.extra || (mode === "LIVE" ? "DEFAULT" : "WEBSTAGING"), mode }, fetchImpl);
+    case "STRIPE": return createStripeProvider({ secretKey: keySecret, webhookSecret }, fetchImpl);
+    case "PAYPAL": return createPayPalProvider({ clientId: keyId, clientSecret: keySecret, mode, webhookId: webhookSecret }, fetchImpl);
     default: throw new Error("Unknown payment gateway");
   }
 }
 
-/** Razorpay keys name their own mode: a live key saved as test (or the reverse) is caught before any call. */
+/** Razorpay and Stripe keys name their own mode: a live key saved as test (or the reverse) is caught before any call. */
 export function modeMismatch(provider: string, mode: string, keyId: string): string | null {
-  if (provider !== "RAZORPAY") return null;
-  if (mode === "TEST" && keyId.startsWith("rzp_live_")) return "That is a live key but the mode is Test. Switch the mode to Live or use a test key.";
-  if (mode === "LIVE" && keyId.startsWith("rzp_test_")) return "That is a test key but the mode is Live. Switch the mode to Test or use a live key.";
+  const live = (mode === "LIVE");
+  if (provider === "RAZORPAY") {
+    if (!live && keyId.startsWith("rzp_live_")) return "That is a live key but the mode is Test. Switch the mode to Live or use a test key.";
+    if (live && keyId.startsWith("rzp_test_")) return "That is a test key but the mode is Live. Switch the mode to Test or use a live key.";
+  }
+  if (provider === "STRIPE") {
+    if (keyId.startsWith("pk_")) return "That is the publishable key (pk_…). Paste the secret or restricted key (sk_… or rk_…).";
+    if (!/^(sk|rk)_(test|live)_/.test(keyId)) return "A Stripe secret or restricted key starts with sk_ or rk_.";
+    if (!live && keyId.includes("_live_")) return "That is a live key but the mode is Test. Switch the mode to Live or use a test key.";
+    if (live && keyId.includes("_test_")) return "That is a test key but the mode is Live. Switch the mode to Test or use a live key.";
+  }
   return null;
 }
 

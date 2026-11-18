@@ -43,9 +43,11 @@ describe("charge matrix (India only)", () => {
   it("Mid/Top without a verified default gateway: nothing is charged online", () => {
     expect(computeCharge({ ...base, platformFeeMinorIN: 0, hasGateway: false }).route).toBe("NONE");
   });
-  it("international: never charged online", () => {
+  it("international: never the Rs 10, and nothing online on the free plan", () => {
     expect(computeCharge({ ...base, country: "US" }).chargeMinor).toBe(0);
-    expect(computeCharge({ ...base, country: "US", platformFeeMinorIN: 0 }).chargeMinor).toBe(0);
+    expect(computeCharge({ ...base, country: "US" }).route).toBe("NONE");
+    // A paid international plan takes online payments through its own gateway (see gateways-regions.test.ts), still never the Rs 10.
+    expect(computeCharge({ ...base, country: "US", platformFeeMinorIN: 0 }).platformFeeMinor).toBe(0);
   });
   it("a free service charges nothing on a paid plan", () => {
     expect(computeCharge({ ...base, platformFeeMinorIN: 0, items: [{ priceMinor: 0 }] }).chargeMinor).toBe(0);

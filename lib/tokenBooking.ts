@@ -187,7 +187,7 @@ export async function bookToken(input: TokenBookingInput): Promise<NextResponse>
     .filter(Boolean).join("\n") || null;
 
   const fullCharge = chargeFor(input.payConfig, services.map((sv) => ({ serviceId: sv.id, price: input.followUpOfId ? 0 : sv.price })));
-  if (fullCharge.chargeMinor > 0 && !input.client.phone) return err(400, "A phone number is needed to pay online.");
+  if (fullCharge.chargeMinor > 0 && !input.client.phone && input.payConfig?.country === "IN") return err(400, "A phone number is needed to pay online.");
 
   const client = await findOrCreateClient(prisma, business.id, input.client, tz);
 
@@ -255,7 +255,7 @@ export async function bookToken(input: TokenBookingInput): Promise<NextResponse>
     const started = await startCheckout({
       appointmentId: appointment.id, businessId: business.id, businessName: business.name,
       currency: business.currency ?? DEFAULT_CURRENCY, charge, holdExpiresAt: holdExpiresAt!,
-      client: { id: client.id, name: input.client.name, email: input.client.email, phone: input.client.phone! },
+      client: { id: client.id, name: input.client.name, email: input.client.email, phone: input.client.phone ?? "" },
       note: `Token #${number} ${session.name} ${date}`, gateway,
     });
     if (!started.ok) return err(502, started.error, "PAYMENT_START_FAILED");
