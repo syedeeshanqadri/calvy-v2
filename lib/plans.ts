@@ -80,7 +80,7 @@ export const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
   professional: {
     maxStaff: 3,
     maxServices: -1,
-    maxMonthlyAppointments: 1000,
+    maxMonthlyAppointments: 2000,
     maxBroadcastsPerMonth: 0,
     maxTeamMembers: 3,
     platformFeeMinorIN: 0,

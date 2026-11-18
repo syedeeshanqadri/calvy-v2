@@ -58,17 +58,21 @@ export function LeadCapture() {
   }
 
   return (
-    <section id="demo" className="py-16 sm:py-20 lg:py-24 bg-gradient-to-b from-white to-sky-50">
-      <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-8">
-          <span className="inline-block bg-sky-100 text-sky-700 text-xs font-bold tracking-widest uppercase px-4 py-2 rounded-full mb-4">Get started</span>
-          <h2 className="font-syne font-extrabold text-3xl sm:text-4xl tracking-tight text-gray-900 mb-3">
-            See Calvy in action
-          </h2>
-          <p className="text-gray-500 text-lg">Tell us a little about your business and we&apos;ll be in touch — fast.</p>
-        </div>
-
-        <div className="bg-white rounded-3xl border border-gray-200 shadow-xl p-6 sm:p-8">
+    <section id="demo" className="py-12 sm:py-16 lg:py-20 bg-sky-50">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="grid lg:grid-cols-5 rounded-3xl overflow-hidden border border-gray-200 bg-white shadow-xl">
+          <div className="lg:col-span-2 relative overflow-hidden bg-gradient-to-br from-sky-600 to-sky-800 p-8 sm:p-10 flex flex-col justify-center">
+            <div className="absolute -top-16 -right-10 w-56 h-56 rounded-full bg-white/10 blur-2xl" aria-hidden />
+            <span className="relative inline-block self-start bg-white/15 text-white text-xs font-bold tracking-widest uppercase px-4 py-2 rounded-full mb-5">Get started</span>
+            <h2 className="relative font-syne font-extrabold text-3xl sm:text-4xl tracking-tight text-white mb-3 text-balance">See Calvy in action</h2>
+            <p className="relative text-sky-100 text-lg mb-6">Tell us a little about your business and we&apos;ll be in touch, fast.</p>
+            <ul className="relative space-y-3 text-sky-50">
+              {["Answer five quick questions", "We reach out to set up your demo", "Or just start free whenever you like"].map((t) => (
+                <li key={t} className="flex items-start gap-3"><span className="mt-0.5 w-5 h-5 rounded-full bg-white/20 flex items-center justify-center shrink-0"><Check size={12} strokeWidth={3} /></span>{t}</li>
+              ))}
+            </ul>
+          </div>
+          <div className="lg:col-span-3 p-6 sm:p-10 flex flex-col justify-center">
           {done ? (
             <div className="text-center py-10">
               <div className="w-16 h-16 rounded-full bg-green-50 flex items-center justify-center mx-auto mb-5">
@@ -176,6 +180,7 @@ export function LeadCapture() {
               </div>
             </>
           )}
+          </div>
         </div>
       </div>
 

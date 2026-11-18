@@ -7,6 +7,9 @@ export const LANDING_FAQ: { q: string; a: string }[] = [
   { q: "How do reminders and alerts work?", a: "Customers get confirmations and reminders by email, and by WhatsApp on paid plans. You get push alerts on your phone for new bookings, cancellations and changes." },
   { q: "How do online payments and refunds work?", a: "Customers pay the business directly. On Pro and Business you connect your own payment gateway (Razorpay, Cashfree, PhonePe, PayU, CCAvenue or Paytm in India; Stripe or PayPal elsewhere), so the money goes straight to you and Calvy never holds it. On the free plan in India, customers pay a nominal confirmation fee that is not refunded but lets them rebook once without paying it again, and pay for the service at your place. Read the refund and cancellation policy for the details." },
   { q: "Are there rewards?", a: "Yes. Customers who keep booking earn rewards across Calvy businesses, and there will be lots more rewards over time." },
+  { q: "How many team members can I add?", a: "The free plan has 1 staff member, Pro has up to 3, and Business has unlimited staff. Prices are flat for your whole team, with no per-staff fees." },
+  { q: "Can my customers cancel or reschedule?", a: "Yes. Customers with a Calvy account see their bookings in one place and can reschedule or cancel within each business's rules." },
+  { q: "Is there a mobile app for me?", a: "Yes. Install the Calvy Business mobile app on your phone to see today's list, mark people arrived, call the next token and get alerts for new bookings. The Business plan adds a premium mobile app." },
   { q: "Do I need to be technical?", a: "No. Sign up, choose your business type, add your services and working hours, and your website and booking link are ready to share." },
   { q: "Can my team use it?", a: "Yes. Add staff and receptionists with their own logins and roles, so each person sees only what they need." },
 ];
