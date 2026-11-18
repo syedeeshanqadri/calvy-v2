@@ -13,11 +13,11 @@ export const dynamic = "force-dynamic";
  */
 async function GET_handler(req: NextRequest) {
   const me = await getCustomer();
-  if (!me?.verified) return NextResponse.redirect(new URL("/my/login", req.url));
+  if (!me?.verified) return NextResponse.redirect(new URL("/account/login", req.url));
   const slug = (req.nextUrl.searchParams.get("business") ?? "").slice(0, 100);
   const business = await prisma.business.findUnique({ where: { slug }, select: { slug: true } });
-  if (!business) return NextResponse.redirect(new URL("/my", req.url));
-  const url = new URL(`${publicSiteUrl(business.slug, process.env.NEXT_PUBLIC_ROOT_DOMAIN || "calvy.io")}/book-now`);
+  if (!business) return NextResponse.redirect(new URL("/account", req.url));
+  const url = new URL(`${publicSiteUrl(business.slug, process.env.NEXT_PUBLIC_ROOT_DOMAIN || "calvy.io")}/book`);
   const service = (req.nextUrl.searchParams.get("service") ?? "").slice(0, 64);
   if (service) url.searchParams.set("service", service);
   url.searchParams.set("vt", signVerifiedTicket(me.id));

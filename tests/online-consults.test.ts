@@ -117,7 +117,7 @@ describe("who can see the link", () => {
     expect(inPerson).not.toContain("Online consultation");
   });
   it("the public booking and website code never reads the meeting link", () => {
-    for (const f of ["app/b/[slug]/page.tsx", "app/[slug]/book-now/page.tsx", "app/[slug]/page.tsx", "app/api/availability/route.ts", "app/api/token-availability/route.ts", "lib/availability.ts", "lib/website.ts"]) {
+    for (const f of ["app/[slug]/book/page.tsx", "app/[slug]/page.tsx", "app/api/availability/route.ts", "app/api/token-availability/route.ts", "lib/availability.ts", "lib/website.ts"]) {
       expect(readFileSync(f, "utf8"), f).not.toContain("meetingUrl");
     }
   });

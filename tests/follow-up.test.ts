@@ -120,11 +120,11 @@ describe("follow-up link from My bookings", () => {
   const req = (id: string) => new NextRequest(`http://localhost/api/customer/follow-up?appointment=${id}`);
   it("sends a guest to the login page, and never signs a ticket for someone else's appointment", async () => {
     session.current = null;
-    expect((await followUpLink(req("a1"))).headers.get("location")).toContain("/my/login");
+    expect((await followUpLink(req("a1"))).headers.get("location")).toContain("/account/login");
     session.current = { user: { kind: "customer", customerId: "c1" } };
     db.customer.findUnique.mockResolvedValue({ id: "c1", name: "Riya", email: "riya@mail.test", emailVerified: new Date(), passwordChangedAt: null });
     db.appointment.findFirst.mockResolvedValue(null);
-    expect((await followUpLink(req("not-mine"))).headers.get("location")).toMatch(/\/my$/);
+    expect((await followUpLink(req("not-mine"))).headers.get("location")).toMatch(/\/account$/);
   });
 });
 

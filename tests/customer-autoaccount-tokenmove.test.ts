@@ -56,7 +56,7 @@ describe("account at booking", () => {
   });
   it("setup email links to the set-password screen and counts as a verification", () => {
     const n = authEmail({ template: "customer_account_setup", userId: "c1", to: "a@x.co", name: "A", token: "tok", baseUrl: "https://calvy.io" });
-    expect(n.secret).toBe("https://calvy.io/my/verify-email?setup=1&token=tok");
+    expect(n.secret).toBe("https://calvy.io/account/verify-email?setup=1&token=tok");
     expect(n.event).toBe("auth.verify");
     expect(JSON.stringify(n.payload)).not.toContain("tok");
   });

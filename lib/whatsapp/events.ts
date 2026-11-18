@@ -35,8 +35,8 @@ export const clean = (v: unknown, fallback = "-"): string => {
 };
 const first = (name?: string) => clean((name ?? "").trim().split(/\s+/)[0], "there");
 const when = (p: BookingLike) => clean(`${p.date ?? ""}${p.date && p.time ? ", " : ""}${p.time ?? ""}`);
-/** The tracking page address ends in /q/<code>; the template button holds the fixed part, so only the code is sent. */
-const trackCode = (url?: string) => (url ? url.split("/q/")[1]?.split(/[?#]/)[0] || undefined : undefined);
+/** The tracking page address ends in /booking/<code>; the template button holds the fixed part, so only the code is sent. */
+const trackCode = (url?: string) => (url ? url.split("/booking/")[1]?.split(/[?#]/)[0] || undefined : undefined);
 const booking = (key: string, p: BookingLike): WaMessage => ({ key, params: [first(p.clientName), clean(p.serviceName), clean(p.businessName), when(p)] });
 
 interface Mapping { pref: WaPrefKey; build: (p: BookingLike) => WaMessage | null }

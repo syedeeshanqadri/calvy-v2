@@ -38,15 +38,15 @@ beforeEach(() => { vi.clearAllMocks(); cookieJar.value = undefined; cookieJar.na
 
 describe("customer Google sign-in", () => {
   it("rejects an unverified Google email: nothing is created or changed", async () => {
-    expect(await signIn(google(false))).toBe("/my/login?error=GoogleDenied");
+    expect(await signIn(google(false))).toBe("/account/login?error=GoogleDenied");
     db.customer.findUnique.mockResolvedValue(pwCustomer);
-    expect(await signIn(google(undefined))).toBe("/my/login?error=GoogleDenied");
+    expect(await signIn(google(undefined))).toBe("/account/login?error=GoogleDenied");
     expect(db.customer.create).not.toHaveBeenCalled();
     expect(db.customer.update).not.toHaveBeenCalled();
   });
   it("never links a password account silently, and points to the password login", async () => {
     db.customer.findUnique.mockResolvedValue(pwCustomer);
-    expect(await signIn(google(true))).toBe("/my/login?error=GoogleLinkRequired");
+    expect(await signIn(google(true))).toBe("/account/login?error=GoogleLinkRequired");
     expect(db.customer.update).not.toHaveBeenCalled();
   });
   it("links after the signed-in customer asked for it", async () => {
@@ -76,7 +76,7 @@ describe("customer Google sign-in", () => {
   });
   it("an account linked to a different Google login is refused", async () => {
     db.customer.findUnique.mockResolvedValue({ ...pwCustomer, googleId: "g-other" });
-    expect(await signIn(google(true))).toBe("/my/login?error=GoogleDenied");
+    expect(await signIn(google(true))).toBe("/account/login?error=GoogleDenied");
   });
 });
 

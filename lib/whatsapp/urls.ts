@@ -15,7 +15,7 @@ export function whatsappCallbackUrl(key: string, env: Env = process.env): string
 }
 
 /** Fixed parts of the template URL buttons; Meta appends the {{1}} suffix. Must be public https in production. */
-export function templateUrlBases(slug: string, env: Env = process.env): UrlBases {
+export function templateUrlBases(_slug: string, env: Env = process.env): UrlBases {
   const base = (env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000").replace(/\/+$/, "");
-  return { tracking: `${base}/${slug}/q/`, dashboard: `${base}/dashboard/` };
+  return { tracking: `${base}/booking/`, dashboard: `${base}/dashboard/` };
 }

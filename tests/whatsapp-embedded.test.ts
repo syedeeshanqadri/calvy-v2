@@ -27,7 +27,7 @@ import { POST as PER_BUSINESS_POST } from "@/app/api/whatsapp/webhook/[key]/rout
 
 process.env.NEXTAUTH_SECRET = "test-secret";
 const env = { appId: "APP", appSecret: "APP_SECRET", configId: "CFG", verifyToken: "vt" };
-const bases = { tracking: "https://calvy.io/s/q/", dashboard: "https://calvy.io/dashboard/" };
+const bases = { tracking: "https://calvy.io/booking/", dashboard: "https://calvy.io/dashboard/" };
 const json = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status });
 const row = (over: Record<string, unknown> = {}) => ({ businessId: "b1", source: "EMBEDDED", status: "CONNECTED", statusReason: null, phoneNumberId: "111", wabaId: "222", accessTokenEnc: encryptSecret("BUSINESS_TOKEN"), ...over });
 

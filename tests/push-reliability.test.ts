@@ -112,7 +112,7 @@ describe("alerts you cannot miss: one per booking, persistent, loud, with action
   it("a tap can only open the business app, whatever the payload says", async () => {
     const sw = loadSw();
     await sw.fire("notificationclick", sw.ev({ notification: { close: () => {}, data: { url: "https://evil.example/x" } } }));
-    await sw.fire("notificationclick", sw.ev({ notification: { close: () => {}, data: { url: "/my/bookings" } } }));
+    await sw.fire("notificationclick", sw.ev({ notification: { close: () => {}, data: { url: "/account/bookings" } } }));
     expect(sw.nav).toEqual(["/dashboard", "/dashboard"]);
   });
   it("closing an alert recomputes the badge", async () => {

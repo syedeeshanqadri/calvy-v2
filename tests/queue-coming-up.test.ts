@@ -109,7 +109,7 @@ describe("queue actions send 'your turn is coming up' (default 3 ahead)", () => 
     const n = coming();
     expect(n.map((q) => q.subjectId)).toEqual(["a3", "a4", "a5"]);
     expect(n.map((q) => q.payload.ahead)).toEqual([1, 2, 3]);
-    expect(n[0]).toMatchObject({ version: 0, payload: { token: { number: 3 }, businessName: "Sunrise", trackUrl: expect.stringContaining("/sunrise/q/") } });
+    expect(n[0]).toMatchObject({ version: 0, payload: { token: { number: 3 }, businessName: "Sunrise", trackUrl: expect.stringContaining("/booking/") } });
   });
   it("uses the business setting (1 to 5)", async () => {
     mocks.db.business.findUnique.mockResolvedValue({ name: "Sunrise", slug: "sunrise", packId: "CLINIC", termsOverride: null, currency: "INR", notificationPrefs: { customer: { tokenNextAhead: 1 } } });
@@ -167,13 +167,13 @@ describe("send-time check and the email", () => {
     expect(await queueNextSendCheck({ appointmentId: "a4" })).toBe("booking deleted");
   });
   it("the email is short: one line, the tracking link", async () => {
-    const n: Notice = { appointmentId: "a4", businessId: "biz1", to: "c4@example.com", payload: { clientName: "Client 4", businessName: "Sunrise", serviceName: "Checkup", date: "Mon 2 Nov", time: "9:30 AM", token: { number: 4, estimatedTime: "9:30 AM", sessionName: "Morning" }, trackUrl: "https://calvy.io/sunrise/q/a4.sig" } as never };
+    const n: Notice = { appointmentId: "a4", businessId: "biz1", to: "c4@example.com", payload: { clientName: "Client 4", businessName: "Sunrise", serviceName: "Checkup", date: "Mon 2 Nov", time: "9:30 AM", token: { number: 4, estimatedTime: "9:30 AM", sessionName: "Morning" }, trackUrl: "https://calvy.io/booking/a4.sig" } as never };
     const item = queueNext(n, 2, 0)!;
     expect(item).toMatchObject({ event: "booking.queue_next", template: "queue_next", version: 0 });
     const r = await renderTemplate(item.template, item.payload);
     expect(r.subject).toBe("Your turn is coming up at Sunrise");
     expect(r.text).toContain("2 people are ahead of you");
-    expect(r.text).toContain("https://calvy.io/sunrise/q/a4.sig");
+    expect(r.text).toContain("https://calvy.io/booking/a4.sig");
     expect(queueNext({ ...n, to: null }, 2, 0)).toBeNull();
   });
   it("the setting is clamped to 1..5 and validated on save; default 3", () => {
@@ -184,7 +184,7 @@ describe("send-time check and the email", () => {
     expect(prefsInputSchema.safeParse({ ...full, customer: { ...full.customer, tokenNextAhead: 6 } }).success).toBe(false);
   });
   it("WhatsApp: token_next with the tracking button, nothing without a link; both new switches default ON", () => {
-    const p = { clientName: "Riya Kapoor", businessName: "Sunrise", token: { number: 4, estimatedTime: "9:30 AM", sessionName: "M" }, trackUrl: "https://calvy.io/sunrise/q/a4.sig" };
+    const p = { clientName: "Riya Kapoor", businessName: "Sunrise", token: { number: 4, estimatedTime: "9:30 AM", sessionName: "M" }, trackUrl: "https://calvy.io/booking/a4.sig" };
     expect(buildWhatsAppMessage("booking.queue_next", p, "CUSTOMER")).toEqual({ key: "token_next", params: ["Riya", "Sunrise", "4"], buttonSuffix: "a4.sig" });
     expect(buildWhatsAppMessage("booking.queue_next", { ...p, trackUrl: undefined }, "CUSTOMER")).toBeNull();
     expect(resolvePrefs(null).whatsapp).toMatchObject({ turnSoon: true, followUp: true });

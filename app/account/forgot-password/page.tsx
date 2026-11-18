@@ -24,7 +24,7 @@ export default function CustomerForgotPasswordPage() {
         <div role="status">
           <h1 className="font-syne font-bold text-2xl text-[#0f0f1a] mb-2">Check your email</h1>
           <p className="text-[#6b6b80] text-sm mb-6">If an account exists for that email, we&apos;ve sent a link to reset your password. It expires in 1 hour.</p>
-          <Link href="/my/login" className={primaryBtn}>Back to sign in</Link>
+          <Link href="/account/login" className={primaryBtn}>Back to sign in</Link>
         </div>
       ) : (
         <>
@@ -38,7 +38,7 @@ export default function CustomerForgotPasswordPage() {
             </div>
             <button type="submit" disabled={loading} className={primaryBtn}>{loading ? "Sending…" : "Send reset link"}</button>
           </form>
-          <p className="text-sm text-[#6b6b80] mt-6"><Link href="/my/login" className={linkClass}>Back to sign in</Link></p>
+          <p className="text-sm text-[#6b6b80] mt-6"><Link href="/account/login" className={linkClass}>Back to sign in</Link></p>
         </>
       )}
     </AuthShell>

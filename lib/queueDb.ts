@@ -296,7 +296,7 @@ export async function runQueueAction(
           await notify(queueClosed(notice, {
             reason: plan.outcome === "no_show" ? "missed" : "cancelled",
             feeKept: feeKept || undefined,
-            loginUrl: `${(process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000").replace(/\/$/, "")}/my`,
+            loginUrl: `${(process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000").replace(/\/$/, "")}/account`,
           }));
         }
       } catch (e) {

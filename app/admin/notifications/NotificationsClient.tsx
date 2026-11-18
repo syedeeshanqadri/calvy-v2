@@ -95,7 +95,7 @@ export default function NotificationsClient() {
             value={body}
             onChange={e => setBody(e.target.value)}
             rows={3}
-            placeholder="e.g. We've added calendar sync. Check it out in your dashboard."
+            placeholder="e.g. We've added calendar invites. Check it out in your dashboard."
             className="w-full rounded-xl border border-[#e8e6e0] px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#0284c7]/20 focus:border-[#0284c7] transition-all resize-none"
           />
         </div>

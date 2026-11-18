@@ -56,7 +56,7 @@ export default async function MyOverviewPage() {
           <section aria-labelledby="next">
             <div className="flex items-center justify-between mb-3">
               <h2 id="next" className="font-syne font-bold text-lg">{next ? "Next appointment" : "Upcoming"}</h2>
-              {upcoming.length > 1 && <Link href="/my/bookings" className="text-sm font-semibold text-sky-700 hover:underline inline-flex items-center gap-1">All bookings <ArrowRight size={14} aria-hidden /></Link>}
+              {upcoming.length > 1 && <Link href="/account/bookings" className="text-sm font-semibold text-sky-700 hover:underline inline-flex items-center gap-1">All bookings <ArrowRight size={14} aria-hidden /></Link>}
             </div>
             {next ? (
               <ul className="space-y-3">
@@ -96,7 +96,7 @@ export default async function MyOverviewPage() {
           <section className="bg-white rounded-2xl border border-[#e8e6e0] p-5">
             <h2 className="font-syne font-bold text-lg flex items-center gap-2"><Store size={17} aria-hidden />Your businesses</h2>
             <p className="text-sm text-[#6b6b80] mt-1">{stats.businesses} {stats.businesses === 1 ? "business" : "businesses"} so far.</p>
-            <Link href="/my/bookings" className="inline-flex items-center gap-1 mt-3 text-sm font-semibold text-sky-700 hover:underline">View all bookings <ArrowRight size={14} aria-hidden /></Link>
+            <Link href="/account/bookings" className="inline-flex items-center gap-1 mt-3 text-sm font-semibold text-sky-700 hover:underline">View all bookings <ArrowRight size={14} aria-hidden /></Link>
           </section>
         </aside>
       </div>

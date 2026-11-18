@@ -7,9 +7,9 @@ import { Logo } from "@/components/ui/Logo";
 import { cn } from "@/lib/utils";
 
 const NAV = [
-  { label: "Overview", href: "/my", icon: LayoutDashboard, exact: true },
-  { label: "Bookings", href: "/my/bookings", icon: CalendarDays },
-  { label: "Profile", href: "/my/profile", icon: UserRound },
+  { label: "Overview", href: "/account", icon: LayoutDashboard, exact: true },
+  { label: "Bookings", href: "/account/bookings", icon: CalendarDays },
+  { label: "Profile", href: "/account/profile", icon: UserRound },
 ];
 
 const initials = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]!.toUpperCase()).join("") || "?";
@@ -24,7 +24,7 @@ export function MyShell({ name, email, children }: { name: string; email: string
       {/* Sidebar (laptop) */}
       <aside className="hidden lg:flex lg:w-64 lg:shrink-0 lg:flex-col lg:sticky lg:top-0 lg:h-dvh bg-white border-r border-[#e8e6e0]">
         <div className="h-16 px-5 flex items-center border-b border-[#e8e6e0]">
-          <Link href="/my" aria-label="Calvy home"><Logo width={84} /></Link>
+          <Link href="/account" aria-label="Calvy home"><Logo width={84} /></Link>
         </div>
         <nav aria-label="My account" className="flex-1 py-4 px-3 space-y-1">
           {NAV.map((n) => (
@@ -43,7 +43,7 @@ export function MyShell({ name, email, children }: { name: string; email: string
               <span className="block text-xs text-[#6b6b80] truncate">{email}</span>
             </span>
           </div>
-          <button type="button" onClick={() => signOut({ callbackUrl: "/my/login" })}
+          <button type="button" onClick={() => signOut({ callbackUrl: "/account/login" })}
             className="mt-1 w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-[#6b6b80] hover:bg-[#f8f7f4] hover:text-[#0f0f1a]">
             <LogOut size={18} aria-hidden />Sign out
           </button>
@@ -53,7 +53,7 @@ export function MyShell({ name, email, children }: { name: string; email: string
       <div className="flex-1 min-w-0 flex flex-col">
         {/* Top bar (phone) */}
         <header className="lg:hidden sticky top-0 z-30 h-14 px-4 flex items-center justify-between bg-white/95 backdrop-blur border-b border-[#e8e6e0]">
-          <Link href="/my" aria-label="Calvy home"><Logo width={72} /></Link>
+          <Link href="/account" aria-label="Calvy home"><Logo width={72} /></Link>
           <span className="h-8 w-8 rounded-full bg-sky-100 text-sky-700 text-xs font-bold grid place-items-center" aria-label={name}>{initials(name)}</span>
         </header>
 

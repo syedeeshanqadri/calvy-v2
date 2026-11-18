@@ -1,5 +1,6 @@
 import { createHash } from "crypto";
 import { DEFAULT_CURRENCY } from "@/lib/currency";
+import { icsSequence } from "@/lib/notifications/ics";
 import type { NotificationInput } from "@/lib/notifications/enqueue";
 import type { NotifChannelName } from "@/lib/notifications/policy";
 import { REMINDER_EVENT, type ReminderMark } from "@/lib/notifications/reminderRules";
@@ -50,6 +51,8 @@ export interface Notice {
   to: string | null | undefined;
   /** The client has a phone number and agreed to WhatsApp: the message can go there even with no email address. */
   whatsapp?: boolean;
+  /** When the booking starts (the instant its calendar entry is at); lets a cancellation remove the entry from the customer's calendar. */
+  startsAt?: string;
   payload: BookingPayload;
 }
 
@@ -62,6 +65,7 @@ export function noticeFrom(a: BookingSource): Notice {
     businessId: a.businessId,
     to: a.client.email,
     whatsapp: whatsappReachable(a.client),
+    startsAt: (token && a.estimatedAt ? a.estimatedAt : a.date).toISOString(),
     payload: {
       clientName: a.client.name,
       patientName: a.patientName ?? undefined,
@@ -106,18 +110,21 @@ export function confirmation(n: Notice, start: Date, reward?: { done: number; of
 }
 
 /** booking.rescheduled: once per move. The key is the move itself, so a double click or a retry is one email. */
-export function reschedule(n: Notice, move: { from: Date; to: Date; oldDate: string; oldTime: string }): NotificationInput | null {
+export function reschedule(n: Notice, move: { from: Date; to: Date; oldDate: string; oldTime: string }, now: Date = new Date()): NotificationInput | null {
   if (!n.to) return null;
   return {
     ...base(n), event: "booking.rescheduled", template: "reschedule", version: `${move.from.getTime()}>${move.to.getTime()}`,
-    payload: { ...n.payload, oldDate: move.oldDate, oldTime: move.oldTime },
+    // An updated invite for the same calendar entry: same UID, higher SEQUENCE, the new start.
+    payload: { ...n.payload, oldDate: move.oldDate, oldTime: move.oldTime, ics: { appointmentId: n.appointmentId, start: move.to.toISOString(), durationMinutes: n.payload.duration ?? 30, sequence: icsSequence(now) } },
   };
 }
 
 /** booking.cancelled: once per booking. */
-export function cancellation(n: Notice, rebookUrl?: string): NotificationInput | null {
+export function cancellation(n: Notice, rebookUrl?: string, now: Date = new Date()): NotificationInput | null {
   if (!n.to) return null;
-  return { ...base(n), event: "booking.cancelled", template: "cancellation", payload: { ...n.payload, rebookUrl } };
+  // METHOD:CANCEL removes the entry the confirmation (or a reschedule) put in the customer's calendar.
+  const ics = n.startsAt ? { appointmentId: n.appointmentId, start: n.startsAt, durationMinutes: n.payload.duration ?? 30, sequence: icsSequence(now), cancel: true } : undefined;
+  return { ...base(n), event: "booking.cancelled", template: "cancellation", payload: { ...n.payload, rebookUrl, ...(ics ? { ics } : {}) } };
 }
 
 /** booking.meeting_link: once per distinct link, so changing it tells the customer again. */
@@ -205,9 +212,9 @@ const AUTH_PATH: Record<AuthTemplate, string> = {
   verification: "/verify-email",
   password_reset: "/reset-password",
   owner_account_setup: "/reset-password?setup=1",
-  customer_verification: "/my/verify-email",
-  customer_account_setup: "/my/verify-email?setup=1",
-  customer_password_reset: "/my/reset-password",
+  customer_verification: "/account/verify-email",
+  customer_account_setup: "/account/verify-email?setup=1",
+  customer_password_reset: "/account/reset-password",
 };
 
 /**

@@ -133,7 +133,7 @@ export function TrackClient({ code, initial, back }: { code: string; initial: Tr
           <Final tone="amber" icon={<Clock size={26} />} title="Moved to the next working day">
             {view.movedTo
               ? <>Token #{view.yourToken} was moved to <strong>{view.movedTo.dateLabel}</strong> as token <strong>#{view.movedTo.token}</strong>. A token can be moved only once.
-                  <a href={`/${business.slug}/q/${view.movedTo.code}`} className="mt-4 block text-center font-semibold rounded-xl px-4 py-3" style={{ background: color, color: fg }}>
+                  <a href={`/booking/${view.movedTo.code}`} className="mt-4 block text-center font-semibold rounded-xl px-4 py-3" style={{ background: color, color: fg }}>
                     Track your new token
                   </a></>
               : <>Token #{view.yourToken} was moved to the next working day.</>}
@@ -168,7 +168,7 @@ function WalletNote({ page, appt, color, fg }: { page: TrackingPage; appt: strin
       ) : (
         <p>You can book again on any date.</p>
       )}
-      <Link href="/my" className="block text-center font-semibold rounded-xl px-4 py-3" style={{ background: color, color: fg }}>
+      <Link href="/account" className="block text-center font-semibold rounded-xl px-4 py-3" style={{ background: color, color: fg }}>
         Book another date
       </Link>
     </div>

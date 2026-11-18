@@ -69,13 +69,13 @@ Notes
     - **Booking Page** → copy the link, share to WhatsApp, copy the embed code, choose the name/description/colour shown.
     - **Website** → edit the public website text and images (3g below).
     - **Settings → Payout** → choose "pay at venue" (postpaid) or "pay online" (prepaid; paid plans, needs bank details).
-11. **Live.** The booking page is live from the moment the account exists, at `{slug}.calvy.io` (the business website) and `{slug}.calvy.io/book-now`, and also at `/b/{slug}`. Until the owner adds services and sets hours, clients see the sample service and default hours (Monday–Friday, 9:00–18:00).
+11. **Live.** The booking page is live from the moment the account exists, at `{slug}.calvy.io` (the business website) and `{slug}.calvy.io/book`, and also at `/b/{slug}`. Until the owner adds services and sets hours, clients see the sample service and default hours (Monday–Friday, 9:00–18:00).
 
 **Decision point summary:** verify email (required) → log in again → set up. Typical time to a real, usable page is 10–15 minutes, not the "60 seconds" the website says.
 
 ### 3b. A client books an appointment
 
-Where: `{slug}.calvy.io/book-now`, `/b/{slug}`, or the chat widget on the business website. The full-page flow has five steps and a progress bar [app/b/[slug]/BookingClient.tsx]:
+Where: `{slug}.calvy.io/book`, `/b/{slug}`, or the chat widget on the business website. The full-page flow has five steps and a progress bar [app/b/[slug]/BookingClient.tsx]:
 
 1. **Choose services.** A list of the business's active services with length and price; a search box appears when there are more than four. Clients can tick **more than one**. *Decision:* "Continue" stays disabled until one is chosen. Group services show spots left.
 2. **Choose your provider.** "No preference" or any active staff member (name, role). Staff are **not filtered by service**: every active staff member is offered for every service.
@@ -154,7 +154,7 @@ Where "Who uses it" is "Client" the person is the owner's customer; "Owner" is t
 
 | Feature | What it does | Who uses it | Where in the app | Status | Notes |
 |---|---|---|---|---|---|
-| **Public booking page** | Five-step booking flow: services → provider → date/time → details → confirm | Client | `{slug}.calvy.io/book-now`, `/b/{slug}` [app/b/[slug]/BookingClient.tsx] | **Partial** | Works and is pleasant on a phone. Ignores staff schedules; availability is for the whole business; two people can book the same slot at the same moment; no timezone. |
+| **Public booking page** | Five-step booking flow: services → provider → date/time → details → confirm | Client | `{slug}.calvy.io/book`, `/b/{slug}` [app/b/[slug]/BookingClient.tsx] | **Partial** | Works and is pleasant on a phone. Ignores staff schedules; availability is for the whole business; two people can book the same slot at the same moment; no timezone. |
 | **Demo booking page** | A static sample with fake staff and star ratings | Anyone | `/booking` [app/booking/page.tsx] | **Partial** | Sample data only, not linked from the site; a user who lands there can click through a fake booking. Should be removed or clearly labelled. |
 | **Public business website** | A one-page site for the business: top section, about, services, team, contact | Client | `{slug}.calvy.io` [app/[slug]/page.tsx] | **Working** | Built from the owner's text plus live services and staff. Default photos are stock images that may not suit the business. |
 | &nbsp;&nbsp;↳ editable parts | Each section can be switched on/off. **Hero:** background image, small badge, headline, subheadline, two button labels. **About:** image, badge, heading, body text, floating badge label, link text. **Services:** badge, heading, subtitle, button text. **Team:** badge, heading, subtitle. **Contact:** badge, heading, subtext, call-to-action heading/subtext/note, show phone/email/address. **Search-engine title and description.** | Owner | Dashboard → Website [app/dashboard/website/] | **Working** | Images: choose from built-in stock photos or upload (upload needs a paid plan and Calvy's storage). Search-engine fields hidden on Free. No custom pages, no logo, no gallery, no map, no opening-hours block. |
@@ -377,7 +377,7 @@ Money amounts are stored as decimal numbers with no minor-unit precision; dates 
 | **Unsplash and ui-avatars** (images) | Stock photos on business websites; avatar pictures | Images do not load. |
 | **Exchange-rate lookup** [lib/geo.ts, app/api/geo/rate] | A USD-based rate lookup; the settings screen says amounts are shown "using estimated exchange rates" | Not traced to every screen (prices are stored in the business's own currency). Expect no conversion if the lookup is unavailable. |
 | **IndexNow** [lib/indexnow.ts] | Tells search engines about new/updated blog posts | Search engines find posts more slowly. |
-| **Calendar** | A one-off `.ics` file attached to the client's confirmation email | There is **no calendar sync** with Google or Apple calendars for owners or staff. |
+| **Calendar invites** | An `.ics` invite on the confirmation email, an updated invite (same UID, higher SEQUENCE) on reschedule and a METHOD:CANCEL on cancellation; plus private subscribable `.ics` feeds per business and per staff member (Settings → Booking → Calendar, secret URL, "New link" regenerates it) that Google, Outlook and Apple Calendar can subscribe to | One-way (Calvy to calendar). No Google/Outlook API sync and external busy time does not block slots. Calendar apps refresh subscriptions every few hours. |
 | **SMS** | — | **Not integrated**, although the website mentions SMS reminders. |
 
 ---

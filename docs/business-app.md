@@ -3,7 +3,7 @@
 For business owners and their team members only (customers use the booking pages and My bookings, which are not part of the app).
 
 ## Where the app exists (and where it never does)
-The app is for businesses and team members only. The manifest, the install prompt and the service worker exist **only** on app routes (`/dashboard/*`, `/login`, `/accept-invite`). Public and customer pages (`/{slug}`, `/b/{slug}`, `/{slug}/book-now`, queue tracking, `/my`, booking return) never link the manifest, never show an install prompt and are never controlled by a worker. `lib/appMetadata.ts` is spread into the three app layouts; `tests/pwa.test.ts` fails if anything else links it. Manifest scope is `/`, `start_url` `/dashboard`, orientation `any`.
+The app is for businesses and team members only. The manifest, the install prompt and the service worker exist **only** on app routes (`/dashboard/*`, `/login`, `/accept-invite`). Public and customer pages (`/{slug}`, `/b/{slug}`, `/{slug}/book`, queue tracking, `/account`, booking return) never link the manifest, never show an install prompt and are never controlled by a worker. `lib/appMetadata.ts` is spread into the three app layouts; `tests/pwa.test.ts` fails if anything else links it. Manifest scope is `/`, `start_url` `/dashboard`, orientation `any`.
 
 ## Install
 `/manifest.json`: "Calvy Business", short name "Calvy", opens `/dashboard`, standalone, theme `#0284c7` (the UI accent is the slightly deeper `#0369a1`, which passes WCAG AA with white text), 192 and 512 icons (any + maskable) in `/icons`, Apple touch icon, iOS web-app meta in `lib/appMetadata.ts`. In the dashboard an **Install** card shows (dismissible, remembered): the native prompt on Android/Chrome, a "Share → Add to Home Screen" guide on iPhone.

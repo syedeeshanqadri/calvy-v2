@@ -142,7 +142,7 @@ describe("suspension", () => {
   it("the routes that create bookings and offer times check it (static check)", async () => {
     const { readFileSync } = await import("fs");
     for (const f of ["app/api/bookings/route.ts", "app/api/appointments/route.ts", "app/api/availability/route.ts", "app/api/token-availability/route.ts"]) expect(readFileSync(f, "utf8")).toContain("suspendedResponse");
-    for (const f of ["app/[slug]/page.tsx", "app/b/[slug]/page.tsx", "app/[slug]/book-now/page.tsx"]) expect(readFileSync(f, "utf8")).toContain("<Unavailable");
+    for (const f of ["app/[slug]/page.tsx", "app/[slug]/book/page.tsx"]) expect(readFileSync(f, "utf8")).toContain("<Unavailable");
   });
   it("it blocks NEW bookings only: reschedule, cancel, reminders and customer emails are untouched (nothing about suspension is emailed)", async () => {
     const { readFileSync } = await import("fs");

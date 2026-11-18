@@ -15,8 +15,8 @@ export const metadata: Metadata = {
   referrer: "no-referrer",
 };
 
-export default async function TrackPage(props: { params: Promise<{ slug: string; code: string }> }) {
-  const { slug, code } = await props.params;
+export default async function TrackPage(props: { params: Promise<{ code: string }> }) {
+  const { code } = await props.params;
 
   const h = await headers();
   const limit = await rateLimit(`track:${clientIp(new Request("http://local", { headers: h }))}`, 120, 60_000);
@@ -28,9 +28,10 @@ export default async function TrackPage(props: { params: Promise<{ slug: string;
     );
   }
 
-  const page = await loadTracking(code, slug);
+  // The signed code identifies the booking, so the business comes from it (the old /{slug}/q/{code} links redirect here).
+  const page = await loadTracking(code);
   if (!page) notFound();
   // Signed-in customers go back to their bookings; anyone else to the business's own page.
   const signedIn = !!(await getCustomer().catch(() => null));
-  return <TrackClient code={code} initial={page} back={signedIn ? { href: "/my/bookings", label: "My bookings" } : { href: `/${slug}`, label: page.business.name }} />;
+  return <TrackClient code={code} initial={page} back={signedIn ? { href: "/account/bookings", label: "My bookings" } : { href: `/${page.business.slug}`, label: page.business.name }} />;
 }

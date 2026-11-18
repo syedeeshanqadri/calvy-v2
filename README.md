@@ -1,6 +1,6 @@
 # Calvy — Smart Appointment Booking SaaS
 
-A production-ready multi-tenant appointment booking platform. Every business that signs up instantly gets a subdomain, a public website, a chatbot booking widget, a dedicated `/book-now` page, and a full management dashboard — in under 60 seconds.
+A production-ready multi-tenant appointment booking platform. Every business that signs up instantly gets a subdomain, a public website, a chatbot booking widget, a dedicated `/book` page, and a full management dashboard — in under 60 seconds.
 
 **Live:** [calvy.io](https://calvy.io) · **Stack:** Next.js 16 · React 19 · TypeScript · PostgreSQL · Prisma · Cashfree + business-owned gateways · Resend · Vercel
 
@@ -29,7 +29,8 @@ calvy/
 │   ├── signup/                         # Registration (email verify + currency)
 │   ├── verify-email/                   # Email verification handler
 │   ├── [slug]/                         # Tenant public website (served via subdomain)
-│   │   └── book-now/                   # Dedicated full-page booking (slug.calvy.io/book-now)
+│   │   ├── book/                       # Booking page: /{slug}/book (slug.calvy.io/book); book-now/ is an alias
+│   │   └── book-now/                   # Alias of book/
 │   ├── b/[slug]/                       # Legacy booking page (still works)
 │   ├── booking/success/                # Post-payment confirmation
 │   ├── dashboard/
@@ -91,7 +92,7 @@ Every tenant gets a clean subdomain automatically on signup:
 | URL | What it serves |
 |---|---|
 | `abc.calvy.io` | Tenant's public website |
-| `abc.calvy.io/book-now` | Full-page booking experience |
+| `abc.calvy.io/book` | Full-page booking experience |
 | `calvy.io/dashboard` | Tenant dashboard (auth-protected) |
 | `calvy.io/admin` | Super-admin panel (auth-protected) |
 
@@ -110,8 +111,12 @@ The `proxy.ts` file rewrites subdomain requests internally to `/{slug}{path}` wi
 | `/login` | Login |
 | `/verify-email` | Email verification link handler |
 | `{slug}.calvy.io` | Tenant public website |
-| `{slug}.calvy.io/book-now` | Full booking page (services → staff → date → time → confirm) |
-| `/b/[slug]` | Legacy public booking page (still active) |
+| `{slug}.calvy.io/book` | Full booking page (services → staff → date → time → confirm) |
+| `/{slug}/book` | Public booking page (`/{slug}/book-now` is an alias) |
+| `/account/*` | Customer account (was `/my/*`, 301-redirected) |
+| `/booking/{code}` | Live queue tracking by signed code (was `/{slug}/q/{code}`, 301-redirected); `/booking/return` is the payment return page |
+| `/b/{slug}` | 301 to `/{slug}/book` |
+| `/api/calendar/{token}.ics` | Private subscribable calendar feed (business or staff) |
 | `/booking/success` | Post-payment confirmation |
 | `/dashboard` | Home — KPIs, revenue chart, today's appointments |
 | `/dashboard/appointments` | All appointments, status + payment management |
@@ -125,7 +130,7 @@ The `proxy.ts` file rewrites subdomain requests internally to `/{slug}{path}` wi
 | `/dashboard/staff` | Staff management & working hours |
 | `/dashboard/contact` | Support: email, phone and WhatsApp for every role |
 | `/dashboard/website` | Website builder *(image upload + SEO gated by plan)* |
-| `/dashboard/booking-page` | Booking page share (`slug.calvy.io/book-now`) |
+| `/dashboard/booking-page` | Booking page share (`slug.calvy.io/book`) |
 | `/dashboard/broadcasts` | Send email/WhatsApp broadcasts to clients *(plan-gated)* |
 | `/dashboard/support` | Support tickets *(plan-gated: prioritySupport)* |
 | `/dashboard/settings` | Profile, slot interval, availability, payout settings |

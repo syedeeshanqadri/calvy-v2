@@ -14,6 +14,7 @@ import { PackSettings } from "@/components/packs/PackSettings";
 import type { PackId } from "@/lib/packs/types";
 import { BookingModeSettings, type TokenSessionRow } from "@/components/tokens/BookingModeSettings";
 import { LinkGoogle } from "@/components/settings/LinkGoogle";
+import { CalendarFeeds } from "@/components/settings/CalendarFeeds";
 import { GatewaySettings, type GatewaySettingsProps } from "@/components/settings/GatewaySettings";
 import { t as term } from "@/lib/terms";
 import { DEFAULT_MAX_PEOPLE_PER_BOOKER, MAX_PEOPLE_PER_BOOKER_LIMIT } from "@/lib/patients";
@@ -243,6 +244,10 @@ export function SettingsClient({ business, customSlotInterval = false, stripePay
 
         {tab === "booking" && (
           <div className="space-y-6">
+            <Card>
+              <CardHeader><CardTitle>Calendar</CardTitle></CardHeader>
+              <CardContent><CalendarFeeds /></CardContent>
+            </Card>
             <Card>
               <CardHeader><CardTitle>Booking mode</CardTitle></CardHeader>
               <CardContent>

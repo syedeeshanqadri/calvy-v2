@@ -16,7 +16,7 @@ const INVALID_PASSWORD = "That link or password is not right. Use the password y
 // Needs the signup password too: someone could sign up with another person's email and a password only
 // they know, and the real owner clicking the emailed link must not end up verifying THEIR account.
 // A wrong password does not use up the link.
-// A POST (from the /my/verify-email page), not a GET: mail scanners that open links must not be able
+// A POST (from the /account/verify-email page), not a GET: mail scanners that open links must not be able
 // to use up or complete a verification.
 async function POST_handler(req: NextRequest) {
   const rl = await rateLimit(`customer-verify:ip:${clientIp(req)}`, 10, 15 * 60_000);

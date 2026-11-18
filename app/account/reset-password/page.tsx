@@ -34,7 +34,7 @@ function ResetForm() {
       <div role="status">
         <h1 className="font-syne font-bold text-2xl text-[#0f0f1a] mb-2">Password changed</h1>
         <p className="text-[#6b6b80] text-sm mb-6">Sign in with your new password.</p>
-        <Link href="/my/login?reset=1" className={primaryBtn}>Continue to sign in</Link>
+        <Link href="/account/login?reset=1" className={primaryBtn}>Continue to sign in</Link>
       </div>
     );
   }
@@ -43,7 +43,7 @@ function ResetForm() {
       <div>
         <h1 className="font-syne font-bold text-2xl text-[#0f0f1a] mb-2">Link not valid</h1>
         <p role="alert" className="text-[#6b6b80] text-sm mb-6">{INVALID} Request a new one and we&apos;ll email it to you.</p>
-        <Link href="/my/forgot-password" className={primaryBtn}>Request a new link</Link>
+        <Link href="/account/forgot-password" className={primaryBtn}>Request a new link</Link>
       </div>
     );
   }

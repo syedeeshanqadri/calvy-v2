@@ -188,11 +188,11 @@ describe("account and marketing emails", () => {
     expect(row).toMatchObject({ event: "auth.verify", audience: "BUSINESS", businessId: null, template: "verification", recipient: "a@x.co" });
   });
 
-  it("customer accounts link to /my, owners to the owner pages", () => {
+  it("customer accounts link to /account, owners to the owner pages", () => {
     const secrets = (["verification", "password_reset", "customer_verification", "customer_password_reset"] as const).map((template) => authEmail({ template, userId: "u", to: "a@x.co", name: "A", token: "t", baseUrl: "https://calvy.io" }).secret);
     expect(secrets).toEqual([
       "https://calvy.io/verify-email?token=t", "https://calvy.io/reset-password?token=t",
-      "https://calvy.io/my/verify-email?token=t", "https://calvy.io/my/reset-password?token=t",
+      "https://calvy.io/account/verify-email?token=t", "https://calvy.io/account/reset-password?token=t",
     ]);
   });
 
@@ -201,8 +201,8 @@ describe("account and marketing emails", () => {
     const row = fake.state.rows[0];
     expect(row).toMatchObject({ event: "auth.reset", audience: "CUSTOMER" });
     const out = await renderTemplate(row.template, { ...row.payload, secret: decryptSecret(row.secret) });
-    expect(out.html).toContain("https://calvy.io/my/reset-password?token=abc");
-    expect(out.text).toContain("https://calvy.io/my/reset-password?token=abc");
+    expect(out.html).toContain("https://calvy.io/account/reset-password?token=abc");
+    expect(out.text).toContain("https://calvy.io/account/reset-password?token=abc");
   });
 
   it("a lead is acknowledged once", async () => {

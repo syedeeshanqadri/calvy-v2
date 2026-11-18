@@ -1,4 +1,4 @@
-// What /my shows (pure): bookings split into upcoming and past, and the businesses where a kept Rs 10 fee is still valid.
+// What /account shows (pure): bookings split into upcoming and past, and the businesses where a kept Rs 10 fee is still valid.
 import { beforeCancellationCutoff } from "@/lib/holds";
 
 export interface BookingRow {

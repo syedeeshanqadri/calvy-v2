@@ -101,9 +101,9 @@ function ReturnInner() {
             {b && (
               <div className="mt-5 text-left">
                 {mine?.serviceIds?.length ? (
-                  <AnotherBooking slug={b.businessSlug} bookPath={`/${b.businessSlug}/book-now`} serviceIds={mine.serviceIds} staffId={mine.staffId ?? null} date={mine.date} appointmentWord="appointment" />
+                  <AnotherBooking slug={b.businessSlug} bookPath={`/${b.businessSlug}/book`} serviceIds={mine.serviceIds} staffId={mine.staffId ?? null} date={mine.date} appointmentWord="appointment" />
                 ) : (
-                  <Link href={`/${b.businessSlug}/book-now`} className="block rounded-xl border border-[#e8e6e0] px-4 py-3 text-sm font-medium text-center hover:bg-[#f8f7f4]">Book another appointment</Link>
+                  <Link href={`/${b.businessSlug}/book`} className="block rounded-xl border border-[#e8e6e0] px-4 py-3 text-sm font-medium text-center hover:bg-[#f8f7f4]">Book another appointment</Link>
                 )}
               </div>
             )}
@@ -127,7 +127,7 @@ function ReturnInner() {
                   ? "The slot was held for a short time and has been released. Please book again."
                   : "No booking was made. You can try again."}
             </p>
-            {b && <a href={`/${b.businessSlug}/book-now`} className="inline-block bg-[#0f0f1a] text-white font-semibold px-6 py-3 rounded-xl text-sm">Book again</a>}
+            {b && <a href={`/${b.businessSlug}/book`} className="inline-block bg-[#0f0f1a] text-white font-semibold px-6 py-3 rounded-xl text-sm">Book again</a>}
           </>
         )}
       </div>

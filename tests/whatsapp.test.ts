@@ -215,7 +215,7 @@ describe("Graph client and templates", () => {
     const names = new Set(TEMPLATE_DEFS.map((d) => templateName(d.key)));
     expect(names.size).toBe(TEMPLATE_DEFS.length);
     for (const d of TEMPLATE_DEFS) for (const lang of ["en", "hi"] as const) {
-      const p = buildTemplatePayload(d, lang, { tracking: "https://calvy.io/shop/q/", dashboard: "https://calvy.io/dashboard/" });
+      const p = buildTemplatePayload(d, lang, { tracking: "https://calvy.io/booking/", dashboard: "https://calvy.io/dashboard/" });
       expect(p.category).toBe("UTILITY");
       expect(p.name).toMatch(/^calvy_[a-z_]+_v[123]$/);
       const body = d.body[lang];
@@ -228,8 +228,8 @@ describe("Graph client and templates", () => {
       expect(new Set(vars).size).toBe(d.params.length);
     }
     const t = TEMPLATE_DEFS.find((d) => d.key === "token_issued")!;
-    const btn = (buildTemplatePayload(t, "en", { tracking: "https://calvy.io/shop/q/", dashboard: "" }).components[1] as { buttons: { url: string }[] }).buttons[0];
-    expect(btn.url).toBe("https://calvy.io/shop/q/{{1}}");
+    const btn = (buildTemplatePayload(t, "en", { tracking: "https://calvy.io/booking/", dashboard: "" }).components[1] as { buttons: { url: string }[] }).buttons[0];
+    expect(btn.url).toBe("https://calvy.io/booking/{{1}}");
   });
 });
 

@@ -76,7 +76,7 @@ export function ProfileCard({ name, email }: { name: string; email: string }) {
         {msg && <p role="status" className="text-sm text-green-700">{msg}</p>}
         <div className="flex flex-wrap gap-3">
           <button type="submit" disabled={busy} className={btn}>{busy ? "Saving…" : "Save"}</button>
-          <button type="button" onClick={() => signOut({ callbackUrl: "/my/login" })} className={btn}>Sign out</button>
+          <button type="button" onClick={() => signOut({ callbackUrl: "/account/login" })} className={btn}>Sign out</button>
         </div>
       </form>
     </section>
@@ -101,7 +101,7 @@ export function DeleteAccountCard({ email }: { email: string }) {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) { setError(data.error ?? "Could not delete the account."); return; }
-      await signOut({ callbackUrl: "/my/login" });
+      await signOut({ callbackUrl: "/account/login" });
     } catch {
       setError("We could not reach the server. Please try again.");
     } finally {

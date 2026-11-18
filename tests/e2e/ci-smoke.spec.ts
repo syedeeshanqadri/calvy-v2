@@ -154,14 +154,14 @@ test("online consultation booking shows the join link", async ({ page }) => {
   await expect(page.getByRole("link", { name: "Join link" })).toHaveAttribute("href", /^https:\/\//);
 });
 
-test("customer signup form and login to /my", async ({ page }) => {
+test("customer signup form and login to /account", async ({ page }) => {
   // The signup API would send a real verification email, so it is stubbed; the verified account comes from the fixtures.
   let body: { email?: string } = {};
   await page.route("**/api/customer/signup", (route) => {
     body = route.request().postDataJSON();
     return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true }) });
   });
-  await page.goto("/my/signup");
+  await page.goto("/account/signup");
   await page.getByLabel("Your name").fill("E2E New Customer");
   await page.getByLabel("Email").fill("e2e-new@calvy.test");
   await page.getByLabel("Password", { exact: true }).fill("longenough1");
@@ -169,10 +169,10 @@ test("customer signup form and login to /my", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Check your email" })).toBeVisible();
   expect(body.email).toBe("e2e-new@calvy.test");
 
-  await page.goto("/my/login");
+  await page.goto("/account/login");
   await page.getByLabel("Email").fill(CUSTOMER.email);
   await page.getByLabel("Password", { exact: true }).fill(CUSTOMER.password);
   await page.getByRole("button", { name: "Sign in" }).click();
-  await expect(page).toHaveURL(/\/my\/?$/, { timeout: 60_000 });
-  expect((await page.goto("/my"))?.status()).toBe(200);
+  await expect(page).toHaveURL(/\/account\/?$/, { timeout: 60_000 });
+  expect((await page.goto("/account"))?.status()).toBe(200);
 });

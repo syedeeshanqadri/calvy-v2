@@ -66,7 +66,7 @@ describe("runQueueAction customer notices", () => {
     const res = await act("not_present");
     expect(res.outcome).toBe("no_show");
     expect(queued()).toHaveLength(1);
-    expect(queued()[0]).toMatchObject({ event: "booking.queue_closed", template: "queue_closed", subjectId: "a1", payload: { reason: "missed", feeKept: true, loginUrl: expect.stringMatching(/\/my$/) } });
+    expect(queued()[0]).toMatchObject({ event: "booking.queue_closed", template: "queue_closed", subjectId: "a1", payload: { reason: "missed", feeKept: true, loginUrl: expect.stringMatching(/\/account$/) } });
   });
 
   it("cancelling at reception closes it as cancelled", async () => {

@@ -18,7 +18,7 @@ import { releaseReward } from "@/lib/rewards/service";
 
 /**
  * A signed-in customer cancelling or moving their own booking. Every function takes the VERIFIED email
- * of the customer and only ever touches a booking made with that email (the same match /my uses).
+ * of the customer and only ever touches a booking made with that email (the same match /account uses).
  */
 
 export type Fail = { ok: false; status: number; error: string; code?: string };

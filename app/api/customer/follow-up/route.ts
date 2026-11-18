@@ -15,22 +15,22 @@ export const dynamic = "force-dynamic";
  */
 async function GET_handler(req: NextRequest) {
   const me = await getCustomer();
-  if (!me?.verified) return NextResponse.redirect(new URL("/my/login", req.url));
+  if (!me?.verified) return NextResponse.redirect(new URL("/account/login", req.url));
 
   const id = (req.nextUrl.searchParams.get("appointment") ?? "").slice(0, 64);
   const a = await prisma.appointment.findFirst({
     where: { id, client: { email: { equals: me.email, mode: "insensitive" } } },
     select: { id: true, serviceId: true, business: { select: { id: true, slug: true, timezone: true, followUpDays: true } }, client: { select: { email: true } } },
   });
-  if (!a || tryNormalizeEmail(a.client.email) !== tryNormalizeEmail(me.email)) return NextResponse.redirect(new URL("/my", req.url));
+  if (!a || tryNormalizeEmail(a.client.email) !== tryNormalizeEmail(me.email)) return NextResponse.redirect(new URL("/account", req.url));
 
   const ticket = signFollowUpTicket(me.id, a.id);
   // Only send them on if there really is a follow-up on offer.
   const offer = await followUpFromQuery(ticket, a.business);
-  if (!offer) return NextResponse.redirect(new URL("/my", req.url));
+  if (!offer) return NextResponse.redirect(new URL("/account", req.url));
 
   const base = publicSiteUrl(a.business.slug, process.env.NEXT_PUBLIC_ROOT_DOMAIN || "calvy.io");
-  const url = new URL(`${base}/book-now`);
+  const url = new URL(`${base}/book`);
   url.searchParams.set("service", offer.serviceId);
   url.searchParams.set("followUp", ticket);
   return NextResponse.redirect(url);
