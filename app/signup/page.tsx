@@ -9,7 +9,6 @@ import { PackPicker } from "@/components/packs/PackPicker";
 import type { PackId } from "@/lib/packs/types";
 import { detectRegion } from "@/lib/onboarding";
 import { Check } from "lucide-react";
-import { ReminderCard } from "@/components/marketing/Mockups";
 
 function SignupAside() {
   return (
@@ -22,7 +21,6 @@ function SignupAside() {
           <li key={t} className="flex items-start gap-3"><span className="mt-0.5 w-5 h-5 rounded-full bg-white/20 flex items-center justify-center shrink-0"><Check size={12} strokeWidth={3} aria-hidden /></span>{t}</li>
         ))}
       </ul>
-      <div className="relative mt-9" aria-hidden><ReminderCard appointmentWord="appointment" /></div>
     </>
   );
 }

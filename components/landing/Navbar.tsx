@@ -25,7 +25,7 @@ export function Navbar() {
   return (
     <header className={cn(
       "fixed top-0 left-0 right-0 z-50 transition-all duration-300",
-      scrolled ? "bg-white/95 backdrop-blur-md border-b border-gray-100 shadow-sm" : "bg-transparent"
+      scrolled ? "bg-cv-paper border-b border-cv-line" : "bg-transparent"
     )}>
       <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
@@ -36,7 +36,7 @@ export function Navbar() {
           <ul className="hidden md:flex items-center gap-8">
             {NAV_LINKS.map((link) => (
               <li key={link.label}>
-                <a href={link.href} className="text-sm text-gray-500 hover:text-gray-900 transition-colors font-medium">
+                <a href={link.href} className="text-sm text-cv-mute hover:text-cv-ink transition-colors font-medium">
                   {link.label}
                 </a>
               </li>
@@ -44,22 +44,22 @@ export function Navbar() {
           </ul>
 
           <div className="hidden md:flex items-center gap-3">
-            <Link href="/login" className="text-sm text-gray-500 hover:text-gray-900 transition-colors font-medium px-3 py-2">
+            <Link href="/login" className="text-sm text-cv-mute hover:text-cv-ink transition-colors font-medium px-3 py-2">
               Sign in
             </Link>
-            <Link href="/signup" className="bg-sky-600 hover:bg-sky-700 text-white text-sm font-semibold px-5 py-2.5 rounded-xl transition-colors">
+            <Link href="/signup" className="bg-cv-blue hover:bg-cv-blue-dark text-white text-sm font-semibold px-5 py-2.5 rounded-xl transition-colors">
               Get started free
             </Link>
           </div>
 
-          <button onClick={() => setMobileOpen(!mobileOpen)} aria-label={mobileOpen ? "Close menu" : "Open menu"} aria-expanded={mobileOpen} className="md:hidden text-gray-500 hover:text-gray-900 w-11 h-11 -mr-2 inline-flex items-center justify-center">
+          <button onClick={() => setMobileOpen(!mobileOpen)} aria-label={mobileOpen ? "Close menu" : "Open menu"} aria-expanded={mobileOpen} className="md:hidden text-cv-mute hover:text-cv-ink w-11 h-11 -mr-2 inline-flex items-center justify-center">
             {mobileOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
         </div>
       </nav>
 
       {mobileOpen && (
-        <div className="md:hidden bg-white border-t border-gray-100 px-4 py-4 flex flex-col gap-1 max-h-[calc(100dvh-4rem)] overflow-y-auto">
+        <div className="md:hidden bg-cv-paper border-t border-cv-line px-4 py-4 flex flex-col gap-1 max-h-[calc(100dvh-4rem)] overflow-y-auto">
           {NAV_LINKS.map((link) => (
             <a key={link.label} href={link.href} onClick={() => setMobileOpen(false)} className="text-gray-600 hover:text-gray-900 text-base min-h-11 flex items-center transition-colors font-medium">
               {link.label}
@@ -67,7 +67,7 @@ export function Navbar() {
           ))}
           <div className="flex flex-col gap-3 pt-4 mt-2 border-t border-gray-100">
             <Link href="/login" onClick={() => setMobileOpen(false)} className="text-center text-gray-600 hover:text-gray-900 min-h-11 flex items-center justify-center transition-colors">Sign in</Link>
-            <Link href="/signup" onClick={() => setMobileOpen(false)} className="w-full min-h-11 flex items-center justify-center text-center bg-sky-600 hover:bg-sky-700 text-white font-semibold px-5 py-3 rounded-xl transition-colors">
+            <Link href="/signup" onClick={() => setMobileOpen(false)} className="w-full min-h-11 flex items-center justify-center text-center bg-cv-blue hover:bg-cv-blue-dark text-white font-semibold px-5 py-3 rounded-xl transition-colors">
               Get started free
             </Link>
           </div>

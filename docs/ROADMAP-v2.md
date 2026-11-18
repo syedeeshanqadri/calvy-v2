@@ -76,3 +76,17 @@ Write the deletion script with a dry run, and run it only after confirming which
 - Own gateways on paid plans only, in both regions. India Basic = the Rs 10 to Calvy; International Free = pay at the venue; international never pays the Rs 10.
 - Same three pay options everywhere (venue / full online / advance). No currency conversion: charged in the business currency, minor units per currency in one helper.
 - Details and per-provider keys/events: `docs/payments-gateways.md`. Adapters are tested with mocks only; one sandbox payment per provider before go-live.
+
+## Design direction (marketing site, step 30)
+
+Applies to the landing page, /about, /contact, /pricing, /for and the footer. The dashboard, auth screens and public business sites are out of scope until the owner asks.
+
+- **Visual only.** No copy changes. Removing a decorative eyebrow pill removes its words; every other string stays.
+- **Remove:** eyebrow pill badges, gradient or two-tone headline text, glows/blobs/dot grids, floating stat badges, emoji, rainbow pastel icon tiles, gradient CTA banners, numbered gradient step boxes, heavy shadows.
+- **Palette:** Calvy deep blue (`#0B4A8F`, token `cv-blue`) is the single brand colour. One warm accent, marigold (`#E8A317`, `cv-marigold`), used for fills and highlights only, never as text colour (2.0:1 on off-white). Warm off-white background (`#FAF7F2`), warm neutral greys, monochrome blue line icons.
+- **Type:** headings in Bricolage Grotesque (self-hosted `app/fonts/bricolage-grotesque-latin.woff2`, latin subset, weights 500 to 800, CSS variable `--font-display`, Tailwind `font-display`), body in DM Sans. Headings are left-aligned.
+- **Shape:** borders over shadows, one corner radius (12px, `rounded-xl`).
+- **Real product only.** Pictures are real screenshots of seeded demo accounts, captured by `scripts/marketing-shots.ts` into `public/marketing/{in,intl}/`, shown in one phone frame or one browser frame. The one exception is the "before" chat thread, a generic illustrated thread with no third-party branding.
+- **Region-aware pictures.** Two sets, India (INR, Indian names and businesses) and International (USD, international names). Picked by the same region detection as pricing (`useRegion`), fallback International. Same layout; only images and chat names differ.
+- **Layout.** Alternating image/text rows; features as a varied-size bento grid in four themes (Bookings, Reminders and alerts, Payments and growth, Your team and brand); the dark problem section becomes a light before/after; steps as a horizontal flow; solid-colour CTA.
+- **Performance.** Lighthouse stays at 90 or above on mobile. Screenshots are WebP with fixed dimensions, lazy-loaded below the fold; only the hero image is priority.

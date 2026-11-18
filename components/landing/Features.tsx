@@ -1,6 +1,7 @@
 "use client";
 import { Calendar, Bell, Globe, Users, Star, Smartphone, Repeat, CreditCard, Gift, Video, UserCircle, BarChart3, Layers, Megaphone, Palette, Receipt, type LucideIcon } from "lucide-react";
 import { useRegion } from "./useRegion";
+import { Section, Heading, Icon, Phone, Browser } from "@/components/marketing/ui";
 import type { Region } from "@/lib/pricing";
 
 interface Feature { Icon: LucideIcon; title: string; desc: string; plan: string; bg: string; cls: string }
@@ -41,35 +42,59 @@ const RECEIPTS: Record<Region, Feature | null> = {
   INTL: null,
 };
 
+// The same features, grouped into four themes. Tiles differ in size; four of them carry a real screenshot.
+const THEMES: { title: string; titles: string[]; shot?: { title: string; kind: "phone" | "browser"; name: string; alt: string } }[] = [
+  { title: "Bookings", titles: ["Time slots and token queues", "Online consultations", "Follow-ups", "Group and multi-service bookings"],
+    shot: { title: "Time slots and token queues", kind: "phone", name: "queue", alt: "The live token queue on a phone" } },
+  { title: "Reminders and alerts", titles: ["Email, WhatsApp and push alerts", "A business app on your phone"],
+    shot: { title: "A business app on your phone", kind: "phone", name: "today", alt: "The business app's Today list" } },
+  { title: "Payments and growth", titles: ["Online payments", "Receipts", "Rewards", "Reviews", "Client database and broadcasts", "Analytics, exports and expenses"],
+    shot: { title: "Analytics, exports and expenses", kind: "browser", name: "dashboard", alt: "The dashboard with appointments and revenue" } },
+  { title: "Your team and brand", titles: ["A free website, built for you", "Team roles", "Your brand and search listing", "A customer account"],
+    shot: { title: "A free website, built for you", kind: "browser", name: "website", alt: "A business website built in Calvy" } },
+];
+
+// Column spans on a 6-column grid, so tiles differ in size and every row fills.
+const SPAN_SETS: Record<number, number[]> = { 1: [6], 2: [3, 3], 3: [4, 2, 6], 4: [4, 2, 3, 3], 5: [2, 2, 2, 3, 3], 6: [4, 2, 2, 4, 3, 3] };
+const SPAN_CLASS: Record<number, string> = { 2: "lg:col-span-2", 3: "lg:col-span-3", 4: "lg:col-span-4", 6: "lg:col-span-6" };
+
 export function Features() {
   const region = useRegion();
   const extra = RECEIPTS[region];
   const features = [...BASE.slice(0, 7), PAYMENTS[region], ...BASE.slice(7), ...(extra ? [extra] : [])];
+  const byTitle = new Map(features.map((f) => [f.title, f]));
   return (
-    <section id="features" className="py-16 sm:py-20 lg:py-24 bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-12 lg:mb-16">
-          <span className="inline-block bg-sky-100 text-sky-700 text-xs font-bold tracking-widest uppercase px-4 py-2 rounded-full mb-4">Features</span>
-          <h2 className="font-syne font-extrabold text-3xl sm:text-4xl lg:text-5xl tracking-tight text-gray-900 mb-4">
-            Everything you need to take bookings online
-          </h2>
-          <p className="text-gray-600 text-lg max-w-xl mx-auto leading-relaxed">
-            Build your website and booking page for free. These are real features you can use today, and each card says which plan has it.
-          </p>
-        </div>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {features.map((f) => (
-            <div key={f.title} className="bg-white p-7 rounded-2xl border border-gray-100 flex flex-col">
-              <div className={`w-12 h-12 rounded-2xl ${f.bg} flex items-center justify-center mb-5`}>
-                <f.Icon size={22} className={f.cls} aria-hidden />
-              </div>
-              <h3 className="font-syne font-bold text-base text-gray-900 mb-2">{f.title}</h3>
-              <p className="text-sm text-gray-600 leading-relaxed flex-1">{f.desc}</p>
-              <p className="mt-4 text-xs font-semibold text-gray-500">{f.plan}</p>
+    <Section id="features" tone="paper">
+      <Heading
+        title="Everything you need to take bookings online"
+        intro="Build your website and booking page for free. These are real features you can use today, and each card says which plan has it."
+      />
+      <div className="flex flex-col gap-14">
+        {THEMES.map((theme) => (
+          <div key={theme.title}>
+            <h3 className="mb-5 border-b border-cv-line pb-3 font-display font-bold text-xl text-cv-ink">{theme.title}</h3>
+            <div className="grid items-start gap-4 sm:grid-cols-2 lg:grid-cols-6">
+              {(() => { const present = theme.titles.filter((t) => byTitle.has(t)); const spans = SPAN_SETS[present.length] ?? []; return present.map((t, i) => ({ t, span: SPAN_CLASS[spans[i] ?? 2] })); })().map(({ t, span }) => {
+                const f = byTitle.get(t)!;
+                const shot = theme.shot?.title === t ? theme.shot : null;
+                return (
+                  <div key={t} className={`flex flex-col rounded-xl border border-cv-line bg-cv-card p-6 ${span}`}>
+                    <Icon Svg={f.Icon} size={22} />
+                    <h4 className="mt-4 mb-2 font-display font-bold text-lg text-cv-ink">{f.title}</h4>
+                    <p className="m-0 flex-1 text-sm leading-relaxed text-cv-mute">{f.desc}</p>
+                    <p className="mt-4 mb-0 text-xs font-semibold text-cv-ink">{f.plan}</p>
+                    {shot && (
+                      <div className="mt-5">
+                        {shot.kind === "phone" ? <Phone name={shot.name} alt={shot.alt} crop className="max-w-[170px]" /> : <Browser name={shot.name} alt={shot.alt} />}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
-          ))}
-        </div>
-              </div>
-    </section>
+          </div>
+        ))}
+      </div>
+    </Section>
   );
 }

@@ -38,12 +38,12 @@ export function DemoButton({ className, children, source = "demo-modal" }: { cla
       <Modal isOpen={open} onClose={close} title={state === "done" ? "Demo booked" : "Book a personal demo"} size="sm">
         {state === "done" ? (
           <div className="text-center py-2" role="status">
-            <div className="w-12 h-12 rounded-full bg-green-500 flex items-center justify-center mx-auto mb-4">
+            <div className="w-12 h-12 rounded-full bg-cv-blue flex items-center justify-center mx-auto mb-4">
               <Check size={24} className="text-white" strokeWidth={3} aria-hidden />
             </div>
             <p className="font-semibold text-gray-900 mb-1">Your demo is booked.</p>
             <p className="text-sm text-gray-500">We have emailed you a confirmation. Our team will contact you soon with your demo.</p>
-            <button type="button" onClick={close} className="mt-6 w-full min-h-12 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-semibold">Done</button>
+            <button type="button" onClick={close} className="mt-6 w-full min-h-12 rounded-xl bg-cv-blue hover:bg-cv-blue-dark text-white font-semibold">Done</button>
           </div>
         ) : (
           <form onSubmit={submit} noValidate className="space-y-4">
@@ -57,7 +57,7 @@ export function DemoButton({ className, children, source = "demo-modal" }: { cla
               <input id="demo-phone" type="tel" autoComplete="tel" value={phone} onChange={e => { setPhone(e.target.value); setError(""); }} placeholder="+91 98765 43210" className={input} />
             </div>
             {error && <p className="text-sm text-red-500" role="alert">{error}</p>}
-            <button type="submit" disabled={state === "loading"} className="w-full min-h-12 inline-flex items-center justify-center gap-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-semibold disabled:opacity-70">
+            <button type="submit" disabled={state === "loading"} className="w-full min-h-12 inline-flex items-center justify-center gap-2 rounded-xl bg-cv-blue hover:bg-cv-blue-dark text-white font-semibold disabled:opacity-70">
               {state === "loading" ? <Loader2 size={18} className="animate-spin" aria-hidden /> : "Book my demo"}
             </button>
           </form>

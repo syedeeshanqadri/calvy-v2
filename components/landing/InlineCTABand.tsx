@@ -3,6 +3,7 @@ import { useState } from "react";
 import { ArrowRight, Check, Loader2 } from "lucide-react";
 import { postLead, EMAIL_RE } from "./postLead";
 
+/** One solid deep-blue band: heading and email box on the left, nothing floating. */
 export function InlineCTABand() {
   const [email, setEmail] = useState("");
   const [state, setState] = useState<"idle" | "loading" | "done">("idle");
@@ -17,26 +18,22 @@ export function InlineCTABand() {
   }
 
   return (
-    <section className="py-12 sm:py-16 bg-white">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-sky-600 to-sky-700 px-6 py-12 sm:px-12 sm:py-14 shadow-xl shadow-sky-900/10">
-          {/* decorative orbs */}
-          <div className="absolute -top-16 -right-10 w-64 h-64 rounded-full bg-white/10 blur-2xl" aria-hidden />
-          <div className="absolute -bottom-20 -left-10 w-72 h-72 rounded-full bg-sky-400/20 blur-2xl" aria-hidden />
-
-          <div className="relative mx-auto max-w-2xl text-center">
-            <h3 className="font-syne font-extrabold text-2xl sm:text-4xl text-white leading-tight text-balance">
+    <section className="bg-cv-paper border-t border-cv-line py-12 sm:py-16">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="rounded-xl bg-cv-blue px-6 py-12 sm:px-12 sm:py-14">
+          <div className="max-w-2xl">
+            <h3 className="font-display font-bold text-2xl sm:text-4xl text-white leading-tight text-balance">
               Turn no-shows into <span className="whitespace-nowrap">no-problem.</span>
             </h3>
-            <p className="mt-3 text-sky-100 text-base sm:text-lg leading-relaxed text-balance">
+            <p className="mt-3 text-white/85 text-base sm:text-lg leading-relaxed text-balance">
               Reminders go out on their own, so fewer people forget. Start free in minutes.
             </p>
 
-            <div className="mt-8 mx-auto max-w-xl">
+            <div className="mt-8 max-w-xl">
               {state === "done" ? (
-                <div className="flex items-center justify-center gap-3 bg-white/15 backdrop-blur rounded-2xl px-5 py-4">
-                  <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center flex-shrink-0">
-                    <Check size={16} className="text-sky-600" strokeWidth={3} />
+                <div className="flex items-center gap-3 border border-white/30 rounded-xl px-5 py-4">
+                  <div className="w-8 h-8 rounded-full bg-cv-marigold flex items-center justify-center flex-shrink-0">
+                    <Check size={16} className="text-cv-ink" strokeWidth={3} />
                   </div>
                   <p className="text-white font-medium text-sm">You&apos;re in! Check your inbox to get started.</p>
                 </div>
@@ -47,11 +44,11 @@ export function InlineCTABand() {
                       type="email" value={email} aria-label="Your email"
                       onChange={e => { setEmail(e.target.value); setError(""); }}
                       placeholder="you@business.com"
-                      className="flex-1 min-w-0 rounded-2xl bg-white px-5 py-3.5 text-base text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-4 focus:ring-white/30 transition-all"
+                      className="flex-1 min-w-0 rounded-xl bg-white px-5 py-3.5 text-base text-cv-ink placeholder:text-cv-mute focus:outline-none focus:ring-4 focus:ring-white/30"
                     />
                     <button type="submit" disabled={state === "loading"}
-                      className="group inline-flex items-center justify-center gap-2 bg-[#0f0f1a] hover:bg-black text-white font-semibold px-6 py-3.5 rounded-2xl transition-all hover:-translate-y-0.5 disabled:opacity-70 whitespace-nowrap">
-                      {state === "loading" ? <Loader2 size={18} className="animate-spin" /> : <>Get started <ArrowRight size={17} className="group-hover:translate-x-1 transition-transform" /></>}
+                      className="group inline-flex items-center justify-center gap-2 bg-cv-marigold hover:brightness-95 text-cv-ink font-semibold px-6 py-3.5 rounded-xl transition disabled:opacity-70 whitespace-nowrap">
+                      {state === "loading" ? <Loader2 size={18} className="animate-spin" /> : <>Get started <ArrowRight size={17} className="group-hover:translate-x-0.5 transition-transform" /></>}
                     </button>
                   </div>
                   {error && <p role="alert" className="text-sm text-white mt-2.5">{error}</p>}
