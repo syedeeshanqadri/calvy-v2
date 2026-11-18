@@ -111,7 +111,6 @@ const IN: RegionPricing = {
   region: "IN",
   currency: "INR",
   locale: "en-IN",
-  headline: "Free forever. Only ₹10 per confirmed online booking.",
   plans: [
     {
       id: "free",
@@ -122,7 +121,7 @@ const IN: RegionPricing = {
       description: "No monthly fee, no credit card required",
       features: [
         "Unlimited bookings",
-        "₹10 platform fee per confirmed online booking — you choose who pays: your business or your customer",
+        "A nominal platform fee per confirmed online booking",
         "Booking page + business website",
         "Email notifications",
         "1 staff member",
@@ -137,7 +136,7 @@ const IN: RegionPricing = {
       yearlyTotal: 3588,
       description: "For growing service businesses",
       features: [
-        "No ₹10 platform fee",
+        "No platform fee",
         "Up to 3 staff",
         "Up to 1,000 appointments/month",
         "Everything in Free, plus:",
@@ -158,7 +157,7 @@ const IN: RegionPricing = {
       yearlyTotal: 8388,
       description: "For teams and high-volume businesses",
       features: [
-        "No ₹10 platform fee",
+        "No platform fee",
         "Unlimited staff",
         "Unlimited appointments",
         "Everything in Pro, plus:",

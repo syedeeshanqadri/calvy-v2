@@ -65,7 +65,6 @@ export function Footer() {
           >
             <span aria-hidden="true">🌱</span> Donate to plant a tree
           </a>
-          <p className="text-sm text-gray-600">Made with ♥ for service businesses everywhere</p>
         </div>
       </div>
     </footer>

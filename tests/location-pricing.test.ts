@@ -69,7 +69,7 @@ describe("price config", () => {
       ["Pro", 349, 299, 3588],
       ["Business", 799, 699, 8388],
     ]);
-    expect(REGION_PRICING.IN.headline).toBe("Free forever. Only ₹10 per confirmed online booking.");
+    expect(REGION_PRICING.IN.headline).toBeUndefined(); // owner removed the headline (step 28)
     expect(REGION_PRICING.INTL.headline).toBeUndefined();
     expect(PRICING_NOTE).toMatch(/no per-staff fees/);
   });
@@ -78,9 +78,9 @@ describe("price config", () => {
   });
   it("paid IN plans drop the platform fee and the free plan states it", () => {
     const [free, pro, biz] = REGION_PRICING.IN.plans;
-    expect(free.features.join(" ")).toMatch(/₹10 platform fee per confirmed online booking/);
-    expect(pro.features).toContain("No ₹10 platform fee");
-    expect(biz.features).toContain("No ₹10 platform fee");
+    expect(free.features.join(" ")).toMatch(/nominal platform fee per confirmed online booking/);
+    expect(pro.features).toContain("No platform fee");
+    expect(biz.features).toContain("No platform fee");
     expect(pro.features.filter(isFeatureHeading)).toEqual(["Everything in Free, plus:"]);
   });
   it("savings badge is calculated from the config", () => {

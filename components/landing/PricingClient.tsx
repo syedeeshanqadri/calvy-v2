@@ -8,7 +8,7 @@ import { useRegion } from "./useRegion";
 
 const FREE_FAQ: Record<Region, string> = {
   INTL: "Yes. The free plan is lifetime free — no credit card required, no expiry date. You get a booking page and business website, email confirmations and reminders, and up to 60 appointments/month. Upgrade only when you need more.",
-  IN: "Yes. The free plan is lifetime free — no monthly fee, no credit card required, no expiry date. You get unlimited bookings, a booking page and business website, and email notifications. Each confirmed online booking carries a ₹10 platform fee, and you choose whether your business or your customer pays it. Upgrade to Pro or Business to remove the fee.",
+  IN: "Yes. The free plan is lifetime free — no monthly fee, no credit card required, no expiry date. You get unlimited bookings, a booking page and business website, and email notifications. Each confirmed online booking carries a nominal platform fee. Upgrade to Pro or Business to remove the fee.",
 };
 
 const faqs = (region: Region) => [
