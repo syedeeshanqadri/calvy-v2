@@ -43,7 +43,7 @@ async function PATCH_handler(request: NextRequest, props: { params: Promise<{ id
     if (denied) return denialResponse(denied);
   }
 
-  const updated = await prisma.service.update({ where: { id: params.id }, data: { ...body, ...(body.meetingUrl !== undefined && { meetingUrl: body.meetingUrl || null }), ...(body.imageUrl !== undefined && { imageUrl: body.imageUrl || null }) } });
+  const updated = await prisma.service.update({ where: { id: params.id, businessId: session.user.businessId }, data: { ...body, ...(body.meetingUrl !== undefined && { meetingUrl: body.meetingUrl || null }), ...(body.imageUrl !== undefined && { imageUrl: body.imageUrl || null }) } });
   await revalidateSite(session.user.businessId);
   return NextResponse.json({ service: updated });
 }
@@ -65,11 +65,11 @@ async function DELETE_handler(_request: NextRequest, props: { params: Promise<{ 
   const appointmentCount = await prisma.appointment.count({ where: { serviceId: params.id } });
 
   if (appointmentCount > 0) {
-    await prisma.service.update({ where: { id: params.id }, data: { isActive: false } });
+    await prisma.service.update({ where: { id: params.id, businessId: session.user.businessId }, data: { isActive: false } });
     return NextResponse.json({ deactivated: true, appointmentCount });
   }
 
-  await prisma.service.delete({ where: { id: params.id } });
+  await prisma.service.delete({ where: { id: params.id, businessId: session.user.businessId } });
   return NextResponse.json({ deleted: true });
 }
 

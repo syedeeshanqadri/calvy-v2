@@ -40,6 +40,9 @@ const optionalVars = {
   SHADOW_DATABASE_URL: optional,
   UPSTASH_REDIS_REST_URL: optional,
   UPSTASH_REDIS_REST_TOKEN: optional,
+  KV_REST_API_URL: optional,
+  KV_REST_API_TOKEN: optional,
+  RATE_LIMIT_FAIL_CLOSED: optional,
   SENTRY_DSN: optional,
   NEXT_PUBLIC_SENTRY_DSN: optional,
 };
@@ -99,6 +102,10 @@ export function emailSenderWarning(env: NodeJS.ProcessEnv = process.env): string
 /** Names of optional services that are disabled because a variable is missing. */
 export function disabledServices(env: NodeJS.ProcessEnv = process.env): string[] {
   return Object.entries(OPTIONAL_SERVICES)
-    .filter(([, vars]) => vars.some((v) => !isSet(env, v)))
+    .filter(([service, vars]) => {
+      // The Vercel Marketplace Upstash integration names its variables KV_REST_API_*: either pair turns the shared limiter on.
+      if (service === "distributed-rate-limit" && isSet(env, "KV_REST_API_URL") && isSet(env, "KV_REST_API_TOKEN")) return false;
+      return vars.some((v) => !isSet(env, v));
+    })
     .map(([service]) => service);
 }

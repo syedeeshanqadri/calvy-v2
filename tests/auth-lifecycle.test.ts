@@ -298,7 +298,8 @@ describe("POST /api/auth/resend-verification", () => {
     expect(mocks.notify.mock.calls[0][0]).toMatchObject({ event: "auth.verify", template: "verification", recipient: "a@x.co", subjectId: "u1" });
     expect(mocks.vt.deleteMany).toHaveBeenCalledWith({ where: { email: "a@x.co" } });
     const data = mocks.vt.create.mock.calls[0][0].data;
-    expect(data.token).toBe(tokenOf(mocks.notify.mock.calls[0][0]));
+    // Stored hashed (S1-37); the emailed link carries the raw token.
+    expect(data.token).toBe(hashToken(tokenOf(mocks.notify.mock.calls[0][0])!));
     const ttl = data.expiresAt.getTime() - Date.now();
     expect(ttl).toBeGreaterThan(23 * 3600_000);
     expect(ttl).toBeLessThanOrEqual(24 * 3600_000);

@@ -52,10 +52,18 @@ const EVENT_KIND: Record<string, PaymentEventKind> = {
 };
 
 /** Verify and normalise a Cashfree payment webhook; null when the signature does not match. */
-export function parseCashfreeWebhook(rawBody: string, headers: Headers, secretKey: string): PaymentEvent | null {
+export const CASHFREE_TOLERANCE_MS = 10 * 60_000;
+
+export function parseCashfreeWebhook(rawBody: string, headers: Headers, secretKey: string, nowMs: number = Date.now()): PaymentEvent | null {
   const signature = headers.get("x-webhook-signature");
   const timestamp = headers.get("x-webhook-timestamp");
   if (!signature || !timestamp) return null;
+  // Freshness: the timestamp is part of the signed text, so a captured request cannot be replayed later. Cashfree
+  // sends epoch milliseconds (seconds are accepted too).
+  const tsNum = Number(timestamp);
+  if (!Number.isFinite(tsNum)) return null;
+  const tsMs = tsNum < 1e12 ? tsNum * 1000 : tsNum;
+  if (Math.abs(nowMs - tsMs) > CASHFREE_TOLERANCE_MS) return null;
   const expected = Buffer.from(cashfreeSignature(timestamp, rawBody, secretKey));
   const given = Buffer.from(signature);
   if (expected.length !== given.length || !timingSafeEqual(expected, given)) return null;

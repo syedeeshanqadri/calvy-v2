@@ -101,7 +101,7 @@ describe("cashfree adapter", () => {
     type: "PAYMENT_SUCCESS_WEBHOOK",
     data: { order: { order_id: "calvy_abc123", order_amount: 510 }, payment: { cf_payment_id: 9876, payment_amount: 510, payment_group: "upi" } },
   });
-  const signed = (b: string, ts = "1729760000000", s = secret) =>
+  const signed = (b: string, ts = String(Date.now()), s = secret) =>
     new Headers({ "x-webhook-timestamp": ts, "x-webhook-signature": cashfreeSignature(ts, b, s) });
 
   it("accepts a correctly signed webhook and normalises it", () => {
@@ -114,7 +114,7 @@ describe("cashfree adapter", () => {
     expect(parseCashfreeWebhook(body, signed(body, "1729760000000", "other"), secret)).toBeNull();
     expect(parseCashfreeWebhook(body.replace("510", "1"), signed(body), secret)).toBeNull();
     const h = signed(body);
-    h.set("x-webhook-timestamp", "1729760000001");
+    h.set("x-webhook-timestamp", String(Date.now() + 1));
     expect(parseCashfreeWebhook(body, h, secret)).toBeNull();
     expect(parseCashfreeWebhook(body, new Headers(), secret)).toBeNull();
   });

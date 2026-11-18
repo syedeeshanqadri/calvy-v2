@@ -4,6 +4,15 @@ import { NextResponse, type NextRequest } from "next/server";
 import { featureForApiPath, isFeatureEnabled } from "@/lib/flags";
 import { canAccessOwnerArea, isCustomerToken } from "@/lib/customerAccess";
 import { ALWAYS_OPEN, ROUTE_PERMISSIONS } from "@/lib/permissions";
+import { accountBucket, csrfBlocked, ipBucket, skipsRateLimit } from "@/lib/apiGuard";
+import { clientIp, rateLimit } from "@/lib/ratelimit";
+
+function tooMany(retryAfter: number, requestId: string) {
+  return NextResponse.json(
+    { error: "Too many requests. Please try again later.", retryAfter },
+    { status: 429, headers: { "Retry-After": String(retryAfter), "x-request-id": requestId } },
+  );
+}
 
 const ROOT_DOMAIN = process.env.NEXT_PUBLIC_ROOT_DOMAIN ?? "calvy.io";
 
@@ -55,6 +64,31 @@ export default async function middleware(req: NextRequest) {
     // Request id for log correlation: keep a sane caller-supplied one, else mint one.
     const incoming = req.headers.get("x-request-id");
     const requestId = incoming && /^[\w-]{8,64}$/.test(incoming) ? incoming : crypto.randomUUID();
+
+    // CSRF: a browser write must come from our own origin (or a tenant subdomain). Webhooks, cron and NextAuth are exempt.
+    if (csrfBlocked({
+      method: req.method, pathname,
+      origin: req.headers.get("origin"), secFetchSite: req.headers.get("sec-fetch-site"),
+      host: req.headers.get("host"), rootDomain: ROOT_DOMAIN,
+    })) {
+      return NextResponse.json({ error: "Cross-site request refused." }, { status: 403, headers: { "x-request-id": requestId } });
+    }
+
+    // Broad rate limits under the route-specific ones: per IP for everything, per account for writes.
+    if (!skipsRateLimit(pathname)) {
+      const ip = clientIp(req);
+      const b = ipBucket(pathname, ip);
+      const hit = await rateLimit(b.key, b.limit, b.windowMs);
+      if (!hit.ok) return tooMany(hit.retryAfter, requestId);
+      if (!["GET", "HEAD", "OPTIONS"].includes(req.method) && (req.cookies.has("next-auth.session-token") || req.cookies.has("__Secure-next-auth.session-token"))) {
+        const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET }).catch(() => null);
+        if (typeof token?.uid === "string") {
+          const a = accountBucket(token.uid);
+          const ah = await rateLimit(a.key, a.limit, a.windowMs);
+          if (!ah.ok) return tooMany(ah.retryAfter, requestId);
+        }
+      }
+    }
 
     // Feature-flag guard: API entry points of disabled features return 404.
     const flag = featureForApiPath(pathname);
@@ -126,6 +160,7 @@ export default async function middleware(req: NextRequest) {
 export const config = {
   matcher: [
     // Match everything except Next.js internals and static files
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|css|js)).*)",
+    // Static-file extensions are skipped for pages only: /api/* ALWAYS runs through this file, so `/api/x.png` cannot dodge the guards.
+    "/((?!_next/static|_next/image|favicon.ico|(?!api/).*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|css|js)).*)",
   ],
 };

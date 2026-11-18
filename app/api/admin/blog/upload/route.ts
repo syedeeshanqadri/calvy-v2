@@ -4,6 +4,7 @@ import { put } from "@vercel/blob";
 import { NextRequest, NextResponse } from "next/server";
 import { checkImageUpload, MAX_UPLOAD_BYTES } from "@/lib/validation/upload";
 import { logger, getRequestId } from "@/lib/logger";
+import sharp from "sharp";
 
 export const dynamic = "force-dynamic";
 
@@ -26,8 +27,16 @@ async function POST_handler(req: NextRequest) {
     const check = await checkImageUpload(file instanceof File ? file : null);
     if (!check.ok) return NextResponse.json({ error: check.error }, { status: 400 });
 
-    const pathname = `blog/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${check.ext}`;
-    const blob = await put(pathname, file as File, { access: "public", contentType: check.contentType });
+    // Re-encode (strips metadata and anything appended to the file; the bytes served are ones we produced), capped at 2000px wide.
+    let webp: Buffer;
+    try {
+      webp = await sharp(Buffer.from(await (file as File).arrayBuffer()), { limitInputPixels: 40_000_000 })
+        .rotate().resize({ width: 2000, withoutEnlargement: true }).webp({ quality: 82 }).toBuffer();
+    } catch {
+      return NextResponse.json({ error: "We could not read that image." }, { status: 400 });
+    }
+    const pathname = `blog/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.webp`;
+    const blob = await put(pathname, webp, { access: "public", contentType: "image/webp" });
     return NextResponse.json({ url: blob.url });
   } catch (err) {
     logger.error("blog upload failed", { err, requestId: getRequestId(req) });

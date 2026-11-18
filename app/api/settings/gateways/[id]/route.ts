@@ -63,14 +63,14 @@ async function PATCH_handler(req: NextRequest, { params }: Ctx) {
 
   const updated = await prisma.$transaction(async (tx) => {
     if (d.isDefault === true && !credsChanged) await tx.paymentGateway.updateMany({ where: { businessId, isDefault: true, NOT: { id } }, data: { isDefault: false } });
-    const row = await tx.paymentGateway.update({ where: { id }, data: { ...data, ...(d.isDefault !== undefined && !credsChanged ? { isDefault: d.isDefault } : {}), ...(credsChanged ? { isDefault: false } : {}) } });
+    const row = await tx.paymentGateway.update({ where: { id, businessId }, data: { ...data, ...(d.isDefault !== undefined && !credsChanged ? { isDefault: d.isDefault } : {}), ...(credsChanged ? { isDefault: false } : {}) } });
     // A default that gets disabled hands the default to another connected, enabled gateway (or leaves none).
     if (!row.enabled && row.isDefault) {
-      await tx.paymentGateway.update({ where: { id }, data: { isDefault: false } });
+      await tx.paymentGateway.update({ where: { id, businessId }, data: { isDefault: false } });
       const next = await tx.paymentGateway.findFirst({ where: { businessId, enabled: true, status: "CONNECTED", NOT: { id } }, orderBy: { createdAt: "asc" } });
-      if (next) await tx.paymentGateway.update({ where: { id: next.id }, data: { isDefault: true } });
+      if (next) await tx.paymentGateway.update({ where: { id: next.id, businessId }, data: { isDefault: true } });
     }
-    return tx.paymentGateway.findUniqueOrThrow({ where: { id } });
+    return tx.paymentGateway.findUniqueOrThrow({ where: { id, businessId } });
   });
   await audit({ businessId, actorId: session.user.id ?? "owner", action: "gateway.updated", target: id, detail: { fields: Object.keys(d) } });
   return NextResponse.json({ gateway: gatewayView(updated) });
@@ -85,10 +85,10 @@ async function DELETE_handler(_req: NextRequest, { params }: Ctx) {
   const g = await prisma.paymentGateway.findFirst({ where: { id, businessId } });
   if (!g) return NextResponse.json({ error: "Not found" }, { status: 404 });
   await prisma.$transaction(async (tx) => {
-    await tx.paymentGateway.delete({ where: { id } });
+    await tx.paymentGateway.delete({ where: { id, businessId } });
     if (g.isDefault) {
       const next = await tx.paymentGateway.findFirst({ where: { businessId, enabled: true, status: "CONNECTED" }, orderBy: { createdAt: "asc" } });
-      if (next) await tx.paymentGateway.update({ where: { id: next.id }, data: { isDefault: true } });
+      if (next) await tx.paymentGateway.update({ where: { id: next.id, businessId }, data: { isDefault: true } });
     }
   });
   await audit({ businessId, actorId: session.user.id ?? "owner", action: "gateway.removed", target: id, detail: { provider: g.provider } });

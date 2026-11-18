@@ -2,6 +2,7 @@
 // own default gateway (lib/payments/gateways); Calvy never touches that money.
 // Flow: booking -> pending_payment hold + Payment(CREATED) + gateway order -> checkout ->
 // webhook or return-page reconcile -> settlePaidPayment (confirm, or refund a lapsed hold).
+import { randomBytes } from "node:crypto";
 import { prisma } from "@/lib/prisma";
 import { isFeatureEnabled } from "@/lib/flags";
 import { getEffectiveLimits } from "@/lib/getFeatures";
@@ -119,7 +120,8 @@ export async function startCheckout(p: {
     provider = null;
   }
   if (!provider) return { ok: false, error: "Online payments are temporarily unavailable. Please try again later." };
-  const orderId = `calvy_${p.appointmentId}`;
+  // Random suffix: the public status page is keyed by this id, so it must not be derivable from the appointment id.
+  const orderId = `calvy_${p.appointmentId}_${randomBytes(9).toString("hex")}`;
   const payment = await prisma.payment.create({
     data: {
       businessId: p.businessId, appointmentId: p.appointmentId, provider: provider.name, providerOrderId: orderId,

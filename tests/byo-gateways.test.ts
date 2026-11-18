@@ -112,7 +112,7 @@ describe("Cashfree as the business's own gateway", () => {
     const row = { provider: "CASHFREE", mode: "TEST", ...encryptCredentials({ keyId: "app", keySecret: "their-secret" }) };
     const p = providerForGateway(row);
     const raw = JSON.stringify({ type: "PAYMENT_SUCCESS_WEBHOOK", data: { order: { order_id: "calvy_a1" }, payment: { cf_payment_id: 7, payment_amount: 500, payment_group: "upi" } } });
-    const ts = "1700000000";
+    const ts = String(Date.now());
     const headers = (key: string) => new Headers({ "x-webhook-signature": cashfreeSignature(ts, raw, key), "x-webhook-timestamp": ts });
     expect(p.verifyWebhook(raw, headers("their-secret"))).toMatchObject({ kind: "PAID", providerOrderId: "calvy_a1", amountMinor: 50000 });
     expect(p.verifyWebhook(raw, headers("calvy-own-secret"))).toBeNull();

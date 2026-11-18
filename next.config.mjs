@@ -1,19 +1,27 @@
-// Content-Security-Policy runs in REPORT-ONLY mode first: it logs violations in
-// the browser console without blocking anything. Tighten (drop 'unsafe-inline'
-// via nonces) and switch to `Content-Security-Policy` once the console is clean.
+// Content-Security-Policy is ENFORCED. Allow-list, by purpose:
+//   scripts   Cashfree checkout SDK, Meta (Facebook) JS SDK for WhatsApp Embedded Signup.
+//   forms     PayU, CCAvenue and Paytm take the customer over with a form POST to their own page (lib/payments/launchCheckout.ts);
+//             the other gateways (Razorpay, PhonePe, Stripe, PayPal) are plain redirects, which CSP does not restrict.
+//   frames    Google Maps embed on tenant sites, Cashfree and Meta (Embedded Signup) frames.
+//   Vercel    uploads to Vercel Blob; Vercel Analytics is served from our own origin (/_vercel/...).
+// Known limit: script-src keeps 'unsafe-inline' because Next's own bootstrap scripts are inline; a nonce policy would force every
+// page (blog ISR, tenant sites) to render dynamically. 'unsafe-eval' is development-only (React refresh).
 // Framing: only our own pages (the onboarding "You're live" preview embeds the new site). Everyone else stays blocked.
+const isDev = process.env.NODE_ENV !== "production";
 const csp = [
   "default-src 'self'",
-  // Cashfree checkout SDK (online booking payments).
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://sdk.cashfree.com https://connect.facebook.net",
+  `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""} https://sdk.cashfree.com https://connect.facebook.net`,
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https:",
   "font-src 'self' data:",
   "frame-src https://www.google.com https://*.cashfree.com https://www.facebook.com https://web.facebook.com",
-  "connect-src 'self' https://*.public.blob.vercel-storage.com https://*.cashfree.com https://*.facebook.com https://*.facebook.net",
+  `connect-src 'self' https://*.public.blob.vercel-storage.com https://*.cashfree.com https://*.facebook.com https://*.facebook.net https://*.ingest.sentry.io https://*.ingest.us.sentry.io${isDev ? " ws://localhost:* http://localhost:*" : ""}`,
+  "worker-src 'self'",
+  "manifest-src 'self'",
+  "media-src 'self' https://*.public.blob.vercel-storage.com",
   "object-src 'none'",
   "base-uri 'self'",
-  "form-action 'self' https://*.cashfree.com",
+  "form-action 'self' https://*.cashfree.com https://secure.payu.in https://test.payu.in https://secure.ccavenue.com https://test.ccavenue.com https://securegw.paytm.in https://securegw-stage.paytm.in",
   "frame-ancestors 'self'",
 ].join("; ");
 
@@ -23,7 +31,8 @@ const securityHeaders = [
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   { key: "X-Frame-Options", value: "SAMEORIGIN" },
   { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), payment=(self)" },
-  { key: "Content-Security-Policy-Report-Only", value: csp },
+  { key: "Content-Security-Policy", value: csp },
+  { key: "Cross-Origin-Opener-Policy", value: "same-origin-allow-popups" },
 ];
 
 // Pages and redirects whose URL can carry a one-hour credit / follow-up ticket or a payment order id never leak it

@@ -62,6 +62,7 @@ describe("POST /api/broadcasts/send", () => {
   const valid = { subject: "Hi", message: "Hello" };
 
   beforeEach(() => {
+    vi.stubEnv("FEATURE_BROADCASTS", "1");
     vi.clearAllMocks();
     session.current = { user: { id: "u1", businessId: "b1" } };
     db.business.findUnique.mockResolvedValue({ id: "b1", name: "A <b>&", plan: "business", planStatus: "active" });

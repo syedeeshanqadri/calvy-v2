@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { parseBody } from "@/lib/validation/common";
 import { PUSH_DEVICE_COOKIE, pushDeviceCookieOptions } from "@/lib/pushDeviceCookie";
 import { pushSubscribeSchema, pushUnsubscribeSchema } from "@/lib/validation/misc";
-import { keyFingerprint, normalizeKey, signingPublicKey } from "@/lib/push";
+import { isKnownPushHost, keyFingerprint, normalizeKey, signingPublicKey } from "@/lib/push";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +19,7 @@ async function POST_handler(req: NextRequest) {
   const parsed = await parseBody(req, pushSubscribeSchema);
   if (!parsed.ok) return parsed.res;
   const { endpoint, keys, applicationServerKey } = parsed.data;
+  if (!isKnownPushHost(endpoint)) return NextResponse.json({ error: "Unsupported push service." }, { status: 400 });
   // The browser must have subscribed with the key this server SIGNS with, or the push service rejects every message (403).
   // Catching it here turns a silent "alerts never arrive" into a clear message at the moment of enabling.
   const signing = signingPublicKey();

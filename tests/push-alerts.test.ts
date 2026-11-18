@@ -50,7 +50,7 @@ const owner: PushRecipient = { isOwner: true, permissions: [], staffId: null };
 const member = (permissions: PushRecipient["permissions"], staffId: string | null = null): PushRecipient => ({ isOwner: false, permissions, staffId });
 const req = (url: string, init?: ConstructorParameters<typeof NextRequest>[1]) => new NextRequest(`http://localhost${url}`, init);
 const body = (b: unknown) => ({ method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(b) });
-const SUB = { endpoint: "https://push.example/abc", keys: { p256dh: "p", auth: "a" } };
+const SUB = { endpoint: "https://fcm.googleapis.com/fcm/send/abc", keys: { p256dh: "p", auth: "a" } };
 
 beforeEach(() => {
   vi.clearAllMocks(); enqueued.rows.length = 0; session.current = null;
@@ -172,7 +172,7 @@ describe("checked again at send time", () => {
 
 describe("delivery and expired devices", () => {
   const msg = { subject: "New booking", text: "Riya K.", html: "", push: { url: "/dashboard", tag: "t" } };
-  beforeEach(() => { db.pushDevice.findUnique.mockResolvedValue({ id: "d1", endpoint: "https://push.example/abc", p256dh: "p", auth: "a" }); });
+  beforeEach(() => { db.pushDevice.findUnique.mockResolvedValue({ id: "d1", endpoint: "https://fcm.googleapis.com/fcm/send/abc", p256dh: "p", auth: "a" }); });
   it("sent", async () => {
     deliver.mockResolvedValue({ kind: "sent" });
     expect(await CHANNELS.PUSH(msg, "d1", "k")).toEqual({ kind: "sent" });

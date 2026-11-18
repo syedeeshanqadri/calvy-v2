@@ -41,7 +41,7 @@ import { settlePaidPayment } from "@/lib/onlinePayment";
 
 const SECRET = "cfsk_test_secret";
 const paidBody = JSON.stringify({ type: "PAYMENT_SUCCESS_WEBHOOK", data: { order: { order_id: "calvy_a1" }, payment: { cf_payment_id: 7, payment_amount: 10, payment_group: "upi" } } });
-const post = (url: string, body: string, sig: string, ts = "1700000000000") =>
+const post = (url: string, body: string, sig: string, ts = String(Date.now())) =>
   webhook(new NextRequest(url, { method: "POST", headers: { "x-webhook-signature": sig, "x-webhook-timestamp": ts, "content-type": "application/json" }, body }));
 
 beforeEach(() => {
@@ -51,7 +51,7 @@ beforeEach(() => {
 });
 
 describe("webhook through Vercel Deployment Protection", () => {
-  const ts = "1700000000000";
+  const ts = String(Date.now());
   const url = "https://calvy-git-x.vercel.app/api/payments/cashfree/webhook?x-vercel-protection-bypass=BYPASS123";
   it("accepts a correctly signed call that carries the bypass query parameter", async () => {
     const res = await post(url, paidBody, cashfreeSignature(ts, paidBody, SECRET), ts);
