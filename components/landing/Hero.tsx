@@ -2,7 +2,6 @@ import { Check, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { DemoButton } from "./DemoButton";
 import { HeroMockups } from "@/components/marketing/HeroMockups";
-import { photoFor } from "@/lib/marketingConfig";
 
 const BTN = "mk-focus group inline-flex min-h-[52px] w-full items-center justify-center gap-2 rounded-[14px] px-8 text-base font-semibold transition sm:w-auto";
 const PRIMARY = `${BTN} bg-cv-blue text-white hover:bg-cv-blue-dark [box-shadow:inset_0_1px_0_rgb(255_255_255/0.18),0_1px_2px_rgb(11_74_143/0.35),0_10px_24px_-8px_rgb(11_74_143/0.55)]`;
@@ -43,13 +42,12 @@ function HeroCopy() {
 
 /** Hero: near-white, a hairline underneath, the headline on the left and the visual (the product mockups on a soft arch) on the right. */
 export function Hero() {
-  const photos = { IN: photoFor("hero-doctor", "india"), INTL: photoFor("hero-doctor", "intl") };
   return (
     <section className="mk border-b border-black/[0.06] bg-[#FBFBFA] pt-16">
       <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8 lg:py-28">
-        <div className="grid grid-cols-1 items-start gap-16 lg:grid-cols-[11fr_9fr] lg:gap-12">
+        <div className="grid grid-cols-1 items-start gap-16 lg:grid-cols-2 lg:gap-12">
           <HeroCopy />
-          <div className="min-w-0"><HeroMockups photos={photos} /></div>
+          <div className="min-w-0"><HeroMockups /></div>
         </div>
       </div>
     </section>
