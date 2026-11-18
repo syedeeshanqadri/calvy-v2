@@ -41,9 +41,11 @@ export interface Charge {
   route: ChargeRoute;
 }
 
-/** Whole currency amount -> minor units (prices are stored as Float in the business currency). */
-export function toMinor(amount: number): number {
-  return Math.round(amount * 100);
+import { toMinorUnits } from "@/lib/currency";
+
+/** Whole currency amount -> minor units in that currency (prices are stored as Float in the business currency; default 2 decimals). */
+export function toMinor(amount: number, currency: string | null | undefined = "INR"): number {
+  return toMinorUnits(amount, currency);
 }
 
 /** Until Business.country exists: INR businesses are India, others international. */
@@ -63,13 +65,13 @@ export function itemCharge(price: number, s: PaySetting): number {
 }
 
 export function computeCharge(input: ChargeInput): Charge {
-  // International at launch: pay at venue only, never charged online.
-  if (input.country !== "IN") return NONE;
-
   const fee = Math.max(0, Math.round(input.platformFeeMinorIN));
   if (fee > 0) {
-    // Basic: Calvy's confirmation fee only. Business gateways and online service payments are not available.
-    return { chargeMinor: fee, platformFeeMinor: fee, businessShareMinor: 0, route: "CALVY" };
+    // The plan with a platform fee is the entry plan (Basic in India, Free abroad).
+    // India: Calvy's Rs 10 confirmation fee only. Business gateways and online service payments are not available.
+    if (input.country === "IN") return { chargeMinor: fee, platformFeeMinor: fee, businessShareMinor: 0, route: "CALVY" };
+    // International: never a Rs 10 and no own gateway on the free plan: pay at the venue.
+    return NONE;
   }
   if (!input.hasGateway) return NONE;
 
@@ -93,6 +95,8 @@ export function overrideOf(s: { payOption?: string | null; advanceKind?: string 
 /** What the booking page needs to compute the online charge (safe to send to the browser). */
 export interface PayConfig {
   country: string;
+  /** The business currency: sets the minor unit (JPY none, KWD three decimals) and what the gateway charges in. */
+  currency: string;
   platformFeeMinorIN: number;
   business: PaySetting;
   /** Mid/Top with an enabled, verified default gateway. */
@@ -106,6 +110,6 @@ export function chargeForConfig(cfg: PayConfig | null, items: { serviceId: strin
   if (!cfg) return NONE;
   return computeCharge({
     country: cfg.country, platformFeeMinorIN: cfg.platformFeeMinorIN, business: cfg.business, hasGateway: cfg.hasGateway,
-    items: items.map((i) => ({ priceMinor: toMinor(i.price), override: cfg.overrides[i.serviceId] ?? null })),
+    items: items.map((i) => ({ priceMinor: toMinor(i.price, cfg.currency), override: cfg.overrides[i.serviceId] ?? null })),
   });
 }

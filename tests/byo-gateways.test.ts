@@ -143,8 +143,8 @@ describe("stored gateways", () => {
     expect(maskKey("rzp_test_ABCDEFGH123")).toBe("rzp_test…123");
     expect(maskKey("short")).toBe("••••");
   });
-  it("adding a provider is one meta entry: Razorpay, Cashfree and PhonePe are listed with guides and fields", () => {
-    expect(GATEWAY_LIST.map((g) => g.id).sort()).toEqual(["CASHFREE", "PHONEPE", "RAZORPAY"]);
+  it("adding a provider is one meta entry: every provider is listed with guides and fields", () => {
+    expect(GATEWAY_LIST.map((g) => g.id).sort()).toEqual(["CASHFREE", "CCAVENUE", "PAYPAL", "PAYTM", "PAYU", "PHONEPE", "RAZORPAY", "STRIPE"]);
     for (const g of GATEWAY_LIST) {
       expect(g.guide.steps.length).toBeGreaterThan(1);
       expect(g.guide.links.length).toBeGreaterThan(0);

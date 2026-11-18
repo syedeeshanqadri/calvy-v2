@@ -35,3 +35,36 @@ export function formatCurrencyAmount(amount: number, currencyCode: string): stri
   }
 }
 
+
+// ---- Minor units (one place for every currency) ----
+// Amounts are stored as whole currency units in the business currency (Service.price is a Float). Gateways want the smallest
+// unit. Most currencies have 2 decimals (paise, cents); some have none (JPY) and some have 3 (KWD). No conversion between
+// currencies ever happens: a business charges in its own currency.
+const ZERO_DECIMAL = new Set(["BIF", "CLP", "DJF", "GNF", "ISK", "JPY", "KMF", "KRW", "PYG", "RWF", "UGX", "VND", "VUV", "XAF", "XOF", "XPF"]);
+const THREE_DECIMAL = new Set(["BHD", "IQD", "JOD", "KWD", "LYD", "OMR", "TND"]);
+
+/** Decimal places of a currency's smallest unit: 0 (JPY), 3 (KWD) or 2 (everything else). */
+export function minorExponent(currency: string | null | undefined): 0 | 2 | 3 {
+  const c = (currency ?? "").toUpperCase();
+  return ZERO_DECIMAL.has(c) ? 0 : THREE_DECIMAL.has(c) ? 3 : 2;
+}
+
+/**
+ * Whole units -> minor units. Three-decimal currencies are rounded to the nearest 0.01 (a multiple of 10 minor units): Stripe
+ * and the banks behind most gateways refuse the last digit, so the amount we record is exactly the amount the gateway charges.
+ */
+export function toMinorUnits(amount: number, currency: string | null | undefined): number {
+  const e = minorExponent(currency);
+  const minor = Math.round(amount * 10 ** e);
+  return e === 3 ? Math.round(minor / 10) * 10 : minor;
+}
+
+/** Minor units -> whole units (for display and for gateways that take decimal amounts). */
+export function fromMinorUnits(minor: number, currency: string | null | undefined): number {
+  return minor / 10 ** minorExponent(currency);
+}
+
+/** Decimal string with exactly the currency's decimals, for gateways that take "10.50" (PayPal, PayU). */
+export function toDecimalString(minor: number, currency: string | null | undefined): string {
+  return fromMinorUnits(minor, currency).toFixed(minorExponent(currency));
+}

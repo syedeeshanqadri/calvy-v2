@@ -1,0 +1,11 @@
+-- AlterEnum: more gateways a business can connect (PayU, CCAvenue, Paytm for India; Stripe, PayPal for international).
+ALTER TYPE "PayProvider" ADD VALUE IF NOT EXISTS 'PAYU';
+ALTER TYPE "PayProvider" ADD VALUE IF NOT EXISTS 'CCAVENUE';
+ALTER TYPE "PayProvider" ADD VALUE IF NOT EXISTS 'PAYTM';
+ALTER TYPE "PayProvider" ADD VALUE IF NOT EXISTS 'STRIPE';
+ALTER TYPE "PayProvider" ADD VALUE IF NOT EXISTS 'PAYPAL';
+ALTER TYPE "GatewayProvider" ADD VALUE IF NOT EXISTS 'PAYU';
+ALTER TYPE "GatewayProvider" ADD VALUE IF NOT EXISTS 'CCAVENUE';
+ALTER TYPE "GatewayProvider" ADD VALUE IF NOT EXISTS 'PAYTM';
+ALTER TYPE "GatewayProvider" ADD VALUE IF NOT EXISTS 'STRIPE';
+ALTER TYPE "GatewayProvider" ADD VALUE IF NOT EXISTS 'PAYPAL';

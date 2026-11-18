@@ -1,4 +1,5 @@
 import { getServerSession } from "next-auth";
+import { regionOf } from "@/lib/payments/region";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
@@ -56,7 +57,7 @@ export default async function SettingsPage() {
       tokenSessions={tokenRows.map(serializeSession)}
       staff={staff}
       payments={{
-        currency: business.currency ?? "INR", isIndia: countryFromCurrency(business.currency) === "IN",
+        currency: business.currency ?? "INR", isIndia: countryFromCurrency(business.currency) === "IN", region: regionOf({ currency: business.currency }),
         live: isFeatureEnabled("onlinePayments"),
         canUseOwnGateway: canUseOwnGateway(limits), feeMinorIN: limits.platformFeeMinorIN,
         gateways: canUseOwnGateway(limits) && !session.user.viewAs ? await listGateways(business.id) : [],

@@ -10,11 +10,12 @@ import { EXPIRED, PENDING_PAYMENT, onPaid } from "@/lib/holds";
 import { feeKept } from "@/lib/waiver";
 import { providerForGateway, gatewayWebhookUrl } from "@/lib/payments/gateways";
 import { BOOKING_TX_OPTIONS } from "@/lib/booking";
-import { getPaymentProvider, type PaymentProvider } from "@/lib/payments";
+import { getPaymentProvider, type PaymentProvider, type ProviderName } from "@/lib/payments";
 import { applyPaymentEvent } from "@/lib/payments/events";
 import { prismaPaymentEventStore } from "@/lib/payments/db";
 import type { Prisma } from "@prisma/client";
 import { enqueue, notify, sendSoon, type NotificationInput } from "@/lib/notifications/enqueue";
+import { fromMinorUnits } from "@/lib/currency";
 import { progressFor } from "@/lib/rewards/service";
 import { confirmation, noticeFrom, receipt, serviceLabel } from "@/lib/notifications/events";
 import { ownerAlert } from "@/lib/notifications/business";
@@ -54,8 +55,10 @@ export async function getPayConfig(business: {
   if (!isFeatureEnabled("onlinePayments")) return null;
   const limits = await getEffectiveLimits(business);
   const fee = limits.platformFeeMinorIN;
-  // Basic pays Calvy's Rs 10 through Calvy's Cashfree; that needs Calvy's own gateway to exist in this environment.
-  if (fee > 0 && !getPaymentProvider()) return null;
+  // India Basic pays Calvy's Rs 10 through Calvy's Cashfree; that needs Calvy's own gateway to exist in this environment.
+  // International never pays it (its free plan pays at the venue), so Calvy's Cashfree is not needed there.
+  const india = countryFromCurrency(business.currency) === "IN";
+  if (india && fee > 0 && !getPaymentProvider()) return null;
   const gateway = fee > 0 ? null : await defaultGateway(business.id);
   const overrides: Record<string, Partial<PaySetting>> = {};
   if (gateway) {
@@ -64,6 +67,7 @@ export async function getPayConfig(business: {
   }
   return {
     country: countryFromCurrency(business.currency),
+    currency: (business.currency ?? "INR").toUpperCase(),
     platformFeeMinorIN: fee,
     business: {
       option: isPayOption(business.payOption) ? business.payOption : "VENUE",
@@ -80,12 +84,14 @@ export function chargeFor(cfg: PayConfig | null, items: { serviceId: string; pri
 }
 
 export interface CheckoutInfo {
-  provider: "CASHFREE" | "MOCK" | "RAZORPAY" | "PHONEPE";
+  provider: ProviderName;
   orderId: string;
   /** Cashfree payment_session_id, or (redirect gateways) the hosted payment page URL. */
   sessionId: string;
   /** True when sessionId is a URL to send the customer to. */
   redirect?: boolean;
+  /** PayU, CCAvenue, Paytm: the browser submits this form (POST) to take the customer to the gateway. */
+  post?: { url: string; fields: Record<string, string> };
   /** Cashfree JS SDK mode. */
   env: "sandbox" | "production";
 }
@@ -134,7 +140,7 @@ export async function startCheckout(p: {
     });
     if (order.gatewayRef) await prisma.payment.update({ where: { id: payment.id }, data: { gatewayRef: order.gatewayRef } });
     const env = p.gateway ? (p.gateway.mode === "LIVE" ? "production" : "sandbox") : process.env.CASHFREE_ENV === "production" ? "production" : "sandbox";
-    return { ok: true, checkout: { provider: provider.name, orderId: order.providerOrderId, sessionId: order.sessionId, ...(order.redirect ? { redirect: true } : {}), env } };
+    return { ok: true, checkout: { provider: provider.name, orderId: order.providerOrderId, sessionId: order.sessionId, ...(order.redirect ? { redirect: true } : {}), ...(order.post ? { post: order.post } : {}), env } };
   } catch (e) {
     logger.error("[Payments] createOrder failed", { err: e, orderId });
     await prisma.$transaction(async (tx) => {
@@ -170,7 +176,7 @@ export async function buildConfirmation(db: Db, appointmentId: string, opts: Con
 
   const notice = noticeFrom(a);
   const paid = opts.payment;
-  const paidMajor = paid ? paid.amountMinor / 100 : undefined;
+  const paidMajor = paid ? fromMinorUnits(paid.amountMinor, a.business.currency) : undefined;
   // The business is always told, by email too (its own switches decide), even when the contact is not messaged.
   const owner = [
     await ownerAlert(notice, "created"),

@@ -4,7 +4,7 @@ import { useSearchParams } from "next/navigation";
 import { telemedicineNote } from "@/lib/online";
 import { ChevronLeft, ChevronRight, Check, Clock, Loader2, MapPin, Globe, Phone, Minus, Users, ArrowLeft, Video } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { formatCurrencyAmount } from "@/lib/currency";
+import { formatCurrencyAmount, fromMinorUnits, toMinorUnits } from "@/lib/currency";
 import { bookableServices, providerOptions } from "@/lib/staffMatch";
 import { safeThemeColor, readableForeground, themeVars } from "@/lib/theme";
 import { BrandMark, SocialIcons, ReviewButton, initialsOf } from "@/components/site/Brand";
@@ -57,7 +57,7 @@ interface Business {
   services: Service[]; staff: StaffMember[];
 }
 
-const toMinorPrice = (amount: number) => Math.round(amount * 100);
+
 
 /** `fontClasses` carries the pack fonts (see app/[slug]/fonts); without it the page falls back to system fonts. */
 export function BookingClient({ business, fontClasses, homeHref = "/", followUp = null }: { business: Business; fontClasses?: string; homeHref?: string; followUp?: FollowUpOffer | null }) {
@@ -325,15 +325,15 @@ export function BookingClient({ business, fontClasses, homeHref = "/", followUp 
   const onlineCharge = payConfig ? chargeForConfig(payConfig, selectedServiceObjs.map((sv) => ({ serviceId: sv.id, price: sv.price }))) : null;
   const rewardFree = !!reward && reward.available > 0 && onlineCharge?.route === "CALVY";
   const payNowMinor = onlineCharge?.chargeMinor ?? 0;
-  const payNowLabel = formatCurrencyAmount(payNowMinor / 100, business.currency);
+  const payNowLabel = formatCurrencyAmount(fromMinorUnits(payNowMinor, business.currency), business.currency);
   // Phone is required in India, and whenever an online payment is due.
-  const phoneNeeded = !!business.phoneRequired || payNowMinor > 0;
+  const phoneNeeded = !!business.phoneRequired || (payNowMinor > 0 && payConfig?.country === "IN");
   const paymentLabel = payConfig
     ? rewardFree ? `This booking is free (reward), service paid at ${appt1}` : payNowMinor === 0
       ? `Pay at ${appt1}`
-      : onlineCharge?.route === "CALVY" ? `${payNowLabel} confirmation fee now, service paid at ${appt1}` : onlineCharge && onlineCharge.chargeMinor < toMinorPrice(totalPrice) ? `${payNowLabel} advance now, rest at ${appt1}` : `${payNowLabel} now, online`
+      : onlineCharge?.route === "CALVY" ? `${payNowLabel} confirmation fee now, service paid at ${appt1}` : onlineCharge && onlineCharge.chargeMinor < toMinorUnits(totalPrice, business.currency) ? `${payNowLabel} advance now, rest at ${appt1}` : `${payNowLabel} now, online`
     : business.paymentMode === "postpaid" ? `Pay at ${appt1}` : "Pay now via card";
-  const payAtVenue = payConfig ? payNowMinor === 0 || onlineCharge?.route === "CALVY" || payNowMinor < toMinorPrice(totalPrice) : business.paymentMode === "postpaid";
+  const payAtVenue = payConfig ? payNowMinor === 0 || onlineCharge?.route === "CALVY" || payNowMinor < toMinorUnits(totalPrice, business.currency) : business.paymentMode === "postpaid";
 
   async function handleConfirm() {
     setLoading(true); setError("");

@@ -8,6 +8,7 @@ const VARS: Record<FeatureFlag, string> = {
   demoBooking: "FEATURE_DEMO_BOOKING",
   removeBranding: "FEATURE_REMOVE_BRANDING",
   onlinePayments: "FEATURE_ONLINE_PAYMENTS",
+  intlSubscriptions: "CF_INTL_SUBSCRIPTIONS",
 };
 
 describe("flags", () => {

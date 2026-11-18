@@ -25,7 +25,21 @@ export async function launchCheckout(c: CheckoutInfo): Promise<void> {
     window.location.assign(new URL(`/booking/mock-checkout?order_id=${encodeURIComponent(c.orderId)}`, window.location.origin).href);
     return;
   }
-  // Razorpay and PhonePe send the customer to their hosted payment page.
+  // PayU, CCAvenue and Paytm take the customer over with a form POST to their page.
+  if (c.post) {
+    const form = document.createElement("form");
+    form.method = "POST";
+    form.action = c.post.url;
+    for (const [name, value] of Object.entries(c.post.fields)) {
+      const input = document.createElement("input");
+      input.type = "hidden"; input.name = name; input.value = value;
+      form.appendChild(input);
+    }
+    document.body.appendChild(form);
+    form.submit();
+    return;
+  }
+  // Razorpay, PhonePe, Stripe and PayPal send the customer to their hosted payment page.
   if (c.redirect) {
     window.location.assign(c.sessionId);
     return;

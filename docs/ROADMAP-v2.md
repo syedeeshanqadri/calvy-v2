@@ -70,3 +70,9 @@ Write the deletion script with a dry run, and run it only after confirming which
 - Identity: the email (customer account), else phone digits. A reward can only be SPENT by a verified customer (own signed link, `?vt=`); progress is counted for everyone.
 - A reward only waives a booking that would charge the Rs 10 (Basic, India). The kept-fee rebooking (`ConfirmationWaiver`) goes first, so one booking never spends both. A cancelled booking gives its reward back; a not-attended one keeps it spent.
 - Shown on `/my`, the booking success screen (verified only), the confirmation email, and "This booking is free (reward)" at checkout.
+
+### Step 25c: gateways by region (decisions)
+- India list: Razorpay, Cashfree, PhonePe PG, PayU, CCAvenue, Paytm PG. International list: Stripe, PayPal; Square, Mollie and Adyen later. Filtered by region (currency now, `Business.country` when it exists), in the UI and on the server.
+- Own gateways on paid plans only, in both regions. India Basic = the Rs 10 to Calvy; International Free = pay at the venue; international never pays the Rs 10.
+- Same three pay options everywhere (venue / full online / advance). No currency conversion: charged in the business currency, minor units per currency in one helper.
+- Details and per-provider keys/events: `docs/payments-gateways.md`. Adapters are tested with mocks only; one sandbox payment per provider before go-live.

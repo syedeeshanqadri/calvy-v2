@@ -21,7 +21,7 @@ async function POST_handler(req: NextRequest, { params }: Ctx) {
   const rawBody = await req.text();
   let provider;
   try { provider = providerForGateway(gateway); } catch { return NextResponse.json({ error: "Gateway not configured" }, { status: 503 }); }
-  const event = provider.verifyWebhook(rawBody, req.headers);
+  const event = await provider.verifyWebhook(rawBody, req.headers);
   if (!event) return NextResponse.json({ error: "Invalid webhook signature" }, { status: 401 });
 
   if (event.kind === "PAID" && event.amountMinor == null) {

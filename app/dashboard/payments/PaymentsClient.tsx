@@ -1,4 +1,5 @@
 "use client";
+import { fromMinorUnits } from "@/lib/currency";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
@@ -17,7 +18,7 @@ interface PaymentRow {
 export function PaymentsClient({ payments, totalPaid, totalPending, paidCount, csvExport = false, upgradeHref = null }: {
   payments: PaymentRow[]; totalPaid: number; totalPending: number; paidCount: number; csvExport?: boolean; upgradeHref?: string | null;
 }) {
-  const { formatPrice } = useCurrency();
+  const { formatPrice, currency } = useCurrency();
   const router = useRouter();
   const [marking, setMarking] = useState<string | null>(null);
   const [refunding, setRefunding] = useState<string | null>(null);
@@ -94,7 +95,7 @@ export function PaymentsClient({ payments, totalPaid, totalPending, paidCount, c
                   <td className="px-4 py-3 text-sm text-[#6b6b80]">{p.date}</td>
                   <td className="px-4 py-3">
                     {p.online ? (
-                      <span className="text-xs text-[#3d3d4d]">{p.online.gateway}<br /><span className="text-[#6b6b80]">{formatPrice(p.online.amountMinor / 100)} online</span></span>
+                      <span className="text-xs text-[#3d3d4d]">{p.online.gateway}<br /><span className="text-[#6b6b80]">{formatPrice(fromMinorUnits(p.online.amountMinor, currency))} online</span></span>
                     ) : null}
                     <span className={`${p.online ? "hidden " : ""}inline-flex items-center text-xs font-semibold px-2 py-0.5 rounded-full ${p.paymentMode === "postpaid" ? "bg-amber-50 text-amber-700" : "bg-blue-50 text-blue-700"}`}>
                       {p.paymentMode === "postpaid" ? "Postpaid" : "Prepaid"}

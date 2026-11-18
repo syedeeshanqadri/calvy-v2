@@ -11,6 +11,7 @@ const ALL_OFF: FlagState = {
   demoBooking: false,
   onlinePayments: false,
   removeBranding: false,
+  intlSubscriptions: false,
 };
 
 const FlagsContext = createContext<FlagState>(ALL_OFF);

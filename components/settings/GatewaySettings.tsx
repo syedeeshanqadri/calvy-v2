@@ -3,7 +3,9 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Check, Copy, ExternalLink, Plus, Star, Trash2, AlertTriangle, CheckCircle2 } from "lucide-react";
-import { GATEWAYS, GATEWAY_LIST, type GatewayProviderId, type GatewayMeta } from "@/lib/payments/gatewayMeta";
+import { GATEWAYS, gatewaysForRegion, type GatewayProviderId, type GatewayMeta } from "@/lib/payments/gatewayMeta";
+import { fromMinorUnits, toMinorUnits } from "@/lib/currency";
+import type { PayRegion } from "@/lib/payments/region";
 import type { GatewayView } from "@/lib/payments/gatewayStore";
 
 export interface ServicePay { id: string; name: string; price: number; payOption: string | null; advanceKind: string | null; advanceValue: number | null }
@@ -11,6 +13,8 @@ export interface ServicePay { id: string; name: string; price: number; payOption
 export interface GatewaySettingsProps {
   currency: string;
   isIndia: boolean;
+  /** Which gateways to offer: India-only ones for India, international ones for everyone else. */
+  region: PayRegion;
   live: boolean;
   /** Mid/Top plans. Basic only ever pays Calvy's Rs 10 confirmation fee. */
   canUseOwnGateway: boolean;
@@ -41,7 +45,7 @@ function StatusBadge({ g }: { g: GatewayView }) {
   return <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${tone}`}>{g.status === "CONNECTED" ? "Connected" : g.status === "ERROR" ? "Error" : "Not verified"}</span>;
 }
 
-function AddGateway({ onDone, onCancel }: { onDone: () => void; onCancel: () => void }) {
+function AddGateway({ region, currency, onDone, onCancel }: { region: PayRegion; currency: string; onDone: () => void; onCancel: () => void }) {
   const [provider, setProvider] = useState<GatewayProviderId | null>(null);
   const [mode, setMode] = useState<"TEST" | "LIVE">("TEST");
   const [values, setValues] = useState<Record<string, string>>({});
@@ -70,10 +74,16 @@ function AddGateway({ onDone, onCancel }: { onDone: () => void; onCancel: () => 
         </div>
         {created.statusReason && <p role="alert" className="text-sm rounded-xl bg-red-50 text-red-700 px-3 py-2">{created.statusReason}</p>}
         <div>
-          <p className="text-sm font-semibold">Last step: tell {meta.label} where to send payment events</p>
-          <p className="text-sm text-[#6b6b80] mt-1">{meta.webhook.instructions} Events to tick: <strong>{meta.webhook.events}</strong>.</p>
-          <div className="mt-2 flex items-center gap-2"><code className="flex-1 min-w-0 truncate text-xs bg-[#f6f5f1] rounded-lg px-3 py-2">{created.webhookUrl}</code><CopyButton text={created.webhookUrl} /></div>
-          <p className="text-xs text-[#6b6b80] mt-2">Without this step, customers still pay, but the booking is confirmed only when they return to the page.</p>
+          {meta.webhook.none ? (
+            <p className="text-sm text-[#6b6b80]">{meta.webhook.instructions} {meta.note}</p>
+          ) : (
+            <>
+              <p className="text-sm font-semibold">Last step: tell {meta.label} where to send payment events</p>
+              <p className="text-sm text-[#6b6b80] mt-1">{meta.webhook.instructions} Events to tick: <strong>{meta.webhook.events}</strong>.</p>
+              <div className="mt-2 flex items-center gap-2"><code className="flex-1 min-w-0 truncate text-xs bg-[#f6f5f1] rounded-lg px-3 py-2">{created.webhookUrl}</code><CopyButton text={created.webhookUrl} /></div>
+              <p className="text-xs text-[#6b6b80] mt-2">Without this step, customers still pay, but the booking is confirmed only when they return to the page.</p>
+            </>
+          )}
         </div>
         <button type="button" onClick={onDone} className={`${btn} bg-[#0f0f1a] text-white`}>Done</button>
       </div>
@@ -84,14 +94,17 @@ function AddGateway({ onDone, onCancel }: { onDone: () => void; onCancel: () => 
     <div className={`${card} space-y-4`}>
       <div className="flex items-center justify-between"><h3 className="font-syne font-bold text-lg">Add payment gateway</h3><button type="button" onClick={onCancel} className="text-sm underline text-[#6b6b80]">Cancel</button></div>
       <div className="grid sm:grid-cols-3 gap-3">
-        {GATEWAY_LIST.map((g) => (
-          <button key={g.id} type="button" onClick={() => { setProvider(g.id); setValues({}); setError(""); }}
-            className={`text-left p-4 rounded-xl border-2 ${provider === g.id ? "border-[#0f0f1a]" : "border-[#e8e6e0]"}`}>
+        {gatewaysForRegion(region).map((g) => {
+          const unsupported = !!g.currencies && !g.currencies.includes(currency.toUpperCase());
+          return (
+          <button key={g.id} type="button" disabled={unsupported} onClick={() => { setProvider(g.id); setValues({}); setError(""); }}
+            className={`text-left p-4 rounded-xl border-2 disabled:opacity-50 ${provider === g.id ? "border-[#0f0f1a]" : "border-[#e8e6e0]"}`}>
             <span className="grid place-items-center h-10 w-10 rounded-xl bg-[#0f0f1a] text-white font-bold text-sm">{g.label.slice(0, 2)}</span>
             <p className="font-semibold mt-2">{g.label}</p>
-            <p className="text-xs text-[#6b6b80]">{g.tagline}</p>
+            <p className="text-xs text-[#6b6b80]">{unsupported ? `Not available in ${currency.toUpperCase()}.` : g.tagline}</p>
           </button>
-        ))}
+          );
+        })}
       </div>
       {meta && (
         <>
@@ -102,9 +115,10 @@ function AddGateway({ onDone, onCancel }: { onDone: () => void; onCancel: () => 
           </div>
           <fieldset className="flex gap-2" aria-label="Mode">
             {(["TEST", "LIVE"] as const).map((m) => (
-              <button key={m} type="button" onClick={() => setMode(m)} className={`${btn} border ${mode === m ? "bg-[#0f0f1a] text-white border-[#0f0f1a]" : "border-[#e8e6e0]"}`}>{m === "TEST" ? "Test mode" : "Live mode"}</button>
+              <button key={m} type="button" onClick={() => setMode(m)} className={`${btn} border ${mode === m ? "bg-[#0f0f1a] text-white border-[#0f0f1a]" : "border-[#e8e6e0]"}`}>{(meta.modeLabels ?? { TEST: "Test mode", LIVE: "Live mode" })[m]}</button>
             ))}
           </fieldset>
+          {meta.note && <p className="text-sm rounded-xl bg-amber-50 text-amber-900 px-3 py-2">{meta.note}</p>}
           <div className="grid sm:grid-cols-2 gap-3">
             {meta.fields.map((f) => (
               <label key={f.key} className="block text-xs font-semibold text-[#6b6b80]">{f.label}
@@ -152,10 +166,10 @@ function GatewayCard({ g, onChanged }: { g: GatewayView; onChanged: () => void }
         <button type="button" disabled={busy} onClick={() => patch({ mode: g.mode === "LIVE" ? "TEST" : "LIVE" })} className={`${btn} border border-[#e8e6e0]`}>Switch to {g.mode === "LIVE" ? "test" : "live"}</button>
         <button type="button" disabled={busy} onClick={() => { if (confirm(`Remove ${g.label}? Payments already taken keep their record.`)) call(`/api/settings/gateways/${g.id}`, { method: "DELETE" }); }} className={`${btn} border border-red-200 text-red-700 inline-flex items-center gap-1`}><Trash2 size={14} /> Remove</button>
       </div>
-      <div>
+      {meta.webhook.none ? <p className="text-xs text-[#6b6b80]">{meta.note}</p> : <div>
         <p className="text-xs font-semibold text-[#6b6b80]">Webhook URL for {meta.label} ({meta.webhook.events})</p>
         <div className="mt-1 flex items-center gap-2"><code className="flex-1 min-w-0 truncate text-xs bg-[#f6f5f1] rounded-lg px-3 py-2">{g.webhookUrl}</code><CopyButton text={g.webhookUrl} /></div>
-      </div>
+      </div>}
       {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
     </div>
   );
@@ -167,7 +181,7 @@ function PayOptions({ p, hasDefault }: { p: GatewaySettingsProps; hasDefault: bo
   const router = useRouter();
   const [option, setOption] = useState(p.payOption);
   const [kind, setKind] = useState(p.advanceKind);
-  const [value, setValue] = useState(String(p.advanceKind === "FIXED" ? p.advanceValue / 100 : p.advanceValue));
+  const [value, setValue] = useState(String(p.advanceKind === "FIXED" ? fromMinorUnits(p.advanceValue, p.currency) : p.advanceValue));
   const [svc, setSvc] = useState<Record<string, string>>(() => Object.fromEntries(p.services.map((s) => [s.id, s.payOption ?? ""])));
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
@@ -176,7 +190,7 @@ function PayOptions({ p, hasDefault }: { p: GatewaySettingsProps; hasDefault: bo
     setBusy(true); setMsg(null);
     try {
       const n = Number(value);
-      const advanceValue = kind === "FIXED" ? Math.round(n * 100) : Math.round(n);
+      const advanceValue = kind === "FIXED" ? toMinorUnits(n, p.currency) : Math.round(n);
       const services = Object.fromEntries(p.services.filter((s) => (s.payOption ?? "") !== svc[s.id]).map((s) => [s.id, svc[s.id] ? { payOption: svc[s.id], advanceKind: kind, advanceValue } : { payOption: null }]));
       const res = await fetch("/api/settings/payments", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ payOption: option, advanceKind: kind, advanceValue: advanceValue || 1, services }) });
       const json = await res.json().catch(() => ({}));
@@ -230,19 +244,29 @@ export function GatewaySettings(p: GatewaySettingsProps) {
   const router = useRouter();
   const [adding, setAdding] = useState(false);
 
-  if (!p.isIndia) {
-    return <div className={card}><p className="text-sm text-[#3d3d4d]">Online payments are available for businesses in India. Customers pay at the venue.</p></div>;
-  }
   if (!p.canUseOwnGateway) {
     return (
       <div className={`${card} space-y-3`}>
         <h3 className="font-syne font-bold text-lg">Online payments</h3>
-        <p className="text-sm text-[#3d3d4d]">On your current plan, customers pay a Rs {p.feeMinorIN / 100} confirmation fee to Calvy when they book, and pay for the service at the venue.</p>
-        <div className="rounded-xl bg-[#f6f5f1] p-4">
-          <p className="text-sm font-semibold">Take payments into your own account</p>
-          <p className="text-sm text-[#6b6b80] mt-1">On the Pro and Business plans there is no Rs {p.feeMinorIN / 100} fee. You connect your own Razorpay, Cashfree or PhonePe account, and customers pay you directly, in full or as an advance. Calvy never holds your money.</p>
-          <Link href="/dashboard/billing" className="inline-block mt-3 text-sm font-semibold underline">See plans</Link>
-        </div>
+        {p.region === "IN" ? (
+          <>
+            <p className="text-sm text-[#3d3d4d]">On your current plan, customers pay a Rs {p.feeMinorIN / 100} confirmation fee to Calvy when they book, and pay for the service at the venue.</p>
+            <div className="rounded-xl bg-[#f6f5f1] p-4">
+              <p className="text-sm font-semibold">Take payments into your own account</p>
+              <p className="text-sm text-[#6b6b80] mt-1">On the Pro and Business plans there is no Rs {p.feeMinorIN / 100} fee. You connect your own Razorpay, Cashfree, PhonePe, PayU, CCAvenue or Paytm account, and customers pay you directly, in full or as an advance. Calvy never holds your money.</p>
+              <Link href="/dashboard/billing" className="inline-block mt-3 text-sm font-semibold underline">See plans</Link>
+            </div>
+          </>
+        ) : (
+          <>
+            <p className="text-sm text-[#3d3d4d]">On your current plan, customers pay for the service at the venue.</p>
+            <div className="rounded-xl bg-[#f6f5f1] p-4">
+              <p className="text-sm font-semibold">Take payments into your own account</p>
+              <p className="text-sm text-[#6b6b80] mt-1">On a paid plan you connect your own Stripe or PayPal account, and customers pay you directly in {p.currency}, in full or as an advance. Calvy never holds your money.</p>
+              <Link href="/dashboard/billing" className="inline-block mt-3 text-sm font-semibold underline">See plans</Link>
+            </div>
+          </>
+        )}
       </div>
     );
   }
@@ -259,7 +283,7 @@ export function GatewaySettings(p: GatewaySettingsProps) {
         {!adding && <button type="button" onClick={() => setAdding(true)} className={`${btn} bg-[#0f0f1a] text-white inline-flex items-center gap-1 shrink-0`}><Plus size={16} /> Add payment gateway</button>}
       </div>
       {!p.live && <p className="text-sm rounded-xl bg-amber-50 text-amber-900 px-3 py-2">Online payments are switched off for now (FEATURE_ONLINE_PAYMENTS). You can connect a gateway; customers will not be charged until it is switched on.</p>}
-      {adding && <AddGateway onDone={refresh} onCancel={() => setAdding(false)} />}
+      {adding && <AddGateway region={p.region} currency={p.currency} onDone={refresh} onCancel={() => setAdding(false)} />}
       {p.gateways.length === 0 && !adding && <div className={card}><p className="text-sm text-[#6b6b80]">No gateway yet. Add one to take online payments; until then customers pay at the venue.</p></div>}
       {p.gateways.map((g) => <GatewayCard key={g.id} g={g} onChanged={refresh} />)}
       <PayOptions p={p} hasDefault={hasDefault} />
