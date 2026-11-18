@@ -22,7 +22,7 @@ const WHAT_YOU_GET = [
   { Svg: Gift, title: "Rewards for loyal customers", body: "Customers who keep coming back earn rewards, and there is more on the way." },
 ];
 
-const aboutPhotos = photosFor("hero-doctor");
+const aboutPhotos = photosFor("about");
 
 export default function AboutPage() {
   return (
@@ -31,7 +31,7 @@ export default function AboutPage() {
         title="Bookings for small service businesses, made simple"
         intro="Calvy gives small service businesses a website and an online booking page they can set up in minutes, without a developer."
         visual={aboutPhotos.IN || aboutPhotos.INTL ? (
-          <div className="relative aspect-[5/4] w-full overflow-hidden rounded-mk-img bg-cv-blue"><RegionPhoto photos={aboutPhotos} position="15% 45%" className="-scale-x-100" sizes="(max-width: 1024px) 92vw, 40vw"><span /></RegionPhoto></div>
+          <div className="relative aspect-[5/4] w-full overflow-hidden rounded-mk-img bg-cv-blue"><RegionPhoto photos={aboutPhotos} position="35% 40%" sizes="(max-width: 1024px) 92vw, 40vw"><span /></RegionPhoto></div>
         ) : <Phone name="booking" alt="A Calvy booking page on a phone" priority className="max-w-[280px]" />}
       >
         <div className="mt-9 flex flex-wrap gap-3">
