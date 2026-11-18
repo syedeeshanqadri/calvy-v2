@@ -1,5 +1,4 @@
 "use client";
-import Link from "next/link";
 import { Calendar, Bell, Globe, Users, Star, Smartphone, Repeat, CreditCard, Gift, Video, UserCircle, BarChart3, Layers, Megaphone, Palette, Receipt, type LucideIcon } from "lucide-react";
 import { useRegion } from "./useRegion";
 import type { Region } from "@/lib/pricing";
@@ -10,7 +9,7 @@ interface Feature { Icon: LucideIcon; title: string; desc: string; plan: string;
 const BASE: Feature[] = [
   { Icon: Calendar, title: "Time slots and token queues", desc: "Let customers pick a time, or take a token and wait their turn, the way clinics and walk-in shops work. Both run from one booking link, with a live queue page for customers.", plan: "All plans", bg: "bg-sky-50", cls: "text-sky-600" },
   { Icon: Globe, title: "A free website, built for you", desc: "Every business gets a website with services, team, hours and a Book Now button. Edit the text, photos, colours and sections in the website builder.", plan: "All plans", bg: "bg-purple-50", cls: "text-purple-600" },
-  { Icon: Bell, title: "Email, WhatsApp and push alerts", desc: "Confirmations and reminders by email on every plan, WhatsApp on Pro and Business (message charges are billed by Meta to your own WhatsApp Business account), and instant push alerts on your phone.", plan: "Email: all plans · WhatsApp: Pro and Business", bg: "bg-green-50", cls: "text-green-600" },
+  { Icon: Bell, title: "Email, WhatsApp and push alerts", desc: "Confirmations and reminders by email on every plan, WhatsApp on Pro and Business, and instant push alerts on your phone.", plan: "Email: all plans · WhatsApp: Pro and Business", bg: "bg-green-50", cls: "text-green-600" },
   { Icon: Users, title: "Team roles", desc: "Add staff and receptionists with their own logins. Each person sees only what their role allows.", plan: "Pro and Business", bg: "bg-rose-50", cls: "text-rose-500" },
   { Icon: Star, title: "Reviews", desc: "Show your Google reviews link on your website and ask happy customers to leave one after a visit.", plan: "All plans", bg: "bg-amber-50", cls: "text-amber-600" },
   { Icon: Repeat, title: "Follow-ups", desc: "Offer a free follow-up visit for a set number of days after an appointment, and let customers book again in a tap.", plan: "All plans", bg: "bg-blue-50", cls: "text-blue-600" },
@@ -26,8 +25,8 @@ const BASE: Feature[] = [
 
 const PAYMENTS: Record<Region, Feature> = {
   IN: {
-    Icon: CreditCard, title: "Online payments", plan: "Free: ₹10 confirmation fee · Pro and Business: your own gateway",
-    desc: "On the free plan customers pay a ₹10 confirmation fee when they book online (it is not refunded, but they can rebook once at the same business without paying it again) and pay for the service at your place. On Pro and Business there is no ₹10: connect your own Razorpay, Cashfree, PhonePe, PayU, CCAvenue or Paytm account and customers pay you directly, in full or as an advance. Calvy never holds your money.",
+    Icon: CreditCard, title: "Online payments", plan: "Free",
+    desc: "On the free plan customers pay a nominal confirmation fee when they book online, and pay for the service at your place. On Pro and Business there is no platform fee: connect your own payment account and customers pay you directly, in full or as an advance.",
     bg: "bg-emerald-50", cls: "text-emerald-600",
   },
   INTL: {
@@ -70,10 +69,7 @@ export function Features() {
             </div>
           ))}
         </div>
-        <p className="text-center text-sm text-gray-600 mt-10 max-w-2xl mx-auto leading-relaxed">
-          <strong>Recently added:</strong> your own payment gateways, token queues and rewards. <strong>On the way:</strong> more rewards. Calvy is updated often, and plan details are always on the <Link href="/pricing" className="underline">pricing page</Link>.
-        </p>
-      </div>
+              </div>
     </section>
   );
 }

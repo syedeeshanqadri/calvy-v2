@@ -21,8 +21,8 @@ describe("step-21 honest public site", () => {
     expect([business.monthly, business.yearlyPerMonth]).toEqual([PLAN_META.business.price, PLAN_META.business.annualPrice]);
     expect(read("lib/pricing.ts")).toMatch(/from "@\/lib\/planMeta"/);
   });
-  it("India shows the Rs 10 fee, and WhatsApp charges are said to be billed by Meta", () => {
-    expect(REGION_PRICING.IN.headline).toMatch(/₹10 per confirmed online booking/);
+  it("India states a nominal platform fee (no amount on the marketing pages), and WhatsApp charges are said to be billed by Meta", () => {
+    expect(REGION_PRICING.IN.plans[0].features.join(" ")).toMatch(/nominal platform fee/);
     expect(WHATSAPP_NOTE).toMatch(/billed by Meta/);
     expect(read("components/landing/PricingClient.tsx")).toContain("WHATSAPP_NOTE");
   });
@@ -106,7 +106,7 @@ describe("step-26 public gaps", () => {
   });
   it("landing lists own gateways per region and rewards, without describing how rewards work", () => {
     const f = read2("components/landing/Features.tsx");
-    for (const n of ["Razorpay, Cashfree, PhonePe, PayU, CCAvenue or Paytm", "Stripe or PayPal", "Rewards", "lots more rewards"]) expect(f).toContain(n);
+    for (const n of ["your own payment account", "Stripe or PayPal", "Rewards", "lots more rewards"]) expect(f).toContain(n);
     expect(f).not.toMatch(/7 (attended|visits)|every 8th|8th/i);
   });
   it("terms explain upgrades; contact shows the team address; cookie and for pages exist and are in the sitemap and footer", () => {

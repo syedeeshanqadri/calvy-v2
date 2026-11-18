@@ -19,44 +19,42 @@ export function InlineCTABand() {
   return (
     <section className="pt-0 pb-16 sm:pb-20 lg:pb-24">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-sky-600 to-sky-700 px-6 py-12 sm:px-12 shadow-2xl shadow-sky-200">
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-sky-600 to-sky-700 px-6 py-12 sm:px-12 sm:py-14 shadow-xl shadow-sky-900/10">
           {/* decorative orbs */}
-          <div className="absolute -top-16 -right-10 w-64 h-64 rounded-full bg-white/10 blur-2xl" />
-          <div className="absolute -bottom-20 -left-10 w-72 h-72 rounded-full bg-sky-400/20 blur-2xl" />
+          <div className="absolute -top-16 -right-10 w-64 h-64 rounded-full bg-white/10 blur-2xl" aria-hidden />
+          <div className="absolute -bottom-20 -left-10 w-72 h-72 rounded-full bg-sky-400/20 blur-2xl" aria-hidden />
 
-          <div className="relative flex flex-col lg:flex-row lg:items-center gap-8">
-            <div className="flex-1">
-              <h3 className="font-syne font-extrabold text-2xl sm:text-3xl text-white leading-tight mb-2">
-                Turn no-shows into no-problem.
-              </h3>
-              <p className="text-sky-100 text-base max-w-md">
-                Reminders go out on their own, so fewer people forget. Start free in minutes.
-              </p>
-            </div>
+          <div className="relative mx-auto max-w-2xl text-center">
+            <h3 className="font-syne font-extrabold text-2xl sm:text-4xl text-white leading-tight text-balance">
+              Turn no-shows into <span className="whitespace-nowrap">no-problem.</span>
+            </h3>
+            <p className="mt-3 text-sky-100 text-base sm:text-lg leading-relaxed text-balance">
+              Reminders go out on their own, so fewer people forget. Start free in minutes.
+            </p>
 
-            <div className="lg:w-[440px] flex-shrink-0">
+            <div className="mt-8 mx-auto max-w-xl">
               {state === "done" ? (
-                <div className="flex items-center gap-3 bg-white/15 backdrop-blur rounded-2xl px-5 py-4">
+                <div className="flex items-center justify-center gap-3 bg-white/15 backdrop-blur rounded-2xl px-5 py-4">
                   <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center flex-shrink-0">
                     <Check size={16} className="text-sky-600" strokeWidth={3} />
                   </div>
                   <p className="text-white font-medium text-sm">You&apos;re in! Check your inbox to get started.</p>
                 </div>
               ) : (
-                <form onSubmit={submit}>
+                <form onSubmit={submit} noValidate>
                   <div className="flex flex-col sm:flex-row gap-2.5">
                     <input
-                      type="email" value={email}
+                      type="email" value={email} aria-label="Your email"
                       onChange={e => { setEmail(e.target.value); setError(""); }}
                       placeholder="you@business.com"
-                      className="flex-1 rounded-2xl bg-white px-5 py-3.5 text-base text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-4 focus:ring-white/30 transition-all"
+                      className="flex-1 min-w-0 rounded-2xl bg-white px-5 py-3.5 text-base text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-4 focus:ring-white/30 transition-all"
                     />
                     <button type="submit" disabled={state === "loading"}
                       className="group inline-flex items-center justify-center gap-2 bg-[#0f0f1a] hover:bg-black text-white font-semibold px-6 py-3.5 rounded-2xl transition-all hover:-translate-y-0.5 disabled:opacity-70 whitespace-nowrap">
                       {state === "loading" ? <Loader2 size={18} className="animate-spin" /> : <>Get started <ArrowRight size={17} className="group-hover:translate-x-1 transition-transform" /></>}
                     </button>
                   </div>
-                  {error && <p className="text-sm text-white/90 mt-2 ml-1">{error}</p>}
+                  {error && <p role="alert" className="text-sm text-white mt-2.5">{error}</p>}
                 </form>
               )}
             </div>
