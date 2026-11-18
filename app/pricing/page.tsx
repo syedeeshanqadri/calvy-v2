@@ -3,6 +3,8 @@ import { Navbar } from "@/components/landing/Navbar";
 import { Footer } from "@/components/landing/Footer";
 import PricingClient from "@/components/landing/PricingClient";
 import { REGION_PRICING, formatMoney } from "@/lib/pricing";
+import { SITE_URL } from "@/lib/site";
+import { jsonLdString } from "@/lib/jsonLd";
 
 const intl = REGION_PRICING.INTL;
 const [, pro, business] = intl.plans;
@@ -18,9 +20,26 @@ export const metadata: Metadata = {
 };
 
 // Server-rendered as International; the visitor's region (cookie or detection) is applied on the client.
+const pricingJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  name: "Calvy",
+  url: SITE_URL,
+  applicationCategory: "BusinessApplication",
+  offers: intl.plans.map((p) => ({
+    "@type": "Offer",
+    name: p.name,
+    price: String(p.monthly),
+    priceCurrency: intl.currency,
+    url: `${SITE_URL}/pricing`,
+    description: p.description,
+  })),
+};
+
 export default function PricingPage() {
   return (
     <main>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString(pricingJsonLd) }} />
       <Navbar />
       <div className="pt-16">
         <PricingClient headingLevel="h1" />

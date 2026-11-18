@@ -3,6 +3,7 @@ import { publicSiteUrl } from "@/lib/siteBase";
 import type { MetadataRoute } from "next";
 import { prisma } from "@/lib/prisma";
 import { HELP_ARTICLES } from "@/lib/helpArticles";
+import { FOR_PAGES } from "@/lib/forPages";
 
 const APP_URL = SITE_URL;
 const ROOT_DOMAIN = process.env.NEXT_PUBLIC_ROOT_DOMAIN ?? "calvy.io";
@@ -23,6 +24,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${APP_URL}/contact`, changeFrequency: "yearly", priority: 0.4 },
     { url: `${APP_URL}/service-delivery`, changeFrequency: "yearly", priority: 0.3 },
     { url: `${APP_URL}/data-deletion`, changeFrequency: "yearly", priority: 0.3 },
+    { url: `${APP_URL}/cookies`, changeFrequency: "yearly", priority: 0.3 },
+    ...FOR_PAGES.map((p) => ({ url: `${APP_URL}/for/${p.slug}`, changeFrequency: "monthly" as const, priority: 0.7 })),
   ];
 
   let posts: { slug: string; updatedAt: Date }[] = [];

@@ -364,7 +364,7 @@ Once the webhook returns 200, paid bookings appear instantly. See *Gateway webho
     keywords: ["not attended", "no show", "confirmation fee", "rebook", "rs 10"],
     body: `On the Basic plan, the Rs 10 confirmation fee is **never refunded** when a confirmed booking is cancelled or not attended. The booking shows **Not attended — confirmation still valid**.
 
-The customer can **rebook once** at your business without paying the Rs 10 again (or use a free follow-up if you enabled them). There is no wallet balance and nothing to withdraw.`,
+The customer can **rebook once** at your business without paying the Rs 10 again (or use a free follow-up if you enabled them). There is no balance to track and nothing to withdraw.`,
   },
   {
     slug: "test-payments-in-test-mode",

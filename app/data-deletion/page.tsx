@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { LegalLayout } from "@/components/legal/LegalLayout";
 import { SUPPORT_EMAIL } from "@/lib/site";
+import { DeletionForm } from "./DeletionForm";
 
 export const metadata: Metadata = {
   title: "User Data Deletion · Calvy",
@@ -13,11 +14,12 @@ export default function DataDeletionPage() {
   return (
     <LegalLayout
       title="User Data Deletion"
-      lastUpdated="November 17, 2026"
+      lastUpdated="November 18, 2026"
       intro="You can ask us to delete your Calvy account and the personal data we hold about you at any time. This page explains how."
     >
       <h2>How to request deletion</h2>
-      <p>Email <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a> from the email address on your Calvy account with the subject &quot;Delete my data&quot;. Tell us whether you are a business owner, a team member or a customer who booked through a business page. We may ask you to confirm it is really you before we act. We reply to confirm the request and tell you when the deletion is done.</p>
+      <p>Use the form below, or email <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a> from the email address on your Calvy account with the subject &quot;Delete my data&quot;. Tell us whether you are a business owner, a team member or a customer who booked through a business page. We may ask you to confirm it is really you before we act. We reply to confirm the request and tell you when the deletion is done.</p>
+      <DeletionForm />
 
       <h2>What we delete</h2>
       <ul>

@@ -67,7 +67,11 @@ describe("step-21 honest public site", () => {
     for (const n of ["does not collect or hold service fees", "non-refundable", "one rebooking", "partial billing periods"]) expect(terms).toContain(n);
     for (const f of ["app/refund-policy/page.tsx", "app/terms/page.tsx", "app/contact/page.tsx", "app/privacy/page.tsx"]) expect(read(f), f).not.toMatch(/wallet credit|wallet/i);
     expect(read("app/service-delivery/page.tsx")).toMatch(/digital/i);
-    for (const f of ["app/privacy/page.tsx", "app/terms/page.tsx", "app/refund-policy/page.tsx"]) expect(read(f)).not.toContain("Razorpay");
+    // Razorpay is no longer Calvy's own processor: it may appear only as one of the gateways a BUSINESS connects (privacy page).
+    for (const f of ["app/terms/page.tsx", "app/refund-policy/page.tsx"]) expect(read(f)).not.toContain("Razorpay");
+    const privacyText = read("app/privacy/page.tsx");
+    for (const g of ["Razorpay", "Cashfree", "PhonePe", "PayU", "CCAvenue", "Paytm", "Stripe", "PayPal"]) expect(privacyText).toContain(g);
+    expect(privacyText).toContain("own payment gateway");
   });
   it("the data deletion page says how to ask, what is deleted and what may be kept, with no phone number or proprietor name", () => {
     const page = read("app/data-deletion/page.tsx");
@@ -88,5 +92,29 @@ describe("step-21 honest public site", () => {
     const home = read("app/page.tsx");
     for (const t of ['"Organization"', '"SoftwareApplication"', '"FAQPage"']) expect(home).toContain(t);
     expect(LANDING_FAQ.length).toBeGreaterThanOrEqual(6);
+  });
+});
+
+describe("step-26 public gaps", () => {
+  const read2 = read;
+  it("no customer-facing wallet wording on the public site, landing FAQ or queue page", () => {
+    for (const f of ["app/about/page.tsx", "lib/landingFaq.ts", "components/landing/Features.tsx", "app/[slug]/q/[code]/TrackClient.tsx", "app/dashboard/queue/QueueClient.tsx", "app/cookies/page.tsx"]) {
+      expect(read2(f), f).not.toMatch(/wallet credit|in (your|their) wallet|customer's wallet/i);
+    }
+    expect(read2("app/about/page.tsx")).not.toMatch(/through Cashfree/);
+    expect(read2("lib/landingFaq.ts")).not.toMatch(/Payments are processed by Cashfree/);
+  });
+  it("landing lists own gateways per region and rewards, without describing how rewards work", () => {
+    const f = read2("components/landing/Features.tsx");
+    for (const n of ["Razorpay, Cashfree, PhonePe, PayU, CCAvenue or Paytm", "Stripe or PayPal", "Rewards", "lots more rewards"]) expect(f).toContain(n);
+    expect(f).not.toMatch(/7 (attended|visits)|every 8th|8th/i);
+  });
+  it("terms explain upgrades; contact shows the team address; cookie and for pages exist and are in the sitemap and footer", () => {
+    expect(read2("app/terms/page.tsx")).toMatch(/Upgrades.*start immediately/);
+    expect(read2("app/contact/page.tsx")).toContain("TEAM_EMAIL");
+    expect(read2("components/landing/Footer.tsx")).toContain("/cookies");
+    const sm = read2("app/sitemap.ts");
+    expect(sm).toContain("/cookies");
+    expect(sm).toContain("FOR_PAGES");
   });
 });

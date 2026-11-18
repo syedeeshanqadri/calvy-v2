@@ -13,7 +13,7 @@ export default function TermsPage() {
   return (
     <LegalLayout
       title="Terms & Conditions"
-      lastUpdated="November 16, 2026"
+      lastUpdated="November 18, 2026"
       intro="These Terms & Conditions (“Terms”) govern your access to and use of Calvy (the “Service”), operated by {CONTACT.legalName} (“Calvy”, “we”, “us”). By creating an account or using the Service, you agree to be bound by these Terms. If you do not agree, do not use the Service."
     >
       <h2>1. Eligibility &amp; Accounts</h2>
@@ -27,6 +27,7 @@ export default function TermsPage() {
         <li>Calvy subscriptions are billed by Calvy, in advance, on a recurring monthly or annual basis through our payment partner.</li>
         <li>Your subscription renews automatically until cancelled. You authorize us to charge the applicable fees to your selected payment method each billing cycle.</li>
         <li>You may cancel at any time. Access continues until the end of the current billing period.</li>
+        <li><strong>Upgrades</strong> start immediately. We credit the unused part of your current period against the new plan, so you pay only the difference for the rest of that period (the credit is shown at checkout and on your invoice), and your new billing period starts from the upgrade.</li>
         <li>We do not refund partial billing periods unless the law requires it. See the <Link href="/refund-policy">Refund &amp; Cancellation Policy</Link>.</li>
         <li>Fees are exclusive of taxes unless stated otherwise. You are responsible for any applicable taxes.</li>
       </ul>
