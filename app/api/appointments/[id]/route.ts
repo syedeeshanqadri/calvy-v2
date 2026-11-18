@@ -15,6 +15,7 @@ import { safeTimeZone, formatDateLabel, formatTimeLabel, zonedTimeToUtc, utcToZo
 import { settleCancellation } from "@/lib/holds";
 import { refundPayment } from "@/lib/onlinePayment";
 import { releaseWaiver } from "@/lib/waiver";
+import { recordAttended, releaseReward } from "@/lib/rewards/service";
 import { queuePush } from "@/lib/pushQueue";
 import { shortName } from "@/lib/pushRouting";
 import { meetingUrlFor } from "@/lib/online";
@@ -174,7 +175,12 @@ async function PATCH_handler(req: NextRequest, props: { params: Promise<{ id: st
 
   // The business cancelling a booking that used the customer's free rebooking gives that rebooking back.
   if (willCancel) {
-    await prisma.$transaction((tx) => releaseWaiver(tx, appointment.id));
+    await prisma.$transaction(async (tx) => { await releaseWaiver(tx, appointment.id); await releaseReward(tx, appointment.id); });
+  }
+
+  // Attended (completed): counts one day toward the customer's loyalty reward. Never blocks the update.
+  if (willComplete) {
+    try { await recordAttended(prisma, appointment.id); } catch (err) { logger.error("[Rewards] could not count the visit", { err, appointmentId: appointment.id }); }
   }
 
   // The business cancelling a booking paid online refunds it in full, platform fee included.

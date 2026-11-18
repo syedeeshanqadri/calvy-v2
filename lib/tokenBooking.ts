@@ -11,6 +11,8 @@ import { assertNoDuplicatePatient, assertWithinPeopleCap, contactAtDailyCap } fr
 import { chargeFor, defaultGateway, sendConfirmationFor, startCheckout, type PayConfig } from "@/lib/onlinePayment";
 import { assertMonthlyHeadroom } from "@/lib/limits";
 import { claimWaiver, waiverAvailable } from "@/lib/waiver";
+import { claimReward, rewardAvailable, RewardTakenError } from "@/lib/rewards/service";
+import { rewardApplies } from "@/lib/rewards/rules";
 import { loadMeetingUrl } from "@/lib/onlineDb";
 import { addDays, formatDateLabel, parseYMD, utcToZoned, weekdayOf, zonedToUtc } from "@/lib/time";
 import {
@@ -137,6 +139,8 @@ export interface TokenBookingInput {
   tz: string;
   /** Online payment settings (null = confirm without paying). */
   payConfig: PayConfig | null;
+  /** The booker proved their email (own signed link): only then may a loyalty reward be spent. */
+  verifiedBooker?: boolean;
   /** Who the token is for (the booker unless they booked for someone else). */
   patientName: string;
   /** Relation, age and gender of someone else (already limited to what the business collects). */
@@ -194,6 +198,11 @@ export async function bookToken(input: TokenBookingInput): Promise<NextResponse>
     charge = { chargeMinor: 0, platformFeeMinor: 0, businessShareMinor: 0, route: "NONE" };
     waived = true;
   }
+  let rewarded = false;
+  if (!waived && input.verifiedBooker && rewardApplies(fullCharge) && (await rewardAvailable(prisma, { email: input.client.email, phone: input.client.phone }))) {
+    charge = { chargeMinor: 0, platformFeeMinor: 0, businessShareMinor: 0, route: "NONE" };
+    rewarded = true;
+  }
   const gateway = charge.route === "GATEWAY" ? await defaultGateway(business.id) : null;
   if (charge.route === "GATEWAY" && !gateway) return err(503, "Online payments are temporarily unavailable. Please try again later.", "PAYMENT_START_FAILED");
   const holdExpiresAt = charge.chargeMinor > 0 ? holdExpiry() : null;
@@ -220,6 +229,7 @@ export async function bookToken(input: TokenBookingInput): Promise<NextResponse>
     });
     // The waiver is claimed in the booking's own transaction: two parallel bookings cannot both skip the fee.
     if (waived && !(await claimWaiver(tx, { businessId: business.id, clientId: client.id, appointmentId: created.id }))) throw new WaiverTakenError();
+    if (rewarded && !(await claimReward(tx, { appointmentId: created.id, email: input.client.email, phone: input.client.phone }))) throw new RewardTakenError();
     return created;
   });
 

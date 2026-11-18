@@ -28,6 +28,13 @@ export interface BookingProps {
   trackUrl?: string;
   /** Online consultation. meetingUrl is null when the business has not set a link yet. Only confirmation and reminder pass it. */
   online?: { meetingUrl: string | null };
+  /** Loyalty progress (confirmation only): every 8th attended visit has the Rs 10 confirmation free. */
+  reward?: { done: number; of: number; available: number };
+}
+
+/** Loyalty progress line for the confirmation email and its text version. */
+export function rewardLine(r: { done: number; of: number; available: number }): string {
+  return r.available > 0 ? "A free booking is ready: your next Rs 10 confirmation is on us." : `Loyalty: ${r.done} of ${r.of} attended visits toward a free booking.`;
 }
 
 const appt = (p: BookingProps) => t(p.terms ?? {}, "appointment");
@@ -102,6 +109,7 @@ export function BookingConfirmationEmail(p: BookingProps) {
           <CTA color={p.tenant?.color} fg={p.tenant?.fg} href={p.trackUrl} label="Track your place in line" />
         </>
       ) : null}
+      {p.reward ? <P>{rewardLine(p.reward)}</P> : null}
       <P>We&apos;ve added this to your calendar (see the attachment). See you soon.</P>
     </EmailLayout>
   );

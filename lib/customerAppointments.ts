@@ -14,6 +14,7 @@ import { formatDateLabel, formatTimeLabel, safeTimeZone, zonedTimeToUtc } from "
 import { manageability } from "@/lib/customerView";
 import { beforeCancellationCutoff } from "@/lib/holds";
 import { meetingUrlFor } from "@/lib/online";
+import { releaseReward } from "@/lib/rewards/service";
 
 /**
  * A signed-in customer cancelling or moving their own booking. Every function takes the VERIFIED email
@@ -167,6 +168,8 @@ export async function cancelByCustomer(verifiedEmail: string, id: string): Promi
       data: { status: "cancelled", ...(a.tokenNumber ? { queueState: "CANCELLED" as const } : {}) },
     });
     if (claimed.count !== 1) return "already" as const;
+    // A booking that used a loyalty reward gives it back when cancelled.
+    await releaseReward(tx, a.id);
     return keepConfirmationFee(tx, { businessId: a.businessId, clientId: a.client.id, appointmentId: a.id });
   });
   if (kept === "already") return fail(409, "This booking was already cancelled.", "STATUS");

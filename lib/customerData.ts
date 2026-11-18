@@ -9,6 +9,8 @@ import { formatDateLabel, formatTimeLabel, safeTimeZone, utcToZoned, zonedToUtc 
 import { formatCurrencyAmount } from "@/lib/currency";
 import { trackingUrl } from "@/lib/tracking";
 import { meetingUrlFor } from "@/lib/online";
+import { progressFor } from "@/lib/rewards/service";
+import { prisma } from "@/lib/prisma";
 
 /** Everything the customer screens need, shaped for the browser: plain values, no raw links to other bookings. */
 
@@ -106,5 +108,7 @@ export const getCustomerData = cache(async () => {
   const waivers: WaiverView[] = overview.waivers.map((w) => ({ businessName: w.businessName, businessSlug: w.businessSlug }));
   const nextAt = stats.next ? { iso: stats.next.toISOString() } : null;
 
-  return { me, verified: true as const, upcoming, past, stats: { ...stats, next: nextAt }, updates, waivers };
+  // Loyalty progress ("x of 7"), for the verified email only.
+  const reward = await progressFor(prisma, { email: me.email }).catch(() => null);
+  return { me, verified: true as const, upcoming, past, stats: { ...stats, next: nextAt }, updates, waivers, reward };
 });

@@ -78,33 +78,33 @@ model VerificationToken {
 }
 
 model Business {
-  id                       String              @id @default(cuid())
+  id                       String                @id @default(cuid())
   name                     String
-  slug                     String              @unique
-  plan                     String              @default("free")
-  planStatus               String              @default("free")
+  slug                     String                @unique
+  plan                     String                @default("free")
+  planStatus               String                @default("free")
   trialEndsAt              DateTime?
-  razorpayCustomerId       String?             @unique
+  razorpayCustomerId       String?               @unique
   razorpaySubscriptionId   String?
-  ownerId                  String              @unique
-  businessType             String              @default("general")
-  packId                   PackId              @default(OTHER)
+  ownerId                  String                @unique
+  businessType             String                @default("general")
+  packId                   PackId                @default(OTHER)
   /// "IN" or "INTL"; picked in the onboarding wizard (drives currency and which price list is shown).
-  region                   String              @default("INTL")
+  region                   String                @default("INTL")
   /// Wizard progress: the step to show next (1..8). Saved per step so the wizard resumes.
-  onboardingStep           Int                 @default(1)
+  onboardingStep           Int                   @default(1)
   /// Null until the wizard is finished. Existing businesses were stamped by the migration.
   onboardingCompletedAt    DateTime?
   /// The plan the owner showed interest in during the wizard. Everyone starts on Free (subscriptions are parked).
   intendedPlan             String?
-  bookingMode              BookingMode         @default(SLOT)
-  onlinePayMode            OnlinePayMode       @default(BOOKING_FEE_ONLY)
-  feePayer                 FeePayer            @default(CUSTOMER)
+  bookingMode              BookingMode           @default(SLOT)
+  onlinePayMode            OnlinePayMode         @default(BOOKING_FEE_ONLY)
+  feePayer                 FeePayer              @default(CUSTOMER)
   /// Mid/Top plans: what customers pay online through the business's own gateway (VENUE | ONLINE_FULL | ADVANCE). Basic ignores it.
-  payOption                String              @default("VENUE")
+  payOption                String                @default("VENUE")
   /// ADVANCE: advanceValue is a percent of the price (PERCENT) or a fixed amount in minor units (FIXED).
-  advanceKind              String              @default("PERCENT")
-  advanceValue             Int                 @default(30)
+  advanceKind              String                @default("PERCENT")
+  advanceValue             Int                   @default(30)
   paymentGateways          PaymentGateway[]
   subscriptions            Subscription[]
   subscriptionInvoices     SubscriptionInvoice[]
@@ -115,15 +115,15 @@ model Business {
   address                  String?
   website                  String?
   description              String?
-  primaryColor             String              @default("#e84545")
+  primaryColor             String                @default("#e84545")
   logoUrl                  String?
   socialLinks              Json?
   googleReviewUrl          String?
   /// Notification switches (lib/notifications/prefs.ts). Null = every default.
   notificationPrefs        Json?
-  availabilityJson         String              @default("{}")
-  currency                 String              @default("USD")
-  paymentMode              String              @default("postpaid")
+  availabilityJson         String                @default("{}")
+  currency                 String                @default("USD")
+  paymentMode              String                @default("postpaid")
   bankAccountName          String?
   bankAccountNumber        String?
   bankRoutingNumber        String?
@@ -132,7 +132,7 @@ model Business {
   // Razorpay Route (linked account) onboarding
   razorpayStakeholderId    String?
   razorpayRouteProductId   String?
-  routeStatus              String              @default("not_started") // not_started | created | needs_clarification | activated
+  routeStatus              String                @default("not_started") // not_started | created | needs_clarification | activated
   legalBusinessName        String?
   rzpBusinessType          String? // proprietorship | partnership | private_limited | public_limited | llp | individual ...
   rzpCategory              String? // Razorpay profile category, e.g. "healthcare"
@@ -143,16 +143,16 @@ model Business {
   addressCity              String?
   addressState             String?
   addressPostalCode        String?
-  websiteJson              String              @default("{}")
-  slotInterval             Int                 @default(30)
-  timezone                 String              @default("Asia/Kolkata")
-  minNoticeMinutes         Int                 @default(0)
-  maxAdvanceDays           Int                 @default(90)
+  websiteJson              String                @default("{}")
+  slotInterval             Int                   @default(30)
+  timezone                 String                @default("Asia/Kolkata")
+  minNoticeMinutes         Int                   @default(0)
+  maxAdvanceDays           Int                   @default(90)
   /// Fair use: most different people one booker contact can book for per day (per session for tokens).
-  maxPeoplePerBooker       Int                 @default(4)
-  cancellationCutoffHours  Int                 @default(0)
+  maxPeoplePerBooker       Int                   @default(4)
+  cancellationCutoffHours  Int                   @default(0)
   /// Days after a completed appointment during which one free follow-up with the same doctor is allowed. 0 = off.
-  followUpDays             Int                 @default(0)
+  followUpDays             Int                   @default(0)
   /// Set by a Calvy admin: no NEW bookings; existing bookings and reminders carry on.
   suspendedAt              DateTime?
   suspendedReason          String?
@@ -168,10 +168,10 @@ model Business {
   payments                 Payment[]
   customerCredits          CustomerCredit[]
   platformFees             PlatformFeeEntry[]
-  createdAt                DateTime            @default(now())
-  updatedAt                DateTime            @updatedAt
+  createdAt                DateTime              @default(now())
+  updatedAt                DateTime              @updatedAt
   appointments             Appointment[]
-  owner                    User                @relation(fields: [ownerId], references: [id])
+  owner                    User                  @relation(fields: [ownerId], references: [id])
   clients                  Client[]
   services                 Service[]
   staff                    Staff[]
@@ -233,9 +233,9 @@ model Service {
   business        Business       @relation(fields: [businessId], references: [id], onDelete: Cascade)
   staff           StaffService[]
   /// Per-service override of the business pay option (null = use the business setting).
-  payOption          String?
-  advanceKind        String?
-  advanceValue       Int?
+  payOption       String?
+  advanceKind     String?
+  advanceValue    Int?
 }
 
 model StaffService {
@@ -248,31 +248,31 @@ model StaffService {
 }
 
 model Client {
-  id                    String           @id @default(cuid())
+  id                    String               @id @default(cuid())
   businessId            String
   name                  String
   email                 String?
   phone                 String?
   notes                 String?
-  totalAppointments     Int              @default(0)
-  totalSpent            Float            @default(0)
+  totalAppointments     Int                  @default(0)
+  totalSpent            Float                @default(0)
   lastVisit             DateTime?
   /// Ticked "Get updates on WhatsApp" (never pre-ticked). Without it no WhatsApp message is ever sent to this client.
-  whatsappConsent       Boolean          @default(false)
-  whatsappConsentAt     DateTime?        @db.Timestamptz(3)
+  whatsappConsent       Boolean              @default(false)
+  whatsappConsentAt     DateTime?            @db.Timestamptz(3)
   /// Where it was given: booking_form | chat_widget
   whatsappConsentSource String?
   /// Desk consent only: the staff user who recorded that the customer agreed verbally.
   whatsappConsentBy     String?
-  createdAt             DateTime         @default(now())
+  createdAt             DateTime             @default(now())
   appointments          Appointment[]
   credits               CustomerCredit[]
-  business              Business         @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  business              Business             @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  confirmationWaivers   ConfirmationWaiver[]
 
   @@unique([businessId, email])
   @@unique([businessId, phone])
   @@index([businessId])
-  confirmationWaivers ConfirmationWaiver[]
 }
 
 model PlanConfig {
@@ -396,10 +396,10 @@ model WithdrawalRequest {
 
 /// One browser/phone that agreed to push, for one signed-in user. Deleted on logout, member removal, permission revoke, and when the push service answers 404/410.
 model PushDevice {
-  id         String   @id @default(cuid())
+  id         String    @id @default(cuid())
   userId     String
   businessId String
-  endpoint   String   @unique
+  endpoint   String    @unique
   p256dh     String
   auth       String
   userAgent  String?
@@ -407,10 +407,10 @@ model PushDevice {
   keyFp      String?
   /// When the push service last accepted a message for this device (alert or test): the Phone alerts checklist shows it.
   lastPushAt DateTime?
-  createdAt  DateTime @default(now())
-  lastSeenAt DateTime @default(now())
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  createdAt  DateTime  @default(now())
+  lastSeenAt DateTime  @default(now())
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  business   Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([businessId])
@@ -1080,42 +1080,42 @@ enum SubscriptionState {
 /// prorate and retry). The CURRENT one is the newest that is not ENDED. An upgrade is a new row (new mandate whose first charge is the
 /// price minus the prorated credit); the old row ends when the new one is paid. Business.plan is set from it (lib/subscriptions/state).
 model Subscription {
-  id                      String            @id @default(cuid())
-  businessId              String
-  planId                  String // professional | business (Mid / Top)
-  interval                String // MONTHLY | YEARLY
-  state                   SubscriptionState @default(PENDING)
+  id                     String                @id @default(cuid())
+  businessId             String
+  planId                 String // professional | business (Mid / Top)
+  interval               String // MONTHLY | YEARLY
+  state                  SubscriptionState     @default(PENDING)
   /// Our id at Cashfree (subscription_id) and Cashfree's own (cf_subscription_id).
-  cashfreeSubscriptionId  String            @unique
-  cfSubscriptionId        String?
-  amountMinor             Int // the full price per cycle, GST included
+  cashfreeSubscriptionId String                @unique
+  cfSubscriptionId       String?
+  amountMinor            Int // the full price per cycle, GST included
   /// Proration credit taken off the FIRST charge of an upgrade, and the first charge it produced.
-  creditMinor             Int               @default(0)
-  firstChargeMinor        Int               @default(0)
-  upgradeOfId             String?
+  creditMinor            Int                   @default(0)
+  firstChargeMinor       Int                   @default(0)
+  upgradeOfId            String?
   /// upi_card (the authorisation payment IS the first charge) | enach (authorise for 0, then Calvy raises the first charge)
-  method                  String            @default("upi_card")
-  paymentMethodLabel      String?
-  currentPeriodStart      DateTime?         @db.Timestamptz(3)
-  currentPeriodEnd        DateTime?         @db.Timestamptz(3)
-  nextChargeAt            DateTime?         @db.Timestamptz(3)
+  method                 String                @default("upi_card")
+  paymentMethodLabel     String?
+  currentPeriodStart     DateTime?             @db.Timestamptz(3)
+  currentPeriodEnd       DateTime?             @db.Timestamptz(3)
+  nextChargeAt           DateTime?             @db.Timestamptz(3)
   /// A change that starts at the end of the period: "free" = cancel, or another paid plan (downgrade).
-  pendingPlanId           String?
-  pendingInterval         String?
+  pendingPlanId          String?
+  pendingInterval        String?
   /// The charge Calvy raised and is waiting on (payment id at Cashfree), and when.
-  chargePaymentId         String?
-  chargeRaisedAt          DateTime?         @db.Timestamptz(3)
+  chargePaymentId        String?
+  chargeRaisedAt         DateTime?             @db.Timestamptz(3)
   /// Failed-payment handling.
-  failedCount             Int               @default(0)
-  firstFailedAt           DateTime?         @db.Timestamptz(3)
-  graceUntil              DateTime?         @db.Timestamptz(3)
-  dunningSent             Int               @default(0)
-  lastChargeRetryAt       DateTime?         @db.Timestamptz(3)
-  endedReason             String?
-  createdAt               DateTime          @default(now())
-  updatedAt               DateTime          @updatedAt
-  business                Business          @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  invoices                SubscriptionInvoice[]
+  failedCount            Int                   @default(0)
+  firstFailedAt          DateTime?             @db.Timestamptz(3)
+  graceUntil             DateTime?             @db.Timestamptz(3)
+  dunningSent            Int                   @default(0)
+  lastChargeRetryAt      DateTime?             @db.Timestamptz(3)
+  endedReason            String?
+  createdAt              DateTime              @default(now())
+  updatedAt              DateTime              @updatedAt
+  business               Business              @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  invoices               SubscriptionInvoice[]
 
   @@index([businessId, createdAt])
   @@index([state, nextChargeAt])
@@ -1123,29 +1123,29 @@ model Subscription {
 
 /// One issued invoice (GST registered: "Tax invoice") or receipt (no GSTIN yet: no GST line). Numbered per Indian financial year.
 model SubscriptionInvoice {
-  id             String       @id @default(cuid())
-  businessId     String
-  subscriptionId String
-  number         String       @unique
+  id                 String       @id @default(cuid())
+  businessId         String
+  subscriptionId     String
+  number             String       @unique
   /// TAX_INVOICE | RECEIPT
-  kind           String
+  kind               String
   /// Idempotency: the Cashfree payment id of the charge, or "first:<subscription id>" for the first payment.
-  paymentKey     String       @unique
-  planId         String
-  interval       String
-  periodStart    DateTime     @db.Timestamptz(3)
-  periodEnd      DateTime     @db.Timestamptz(3)
+  paymentKey         String       @unique
+  planId             String
+  interval           String
+  periodStart        DateTime     @db.Timestamptz(3)
+  periodEnd          DateTime     @db.Timestamptz(3)
   /// Price before credit, credit, and the total paid (all GST inclusive, paise); taxable + GST = total paid.
-  grossMinor     Int
-  creditMinor    Int          @default(0)
-  amountMinor    Int
-  taxableMinor   Int
-  gstMinor       Int
-  gstRate        Float
+  grossMinor         Int
+  creditMinor        Int          @default(0)
+  amountMinor        Int
+  taxableMinor       Int
+  gstMinor           Int
+  gstRate            Float
   paymentMethodLabel String?
-  issuedAt       DateTime     @default(now())
-  business       Business     @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  subscription   Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  issuedAt           DateTime     @default(now())
+  business           Business     @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  subscription       Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
 
   @@index([businessId, issuedAt])
 }
@@ -1154,4 +1154,66 @@ model SubscriptionInvoice {
 model InvoiceCounter {
   fy   String @id
   last Int    @default(0)
+}
+
+/// A generic Calvy-wide offer. Today one row: every `every` attended visits (across all businesses) earns one free Rs 10 confirmation.
+model Offer {
+  id        String   @id @default(cuid())
+  /// Stable code the app looks up, e.g. LOYALTY_EVERY_8TH.
+  key       String   @unique
+  /// What it does: FREE_CONFIRMATION_EVERY_NTH.
+  kind      String
+  name      String
+  enabled   Boolean  @default(true)
+  /// Attended days needed for one reward.
+  every     Int      @default(7)
+  params    Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  progress    RewardProgress[]
+  counts      RewardCount[]
+  redemptions RewardRedemption[]
+}
+
+/// One person's tally for one offer. `identity` is "e:<lowercased email>" (the customer account), else "p:<phone digits>".
+model RewardProgress {
+  id        String   @id @default(cuid())
+  offerId   String
+  identity  String
+  /// Attended days counted so far (never goes down).
+  counted   Int      @default(0)
+  /// Rewards earned so far = floor(counted / every).
+  earned    Int      @default(0)
+  /// Rewards spent on a booking. Available = earned - used. Rewards never expire.
+  used      Int      @default(0)
+  updatedAt DateTime @updatedAt
+  offer     Offer    @relation(fields: [offerId], references: [id], onDelete: Cascade)
+
+  @@unique([offerId, identity])
+}
+
+/// One counted day per person per offer (business-local date): many attended bookings on one day count once.
+model RewardCount {
+  id            String   @id @default(cuid())
+  offerId       String
+  identity      String
+  day           String
+  appointmentId String?
+  createdAt     DateTime @default(now())
+  offer         Offer    @relation(fields: [offerId], references: [id], onDelete: Cascade)
+
+  @@unique([offerId, identity, day])
+}
+
+/// A reward spent on one booking. Deleted again when that booking is cancelled (the reward goes back).
+model RewardRedemption {
+  id            String   @id @default(cuid())
+  offerId       String
+  identity      String
+  appointmentId String   @unique
+  createdAt     DateTime @default(now())
+  offer         Offer    @relation(fields: [offerId], references: [id], onDelete: Cascade)
+
+  @@index([offerId, identity])
 }

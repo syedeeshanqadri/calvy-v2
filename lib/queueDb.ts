@@ -27,6 +27,7 @@ import { minToHhmm, sessionCapacity } from "@/lib/tokens";
 import { BOOKING_TX_OPTIONS } from "@/lib/booking";
 import { trackingUrl } from "@/lib/tracking";
 import { bookingForLabel } from "@/lib/patients";
+import { recordAttended, releaseReward } from "@/lib/rewards/service";
 
 type Tx = Prisma.TransactionClient;
 
@@ -196,6 +197,9 @@ async function writePlan(tx: Tx, rows: RowWithRelations[], plan: QueuePlan, sess
   for (const [id, u] of Object.entries(plan.updates)) {
     const data = apply(u);
     if (Object.keys(data).length) await tx.appointment.update({ where: { id }, data });
+    // Served = attended (counts toward the loyalty reward); cancelled gives a used reward back.
+    if (u.state === "DONE") await recordAttended(tx, id);
+    if (u.state === "CANCELLED" || u.state === "MOVED") await releaseReward(tx, id);
   }
   if (plan.order.length) {
     const ids = plan.order;

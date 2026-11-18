@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { accessSession, appointmentWhere, scopeOf } from "@/lib/access";
 import { ForbiddenError } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
+import { progressFor } from "@/lib/rewards/service";
 import { notify } from "@/lib/notifications/enqueue";
 import { confirmation, type Notice } from "@/lib/notifications/events";
 import { ownerAlert } from "@/lib/notifications/business";
@@ -264,7 +265,7 @@ async function POST_handler(request: NextRequest) {
         online: isOnline ? { meetingUrl: resolveMeetingUrl(orderedServices[0], assignedStaff) } : undefined,
       },
     };
-    await notify(confirmation(notice, apptDate), await ownerAlert(notice, "created"));
+    await notify(confirmation(notice, apptDate, await progressFor(prisma, { email: clientEmail, phone: clientPhone })), await ownerAlert(notice, "created"));
   } catch (err) {
     logger.error("[Notifications] confirmation failed for panel booking:", { err });
   }

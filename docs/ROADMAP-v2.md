@@ -63,3 +63,10 @@ Open decisions: OTP provider (recommend WhatsApp auth templates via Meta Cloud A
 - The Rs 10 end-to-end test booking on `clinic` (General Consultation, 18 Nov 2026 09:00, client `eeshan.aq+rs10e2e@gmail.com`) with its Payment row, plus the customer account created for that email.
 - Old Razorpay columns, `CustomerCredit` and `WithdrawalRequest` tables (dropped by the pre-launch migration).
 Write the deletion script with a dry run, and run it only after confirming which database it points at.
+
+### Step 25b: loyalty reward (decisions)
+- Offer `LOYALTY_EVERY_8TH` (table `Offer`, switch on/off at `/admin/offers`): every 7 attended days, across all Calvy businesses, earns one free Rs 10 confirmation. Rewards never expire.
+- Attended = booking marked `completed`. Cancelled, no-show, pending and walk-in never count. Several attended bookings on one business-local day count once. Un-completing a booking does not take a counted day back.
+- Identity: the email (customer account), else phone digits. A reward can only be SPENT by a verified customer (own signed link, `?vt=`); progress is counted for everyone.
+- A reward only waives a booking that would charge the Rs 10 (Basic, India). The kept-fee rebooking (`ConfirmationWaiver`) goes first, so one booking never spends both. A cancelled booking gives its reward back; a not-attended one keeps it spent.
+- Shown on `/my`, the booking success screen (verified only), the confirmation email, and "This booking is free (reward)" at checkout.

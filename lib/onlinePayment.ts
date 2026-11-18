@@ -15,6 +15,7 @@ import { applyPaymentEvent } from "@/lib/payments/events";
 import { prismaPaymentEventStore } from "@/lib/payments/db";
 import type { Prisma } from "@prisma/client";
 import { enqueue, notify, sendSoon, type NotificationInput } from "@/lib/notifications/enqueue";
+import { progressFor } from "@/lib/rewards/service";
 import { confirmation, noticeFrom, receipt, serviceLabel } from "@/lib/notifications/events";
 import { ownerAlert } from "@/lib/notifications/business";
 import { sendPushToBusiness } from "@/lib/push";
@@ -177,7 +178,7 @@ export async function buildConfirmation(db: Db, appointmentId: string, opts: Con
   ].filter((n): n is NotificationInput => !!n);
   // Over the contact's daily quota (flood protection): the business was told, the contact is not messaged.
   const customer = opts.contactMessages === false ? [] : [
-    confirmation(notice, a.date),
+    confirmation(notice, a.date, await progressFor(prisma, { email: a.client.email, phone: a.client.phone })),
     paid ? receipt(notice, {
       price: paidMajor, paymentRef: paid.ref ?? undefined, version: paid.id,
       // Calvy's booking fee: company details and the GST split come from the environment.
