@@ -48,12 +48,15 @@ export default function PricingClient({
   defaultRegion = "INTL",
   fixedRegion = false,
   headingLevel = "h2",
+  showNotes = true,
 }: {
   /** Region rendered on the server; the visitor's cookie / detection replaces it unless fixedRegion */
   defaultRegion?: Region;
   /** India-only page: always shows defaultRegion */
   fixedRegion?: boolean;
   headingLevel?: "h1" | "h2";
+  /** The three lines under the plans (flat price, WhatsApp billing, no card); the home page leaves them out */
+  showNotes?: boolean;
 }) {
   const region = useRegion(defaultRegion, fixedRegion);
   // Yearly is the default for International; India starts on monthly. Once the visitor picks one, that choice wins.
@@ -76,7 +79,7 @@ export default function PricingClient({
               Monthly
             </button>
             <button onClick={() => setYearly(true)} aria-pressed={yearly} className={cn("px-6 min-h-11 rounded-lg text-sm font-semibold transition-colors flex items-center gap-2", yearly ? "bg-cv-blue text-white" : "text-cv-mute hover:text-cv-ink")}>
-              Yearly <span className={cn("text-xs font-bold", yearly ? "text-cv-marigold" : "text-cv-blue")}>{yearlySaveBadge(plans)}</span>
+              Yearly <span className={cn("text-xs font-bold", yearly ? "text-white" : "text-cv-blue")}>{yearlySaveBadge(plans)}</span>
             </button>
           </div>
           {pricing.headline && (
@@ -122,9 +125,13 @@ export default function PricingClient({
           })}
         </div>
 
+        {showNotes && (
+          <>
         <p className="text-sm text-cv-ink mt-8 font-medium">{PRICING_NOTE}</p>
         <p className="text-sm text-cv-mute mt-2">{WHATSAPP_NOTE}</p>
         <p className="text-sm text-cv-mute mt-2">No credit card required · Cancel anytime · Lifetime free plan available</p>
+          </>
+        )}
         <FAQ region={region} />
       </div>
     </section>

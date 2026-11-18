@@ -98,14 +98,14 @@ describe("step-21 honest public site", () => {
 describe("step-26 public gaps", () => {
   const read2 = read;
   it("no customer-facing wallet wording on the public site, landing FAQ or queue page", () => {
-    for (const f of ["app/about/page.tsx", "lib/landingFaq.ts", "components/landing/Features.tsx", "app/booking/[code]/TrackClient.tsx", "app/dashboard/queue/QueueClient.tsx", "app/cookies/page.tsx"]) {
+    for (const f of ["app/about/page.tsx", "lib/landingFaq.ts", "lib/landingFeatures.ts", "app/booking/[code]/TrackClient.tsx", "app/dashboard/queue/QueueClient.tsx", "app/cookies/page.tsx"]) {
       expect(read2(f), f).not.toMatch(/wallet credit|in (your|their) wallet|customer's wallet/i);
     }
     expect(read2("app/about/page.tsx")).not.toMatch(/through Cashfree/);
     expect(read2("lib/landingFaq.ts")).not.toMatch(/Payments are processed by Cashfree/);
   });
   it("landing lists own gateways per region and rewards, without describing how rewards work", () => {
-    const f = read2("components/landing/Features.tsx");
+    const f = read2("lib/landingFeatures.ts");
     for (const n of ["your own payment account", "Stripe or PayPal", "Rewards", "lots more rewards"]) expect(f).toContain(n);
     expect(f).not.toMatch(/7 (attended|visits)|every 8th|8th/i);
   });

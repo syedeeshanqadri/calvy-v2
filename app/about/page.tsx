@@ -1,3 +1,4 @@
+import { AboutHero } from "@/components/marketing/AboutHero";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight, BellRing, CalendarClock, CreditCard, Gift, Globe, Users } from "lucide-react";
@@ -23,16 +24,15 @@ const WHAT_YOU_GET = [
 export default function AboutPage() {
   return (
     <PageShell>
-      <PageHero
+      <AboutHero
         title="Bookings for small service businesses, made simple"
         intro="Calvy gives small service businesses a website and an online booking page they can set up in minutes, without a developer."
-        visual={<Phone name="booking" alt="A Calvy booking page on a phone" priority className="max-w-[280px]" />}
       >
         <div className="mt-9 flex flex-wrap gap-3">
           <PrimaryLink href="/signup">Start free</PrimaryLink>
           <OutlineLink href="/contact">Talk to us</OutlineLink>
         </div>
-      </PageHero>
+      </AboutHero>
 
       <Section tone="card">
         <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-16">

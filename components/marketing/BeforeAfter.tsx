@@ -33,7 +33,7 @@ const CHAT = {
 
 const HAND = { fontFamily: '"Bradley Hand","Segoe Script","Comic Sans MS",cursive' };
 
-function Chat() {
+export function Chat() {
   const region = useRegion();
   const c = CHAT[region === "IN" ? "IN" : "INTL"];
   return (

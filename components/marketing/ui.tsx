@@ -8,9 +8,9 @@ import { RegionImage } from "./RegionImage";
 export const WRAP = "max-w-6xl mx-auto px-4 sm:px-6 lg:px-8";
 
 export function Section({ id, children, tone = "paper", className = "" }: { id?: string; children: ReactNode; tone?: "paper" | "card" | "blue"; className?: string }) {
-  const bg = tone === "blue" ? "bg-cv-blue text-white" : tone === "card" ? "bg-cv-card" : "bg-cv-paper";
+  const bg = tone === "blue" ? "bg-cv-blue text-white" : tone === "card" ? "bg-white" : "bg-[#FBFBFA]";
   return (
-    <section id={id} className={`${bg} border-t border-cv-line py-16 sm:py-20 lg:py-24 ${className}`}>
+    <section id={id} className={`mk ${bg} border-t border-black/[0.06] py-20 sm:py-24 lg:py-28 ${className}`}>
       <div className={WRAP}>{children}</div>
     </section>
   );
@@ -20,7 +20,7 @@ export function Section({ id, children, tone = "paper", className = "" }: { id?:
 export function Heading({ title, intro, tone = "light", as: Tag = "h2", children }: { title: ReactNode; intro?: ReactNode; tone?: "light" | "dark"; as?: "h1" | "h2"; children?: ReactNode }) {
   return (
     <div className="max-w-2xl mb-10 lg:mb-14">
-      <Tag className={`font-display font-bold tracking-tight text-3xl sm:text-4xl lg:text-[2.6rem] leading-[1.1] text-balance ${tone === "dark" ? "text-white" : "text-cv-ink"}`}>{title}</Tag>
+      <Tag className={`font-display font-bold tracking-[-0.02em] text-3xl sm:text-4xl lg:text-[2.75rem] leading-[1.08] text-balance ${tone === "dark" ? "text-white" : "text-cv-ink"}`}>{title}</Tag>
       {intro && <p className={`mt-4 text-lg leading-relaxed ${tone === "dark" ? "text-white/80" : "text-cv-mute"}`}>{intro}</p>}
       {children}
     </div>

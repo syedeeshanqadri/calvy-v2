@@ -8,9 +8,11 @@ import { InlineCTABand } from "@/components/landing/InlineCTABand";
 import { Features } from "@/components/landing/Features";
 import { LeadMagnet } from "@/components/landing/LeadMagnet";
 import { BusinessTypes } from "@/components/landing/BusinessTypes";
+import { BuiltForStrip } from "@/components/landing/BuiltForStrip";
+import { TokenSpotlight } from "@/components/landing/TokenSpotlight";
+import { Pricing } from "@/components/landing/Pricing";
 import { LandingFaq } from "@/components/landing/LandingFaq";
 import { LANDING_FAQ } from "@/lib/landingFaq";
-import { Pricing } from "@/components/landing/Pricing";
 import { LeadCapture } from "@/components/landing/LeadCapture";
 import { CTA } from "@/components/landing/CTA";
 import { Footer } from "@/components/landing/Footer";
@@ -74,18 +76,21 @@ export default function HomePage() {
     <main>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString(orgWebsiteJsonLd) }} />
       <Navbar />
+      <noscript><style>{".mk-reveal{opacity:1!important;transform:none!important}"}</style></noscript>
       <Hero />
-      <div className="cv-auto"><BusinessTypes /></div>
-      <div className="cv-auto"><ProblemStatement /></div>
-      <div className="cv-auto"><HowItWorks /></div>
-      <div className="cv-auto"><InlineCTABand /></div>
-      <div className="cv-auto"><Features /></div>
-      <div className="cv-auto"><LeadMagnet /></div>
-      <div className="cv-auto"><Pricing /></div>
-      <div className="cv-auto"><LandingFaq /></div>
-      <div className="cv-auto"><LeadCapture /></div>
-      <div className="cv-auto"><CTA /></div>
-      <div className="cv-auto"><Footer /></div>
+      <BuiltForStrip />
+      <BusinessTypes />
+      <ProblemStatement />
+      <TokenSpotlight />
+      <HowItWorks />
+      <InlineCTABand />
+      <Features />
+      <LeadMagnet />
+      <Pricing />
+      <LandingFaq />
+      <LeadCapture />
+      <CTA />
+      <Footer />
 
       {/* Paused 2026-10-27 (owner): the overlay lead-gen forms below pop up on their own to collect emails.
           Components are kept; mount them again to bring them back.
