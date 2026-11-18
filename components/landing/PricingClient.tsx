@@ -76,7 +76,7 @@ export default function PricingClient({
               Monthly
             </button>
             <button onClick={() => setYearly(true)} aria-pressed={yearly} className={cn("px-6 min-h-11 rounded-lg text-sm font-semibold transition-colors flex items-center gap-2", yearly ? "bg-cv-blue text-white" : "text-cv-mute hover:text-cv-ink")}>
-              Yearly <span className={cn("text-xs font-bold", yearly ? "text-cv-marigold" : "text-cv-blue")}>{yearlySaveBadge(plans)}</span>
+              Yearly <span className={cn("text-xs font-bold", yearly ? "text-white" : "text-cv-blue")}>{yearlySaveBadge(plans)}</span>
             </button>
           </div>
           {pricing.headline && (

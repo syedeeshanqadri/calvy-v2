@@ -29,12 +29,15 @@ const config: Config = {
         sky: { 600: "#0369a1", 700: "#075985" },
         gold: "#f5a623",
         // Marketing site palette (step 30): Calvy deep blue is the one brand colour, marigold the one accent (fills and highlights only, never text).
+        // Values live in CSS variables (app/globals.css, the "mk" tokens) so the whole marketing palette changes in one place.
         cv: {
-          blue: "#0b4a8f", "blue-dark": "#093a70", "blue-tint": "#e8eef6",
-          ink: "#1b2430", mute: "#5b6572", line: "#e3ddd2", paper: "#faf7f2", card: "#fffdf9",
-          marigold: "#e8a317", "marigold-tint": "#f6e3b4",
+          blue: "rgb(var(--mk-blue) / <alpha-value>)", "blue-dark": "rgb(var(--mk-blue-dark) / <alpha-value>)", "blue-tint": "rgb(var(--mk-blue-tint) / <alpha-value>)",
+          ink: "rgb(var(--mk-ink) / <alpha-value>)", mute: "rgb(var(--mk-mute) / <alpha-value>)", line: "rgb(var(--mk-line) / <alpha-value>)",
+          paper: "rgb(var(--mk-cream) / <alpha-value>)", card: "rgb(var(--mk-card) / <alpha-value>)",
+          marigold: "rgb(var(--mk-marigold) / <alpha-value>)", "marigold-tint": "rgb(var(--mk-marigold-tint) / <alpha-value>)",
         },
       },
+      borderRadius: { "mk-img": "28px", "mk-card": "18px" },
       animation: {
         "fade-up": "fadeUp 0.6s ease forwards",
         "fade-in": "fadeIn 0.4s ease forwards",
