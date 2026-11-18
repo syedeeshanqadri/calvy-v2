@@ -1,112 +1,42 @@
-"use client";
-import Link from "next/link";
-import { ArrowRight, Check, Bell, DollarSign } from "lucide-react";
-import { ProductCarousel } from "./ProductCarousel";
-import { ClientPhone, OwnerPhone } from "./PhoneMockups";
+import { Check, ArrowRight } from "lucide-react";
 import { HeroLeadForm } from "./HeroLeadForm";
 import { DemoButton } from "./DemoButton";
+import { Phone, WRAP } from "@/components/marketing/ui";
 
-/* ─── Hero section ───────────────────────────────────────────── */
+/* Hero: left-aligned heading in solid ink, one marigold highlight, one real booking-page screenshot in a phone frame. */
 export function Hero() {
   return (
-    <section className="relative bg-white overflow-hidden pt-16">
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-0 right-0 w-[700px] h-[700px] rounded-full opacity-[0.06]" style={{ background: "radial-gradient(circle, #0284c7 0%, transparent 70%)" }} />
-        <div className="absolute -bottom-20 -left-20 w-[500px] h-[500px] rounded-full opacity-[0.04]" style={{ background: "radial-gradient(circle, #0284c7 0%, transparent 70%)" }} />
-        <div className="absolute inset-0 opacity-[0.4]" style={{ backgroundImage: "radial-gradient(#d1d5db 1px, transparent 1px)", backgroundSize: "28px 28px" }} />
-      </div>
-
-      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-14 lg:py-16">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-start">
-
-          {/* Left — copy */}
+    <section className="bg-cv-paper pt-16">
+      <div className={`${WRAP} py-12 sm:py-16 lg:py-20`}>
+        <div className="grid grid-cols-1 lg:grid-cols-[1.15fr_0.85fr] gap-12 lg:gap-16 items-center">
           <div className="min-w-0">
-            <div className="inline-flex items-center gap-2 bg-sky-50 border border-sky-100 text-sky-700 rounded-full px-4 py-2 mb-6 text-sm font-medium">
-              <span className="w-2 h-2 rounded-full bg-sky-500 animate-pulse" />
-              Free booking page and website for service businesses
-            </div>
-
-            <h1 className="font-syne font-extrabold text-4xl sm:text-5xl lg:text-6xl leading-[1.05] tracking-tight text-gray-900 mb-6">
+            <p className="m-0 mb-6 text-sm font-semibold text-cv-blue">Free booking page and website for service businesses</p>
+            <h1 className="font-display font-bold text-4xl sm:text-5xl lg:text-6xl leading-[1.05] tracking-tight text-cv-ink mb-6 text-balance">
               Your clients book,{" "}
-              <span className="relative">
-                <span className="relative z-10" style={{ background: "linear-gradient(135deg, #0284c7 0%, #0ea5e9 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>
-                  pay & show up
-                </span>
-                <span className="absolute bottom-1 left-0 right-0 h-3 bg-sky-100 rounded -z-10 opacity-60" />
-              </span>
+              <mark className="bg-cv-marigold/45 text-cv-ink px-1.5 -mx-1.5 box-decoration-clone">pay &amp; show up</mark>
               {" "}— on autopilot
             </h1>
-
-            <p className="text-lg sm:text-xl text-gray-500 leading-relaxed mb-8 max-w-lg">
+            <p className="text-lg sm:text-xl text-cv-mute leading-relaxed mb-8 max-w-xl">
               Build your business website and online booking page for free. Time slots or token queues, reminders on email, WhatsApp and push, and online payments, ready in minutes.
             </p>
-
-            <div className="mb-5">
-              <HeroLeadForm />
-            </div>
-            <div className="mb-6">
-              <DemoButton source="hero-demo" className="inline-flex items-center gap-1.5 min-h-11 text-sky-700 font-semibold text-sm hover:gap-2.5 transition-all">
+            <div className="mb-5"><HeroLeadForm /></div>
+            <div className="mb-8">
+              <DemoButton source="hero-demo" className="inline-flex items-center gap-1.5 min-h-11 text-cv-blue font-semibold text-sm hover:underline">
                 Or book a personal demo <ArrowRight size={15} />
               </DemoButton>
             </div>
-
-            <div className="flex flex-col gap-2.5 mb-10">
-              {["Free forever plan", "No credit card required", "Cancel anytime"].map(t => (
-                <div key={t} className="flex items-center gap-2.5 text-sm text-gray-500">
-                  <div className="w-5 h-5 rounded-full bg-green-50 border border-green-200 flex items-center justify-center flex-shrink-0">
-                    <Check size={11} className="text-green-600" strokeWidth={3} />
-                  </div>
+            <ul className="m-0 flex list-none flex-col gap-2.5 p-0">
+              {["Free forever plan", "No credit card required", "Cancel anytime"].map((t) => (
+                <li key={t} className="flex items-center gap-2.5 text-sm text-cv-mute">
+                  <Check size={16} className="text-cv-blue shrink-0" strokeWidth={2.5} aria-hidden />
                   {t}
-                </div>
+                </li>
               ))}
-            </div>
-
+            </ul>
           </div>
-
-          {/* Right — live product carousel */}
-          <div className="relative min-w-0 mt-6 lg:mt-0">
-            {/* Floating accent cards (desktop) */}
-            <div className="hidden lg:flex absolute -top-6 -left-5 z-20 bg-white rounded-2xl p-4 shadow-xl border border-gray-100 items-center gap-3" style={{ animation: "float 5s ease-in-out infinite" }}>
-              <div className="w-10 h-10 rounded-xl bg-green-50 flex items-center justify-center">
-                <DollarSign size={20} className="text-green-600" />
-              </div>
-              <div>
-                <div className="font-syne font-bold text-base leading-none text-gray-900">+$1,240</div>
-                <div className="text-xs text-gray-500 mt-0.5">Revenue today</div>
-              </div>
-            </div>
-
-            <div className="hidden lg:flex absolute -top-6 -right-5 z-20 bg-white rounded-2xl p-4 shadow-xl border border-gray-100 items-center gap-3" style={{ animation: "float 5s ease-in-out infinite 2.5s" }}>
-              <div className="w-10 h-10 rounded-xl bg-sky-50 flex items-center justify-center">
-                <Bell size={18} className="text-sky-600" />
-              </div>
-              <div>
-                <div className="font-syne font-bold text-base leading-none text-gray-900">Reminder sent</div>
-                <div className="text-xs text-gray-500 mt-0.5">Sarah confirmed ✓</div>
-              </div>
-            </div>
-
-            <div className="xl:mx-14">
-              <ProductCarousel />
-            </div>
-
-            {/* Client booking phone — bottom-left */}
-            <div className="hidden xl:block absolute z-30" style={{ bottom: -10, left: -28, transform: "rotate(-6deg)", transformOrigin: "bottom center" }}>
-              <ClientPhone />
-              <div className="mt-2 text-center">
-                <span className="inline-block bg-gray-100 text-gray-500 text-[9px] font-semibold px-2.5 py-1 rounded-full">Client view</span>
-              </div>
-            </div>
-
-            {/* Owner app phone — bottom-right */}
-            <div className="hidden xl:block absolute z-30" style={{ bottom: -10, right: -28, transform: "rotate(6deg)", transformOrigin: "bottom center" }}>
-              <OwnerPhone />
-              <div className="mt-2 text-center">
-                <span className="inline-block bg-gray-100 text-gray-500 text-[9px] font-semibold px-2.5 py-1 rounded-full">Owner app</span>
-              </div>
-            </div>
+          <div className="min-w-0">
+            <Phone name="booking" alt="A Calvy booking page on a phone: choose a service and time" priority className="max-w-[300px]" />
           </div>
-
         </div>
       </div>
     </section>

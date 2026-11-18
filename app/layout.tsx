@@ -13,6 +13,14 @@ const plusJakartaSans = localFont({
   variable: "--font-syne",
 });
 
+// Marketing headings only (the dashboard keeps --font-syne). One variable file, latin subset, weights 500 to 800.
+const bricolage = localFont({
+  src: "./fonts/bricolage-grotesque-latin.woff2",
+  weight: "500 800",
+  display: "swap",
+  variable: "--font-display",
+});
+
 const dmSans = localFont({
   src: "./fonts/dm-sans.woff2",
   weight: "100 1000",
@@ -56,7 +64,7 @@ export const viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" data-scroll-behavior="smooth" className={`${plusJakartaSans.variable} ${dmSans.variable}`}>
+    <html lang="en" data-scroll-behavior="smooth" className={`${plusJakartaSans.variable} ${dmSans.variable} ${bricolage.variable}`}>
       <body><Providers>{children}<SentryClient /></Providers><Analytics /></body>
     </html>
   );

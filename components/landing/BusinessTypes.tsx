@@ -2,42 +2,54 @@ import { Stethoscope, Scissors, Scale, Dumbbell, UserRound, Briefcase, type Luci
 import Link from "next/link";
 import { ALL_PACKS, type PackId } from "@/lib/packs";
 import { FOR_PAGES } from "@/lib/forPages";
+import { Section, Heading, Icon, Phone, Browser } from "@/components/marketing/ui";
 
 const ICONS: Record<PackId, LucideIcon> = {
   CLINIC: Stethoscope, SALON_SPA: Scissors, LAWYER: Scale, FITNESS: Dumbbell, CONSULTANT: UserRound, OTHER: Briefcase,
 };
 
+// A real screen from the demo accounts beside each type, alternating sides. The same product for every type.
+const SHOT: Record<PackId, { kind: "phone" | "browser"; name: string; alt: string }> = {
+  CLINIC: { kind: "phone", name: "queue", alt: "The live token queue on a phone: who is being served and who is waiting" },
+  SALON_SPA: { kind: "phone", name: "booking", alt: "A booking page: choose services, then a time" },
+  LAWYER: { kind: "browser", name: "website", alt: "A business website with services, team and a Book Now button" },
+  FITNESS: { kind: "phone", name: "today", alt: "The Today list with Arrived, Completed and No-show buttons" },
+  CONSULTANT: { kind: "phone", name: "share", alt: "Sharing the booking link by WhatsApp, embed code or URL" },
+  OTHER: { kind: "browser", name: "dashboard", alt: "The dashboard with the day's appointments and revenue" },
+};
+
 /** What Calvy does for each kind of business, in that business's own words (the same wording the dashboard uses). */
 export function BusinessTypes() {
   return (
-    <section id="business-types" className="py-16 sm:py-20 lg:py-24 bg-white">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-12 lg:mb-16">
-          <span className="inline-block bg-sky-100 text-sky-700 text-xs font-bold tracking-widest uppercase px-4 py-2 rounded-full mb-4">Made for your business</span>
-          <h2 className="font-syne font-extrabold text-3xl sm:text-4xl lg:text-5xl tracking-tight text-gray-900 mb-4">A booking page and website that speak your language</h2>
-          <p className="text-gray-600 text-lg max-w-2xl mx-auto leading-relaxed">
-            Pick your type when you sign up. Calvy sets up the right words, services and booking style for you, and you can change everything later.
-          </p>
-        </div>
-        <ul className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {ALL_PACKS.map((p) => {
-            const Icon = ICONS[p.id];
-            const token = p.defaultBookingMode === "TOKEN";
-            return (
-              <li key={p.id} className="bg-gray-50 rounded-2xl border border-gray-100 p-7">
-                <div className="w-12 h-12 rounded-2xl bg-sky-100 flex items-center justify-center mb-5"><Icon size={22} className="text-sky-700" aria-hidden /></div>
-                <h3 className="font-syne font-bold text-lg text-gray-900 mb-2">{p.label === "Other" ? "Any service business" : `${p.label} website and online booking`}</h3>
-                <p className="text-sm text-gray-600 leading-relaxed mb-4">
+    <Section id="business-types" tone="card">
+      <Heading
+        title="A booking page and website that speak your language"
+        intro="Pick your type when you sign up. Calvy sets up the right words, services and booking style for you, and you can change everything later."
+      />
+      <ul className="m-0 flex list-none flex-col gap-14 p-0 lg:gap-20">
+        {ALL_PACKS.map((p, i) => {
+          const token = p.defaultBookingMode === "TOKEN";
+          const shot = SHOT[p.id];
+          const forPage = FOR_PAGES.find((f) => f.pack === p.id);
+          return (
+            <li key={p.id} className="grid items-center gap-8 border-t border-cv-line pt-10 lg:grid-cols-2 lg:gap-16">
+              <div className={`min-w-0 ${i % 2 ? "lg:order-2" : ""}`}>
+                <Icon Svg={ICONS[p.id]} size={26} />
+                <h3 className="mt-4 mb-3 font-display font-bold text-2xl text-cv-ink">{p.label === "Other" ? "Any service business" : `${p.label} website and online booking`}</h3>
+                <p className="mb-4 leading-relaxed text-cv-mute">
                   Your {p.terms.client.plural} book a {p.terms.appointment.singular} online, and you manage your {p.terms.staff.plural} and {p.terms.service.plural} from one place.
                   {token ? " Token queue: patients take a number and you call the next one." : " Choose time slots that fit your day."}
                 </p>
-                <p className="text-xs text-gray-500">Ready-made: {p.defaultServices.map((s) => s.name).join(", ")}</p>
-                {FOR_PAGES.find((f) => f.pack === p.id) && <Link href={`/for/${FOR_PAGES.find((f) => f.pack === p.id)!.slug}`} className="mt-3 inline-flex items-center min-h-11 text-sm font-semibold text-sky-700 underline">More for {p.label.toLowerCase()}</Link>}
-              </li>
-            );
-          })}
-        </ul>
-      </div>
-    </section>
+                <p className="mb-3 text-sm text-cv-mute">Ready-made: {p.defaultServices.map((s) => s.name).join(", ")}</p>
+                {forPage && <Link href={`/for/${forPage.slug}`} className="inline-flex min-h-11 items-center text-sm font-semibold text-cv-blue underline underline-offset-4">More for {p.label.toLowerCase()}</Link>}
+              </div>
+              <div className={`min-w-0 ${i % 2 ? "lg:order-1" : ""}`}>
+                {shot.kind === "phone" ? <Phone name={shot.name} alt={shot.alt} crop className="max-w-[240px]" /> : <Browser name={shot.name} alt={shot.alt} />}
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+    </Section>
   );
 }

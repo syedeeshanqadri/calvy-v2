@@ -11,6 +11,7 @@ const config: Config = {
       fontFamily: {
         syne: ["var(--font-syne)", "sans-serif"],
         dm: ["var(--font-dm)", "sans-serif"],
+        display: ["var(--font-display)", "var(--font-dm)", "sans-serif"],
       },
       colors: {
         brand: {
@@ -27,6 +28,12 @@ const config: Config = {
         },
         sky: { 600: "#0369a1", 700: "#075985" },
         gold: "#f5a623",
+        // Marketing site palette (step 30): Calvy deep blue is the one brand colour, marigold the one accent (fills and highlights only, never text).
+        cv: {
+          blue: "#0b4a8f", "blue-dark": "#093a70", "blue-tint": "#e8eef6",
+          ink: "#1b2430", mute: "#5b6572", line: "#e3ddd2", paper: "#faf7f2", card: "#fffdf9",
+          marigold: "#e8a317", "marigold-tint": "#f6e3b4",
+        },
       },
       animation: {
         "fade-up": "fadeUp 0.6s ease forwards",

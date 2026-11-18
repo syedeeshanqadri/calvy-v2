@@ -58,28 +58,26 @@ export function LeadCapture() {
   }
 
   return (
-    <section id="demo" className="py-12 sm:py-16 lg:py-20 bg-sky-50">
+    <section id="demo" className="py-12 sm:py-16 lg:py-20 bg-cv-paper border-t border-cv-line">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid lg:grid-cols-5 rounded-3xl overflow-hidden border border-gray-200 bg-white shadow-xl">
-          <div className="lg:col-span-2 relative overflow-hidden bg-gradient-to-br from-sky-600 to-sky-800 p-8 sm:p-10 flex flex-col justify-center">
-            <div className="absolute -top-16 -right-10 w-56 h-56 rounded-full bg-white/10 blur-2xl" aria-hidden />
-            <span className="relative inline-block self-start bg-white/15 text-white text-xs font-bold tracking-widest uppercase px-4 py-2 rounded-full mb-5">Get started</span>
-            <h2 className="relative font-syne font-extrabold text-3xl sm:text-4xl tracking-tight text-white mb-3 text-balance">See Calvy in action</h2>
-            <p className="relative text-sky-100 text-lg mb-6">Tell us a little about your business and we&apos;ll be in touch, fast.</p>
-            <ul className="relative space-y-3 text-sky-50">
+        <div className="grid lg:grid-cols-5 rounded-xl overflow-hidden border border-cv-line bg-cv-card">
+          <div className="lg:col-span-2 bg-cv-blue p-8 sm:p-10 flex flex-col justify-center">
+            <h2 className="font-display font-bold text-3xl sm:text-4xl tracking-tight text-white mb-3 text-balance">See Calvy in action</h2>
+            <p className="text-white/85 text-lg mb-6">Tell us a little about your business and we&apos;ll be in touch, fast.</p>
+            <ul className="space-y-3 text-white list-none p-0">
               {["Answer five quick questions", "We reach out to set up your demo", "Or just start free whenever you like"].map((t) => (
-                <li key={t} className="flex items-start gap-3"><span className="mt-0.5 w-5 h-5 rounded-full bg-white/20 flex items-center justify-center shrink-0"><Check size={12} strokeWidth={3} /></span>{t}</li>
+                <li key={t} className="flex items-start gap-3"><span className="mt-0.5 w-5 h-5 rounded-full bg-cv-marigold text-cv-ink flex items-center justify-center shrink-0"><Check size={12} strokeWidth={3} /></span>{t}</li>
               ))}
             </ul>
           </div>
           <div className="lg:col-span-3 p-6 sm:p-10 flex flex-col justify-center">
           {done ? (
             <div className="text-center py-10">
-              <div className="w-16 h-16 rounded-full bg-green-50 flex items-center justify-center mx-auto mb-5">
-                <Check size={30} className="text-green-600" />
+              <div className="w-16 h-16 rounded-full bg-cv-blue-tint flex items-center justify-center mx-auto mb-5">
+                <Check size={30} className="text-cv-blue" />
               </div>
-              <h3 className="font-syne font-bold text-2xl mb-2">You&apos;re on the list! 🎉</h3>
-              <p className="text-gray-500">
+              <h3 className="font-display font-bold text-2xl mb-2">You&apos;re on the list!</h3>
+              <p className="text-cv-mute">
                 Thanks, {form.name.split(" ")[0]}. We&apos;ve emailed you a confirmation and the team will reach out
                 {form.demoRequested ? " to book your demo" : ""} shortly.
               </p>
@@ -89,23 +87,23 @@ export function LeadCapture() {
               {/* progress */}
               <div className="flex items-center gap-1.5 mb-7">
                 {Array.from({ length: TOTAL }).map((_, i) => (
-                  <div key={i} className={`h-1.5 flex-1 rounded-full transition-colors ${i <= step ? "bg-sky-600" : "bg-gray-200"}`} />
+                  <div key={i} className={`h-1.5 flex-1 rounded-full transition-colors ${i <= step ? "bg-cv-blue" : "bg-cv-line"}`} />
                 ))}
               </div>
 
               {/* Step 0 — business type */}
               {step === 0 && (
                 <div>
-                  <h3 className="font-syne font-bold text-xl mb-4">What kind of business do you run?</h3>
+                  <h3 className="font-display font-bold text-xl mb-4">What kind of business do you run?</h3>
                   <div className="grid grid-cols-2 gap-3">
                     {BUSINESS_TYPES.map(b => (
                       <button
                         key={b.value}
                         onClick={() => { set("businessType", b.value); setError(""); }}
-                        className={`flex items-center gap-3 p-4 rounded-2xl border-2 text-left transition-all ${form.businessType === b.value ? "border-sky-600 bg-sky-50" : "border-gray-200 hover:border-sky-300"}`}
+                        className={`flex items-center gap-3 p-4 rounded-xl border-2 text-left transition-colors ${form.businessType === b.value ? "border-cv-blue bg-cv-blue-tint" : "border-cv-line hover:border-cv-blue"}`}
                       >
-                        <b.icon size={20} className={form.businessType === b.value ? "text-sky-600" : "text-gray-400"} />
-                        <span className="text-sm font-semibold text-gray-800">{b.label}</span>
+                        <b.icon size={20} className={form.businessType === b.value ? "text-cv-blue" : "text-cv-mute"} />
+                        <span className="text-sm font-semibold text-cv-ink">{b.label}</span>
                       </button>
                     ))}
                   </div>
@@ -115,7 +113,7 @@ export function LeadCapture() {
               {/* Step 1 — name */}
               {step === 1 && (
                 <div>
-                  <h3 className="font-syne font-bold text-xl mb-4">What&apos;s your name?</h3>
+                  <h3 className="font-display font-bold text-xl mb-4">What&apos;s your name?</h3>
                   <input autoFocus value={form.name} onChange={e => set("name", e.target.value)}
                     onKeyDown={e => e.key === "Enter" && next()} placeholder="Jane Smith" className="lc-inp" />
                 </div>
@@ -124,7 +122,7 @@ export function LeadCapture() {
               {/* Step 2 — email */}
               {step === 2 && (
                 <div>
-                  <h3 className="font-syne font-bold text-xl mb-4">Your best email?</h3>
+                  <h3 className="font-display font-bold text-xl mb-4">Your best email?</h3>
                   <input autoFocus type="email" value={form.email} onChange={e => set("email", e.target.value)}
                     onKeyDown={e => e.key === "Enter" && next()} placeholder="you@business.com" className="lc-inp" />
                 </div>
@@ -133,24 +131,24 @@ export function LeadCapture() {
               {/* Step 3 — phone */}
               {step === 3 && (
                 <div>
-                  <h3 className="font-syne font-bold text-xl mb-4">And a phone number?</h3>
+                  <h3 className="font-display font-bold text-xl mb-4">And a phone number?</h3>
                   <input autoFocus type="tel" value={form.phone} onChange={e => set("phone", e.target.value)}
                     onKeyDown={e => e.key === "Enter" && next()} placeholder="+91 98765 43210" className="lc-inp" />
-                  <p className="text-xs text-gray-400 mt-2">So we can reach you to set up your demo.</p>
+                  <p className="text-xs text-cv-mute mt-2">So we can reach you to set up your demo.</p>
                 </div>
               )}
 
               {/* Step 4 — demo request */}
               {step === 4 && (
                 <div>
-                  <h3 className="font-syne font-bold text-xl mb-4">Want a personal demo?</h3>
+                  <h3 className="font-display font-bold text-xl mb-4">Want a personal demo?</h3>
                   <div className="grid grid-cols-2 gap-3 mb-4">
                     <button onClick={() => set("demoRequested", true)}
-                      className={`p-4 rounded-2xl border-2 font-semibold text-sm transition-all ${form.demoRequested ? "border-sky-600 bg-sky-50 text-sky-700" : "border-gray-200 text-gray-600"}`}>
+                      className={`p-4 rounded-xl border-2 font-semibold text-sm transition-colors ${form.demoRequested ? "border-cv-blue bg-cv-blue-tint text-cv-blue" : "border-cv-line text-cv-mute"}`}>
                       Yes, book a demo
                     </button>
                     <button onClick={() => set("demoRequested", false)}
-                      className={`p-4 rounded-2xl border-2 font-semibold text-sm transition-all ${!form.demoRequested ? "border-sky-600 bg-sky-50 text-sky-700" : "border-gray-200 text-gray-600"}`}>
+                      className={`p-4 rounded-xl border-2 font-semibold text-sm transition-colors ${!form.demoRequested ? "border-cv-blue bg-cv-blue-tint text-cv-blue" : "border-cv-line text-cv-mute"}`}>
                       Just send info
                     </button>
                   </div>
@@ -159,21 +157,21 @@ export function LeadCapture() {
                 </div>
               )}
 
-              {error && <p className="text-sm text-red-500 mt-4">{error}</p>}
+              {error && <p className="text-sm text-red-700 mt-4">{error}</p>}
 
               <div className="flex items-center justify-between mt-7">
                 {step > 0 ? (
-                  <button onClick={back} className="inline-flex items-center gap-1.5 text-sm font-semibold text-gray-500 hover:text-gray-800">
+                  <button onClick={back} className="inline-flex items-center gap-1.5 text-sm font-semibold text-cv-mute hover:text-cv-ink">
                     <ArrowLeft size={16} /> Back
                   </button>
                 ) : <span />}
 
                 {step < TOTAL - 1 ? (
-                  <button onClick={next} className="inline-flex items-center gap-2 bg-sky-600 hover:bg-sky-700 text-white font-semibold px-6 py-3 rounded-xl text-sm transition-colors">
+                  <button onClick={next} className="inline-flex items-center gap-2 bg-cv-blue hover:bg-cv-blue-dark text-white font-semibold px-6 py-3 rounded-xl text-sm transition-colors">
                     Continue <ArrowRight size={16} />
                   </button>
                 ) : (
-                  <button onClick={submit} disabled={loading} className="inline-flex items-center gap-2 bg-sky-600 hover:bg-sky-700 text-white font-semibold px-6 py-3 rounded-xl text-sm transition-colors disabled:opacity-50">
+                  <button onClick={submit} disabled={loading} className="inline-flex items-center gap-2 bg-cv-blue hover:bg-cv-blue-dark text-white font-semibold px-6 py-3 rounded-xl text-sm transition-colors disabled:opacity-50">
                     {loading ? "Submitting…" : "Submit"} <Check size={16} />
                   </button>
                 )}
@@ -184,8 +182,8 @@ export function LeadCapture() {
         </div>
       </div>
 
-      <style jsx>{`.lc-inp{width:100%;border:1px solid #e2e8f0;border-radius:14px;padding:14px 16px;font-size:15px;outline:none;background:#fff}
-        .lc-inp:focus{border-color:#0284c7;box-shadow:0 0 0 3px rgba(2,132,199,.12)}`}</style>
+      <style jsx>{`.lc-inp{width:100%;border:1px solid #e3ddd2;border-radius:12px;padding:14px 16px;font-size:15px;outline:none;background:#fff}
+        .lc-inp:focus{border-color:#0b4a8f;box-shadow:0 0 0 3px rgba(11,74,143,.15)}`}</style>
     </section>
   );
 }

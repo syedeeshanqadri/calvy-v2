@@ -17,55 +17,48 @@ export function LeadMagnet() {
     if (r.ok) setState("done"); else { setError(r.error ?? "Try again"); setState("idle"); }
   }
 
+  const inp = "rounded-xl bg-white border border-cv-line text-cv-ink placeholder:text-cv-mute px-5 py-3.5 focus:outline-none focus:ring-4 focus:ring-cv-blue/15 focus:border-cv-blue";
   return (
-    <section className="py-16 sm:py-20 lg:py-24 bg-[#0f0f1a] relative overflow-hidden">
-      <div className="absolute inset-0 opacity-[0.07]" style={{ backgroundImage: "radial-gradient(#fff 1px, transparent 1px)", backgroundSize: "30px 30px" }} />
-      <div className="relative max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid lg:grid-cols-2 gap-10 items-center">
-          {/* Magnet cover */}
+    <section className="py-16 sm:py-20 lg:py-24 bg-cv-card border-t border-cv-line">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="grid lg:grid-cols-[0.8fr_1.2fr] gap-10 lg:gap-16 items-center">
+          {/* The playbook cover: a plain bordered sheet */}
           <div className="flex justify-center lg:justify-start">
-            <div className="relative" style={{ animation: "float 6s ease-in-out infinite" }}>
-              <div className="w-56 sm:w-64 bg-gradient-to-br from-sky-500 to-sky-700 rounded-2xl shadow-2xl shadow-sky-900/50 p-7 rotate-[-4deg]">
-                <FileText size={28} className="text-white/80 mb-6" />
-                <p className="text-sky-200 text-xs font-bold tracking-widest uppercase mb-2">Free Playbook</p>
-                <p className="font-syne font-extrabold text-white text-2xl leading-tight">7 Ways to Cut No-Shows</p>
-              </div>
+            <div className="w-56 sm:w-64 rounded-xl border-2 border-cv-blue bg-white p-7">
+              <FileText size={28} className="text-cv-blue mb-6" strokeWidth={1.75} aria-hidden />
+              <p className="text-cv-mute text-xs font-bold tracking-widest uppercase mb-2">Free Playbook</p>
+              <p className="font-display font-bold text-cv-ink text-2xl leading-tight">7 Ways to Cut No-Shows</p>
+              <div className="mt-5 h-1 w-12 bg-cv-marigold" aria-hidden />
             </div>
           </div>
 
-          {/* Form */}
           <div>
-            <span className="inline-block bg-sky-500/15 text-sky-300 text-xs font-bold tracking-widest uppercase px-4 py-2 rounded-full mb-4">Free download</span>
-            <h2 className="font-syne font-extrabold text-3xl sm:text-4xl text-white leading-tight mb-3">
+            <h2 className="font-display font-bold text-3xl sm:text-4xl text-cv-ink leading-tight mb-3 text-balance">
               Get the No-Show Playbook
             </h2>
-            <p className="text-gray-400 text-lg mb-7">
+            <p className="text-cv-mute text-lg mb-7 max-w-xl">
               The exact reminder timings, deposit scripts, and rebooking flows top businesses use to stop losing money to no-shows. Straight to your inbox.
             </p>
 
             {state === "done" ? (
-              <div className="flex items-center gap-3 bg-green-500/15 border border-green-500/30 rounded-2xl px-5 py-4">
-                <div className="w-9 h-9 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0">
-                  <Check size={18} className="text-white" strokeWidth={3} />
+              <div className="flex items-center gap-3 border border-cv-blue rounded-xl px-5 py-4 max-w-xl">
+                <div className="w-9 h-9 rounded-full bg-cv-marigold flex items-center justify-center flex-shrink-0">
+                  <Check size={18} className="text-cv-ink" strokeWidth={3} />
                 </div>
-                <p className="text-green-200 font-medium">Sent! Check your inbox for the playbook.</p>
+                <p className="text-cv-ink font-medium">Sent! Check your inbox for the playbook.</p>
               </div>
             ) : (
-              <form onSubmit={submit} className="space-y-3">
+              <form onSubmit={submit} className="space-y-3 max-w-xl">
                 <div className="grid sm:grid-cols-2 gap-3">
-                  <input value={form.name} onChange={e => { setForm(f => ({ ...f, name: e.target.value })); setError(""); }}
-                    placeholder="Your name"
-                    className="rounded-2xl bg-white/5 border border-white/15 text-white placeholder:text-gray-500 px-5 py-3.5 focus:outline-none focus:ring-4 focus:ring-sky-500/20 focus:border-sky-500 transition-all" />
-                  <input type="email" value={form.email} onChange={e => { setForm(f => ({ ...f, email: e.target.value })); setError(""); }}
-                    placeholder="you@business.com"
-                    className="rounded-2xl bg-white/5 border border-white/15 text-white placeholder:text-gray-500 px-5 py-3.5 focus:outline-none focus:ring-4 focus:ring-sky-500/20 focus:border-sky-500 transition-all" />
+                  <input value={form.name} onChange={e => { setForm(f => ({ ...f, name: e.target.value })); setError(""); }} placeholder="Your name" aria-label="Your name" className={inp} />
+                  <input type="email" value={form.email} onChange={e => { setForm(f => ({ ...f, email: e.target.value })); setError(""); }} placeholder="you@business.com" aria-label="Your email" className={inp} />
                 </div>
                 <button type="submit" disabled={state === "loading"}
-                  className="group w-full inline-flex items-center justify-center gap-2 bg-sky-700 hover:bg-sky-600 text-white font-semibold px-6 py-4 rounded-2xl transition-all hover:-translate-y-0.5 disabled:opacity-70">
+                  className="group w-full inline-flex items-center justify-center gap-2 bg-cv-blue hover:bg-cv-blue-dark text-white font-semibold px-6 py-4 rounded-xl transition-colors disabled:opacity-60">
                   {state === "loading" ? <Loader2 size={18} className="animate-spin" /> : <><Download size={18} /> Send me the playbook</>}
                 </button>
-                {error && <p className="text-sm text-red-400 ml-1">{error}</p>}
-                <p className="text-xs text-gray-500 ml-1">No spam. Unsubscribe anytime.</p>
+                {error && <p role="alert" className="text-sm text-red-700 ml-1">{error}</p>}
+                <p className="text-xs text-cv-mute ml-1">No spam. Unsubscribe anytime.</p>
               </form>
             )}
           </div>

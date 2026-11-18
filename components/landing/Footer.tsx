@@ -3,6 +3,7 @@ import Link from "next/link";
 import { NewsletterForm } from "./NewsletterForm";
 import { CurrentYear } from "./CurrentYear";
 import { Logo } from "@/components/ui/Logo";
+import { Sprout } from "lucide-react";
 
 const LINKS: Record<string, { label: string; href: string }[]> = {
   Product: [
@@ -30,7 +31,7 @@ const LINKS: Record<string, { label: string; href: string }[]> = {
 
 export function Footer() {
   return (
-    <footer className="bg-gray-950 pt-16 pb-8">
+    <footer className="bg-cv-ink pt-16 pb-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-10 mb-12">
           <div className="col-span-2 lg:col-span-1">
@@ -63,7 +64,7 @@ export function Footer() {
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 min-h-11 px-4 rounded-full border border-white/10 text-sm text-gray-400 hover:text-white hover:border-white/30 transition-colors"
           >
-            <span aria-hidden="true">🌱</span> Donate to plant a tree
+            <Sprout size={15} className="text-cv-marigold" aria-hidden="true" /> Donate to plant a tree
           </a>
         </div>
       </div>

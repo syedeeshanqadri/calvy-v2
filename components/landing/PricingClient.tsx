@@ -22,20 +22,20 @@ const faqs = (region: Region) => [
 function FAQ({ region }: { region: Region }) {
   const [open, setOpen] = useState<number | null>(null);
   return (
-    <div className="max-w-2xl mx-auto mt-16">
-      <h2 className="font-syne font-bold text-xl text-gray-900 text-center mb-6">Common questions</h2>
+    <div className="max-w-2xl mt-16">
+      <h2 className="font-display font-bold text-xl text-cv-ink mb-6">Common questions</h2>
       <div className="space-y-3">
         {faqs(region).map((faq, i) => (
-          <div key={i} className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+          <div key={i} className="bg-cv-card rounded-xl border border-cv-line overflow-hidden">
             <button
               onClick={() => setOpen(open === i ? null : i)}
-              className="w-full flex items-center justify-between px-6 py-4 text-left hover:bg-gray-50 transition-colors"
+              className="w-full flex items-center justify-between px-6 py-4 text-left hover:bg-cv-paper transition-colors"
             >
-              <span className="font-semibold text-gray-900 text-sm pr-4">{faq.q}</span>
-              <ChevronDown size={16} className={cn("text-gray-500 flex-shrink-0 transition-transform duration-200", open === i && "rotate-180")} />
+              <span className="font-semibold text-cv-ink text-sm pr-4">{faq.q}</span>
+              <ChevronDown size={16} className={cn("text-cv-mute flex-shrink-0 transition-transform duration-200", open === i && "rotate-180")} />
             </button>
             {open === i && (
-              <div className="px-6 pb-5 text-sm text-gray-500 leading-relaxed border-t border-gray-100 pt-4">{faq.a}</div>
+              <div className="px-6 pb-5 text-sm text-cv-mute leading-relaxed border-t border-cv-line pt-4">{faq.a}</div>
             )}
           </div>
         ))}
@@ -66,22 +66,21 @@ export default function PricingClient({
   const Heading = headingLevel;
 
   return (
-    <section id="pricing" className="py-16 sm:py-20 lg:py-24 bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-12 lg:mb-16">
-          <span className="inline-block bg-sky-100 text-sky-700 text-xs font-bold tracking-widest uppercase px-4 py-2 rounded-full mb-4">Pricing</span>
-          <Heading className="font-syne font-extrabold text-3xl sm:text-4xl lg:text-5xl tracking-tight text-gray-900 mb-4">Simple, honest pricing</Heading>
-          <p className="text-gray-500 text-lg max-w-md mx-auto mb-8">Start free forever. Upgrade when you&apos;re ready for more.</p>
-          <div className="inline-flex items-center gap-1 bg-white rounded-full p-1.5 border border-gray-200 shadow-sm" role="group" aria-label="Billing period">
-            <button onClick={() => setYearly(false)} aria-pressed={!yearly} className={cn("px-6 min-h-11 rounded-full text-sm font-semibold transition-all", !yearly ? "bg-gray-900 text-white shadow-sm" : "text-gray-500 hover:text-gray-900")}>
+    <section id="pricing" className="py-16 sm:py-20 lg:py-24 bg-cv-paper border-t border-cv-line">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-2xl mb-10 lg:mb-14">
+          <Heading className="font-display font-bold text-3xl sm:text-4xl lg:text-[2.6rem] leading-[1.1] tracking-tight text-cv-ink mb-4 text-balance">Simple, honest pricing</Heading>
+          <p className="text-cv-mute text-lg mb-8">Start free forever. Upgrade when you&apos;re ready for more.</p>
+          <div className="inline-flex items-center gap-1 bg-cv-card rounded-xl p-1 border border-cv-line" role="group" aria-label="Billing period">
+            <button onClick={() => setYearly(false)} aria-pressed={!yearly} className={cn("px-6 min-h-11 rounded-lg text-sm font-semibold transition-colors", !yearly ? "bg-cv-blue text-white" : "text-cv-mute hover:text-cv-ink")}>
               Monthly
             </button>
-            <button onClick={() => setYearly(true)} aria-pressed={yearly} className={cn("px-6 min-h-11 rounded-full text-sm font-semibold transition-all flex items-center gap-2", yearly ? "bg-gray-900 text-white shadow-sm" : "text-gray-500 hover:text-gray-900")}>
-              Yearly <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-bold">{yearlySaveBadge(plans)}</span>
+            <button onClick={() => setYearly(true)} aria-pressed={yearly} className={cn("px-6 min-h-11 rounded-lg text-sm font-semibold transition-colors flex items-center gap-2", yearly ? "bg-cv-blue text-white" : "text-cv-mute hover:text-cv-ink")}>
+              Yearly <span className={cn("text-xs font-bold", yearly ? "text-cv-marigold" : "text-cv-blue")}>{yearlySaveBadge(plans)}</span>
             </button>
           </div>
           {pricing.headline && (
-            <p className="mt-8 font-syne font-bold text-xl sm:text-2xl text-sky-700">{pricing.headline}</p>
+            <p className="mt-8 font-display font-bold text-xl sm:text-2xl text-cv-blue">{pricing.headline}</p>
           )}
         </div>
 
@@ -90,38 +89,32 @@ export default function PricingClient({
             const free = plan.monthly === 0;
             const perMonth = yearly ? plan.yearlyPerMonth : plan.monthly;
             return (
-              <div key={plan.id} className={cn("rounded-3xl p-8 flex flex-col border transition-all duration-300", plan.highlight ? "bg-gradient-to-br from-sky-600 to-sky-700 border-transparent shadow-2xl shadow-sky-200 md:scale-[1.03]" : "bg-white border-gray-200 hover:shadow-lg")}>
+              <div key={plan.id} className={cn("rounded-xl p-8 flex flex-col border bg-cv-card", plan.highlight ? "border-2 border-cv-blue" : "border-cv-line")}>
                 {plan.badge && (
-                  <div className="inline-flex mb-4">
-                    <span className="text-xs font-bold bg-white/20 text-white px-3 py-1.5 rounded-full border border-white/30">{plan.badge}</span>
-                  </div>
+                  <p className="m-0 mb-4 self-start rounded-md bg-cv-marigold px-2.5 py-1 text-xs font-bold text-cv-ink">{plan.badge}</p>
                 )}
-                <div className={cn("text-lg font-syne font-bold mb-1", plan.highlight ? "text-white" : "text-gray-900")}>{plan.name}</div>
-                <p className={cn("text-sm mb-5 leading-relaxed", plan.highlight ? "text-sky-100" : "text-gray-500")}>{plan.description}</p>
+                <div className="text-lg font-display font-bold mb-1 text-cv-ink">{plan.name}</div>
+                <p className="text-sm mb-5 leading-relaxed text-cv-mute">{plan.description}</p>
                 <div className="flex items-baseline gap-1 mb-2">
-                  <span className={cn("font-syne font-extrabold text-5xl tracking-tight", plan.highlight ? "text-white" : "text-gray-900")}>
-                    {money(perMonth)}
-                  </span>
-                  <span className={cn("text-sm font-medium", plan.highlight ? "text-sky-200" : "text-gray-500")}>{free ? "forever" : "/mo"}</span>
+                  <span className="font-display font-bold text-5xl tracking-tight text-cv-ink">{money(perMonth)}</span>
+                  <span className="text-sm font-medium text-cv-mute">{free ? "forever" : "/mo"}</span>
                 </div>
-                <div className={cn("text-xs font-semibold mb-6 min-h-4", plan.highlight ? "text-sky-200" : "text-green-700")}>
+                <div className="text-xs font-semibold mb-6 min-h-4 text-cv-blue">
                   {!free && yearly ? `billed ${money(plan.yearlyTotal)} yearly` : ""}
                 </div>
-                <ul className="space-y-3 flex-1 mb-8">
+                <ul className="space-y-3 flex-1 mb-8 list-none p-0">
                   {plan.features.map((f) =>
                     isFeatureHeading(f) ? (
-                      <li key={f} className={cn("pt-2 text-xs font-bold uppercase tracking-wider", plan.highlight ? "text-white" : "text-gray-900")}>{f}</li>
+                      <li key={f} className="pt-2 text-xs font-bold uppercase tracking-wider text-cv-ink">{f}</li>
                     ) : (
-                      <li key={f} className="flex items-center gap-3">
-                        <div className={cn("w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0", plan.highlight ? "bg-white/20" : "bg-sky-50")}>
-                          <Check size={11} className={plan.highlight ? "text-white" : "text-sky-600"} strokeWidth={3} />
-                        </div>
-                        <span className={cn("text-sm", plan.highlight ? "text-sky-50" : "text-gray-600")}>{f}</span>
+                      <li key={f} className="flex items-start gap-3">
+                        <Check size={16} className="mt-0.5 flex-shrink-0 text-cv-blue" strokeWidth={2.5} aria-hidden />
+                        <span className="text-sm text-cv-mute">{f}</span>
                       </li>
                     ),
                   )}
                 </ul>
-                <Link href="/signup" className={cn("w-full text-center font-semibold py-3.5 rounded-2xl transition-all text-sm min-h-11", plan.highlight ? "bg-white text-sky-700 hover:bg-sky-50" : "bg-sky-600 hover:bg-sky-700 text-white")}>
+                <Link href="/signup" className={cn("w-full text-center font-semibold py-3.5 rounded-xl transition-colors text-sm min-h-11", plan.highlight ? "bg-cv-blue hover:bg-cv-blue-dark text-white" : "border border-cv-blue text-cv-blue hover:bg-cv-blue-tint")}>
                   {free ? "Get started free" : `Get ${plan.name}`}
                 </Link>
               </div>
@@ -129,9 +122,9 @@ export default function PricingClient({
           })}
         </div>
 
-        <p className="text-center text-sm text-gray-600 mt-8 font-medium">{PRICING_NOTE}</p>
-        <p className="text-center text-sm text-gray-500 mt-2">{WHATSAPP_NOTE}</p>
-        <p className="text-center text-sm text-gray-500 mt-2">No credit card required · Cancel anytime · Lifetime free plan available</p>
+        <p className="text-sm text-cv-ink mt-8 font-medium">{PRICING_NOTE}</p>
+        <p className="text-sm text-cv-mute mt-2">{WHATSAPP_NOTE}</p>
+        <p className="text-sm text-cv-mute mt-2">No credit card required · Cancel anytime · Lifetime free plan available</p>
         <FAQ region={region} />
       </div>
     </section>
