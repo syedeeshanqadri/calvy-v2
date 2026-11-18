@@ -135,7 +135,7 @@ export default function OnboardingClient({ initial, ownerName }: { initial: Wiza
   }
 
   const siteUrl = publicSiteUrl(st.slug, ROOT_DOMAIN);
-  const bookingUrl = siteUrl ? `${siteUrl}/book-now` : "";
+  const bookingUrl = siteUrl ? `${siteUrl}/book` : "";
   async function copy(text: string) {
     try { await navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 1800); } catch { /* clipboard blocked */ }
   }

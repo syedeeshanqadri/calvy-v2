@@ -25,7 +25,7 @@ export default async function BookingPagePage() {
 
   const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "calvy.io";
   const slug = business?.slug ?? session.user.businessSlug ?? "";
-  const bookingUrl = `${publicSiteUrl(slug, rootDomain)}/book-now`;
+  const bookingUrl = `${publicSiteUrl(slug, rootDomain)}/book`;
 
   return (
     <BookingPageClient

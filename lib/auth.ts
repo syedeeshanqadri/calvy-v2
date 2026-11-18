@@ -70,7 +70,7 @@ async function customerGoogleSignIn(i: {
     existing: existing ? { id: existing.id, password: existing.password, googleId: existing.googleId } : null,
     linkIntentUserId: linkIntentCustomerId,
   });
-  if (d.action === "deny") return d.reason === "password-account" ? "/my/login?error=GoogleLinkRequired" : "/my/login?error=GoogleDenied";
+  if (d.action === "deny") return d.reason === "password-account" ? "/account/login?error=GoogleLinkRequired" : "/account/login?error=GoogleDenied";
   try {
     let customer = existing;
     if (d.action === "create") {
@@ -80,12 +80,12 @@ async function customerGoogleSignIn(i: {
     } else if (existing && !existing.emailVerified) {
       customer = await prisma.customer.update({ where: { id: existing.id }, data: { emailVerified: new Date() } });
     }
-    if (!customer) return "/my/login?error=GoogleDenied";
+    if (!customer) return "/account/login?error=GoogleDenied";
     i.user.id = customer.id;
     i.user.name = customer.name;
     i.user.kind = "customer";
   } catch {
-    return "/my/login?error=GoogleDenied"; // e.g. this Google account is already linked to another customer
+    return "/account/login?error=GoogleDenied"; // e.g. this Google account is already linked to another customer
   }
   if (linkIntentCustomerId) { try { (await cookies()).delete(CUSTOMER_LINK_COOKIE); } catch { /* best effort */ } }
   return true;

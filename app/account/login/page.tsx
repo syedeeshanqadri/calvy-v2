@@ -33,7 +33,7 @@ function LoginForm() {
       setCanResend(true);
     } else if (result?.error === "TooManyAttempts") setError("Too many attempts. Please wait a minute and try again.");
     else if (result?.error) setError("Invalid email or password.");
-    else { router.push("/my"); router.refresh(); }
+    else { router.push("/account"); router.refresh(); }
   }
 
   async function resend() {
@@ -53,12 +53,12 @@ function LoginForm() {
           <input id="c-email" type="email" required autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} className={inputClass} />
         </div>
         <PasswordInput id="c-password" label="Password" value={password} onChange={setPassword} autoComplete="current-password"
-          labelAction={<Link href="/my/forgot-password" className={`${linkClass} text-xs inline-flex items-center min-h-11`}>Forgot password?</Link>} />
+          labelAction={<Link href="/account/forgot-password" className={`${linkClass} text-xs inline-flex items-center min-h-11`}>Forgot password?</Link>} />
         <button type="submit" disabled={loading} className={primaryBtn}>{loading ? "Signing in…" : "Sign in"}</button>
         {canResend && <button type="button" onClick={resend} className={`${linkClass} text-sm`}>Send a new verification email</button>}
       </form>
-      <SocialAuthButtons googleProvider="google-customer" callbackUrl="/my" />
-      <p className="text-sm text-[#6b6b80] mt-6">No account yet? <Link href={`/my/signup${email ? `?email=${encodeURIComponent(email)}` : ""}`} className={linkClass}>Create one</Link></p>
+      <SocialAuthButtons googleProvider="google-customer" callbackUrl="/account" />
+      <p className="text-sm text-[#6b6b80] mt-6">No account yet? <Link href={`/account/signup${email ? `?email=${encodeURIComponent(email)}` : ""}`} className={linkClass}>Create one</Link></p>
     </>
   );
 }

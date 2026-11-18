@@ -32,9 +32,9 @@ describe("signed codes", () => {
     expect(signTrackingCode(id, { NODE_ENV: "production" } as NodeJS.ProcessEnv)).toBeNull();
     expect(verifyTrackingCode("x.y", { NODE_ENV: "production" } as NodeJS.ProcessEnv)).toBeNull();
   });
-  it("builds the public URL under the business slug", () => {
+  it("builds the public /booking/<code> URL", () => {
     const url = trackingUrl("city-care-clinic", id, env)!;
-    expect(url).toBe(`https://calvy.io/city-care-clinic/q/${signTrackingCode(id, env)}`);
+    expect(url).toBe(`https://calvy.io/booking/${signTrackingCode(id, env)}`);
     expect(trackingUrl("x", id, { NODE_ENV: "production" } as NodeJS.ProcessEnv)).toBeNull();
   });
 });

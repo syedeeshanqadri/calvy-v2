@@ -1,26 +1,45 @@
 import { whatsappOffered } from "@/lib/whatsapp/consent";
 import { Unavailable } from "@/components/site/Unavailable";
 import { notFound } from "next/navigation";
+import { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import { getPayConfig } from "@/lib/onlinePayment";
 import { contactRequirements } from "@/lib/patients";
 import { parseSocialLinks, safeReviewLink } from "@/lib/brandLinks";
 import { followUpFromQuery } from "@/lib/followUpDb";
-import { BookingClient } from "./BookingClient";
+import { BookingClient } from "@/components/booking/BookingClient";
+import { headers } from "next/headers";
+import { siteBase } from "@/lib/siteBase";
 import { siteFontClasses } from "@/app/[slug]/fonts";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
-export default async function BusinessBookingPage(props: { params: Promise<{ slug: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> }) {
-  const params = await props.params;
-  const business = await prisma.business.findUnique({
-    where: { slug: params.slug },
+async function getBusiness(slug: string) {
+  return prisma.business.findUnique({
+    where: { slug },
     include: {
       services: { where: { isActive: true }, orderBy: { createdAt: "asc" } },
       staff: { where: { isActive: true }, orderBy: { createdAt: "asc" }, include: { services: { select: { serviceId: true } } } },
     },
   });
+}
 
+export async function generateMetadata(props: { params: Promise<{ slug: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> }): Promise<Metadata> {
+  const params = await props.params;
+  const business = await getBusiness(params.slug);
+  if (!business) return { title: "Not Found" };
+  return {
+    ...(business.logoUrl ? { icons: { icon: business.logoUrl } } : {}),
+    title: `Book an appointment — ${business.name}`,
+    alternates: { canonical: `/${business.slug}/book` },
+    description: `Book your appointment with ${business.name} online. Choose your service, pick a time, and confirm instantly.`,
+  };
+}
+
+export default async function BookNowPage(props: { params: Promise<{ slug: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  const params = await props.params;
+  const host = (await headers()).get("host");
+  const business = await getBusiness(params.slug);
   if (!business) notFound();
   if (business.suspendedAt) return <Unavailable name={business.name} />;
 
@@ -56,5 +75,6 @@ export default async function BusinessBookingPage(props: { params: Promise<{ slu
     })),
   };
 
-  return <BookingClient followUp={await followUpFromQuery((await props.searchParams).followUp, business)} business={data} fontClasses={await siteFontClasses(business.packId)} />;
+  const homeHref = siteBase(host, business.slug, process.env.NEXT_PUBLIC_ROOT_DOMAIN ?? "calvy.io") || "/";
+  return <BookingClient followUp={await followUpFromQuery((await props.searchParams).followUp, business)} business={data} fontClasses={await siteFontClasses(business.packId)} homeHref={homeHref} />;
 }

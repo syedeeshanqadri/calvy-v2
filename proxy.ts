@@ -122,7 +122,7 @@ export default async function middleware(req: NextRequest) {
     const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
     if (token) {
       const url = req.nextUrl.clone();
-      url.pathname = isCustomerToken(token) ? "/my" : "/dashboard";
+      url.pathname = isCustomerToken(token) ? "/account" : "/dashboard";
       url.search = "";
       return NextResponse.redirect(url);
     }

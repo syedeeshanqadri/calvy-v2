@@ -57,7 +57,7 @@ export function BookingsList({ upcoming, past }: { upcoming: BookingView[]; past
         <div className="bg-white rounded-2xl border border-[#e8e6e0] py-14 text-center text-[#6b6b80]">
           <CalendarX size={30} className="mx-auto mb-3 opacity-40" aria-hidden />
           <p className="text-sm">{tab === "upcoming" ? "No upcoming bookings." : tab === "past" ? "No past visits yet." : "Nothing cancelled."}</p>
-          {tab === "upcoming" && businesses[0] && <Link href={`/${businesses[0][0]}/book-now`} className="inline-block mt-3 text-sm font-semibold text-sky-700 hover:underline">Book at {businesses[0][1]}</Link>}
+          {tab === "upcoming" && businesses[0] && <Link href={`/${businesses[0][0]}/book`} className="inline-block mt-3 text-sm font-semibold text-sky-700 hover:underline">Book at {businesses[0][1]}</Link>}
         </div>
       ) : (
         <ul className="space-y-3">{rows.map((b) => <BookingCard key={b.id} b={b} />)}</ul>

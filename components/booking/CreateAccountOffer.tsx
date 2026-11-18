@@ -2,7 +2,7 @@ import Link from "next/link";
 
 /** After a booking: an optional invitation to track bookings in an account. Guests never need one. */
 export function CreateAccountOffer({ email }: { email: string }) {
-  const href = `/my/signup${email ? `?email=${encodeURIComponent(email)}` : ""}`;
+  const href = `/account/signup${email ? `?email=${encodeURIComponent(email)}` : ""}`;
   return (
     <div className="border-t border-[#f0ede8] pt-5 mb-5 text-left space-y-2">
       <p className="text-sm font-semibold">Track your bookings</p>

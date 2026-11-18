@@ -118,7 +118,7 @@ describe("service worker: what it caches and what it never touches", () => {
     const list = /const PRECACHE = \[([^\]]*)\]/.exec(src)![1];
     expect(src).toContain('const OFFLINE = "/offline.html"');
     expect(list).toContain("OFFLINE");
-    expect(list).not.toMatch(/\/api|\/dashboard|\/my|\/admin/);
+    expect(list).not.toMatch(/\/api|\/dashboard|\/account|\/admin/);
   });
 });
 
@@ -158,7 +158,7 @@ describe("service worker: push", () => {
     expect(sw.calls.shown[0].options.tag).toMatch(/^t1:\d+$/); // unique per event: never silently replaces an earlier alert
     await sw.fire("push", sw.waitEvent({ data: { json: () => ({ title: "x", body: "y", url: "https://evil.example/phish" }) } }));
     expect(sw.calls.shown[1].options.data.url).toBe("/dashboard");
-    await sw.fire("push", sw.waitEvent({ data: { json: () => ({ title: "x", body: "y", url: "/my/bookings" }) } }));
+    await sw.fire("push", sw.waitEvent({ data: { json: () => ({ title: "x", body: "y", url: "/account/bookings" }) } }));
     expect(sw.calls.shown[2].options.data.url).toBe("/dashboard"); // an alert can only open the business app
     const clicked = { notification: { close: () => {}, data: { url: "//evil.example" } }, __waits: [] as Promise<unknown>[], waitUntil(p: Promise<unknown>) { this.__waits.push(p); } };
     await sw.fire("notificationclick", clicked);
@@ -312,7 +312,7 @@ describe("touch devices: 16px inputs and 44px targets, everywhere", () => {
     expect(block).toMatch(/min-height: 44px/);
     expect(block).toMatch(/button:not\(\.tap-tight\)[^}]*min-height: 44px; min-width: 44px/);
   });
-  it("covers the public pages and /my too: the rule is global (root CSS), not dashboard-only", () => {
+  it("covers the public pages and /account too: the rule is global (root CSS), not dashboard-only", () => {
     expect(readFileSync("app/layout.tsx", "utf8")).toContain('import "./globals.css"');
   });
   it("the website theme's small buttons and the booking back link keep a 44px target; social icons are 44px", () => {

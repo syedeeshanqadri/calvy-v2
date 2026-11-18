@@ -74,7 +74,7 @@ beforeEach(() => { vi.resetAllMocks(); });
 
 describe("every customer email event maps to a template", () => {
   const EVENTS = ["booking.created", "booking.rescheduled", "booking.cancelled", "booking.meeting_link", "booking.paid", "booking.completed", "booking.no_show", REMINDER_EVENT, "booking.queue_moved_back", "booking.queue_closed", "booking.queue_next"];
-  const full = { ...PAYLOAD, token: { number: 14, estimatedTime: "4:30 PM", sessionName: "Morning" }, trackUrl: "https://calvy.io/sunrise/q/a1.sig", meetingUrl: "https://meet.example.test/x", reviewUrl: "https://g.page/r/abc/review", place: 5 };
+  const full = { ...PAYLOAD, token: { number: 14, estimatedTime: "4:30 PM", sessionName: "Morning" }, trackUrl: "https://calvy.io/booking/a1.sig", meetingUrl: "https://meet.example.test/x", reviewUrl: "https://g.page/r/abc/review", place: 5 };
   it("all 11 events are mapped, produce the exact variable count, and a button suffix only when the template has a button", () => {
     expect(Object.keys(WA_EVENTS).sort()).toEqual([...EVENTS].sort());
     for (const event of EVENTS) {

@@ -28,7 +28,7 @@ export async function redeemCustomerToken(tx: Prisma.TransactionClient, rawToken
 }
 
 /**
- * What /my may show a signed-in customer: nothing at all until their email is verified. This is the
+ * What /account may show a signed-in customer: nothing at all until their email is verified. This is the
  * only gate between an account and the bookings that share its email address.
  */
 export async function overviewForCustomer(c: { email: string; verified: boolean }, now: Date = new Date()) {
@@ -36,7 +36,7 @@ export async function overviewForCustomer(c: { email: string; verified: boolean 
 }
 
 /**
- * Everything /my shows for one customer. The caller must pass a VERIFIED email (see getCustomer):
+ * Everything /account shows for one customer. The caller must pass a VERIFIED email (see getCustomer):
  * bookings are matched on it across all businesses, so an unverified address must never get here.
  */
 export async function loadCustomerOverview(verifiedEmail: string, now: Date = new Date()) {

@@ -34,7 +34,7 @@ function PasswordVerifyForm({ token }: { token: string }) {
       <div role="status">
         <h1 className="font-syne font-bold text-2xl text-[#0f0f1a] mb-2">Email verified</h1>
         <p className="text-[#6b6b80] text-sm mb-6">Sign in to see your bookings.</p>
-        <Link href="/my/login?verified=1" className={primaryBtn}>Continue to sign in</Link>
+        <Link href="/account/login?verified=1" className={primaryBtn}>Continue to sign in</Link>
       </div>
     );
   }
@@ -43,7 +43,7 @@ function PasswordVerifyForm({ token }: { token: string }) {
       <div>
         <h1 className="font-syne font-bold text-2xl text-[#0f0f1a] mb-2">Link not valid</h1>
         <p className="text-[#6b6b80] text-sm mb-6">This verification link is incomplete. Sign in to ask for a new one.</p>
-        <Link href="/my/login" className={primaryBtn}>Go to sign in</Link>
+        <Link href="/account/login" className={primaryBtn}>Go to sign in</Link>
       </div>
     );
   }
@@ -85,9 +85,9 @@ function SetupForm({ token }: { token: string }) {
       if (!res.ok) { setError(data.error ?? "This link is invalid or has expired."); return; }
       if (data.setup && data.email) {
         const r = await signIn("customer", { email: data.email, password, redirect: false });
-        if (r?.ok) { router.push("/my"); router.refresh(); return; }
+        if (r?.ok) { router.push("/account"); router.refresh(); return; }
       }
-      router.push("/my/login?verified=1");
+      router.push("/account/login?verified=1");
     } catch {
       setError("We could not reach the server. Please try again.");
     } finally {
@@ -105,7 +105,7 @@ function SetupForm({ token }: { token: string }) {
         <PasswordInput id="cs-confirm" label="Confirm password" value={confirm} onChange={setConfirm} autoComplete="new-password" minLength={8} />
         <button type="submit" disabled={loading} className={primaryBtn}>{loading ? "Saving…" : "Verify and continue"}</button>
       </form>
-      <p className="text-xs text-[#6b6b80] mt-6">Link expired? Use <Link href="/my/forgot-password" className="font-semibold text-sky-700 hover:underline">Forgot password</Link> with the same email.</p>
+      <p className="text-xs text-[#6b6b80] mt-6">Link expired? Use <Link href="/account/forgot-password" className="font-semibold text-sky-700 hover:underline">Forgot password</Link> with the same email.</p>
     </>
   );
 }

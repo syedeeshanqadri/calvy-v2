@@ -73,7 +73,7 @@ describe("every API route is protected or on the reviewed public list", () => {
     "auth/[...nextauth]", "team/accept", "admin/logout", "auth/forgot-password", "auth/resend-verification", "auth/reset-password", "auth/verify-email",
     "availability", "availability/month", "token-availability", "bookings",
     "customer/forgot-password", "customer/resend-verification", "customer/reset-password", "customer/signup", "customer/verify-email",
-    "flags", "geo/rate", "region", "health", "leads", "signup", "track/[code]",
+    "flags", "geo/rate", "region", "health", "leads", "signup", "track/[code]", "calendar/[token]",
     "payments/status", "payments/mock/complete", "payments/cashfree/webhook", "payments/webhook/[key]", "subscriptions/webhook", "rewards/preview", "data-deletion", "payments/return", "whatsapp/webhook", "whatsapp/webhook/[key]", "unsubscribe",
   ]);
 

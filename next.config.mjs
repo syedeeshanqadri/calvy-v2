@@ -37,9 +37,11 @@ const securityHeaders = [
 
 // Pages and redirects whose URL can carry a one-hour credit / follow-up ticket or a payment order id never leak it
 // through the Referer header: no-referrer. Everything else keeps the site-wide policy above. Later rules win.
-// (A tenant subdomain request arrives as /book-now, before the proxy rewrites it, so that path is listed too.)
+// (A tenant subdomain request arrives as /book, before the proxy rewrites it, so that path is listed too.)
 const noReferrer = [{ key: "Referrer-Policy", value: "no-referrer" }];
 const noReferrerSources = [
+  "/:slug/book",
+  "/book",
   "/:slug/book-now",
   "/book-now",
   "/b/:slug",
@@ -47,6 +49,18 @@ const noReferrerSources = [
   "/api/customer/use-credit",
   "/api/customer/follow-up",
   "/api/payments/:path*",
+];
+
+// Old addresses, kept as permanent 301s so any link already sent keeps working (queries such as ?service=&date= are carried over).
+//   /b/{slug}            -> /{slug}/book          (the duplicate booking page was removed; /{slug}/book-now stays as an alias)
+//   /my/*                -> /account/*            (customer account)
+//   /{slug}/q/{code}     -> /booking/{code}       (live queue tracking; also /q/{code} on a tenant subdomain)
+export const LEGACY_REDIRECTS = [
+  { source: "/b/:slug", destination: "/:slug/book", statusCode: 301 },
+  { source: "/my", destination: "/account", statusCode: 301 },
+  { source: "/my/:path*", destination: "/account/:path*", statusCode: 301 },
+  { source: "/:slug/q/:code", destination: "/booking/:code", statusCode: 301 },
+  { source: "/q/:code", destination: "/booking/:code", statusCode: 301 },
 ];
 
 /** @type {import('next').NextConfig} */
@@ -61,6 +75,9 @@ const nextConfig = {
       // Vercel Blob (tenant and blog uploads)
       { protocol: "https", hostname: "*.public.blob.vercel-storage.com" },
     ],
+  },
+  async redirects() {
+    return LEGACY_REDIRECTS;
   },
   async headers() {
     return [

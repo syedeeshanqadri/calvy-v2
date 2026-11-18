@@ -34,7 +34,7 @@ function SignupForm() {
         <p className="text-[#6b6b80] text-sm mb-6">
           We sent a link to <strong>{email}</strong>. Open it and enter the password you just chose to verify your email. Your bookings show up once it is verified.
         </p>
-        <Link href={`/my/login?email=${encodeURIComponent(email)}`} className={primaryBtn}>Go to sign in</Link>
+        <Link href={`/account/login?email=${encodeURIComponent(email)}`} className={primaryBtn}>Go to sign in</Link>
       </div>
     );
   }
@@ -56,8 +56,8 @@ function SignupForm() {
         <PasswordInput id="cs-password" label="Password" value={password} onChange={setPassword} autoComplete="new-password" minLength={8} hint="At least 8 characters." />
         <button type="submit" disabled={loading} className={primaryBtn}>{loading ? "Creating…" : "Create account"}</button>
       </form>
-      <SocialAuthButtons googleProvider="google-customer" callbackUrl="/my" />
-      <p className="text-sm text-[#6b6b80] mt-6">Already have one? <Link href="/my/login" className={linkClass}>Sign in</Link></p>
+      <SocialAuthButtons googleProvider="google-customer" callbackUrl="/account" />
+      <p className="text-sm text-[#6b6b80] mt-6">Already have one? <Link href="/account/login" className={linkClass}>Sign in</Link></p>
     </>
   );
 }

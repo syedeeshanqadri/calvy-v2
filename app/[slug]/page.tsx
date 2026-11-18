@@ -99,7 +99,7 @@ export default async function TenantWebsitePage(props: { params: Promise<{ slug:
   const reviewUrl = safeReviewLink(business.googleReviewUrl);
   const hours = formatOpeningHours(business.workingHours);
   const hasHours = business.workingHours.length > 0;
-  const bookingUrl = `${siteBase((await headers()).get("host"), business.slug, ROOT_DOMAIN)}/book-now`;
+  const bookingUrl = `${siteBase((await headers()).get("host"), business.slug, ROOT_DOMAIN)}/book`;
   const features = await getBusinessFeatures(business.id);
   const offersWhatsApp = await whatsappOffered(business.id);
 
@@ -123,7 +123,7 @@ export default async function TenantWebsitePage(props: { params: Promise<{ slug:
     ...(prices.length ? { priceRange: `${formatCurrencyAmount(Math.min(...prices), currency)} - ${formatCurrencyAmount(Math.max(...prices), currency)}` } : {}),
     potentialAction: {
       "@type": "ReserveAction",
-      target: `${publicUrl}/book-now`,
+      target: `${publicUrl}/book`,
       name: `Book an ${t(business, "appointment")}`,
     },
     makesOffer: business.services.map(s => ({

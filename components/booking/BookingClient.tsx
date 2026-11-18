@@ -477,7 +477,7 @@ export function BookingClient({ business, fontClasses, homeHref = "/", followUp 
           {tokenResult?.trackUrl && (
             <a href={tokenResult.trackUrl} className="st-btn st-btn-primary st-btn-block" style={{ marginBottom: 20 }}>Track your place in line</a>
           )}
-          <AnotherBooking slug={business.slug} bookPath={typeof window !== "undefined" ? window.location.pathname : `/${business.slug}/book-now`}
+          <AnotherBooking slug={business.slug} bookPath={typeof window !== "undefined" ? window.location.pathname : `/${business.slug}/book`}
             serviceIds={selectedServices} staffId={selectedStaff && selectedStaff !== "any" ? selectedStaff : null} date={bookingDateIso} appointmentWord={appt1} />
           <CreateAccountOffer email={form.email} />
           {(reviewUrl || hasSocial) && (

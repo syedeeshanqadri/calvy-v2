@@ -81,6 +81,8 @@ model Business {
   id                       String                @id @default(cuid())
   name                     String
   slug                     String                @unique
+  /// Secret token in the private calendar feed URL (all of this business's bookings). Regenerating it breaks the old URL.
+  calendarToken            String?               @unique
   plan                     String                @default("free")
   planStatus               String                @default("free")
   trialEndsAt              DateTime?
@@ -188,6 +190,8 @@ model Staff {
   id             String         @id @default(cuid())
   businessId     String
   name           String
+  /// Secret token in this person's private calendar feed URL.
+  calendarToken  String?        @unique
   role           String
   email          String
   phone          String?

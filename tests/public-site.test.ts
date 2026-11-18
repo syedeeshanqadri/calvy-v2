@@ -98,7 +98,7 @@ describe("step-21 honest public site", () => {
 describe("step-26 public gaps", () => {
   const read2 = read;
   it("no customer-facing wallet wording on the public site, landing FAQ or queue page", () => {
-    for (const f of ["app/about/page.tsx", "lib/landingFaq.ts", "components/landing/Features.tsx", "app/[slug]/q/[code]/TrackClient.tsx", "app/dashboard/queue/QueueClient.tsx", "app/cookies/page.tsx"]) {
+    for (const f of ["app/about/page.tsx", "lib/landingFaq.ts", "components/landing/Features.tsx", "app/booking/[code]/TrackClient.tsx", "app/dashboard/queue/QueueClient.tsx", "app/cookies/page.tsx"]) {
       expect(read2(f), f).not.toMatch(/wallet credit|in (your|their) wallet|customer's wallet/i);
     }
     expect(read2("app/about/page.tsx")).not.toMatch(/through Cashfree/);

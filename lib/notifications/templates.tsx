@@ -32,8 +32,11 @@ export interface RenderBrand { tenant?: TenantBrand; terms?: TermsSource }
 
 /** `providerName` is the real staff member's name only (never the "Your doctor" fallback that staffName carries). */
 export type BookingPayload = Omit<BookingProps, "terms" | "tenant" | "unsubscribeUrl"> & { providerName?: string };
-/** Attaches a calendar invite; the start is an ISO string because payloads are JSON. */
-export type ConfirmationPayload = BookingPayload & { ics?: { appointmentId: string; start: string; durationMinutes: number } };
+/** Attaches a calendar invite; the start is an ISO string because payloads are JSON. `sequence` > 0 = an update (reschedule), `cancel` = METHOD:CANCEL. */
+export interface IcsPayload { appointmentId: string; start: string; durationMinutes: number; sequence?: number; cancel?: boolean }
+export type ConfirmationPayload = BookingPayload & { ics?: IcsPayload };
+const icsAttachments = (p: BookingPayload & { ics?: IcsPayload }) =>
+  p.ics ? [icsAttachment({ appointmentId: p.ics.appointmentId, serviceName: p.serviceName, businessName: p.businessName, staffName: p.staffName, durationMinutes: p.ics.durationMinutes, start: new Date(p.ics.start), sequence: p.ics.sequence, cancel: p.ics.cancel })] : undefined;
 export type InvoicePayload = Omit<InvoiceProps, "terms" | "tenant" | "unsubscribeUrl">;
 /** The link comes from the encrypted column, never from the stored payload. */
 type AuthPayload = { name: string; secret: string };
@@ -102,7 +105,7 @@ export const TEMPLATES = {
     subject: (p) => (p.token ? `Queue number #${p.token.number} confirmed: ${p.businessName}` : `Booking confirmed: ${p.serviceName} at ${p.businessName}`),
     Email: (p) => <BookingConfirmationEmail {...p} />,
     text: (p) => lines(`Hi ${first(p.clientName)}, your ${appt(p)} at ${p.businessName} is confirmed.`, detailsText(p), joinText(p), p.token && p.trackUrl && `Track your place in line: ${p.trackUrl}`, p.reward && rewardLine(p.reward)),
-    attachments: (p) => (p.ics ? [icsAttachment({ appointmentId: p.ics.appointmentId, serviceName: p.serviceName, businessName: p.businessName, staffName: p.staffName, durationMinutes: p.ics.durationMinutes, start: new Date(p.ics.start) })] : undefined),
+    attachments: icsAttachments,
   }),
   reminder: define<BookingPayload>({
     subject: (p) =>
@@ -118,15 +121,17 @@ export const TEMPLATES = {
       p.token && p.trackUrl && `Track your place: ${p.trackUrl}`,
     ),
   }),
-  reschedule: define<BookingPayload & { oldDate: string; oldTime: string }>({
+  reschedule: define<BookingPayload & { oldDate: string; oldTime: string; ics?: IcsPayload }>({
     subject: (p) => `Your ${appt(p)} was moved to ${p.date} at ${p.time}`,
     Email: (p) => <BookingRescheduleEmail {...p} />,
     text: (p) => lines(`Hi ${first(p.clientName)}, your ${appt(p)} at ${p.businessName} has been rescheduled.`, `Was: ${p.oldDate}, ${p.oldTime}`, `Now: ${p.date}, ${p.time}`, detailsText(p)),
+    attachments: icsAttachments,
   }),
-  cancellation: define<BookingPayload & { rebookUrl?: string }>({
+  cancellation: define<BookingPayload & { rebookUrl?: string; ics?: IcsPayload }>({
     subject: (p) => `Your ${appt(p)} at ${p.businessName} was cancelled`,
     Email: (p) => <BookingCancellationEmail {...p} />,
     text: (p) => lines(`Hi ${first(p.clientName)}, this ${appt(p)} at ${p.businessName} has been cancelled.`, detailsText(p), p.rebookUrl && `Book again: ${p.rebookUrl}`),
+    attachments: icsAttachments,
   }),
   meeting_link: define<BookingPayload & { meetingUrl: string; updated: boolean }>({
     subject: (p) => (p.updated ? `Your joining link has changed: ${p.businessName}` : `Your joining link for ${p.date} at ${p.time}: ${p.businessName}`),

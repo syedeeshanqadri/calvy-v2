@@ -32,12 +32,15 @@ export function verifyTrackingCode(code: string, env: NodeJS.ProcessEnv = proces
   return expected.length === given.length && timingSafeEqual(expected, given) ? id : null;
 }
 
-/** Public URL of the tracking page for an appointment (null when no signing key is configured). */
-export function trackingUrl(slug: string, appointmentId: string, env: NodeJS.ProcessEnv = process.env): string | null {
+/**
+ * Public URL of the tracking page for an appointment (null when no signing key is configured): `<app url>/booking/<code>`.
+ * The code already identifies the booking (and so the business); `slug` is kept so call sites did not have to change.
+ */
+export function trackingUrl(_slug: string, appointmentId: string, env: NodeJS.ProcessEnv = process.env): string | null {
   const code = signTrackingCode(appointmentId, env);
   if (!code) return null;
   const base = (env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000").replace(/\/$/, "");
-  return `${base}/${slug}/q/${code}`;
+  return `${base}/booking/${code}`;
 }
 
 export type TrackingState = "waiting" | "serving" | "done" | "no_show" | "moved" | "cancelled" | "pending_payment" | "expired";

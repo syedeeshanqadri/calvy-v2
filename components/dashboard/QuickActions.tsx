@@ -32,7 +32,7 @@ export function QuickActions({ services, staff, businessSlug }: { services: Serv
 
   const handleAction = (action: string) => {
     if (action === "link") {
-      const url = businessSlug ? `${window.location.origin}/b/${businessSlug}` : window.location.origin;
+      const url = businessSlug ? `${window.location.origin}/${businessSlug}/book` : window.location.origin;
       navigator.clipboard.writeText(url).then(() => {
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);

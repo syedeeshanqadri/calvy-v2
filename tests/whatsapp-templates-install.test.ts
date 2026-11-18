@@ -19,7 +19,7 @@ import { TEMPLATE_DEFS, buildTemplatePayload, currentTemplateNames, languagesOf,
 process.env.NEXTAUTH_SECRET = "test-secret";
 const json = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status });
 const cfg = () => ({ businessId: "b1", status: "CONNECTED", phoneNumberId: "1", wabaId: "2", accessTokenEnc: encryptSecret("TOKEN"), appSecretEnc: encryptSecret("S") });
-const bases = { tracking: "https://calvy.io/shop/q/", dashboard: "https://calvy.io/dashboard/" };
+const bases = { tracking: "https://calvy.io/booking/", dashboard: "https://calvy.io/dashboard/" };
 const TOTAL = TEMPLATE_DEFS.reduce((n, d) => n + languagesOf(d).length, 0);
 const upserts = () => db.tplUpsert.mock.calls.map((c) => c[0] as { create: { name: string; status?: string; reason?: string }; update: Record<string, unknown> });
 

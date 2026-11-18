@@ -27,6 +27,7 @@ const PUBLIC_BY_DESIGN: Record<string, string> = {
   track: "public tracking by unguessable appointment id",
   unsubscribe: "public; signed token",
   leads: "public marketing lead form; rate limited",
+  calendar: "private calendar feed: the secret token in the URL is the credential (Google/Outlook/Apple cannot log in); per-IP and per-token limited",
   health: "uptime monitor; names only, no secrets",
   region: "public: country from edge headers",
   geo: "public: currency/country lookup",

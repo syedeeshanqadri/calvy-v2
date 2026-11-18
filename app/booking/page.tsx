@@ -4,7 +4,7 @@ import Link from "next/link";
 import { generateTimeSlots, formatCurrency } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 
-// Demo-only static data — real booking pages live at /b/[slug]
+// Demo-only static data — real booking pages live at /{slug}/book
 const SERVICES = [
   { id: "s1", name: "Consultation", description: "Initial consultation session", duration: 30, price: 50, color: "#0284c7", isActive: true },
   { id: "s2", name: "Full Session", description: "Complete service session", duration: 60, price: 120, color: "#3b82f6", isActive: true },

@@ -8,7 +8,7 @@ import { saveAgain, type AgainMode } from "@/lib/bookAgain";
  */
 export function AnotherBooking({ slug, bookPath, serviceIds, staffId, date, appointmentWord }: {
   slug: string;
-  /** Where the booking page lives, e.g. "/clinic/book-now". */
+  /** Where the booking page lives, e.g. "/clinic/book". */
   bookPath: string;
   serviceIds: string[];
   staffId: string | null;

@@ -14,7 +14,7 @@ export default async function MyProfilePage() {
       <div className="max-w-xl space-y-6">
         {!data.verified && <VerifyNotice email={data.me.email} />}
         <ProfileCard name={data.me.name} email={data.me.email} />
-        <LinkGoogle endpoint="/api/customer/google" provider="google-customer" callbackUrl="/my/profile" className="p-5" />
+        <LinkGoogle endpoint="/api/customer/google" provider="google-customer" callbackUrl="/account/profile" className="p-5" />
         <DeleteAccountCard email={data.me.email} />
       </div>
     </>
