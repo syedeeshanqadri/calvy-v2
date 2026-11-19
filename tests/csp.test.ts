@@ -153,6 +153,25 @@ describe("audit of every third party the app loads in the browser, and that the 
   });
 });
 
+describe("no code in the browser needs 'unsafe-eval' (zod's probe is switched off)", () => {
+  it("zod is configured jitless, so it never calls new Function (which a strict policy reports even when the error is caught)", async () => {
+    vi.resetModules();
+    await import("@/lib/zodConfig");
+    const { globalConfig } = await import("zod/v4/core");
+    expect(globalConfig.jitless).toBe(true);
+    const { z } = await import("zod");
+    const spy = vi.spyOn(globalThis, "Function");
+    expect(z.object({ a: z.string(), b: z.number().optional() }).parse({ a: "x" })).toEqual({ a: "x" });
+    expect(spy).not.toHaveBeenCalled();
+    spy.mockRestore();
+  });
+  it("the client Providers import it first, before any schema can run", () => {
+    const src = fs.readFileSync(path.join(process.cwd(), "components/Providers.tsx"), "utf8");
+    expect(src).toContain('import "@/lib/zodConfig"');
+    expect(src.indexOf('import "@/lib/zodConfig"')).toBeLessThan(src.indexOf("from \""));
+  });
+});
+
 describe("production policy hygiene", () => {
   it("no unsafe-eval in production, and object-src / base-uri stay locked", async () => {
     const { cspOf, directive } = await load();
