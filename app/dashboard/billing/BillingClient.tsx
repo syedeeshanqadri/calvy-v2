@@ -164,7 +164,7 @@ export default function BillingClient({ data }: { data: BillingData }) {
               {intl && data.billingMode === "LINKS" && <p className="text-xs text-[#6b6b80]">Your plan is paid with a secure payment link each period; we email it to you ahead of time. Your card is not charged automatically.</p>}
             </div>
           )}
-          {!sub && data.planId === "free" && <p className="text-sm text-[#6b6b80]">{intl ? "Free is free forever. Paid plans unlock more staff, branding, WhatsApp and payments into your own account." : "Basic is free. You pay Calvy a Rs 10 confirmation fee on online bookings. Paid plans remove that fee and let you take payments straight into your own account."}</p>}
+          {!sub && data.planId === "free" && <p className="text-sm text-[#6b6b80]">{intl ? "Free is free forever. Paid plans unlock more staff, branding, WhatsApp and payments into your own account." : "Free is free. You pay Calvy a Rs 10 confirmation fee on online bookings. Paid plans remove that fee and let you take payments straight into your own account."}</p>}
           {sub && (
             <div className="flex flex-wrap gap-2 pt-2">
               {intl && data.billingMode === "RECURRING" && <button type="button" disabled={busy} onClick={updateCard} className={`${btn} border border-[#e8e6e0]`}>Update card</button>}

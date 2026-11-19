@@ -164,7 +164,7 @@ export const authOptions: NextAuthOptions = {
     // For OAuth sign-ins, ensure a matching User exists (linked by verified
     // email). The business is created later in the onboarding step.
     async signIn({ user, account, profile }) {
-      if (!account || account.provider === "credentials" || account.provider === "customer") return true;
+      if (!account || account.type === "credentials" || account.provider === "credentials" || account.provider === "customer") return true;
       if (!user.email) return false; // provider didn't share an email — can't proceed
       const oauthEmail = tryNormalizeEmail(user.email);
       if (!oauthEmail) return false;
