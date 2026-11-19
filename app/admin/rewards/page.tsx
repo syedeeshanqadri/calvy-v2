@@ -18,7 +18,7 @@ export default async function AdminRewardsPage(props: { searchParams: Promise<{ 
     <div className="space-y-8">
       <div>
         <h1 className="font-syne text-2xl font-bold">Rewards: Calvy Levels</h1>
-        <p className="text-sm text-[#6b6b80] mt-1">Levels lower Calvy&apos;s own confirmation fee, only where it exists (Basic plan, India). Changes apply to the next booking; bookings already made keep the fee they were charged.</p>
+        <p className="text-sm text-[#6b6b80] mt-1">Levels lower Calvy&apos;s own confirmation fee, only where it exists (Free plan, India). Changes apply to the next booking; bookings already made keep the fee they were charged.</p>
       </div>
       <section aria-label="Settings" className="space-y-3"><h2 className="font-syne text-lg font-bold">Settings</h2><LevelConfigForm initial={config} /></section>
       <section aria-label="Customer level" className="space-y-3">

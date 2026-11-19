@@ -1,13 +1,12 @@
 "use client";
 import { useState } from "react";
 import { Send, Users, Globe } from "lucide-react";
+import { SHOWN_PLANS, planName } from "@/lib/planCopy";
 
 const PLAN_OPTIONS = [
   { value: "", label: "All tenants" },
-  { value: "free", label: "Free plan only" },
-  { value: "starter", label: "Starter only" },
-  { value: "professional", label: "Professional only" },
-  { value: "business", label: "Business only" },
+  ...SHOWN_PLANS.map((id) => ({ value: id, label: `${planName(id)} only` })),
+  { value: "starter", label: `${planName("starter")} only (legacy)` },
 ];
 
 export default function NotificationsClient() {

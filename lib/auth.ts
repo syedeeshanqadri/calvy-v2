@@ -1,6 +1,7 @@
 import { currentPushDeviceId } from "@/lib/pushDeviceCookie";
 import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
+import { isOurCredentialsLogin } from "@/lib/authProviders";
 import GoogleProvider from "next-auth/providers/google";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
@@ -135,6 +136,9 @@ export const authOptions: NextAuthOptions = {
         const user = await prisma.user.findUnique({ where: { id: userId } });
         // Only a brand-new account (no password yet) can be opened this way.
         if (!user || user.password) return null;
+        // One-time: the first use marks the ticket spent, atomically, so two requests with the same ticket cannot both get in.
+        const spent = await prisma.user.updateMany({ where: { id: userId, password: null, signupTicketUsedAt: null }, data: { signupTicketUsedAt: new Date() } });
+        if (spent.count !== 1) return null;
         return { id: user.id, name: user.name, email: user.email, viaTicket: true } as { id: string; name: string; email: string };
       },
     }),
@@ -164,7 +168,8 @@ export const authOptions: NextAuthOptions = {
     // For OAuth sign-ins, ensure a matching User exists (linked by verified
     // email). The business is created later in the onboarding step.
     async signIn({ user, account, profile }) {
-      if (!account || account.provider === "credentials" || account.provider === "customer") return true;
+      // Password, customer and sign-up-ticket logins authorised themselves already; any other provider id (even a credentials one) must pass an OAuth branch below or be refused.
+      if (!account || isOurCredentialsLogin(account)) return true;
       if (!user.email) return false; // provider didn't share an email — can't proceed
       const oauthEmail = tryNormalizeEmail(user.email);
       if (!oauthEmail) return false;

@@ -30,7 +30,7 @@ async function POST_handler(req: NextRequest) {
 
   const business = await prisma.business.findUnique({
     where: { id: businessId },
-    select: { plan: true, planStatus: true, trialEndsAt: true, packId: true, businessType: true },
+    select: { plan: true, planStatus: true, trialEndsAt: true, currency: true, packId: true, businessType: true },
   });
   if (!business) return NextResponse.json({ error: "Business not found." }, { status: 404 });
 

@@ -7,6 +7,7 @@ import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import BroadcastsClient from "./BroadcastsClient";
 import { getBusinessFeatures } from "@/lib/getFeatures";
 import { UpgradeGate } from "@/components/dashboard/UpgradeGate";
+import { plansWith, cheapestPlanWith } from "@/lib/planCopy";
 
 export const dynamic = "force-dynamic";
 
@@ -27,7 +28,7 @@ export default async function BroadcastsPage() {
       <UpgradeGate
         title="Broadcasts"
         subtitle="Send offers and updates to your clients"
-        description="Send bulk emails to your clients. Available on Starter, Professional, and Business plans."
+        description={`Send bulk emails to your clients. Available on the ${plansWith("broadcasts")} plan.`}
       />
     );
   }

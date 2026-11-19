@@ -17,7 +17,7 @@ export default function RefundPolicyPage() {
       intro={`This policy explains cancellations and refunds for the booking confirmation fee, for service fees paid to businesses, and for Calvy subscriptions. Calvy is operated by ${CONTACT.legalName}.`}
     >
       <h2>1. Booking Confirmation Fee (₹10)</h2>
-      <p>On the Basic plan in India, a customer pays a ₹10 booking confirmation fee when booking online. The fee is paid to Calvy and is <strong>non-refundable</strong>.</p>
+      <p>On the Free plan in India, a customer pays a ₹10 booking confirmation fee when booking online. The fee is paid to Calvy and is <strong>non-refundable</strong>.</p>
       <p>If the booking is cancelled, including a last-minute cancellation, or is not attended, the fee is not refunded. The confirmation stays valid: the customer can rebook <strong>once</strong> with the same business without paying the fee again.</p>
       <p>A fee charged twice, or taken without creating a booking, is refunded in full.</p>
 

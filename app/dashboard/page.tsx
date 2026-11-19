@@ -5,6 +5,8 @@ import { MemberHome } from "@/components/dashboard/MemberHome";
 import { TodayList } from "@/components/dashboard/TodayList";
 import { loadToday } from "@/lib/today";
 import { prisma } from "@/lib/prisma";
+import { upgradeBannerPlan } from "@/lib/upgradeBanner";
+import { UpgradeBanner } from "@/components/dashboard/UpgradeBanner";
 import { redirect } from "next/navigation";
 import { logger } from "@/lib/logger";
 import { t } from "@/lib/terms";
@@ -36,7 +38,7 @@ export default async function DashboardPage() {
   const businessId = session.user.businessId;
   const firstName = session.user.name?.split(" ")[0] ?? "there";
 
-  const biz = await prisma.business.findUnique({ where: { id: businessId }, select: { timezone: true, packId: true, termsOverride: true } });
+  const biz = await prisma.business.findUnique({ where: { id: businessId }, select: { timezone: true, packId: true, termsOverride: true, plan: true, intendedPlan: true, upgradeBannerDismissedAt: true } });
   const todayData = access ? await loadToday(access) : null;
   const tz = safeTimeZone(biz?.timezone);
   const now = new Date();
@@ -170,6 +172,7 @@ export default async function DashboardPage() {
 
   return (
     <DashboardLayout title={`${greeting}, ${firstName} 👋`} subtitle={`${dateStr} · You have ${todayAppts.length} ${t(biz ?? {}, "appointment", { plural: todayAppts.length !== 1 })} today`}>
+      {biz && upgradeBannerPlan(biz) && <UpgradeBanner plan={upgradeBannerPlan(biz)!} />}
       {todayData && <TodayList data={todayData} appointmentWord={t(biz ?? {}, "appointment", { plural: true })} />}
       <DashboardKPIStats
         todayApptsCount={todayAppts.length}

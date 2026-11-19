@@ -20,7 +20,7 @@ export interface NotificationSettings {
 export async function loadNotificationSettings(businessId: string): Promise<NotificationSettings | null> {
   const b = await prisma.business.findUnique({
     where: { id: businessId },
-    select: { notificationPrefs: true, email: true, googleReviewUrl: true, plan: true, planStatus: true, trialEndsAt: true, owner: { select: { email: true } } },
+    select: { notificationPrefs: true, email: true, googleReviewUrl: true, plan: true, planStatus: true, trialEndsAt: true, currency: true, owner: { select: { email: true } } },
   });
   if (!b) return null;
   const limits = await getEffectiveLimits(b);

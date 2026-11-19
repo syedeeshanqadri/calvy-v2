@@ -8,6 +8,7 @@ import { PackPicker } from "@/components/packs/PackPicker";
 import { getPack } from "@/lib/packs";
 import type { PackId } from "@/lib/packs/types";
 import { REGIONS, currencyForRegion } from "@/lib/regions";
+import { planName, planQuery } from "@/lib/planCopy";
 import { getRegionPricing, formatMoney, isFeatureHeading, PRICING_NOTE } from "@/lib/pricing";
 import { HOURS_PRESETS, SKIPPABLE, STEPS, detectCountry, type Hours } from "@/lib/onboarding";
 import { businessHoursFromJson } from "@/lib/schedule";
@@ -125,12 +126,14 @@ export default function OnboardingClient({ initial, ownerName }: { initial: Wiza
     setView(view + 1);
   }
 
-  async function finish() {
+  // Pro or Business: the business is created on Free; the owner then lands on the existing Billing page with that plan selected.
+  const upgradeTo = plan === "professional" || plan === "business" ? plan : null;
+  async function finish(dest?: string) {
     setBusy(true); setError("");
     const r = await fetch("/api/onboarding/complete", { method: "POST" });
     if (!r.ok) { setBusy(false); setError("Could not finish. Try again."); return; }
     await update(); // pick up the businessId in the session token
-    router.push("/dashboard");
+    router.push(dest ?? (upgradeTo ? `/dashboard/billing?plan=${planQuery(upgradeTo)}` : "/dashboard"));
     router.refresh();
   }
 
@@ -291,18 +294,20 @@ export default function OnboardingClient({ initial, ownerName }: { initial: Wiza
                   <button key={p.id} type="button" role="radio" aria-checked={plan === p.id} onClick={() => setPlan(p.id)}
                     className={`w-full text-left rounded-2xl border-2 p-4 transition-colors ${plan === p.id ? "border-[#0284c7] bg-sky-50/50" : "border-[#e8e6e0] hover:border-[#c9c6bd]"}`}>
                     <div className="flex items-baseline justify-between gap-3">
-                      <span className="font-syne font-bold text-[#0f0f1a]">{p.name}{p.id === "free" && <span className="ml-2 text-[10px] font-bold bg-green-100 text-green-700 px-2 py-0.5 rounded-full">Selected for you</span>}</span>
+                      <span className="font-syne font-bold text-[#0f0f1a]">{p.name}{plan === p.id && <span className="ml-2 text-[10px] font-bold bg-green-100 text-green-700 px-2 py-0.5 rounded-full">Selected for you</span>}</span>
                       <span className="font-syne font-bold text-[#0f0f1a]">{money(p.monthly)}<span className="text-xs font-medium text-[#6b6b80]">{p.monthly === 0 ? " forever" : "/mo"}</span></span>
                     </div>
                     <ul className="mt-2 space-y-1">
-                      {p.features.slice(0, 6).map((f) => isFeatureHeading(f)
+                      {p.features.map((f) => isFeatureHeading(f)
                         ? <li key={f} className="pt-1 text-[11px] font-bold uppercase tracking-wider text-[#0f0f1a]">{f}</li>
                         : <li key={f} className="text-xs text-[#6b6b80] flex gap-1.5"><Check size={12} className="mt-0.5 text-[#0284c7] shrink-0" aria-hidden />{f}</li>)}
                     </ul>
                   </button>
                 ))}
               </div>
-              {plan !== "free" && <p role="status" className="text-sm text-[#3d3d4d] bg-sky-50 rounded-xl px-4 py-3">Start free, upgrade anytime. You will begin on the Free plan; nothing is charged now.</p>}
+              <p role="status" data-testid="plan-note" className="text-sm text-[#3d3d4d] bg-sky-50 rounded-xl px-4 py-3">{upgradeTo
+                ? `You will start on the Free plan and finish upgrading to ${planName(upgradeTo)} on the next screen. Nothing is charged until you confirm there.`
+                : "You are starting on the Free plan. No card needed; upgrade any time from Billing."}</p>
               <p className="text-xs text-[#6b6b80]">Prices shown for {st.region === "IN" ? "India" : "International"}.</p>
             </div>
           )}
@@ -329,7 +334,10 @@ export default function OnboardingClient({ initial, ownerName }: { initial: Wiza
             {view < total ? (
               <button type="button" onClick={() => next(false)} disabled={busy || !canNext} className={primaryBtn}>{busy ? "Saving…" : view === total - 1 ? "Finish" : "Continue"}</button>
             ) : (
-              <button type="button" onClick={finish} disabled={busy} className={primaryBtn}>{busy ? "Opening…" : "Go to dashboard"}</button>
+              <button type="button" onClick={() => finish()} disabled={busy} className={primaryBtn}>{busy ? "Opening…" : upgradeTo ? `Continue to upgrade to ${planName(upgradeTo)}` : "Go to dashboard"}</button>
+            )}
+            {view === total && upgradeTo && (
+              <button type="button" onClick={() => finish("/dashboard")} disabled={busy} className="block w-full min-h-11 text-sm text-[#6b6b80] hover:text-[#0f0f1a]">Go to dashboard for now</button>
             )}
             {view < total && skippable && (
               <button type="button" onClick={() => next(true)} disabled={busy} className="block w-full min-h-11 text-sm text-[#6b6b80] hover:text-[#0f0f1a]">Skip for now</button>

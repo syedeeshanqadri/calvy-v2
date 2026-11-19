@@ -6,6 +6,7 @@ import { listCurrentTemplates, publicView } from "@/lib/whatsapp/store";
 import { metaEnv } from "@/lib/whatsapp/embedded";
 import { coexistenceEnabled } from "@/lib/whatsapp/embeddedSession";
 import { WhatsAppClient } from "./WhatsAppClient";
+import { plansWith } from "@/lib/planCopy";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +16,7 @@ export default async function WhatsAppSettingsPage() {
   const businessId = session.user.businessId;
   const features = await getBusinessFeatures(businessId);
   if (!features.whatsappReminders) {
-    return <UpgradeGate title="WhatsApp" subtitle="Message customers on WhatsApp" description="Connect your own WhatsApp Business Account to send booking confirmations and reminders on WhatsApp. Available on Starter plans and above." />;
+    return <UpgradeGate title="WhatsApp" subtitle="Message customers on WhatsApp" description={`Connect your own WhatsApp Business Account to send booking confirmations and reminders on WhatsApp. Available on the ${plansWith("whatsappReminders")} plans.`} />;
   }
   const [config, templates] = await Promise.all([prisma.whatsAppConfig.findUnique({ where: { businessId } }), listCurrentTemplates(businessId)]);
   const env = metaEnv(); // the App ID and configuration ID are public identifiers, so they go to the browser as props

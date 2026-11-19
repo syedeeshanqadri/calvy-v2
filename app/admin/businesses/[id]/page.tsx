@@ -24,7 +24,7 @@ export default async function AdminBusinessPage(props: { params: Promise<{ id: s
   const d = await loadBusinessDetail(id);
   if (!d) notFound();
   const { business: b } = d;
-  const limits = await getEffectiveLimits({ plan: b.plan, planStatus: b.planStatus });
+  const limits = await getEffectiveLimits({ plan: b.plan, planStatus: b.planStatus, currency: b.currency });
 
   return (
     <div className="p-4 md:p-8 space-y-6 max-w-6xl">
