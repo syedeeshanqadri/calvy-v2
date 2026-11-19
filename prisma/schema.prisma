@@ -107,6 +107,8 @@ model Business {
   onboardingCompletedAt    DateTime?
   /// The plan the owner showed interest in during the wizard. Everyone starts on Free (subscriptions are parked).
   intendedPlan             String?
+  /// The "Complete your upgrade" dashboard banner (a plan picked in onboarding) was dismissed at this time.
+  upgradeBannerDismissedAt DateTime?
   bookingMode              BookingMode           @default(SLOT)
   onlinePayMode            OnlinePayMode         @default(BOOKING_FEE_ONLY)
   feePayer                 FeePayer              @default(CUSTOMER)

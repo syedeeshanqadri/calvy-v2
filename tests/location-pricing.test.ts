@@ -65,7 +65,7 @@ describe("price config", () => {
   it("IN has the agreed INR prices", () => {
     expect(REGION_PRICING.IN.currency).toBe("INR");
     expect(REGION_PRICING.IN.plans.map((p) => [p.name, p.monthly, p.yearlyPerMonth, p.yearlyTotal])).toEqual([
-      ["Free Forever", 0, 0, 0],
+      ["Free", 0, 0, 0],
       ["Pro", 349, 299, 3588],
       ["Business", 799, 699, 8388],
     ]);
@@ -80,7 +80,7 @@ describe("price config", () => {
     const [free, pro, biz] = REGION_PRICING.IN.plans;
     expect(free.features.join(" ")).toMatch(/nominal platform fee per confirmed online booking/);
     expect(pro.features).toContain("No platform fee");
-    expect(biz.features).toContain("No platform fee");
+    expect(biz.features).not.toContain("No platform fee");
     expect(pro.features.filter(isFeatureHeading)).toEqual(["Everything in Free, plus:"]);
   });
   it("savings badge is calculated from the config", () => {

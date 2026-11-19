@@ -37,7 +37,7 @@ export default function TermsPage() {
 
       <h2>5. Booking Confirmation Fee</h2>
       <ul>
-        <li>On the Basic plan in India, a customer pays a ₹10 booking confirmation fee when booking online. The fee is paid to Calvy and is non-refundable.</li>
+        <li>On the Free plan in India, a customer pays a ₹10 booking confirmation fee when booking online. The fee is paid to Calvy and is non-refundable.</li>
         <li>If the booking is cancelled or not attended, the fee is not refunded, but the confirmation stays valid for one rebooking with the same business without paying the fee again.</li>
         <li>Businesses on higher plans connect their own payment gateway and the ₹10 fee does not apply.</li>
         <li>WhatsApp messages sent through a paid plan are charged by Meta to the business&apos;s own WhatsApp Business account.</li>

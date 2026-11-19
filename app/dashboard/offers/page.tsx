@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getBusinessFeatures } from "@/lib/getFeatures";
 import { UpgradeGate } from "@/components/dashboard/UpgradeGate";
 import { OffersClient } from "./OffersClient";
+import { plansWith, cheapestPlanWith } from "@/lib/planCopy";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +17,7 @@ export default async function OffersPage() {
       <UpgradeGate
         title="Offers & discounts"
         subtitle="Bring customers back"
-        description="Make coupon codes and offers such as every 5th visit, happy hours and packages. Available on the Professional and Business plans."
+        description={`Make coupon codes and offers such as every 5th visit, happy hours and packages. Available on the ${plansWith("offers")} plans.`}
       />
     );
   }

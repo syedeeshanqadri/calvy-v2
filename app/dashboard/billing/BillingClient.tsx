@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { formatCurrencyAmount } from "@/lib/currency";
@@ -21,6 +21,8 @@ export interface BillingData {
   planLabel: string;
   override: { planLabel: string; until: string | null } | null;
   returnState: string | null;
+  /** From ?plan=pro|business (the onboarding link): open that plan's price panel on arrival. */
+  preselectPlan: "professional" | "business" | null;
   subscription: { state: string; planId: string; planLabel: string; interval: string; amountMinor: number; periodEnd: string | null; method: string | null; pendingPlanId: string | null; pendingPlanLabel: string | null; pendingInterval: string | null; graceUntil: string | null; endedReason: string | null } | null;
   plans: { id: "professional" | "business"; name: string; blurb: string; features: string[]; prices: Record<Interval, number> }[];
   invoices: { id: string; number: string; kind: string; issuedAt: string; amountMinor: number; planLabel: string; interval: string }[];
@@ -60,6 +62,15 @@ export default function BillingClient({ data }: { data: BillingData }) {
       setPick({ planId, interval }); setQuote(json); if (!withCode) setCode("");
     } finally { setBusy(false); }
   }
+
+  // Arriving from onboarding with ?plan=: open the same price panel the plan button opens. Nothing is charged until the owner confirms in it.
+  const preselected = useRef(false);
+  useEffect(() => {
+    if (preselected.current || !data.preselectPlan || data.planId === data.preselectPlan || (data.subscription && data.subscription.state !== "ENDED")) return;
+    preselected.current = true;
+    void openQuote(data.preselectPlan);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function post(path: string, body: object) {
     const res = await fetch(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -147,7 +158,7 @@ export default function BillingClient({ data }: { data: BillingData }) {
               {sub.state === "PAST_DUE"
                 ? <p className="text-red-700 font-semibold">Your last payment failed. Please {intl && data.billingMode === "LINKS" ? "pay your renewal link" : "update your card"}. Paid features stay on until {day(sub.graceUntil)}.</p>
                 : sub.pendingPlanId === "free"
-                  ? <p>Cancelled. You keep your plan until {day(sub.periodEnd)}, then move to Basic. You will not be charged again.</p>
+                  ? <p>Cancelled. You keep your plan until {day(sub.periodEnd)}, then move to Free. You will not be charged again.</p>
                   : <p>Next bill: <strong>{day(sub.periodEnd)}</strong>{sub.pendingPlanLabel ? ` · changes to ${sub.pendingPlanLabel} ${sub.pendingInterval === "YEARLY" ? "yearly" : "monthly"} then` : ""}</p>}
               {sub.method && <p>Payment method: {sub.method}</p>}
               {intl && data.billingMode === "LINKS" && <p className="text-xs text-[#6b6b80]">Your plan is paid with a secure payment link each period; we email it to you ahead of time. Your card is not charged automatically.</p>}

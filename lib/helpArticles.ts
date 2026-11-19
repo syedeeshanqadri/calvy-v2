@@ -144,7 +144,7 @@ Calvy validates every booking on our server, so two clients can never grab the s
     keywords: ["pay online", "advance", "deposit", "pay at venue", "payment option"],
     body: `Where a client pays depends on your plan.
 
-## Basic plan
+## Free plan
 Clients pay a **Rs 10 confirmation fee** online when they book, and pay for the service **at the venue**. The Rs 10 is Calvy's. If the booking is cancelled or the client doesn't attend, the Rs 10 is kept, the booking shows **Not attended — confirmation still valid**, and the client can rebook **once** at your business without paying the Rs 10 again.
 
 ## Pro and Business plans
@@ -200,7 +200,7 @@ Calvy shows clients how many spots are left and stops accepting bookings once th
 Calvy automatically reminds clients before their appointment by **email**, **WhatsApp**, and **push** (channels depend on your plan). Reminders go out the day before — nothing to send manually.
 
 ## Prepayment
-Take a payment when clients book (a Rs 10 confirmation fee on Basic, or an advance into your own gateway on Pro and Business). People who've paid show up. See *How customers pay*.
+Take a payment when clients book (a Rs 10 confirmation fee on Free, or an advance into your own gateway on Pro and Business). People who've paid show up. See *How customers pay*.
 
 ## Combine both
 Reminders + prepayment together is the most effective setup for keeping your calendar full and your revenue protected.`,
@@ -211,9 +211,9 @@ Reminders + prepayment together is the most effective setup for keeping your cal
     slug: "calvy-plans-explained",
     title: "Calvy plans explained",
     category: "Billing & Plans",
-    excerpt: "What each plan includes — Free, Starter, Professional, and Business.",
-    keywords: ["plans", "pricing", "free", "starter", "professional", "business", "features"],
-    body: `Calvy has four plans. The **Free** plan is lifetime free — no card required.
+    excerpt: "What each plan includes: Free, Pro and Business.",
+    keywords: ["plans", "pricing", "free", "pro", "business", "features"],
+    body: `Calvy has three plans: **Free**, **Pro** and **Business**. The **Free** plan is lifetime free — no card required.
 
 ## What changes between plans
 Higher plans raise your limits and unlock features such as:
@@ -323,7 +323,7 @@ You can add more than one gateway, make one the **default**, and enable or disab
 
 If the gateway can't do it (or you already refunded the customer yourself, for example from the gateway's dashboard or in cash), you are offered **Mark refunded manually**, which only records it in Calvy.
 
-Calvy's **Rs 10 confirmation fee** (Basic plan) is not refunded from here: it is kept when a booking is cancelled or not attended.`,
+Calvy's **Rs 10 confirmation fee** (Free plan) is not refunded from here: it is kept when a booking is cancelled or not attended.`,
   },
   {
     slug: "gateway-webhooks",
@@ -362,7 +362,7 @@ Once the webhook returns 200, paid bookings appear instantly. See *Gateway webho
     category: "Payments",
     excerpt: "What happens to the Rs 10 when a booking is cancelled or not attended.",
     keywords: ["not attended", "no show", "confirmation fee", "rebook", "rs 10"],
-    body: `On the Basic plan, the Rs 10 confirmation fee is **never refunded** when a confirmed booking is cancelled or not attended. The booking shows **Not attended — confirmation still valid**.
+    body: `On the Free plan, the Rs 10 confirmation fee is **never refunded** when a confirmed booking is cancelled or not attended. The booking shows **Not attended — confirmation still valid**.
 
 The customer can **rebook once** at your business without paying the Rs 10 again (or use a free follow-up if you enabled them). There is no balance to track and nothing to withdraw.`,
   },

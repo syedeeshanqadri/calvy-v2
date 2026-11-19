@@ -1,5 +1,5 @@
 // Plan names and USD prices. Kept apart from lib/plans.ts so client components (the pricing page) can import them without pulling in server code.
-import type { PlanId } from "@/lib/plans";
+import type { PlanId } from "@/lib/planData";
 
 export const PLAN_META: Record<PlanId, { name: string; price: number; annualPrice: number; description: string }> = {
   free: {

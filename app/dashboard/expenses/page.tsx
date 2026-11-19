@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { ExpensesClient } from "./ExpensesClient";
 import { getBusinessFeatures } from "@/lib/getFeatures";
 import { UpgradeGate } from "@/components/dashboard/UpgradeGate";
+import { plansWith, cheapestPlanWith } from "@/lib/planCopy";
 
 export const dynamic = "force-dynamic";
 
@@ -18,7 +19,7 @@ export default async function ExpensesPage() {
       <UpgradeGate
         title="Expenses"
         subtitle="Track costs and view profit"
-        description="Expense tracking and profit overview are available on the Professional and Business plans."
+        description={`Expense tracking and profit overview are available on the ${plansWith("expenseTracking")} plans.`}
       />
     );
   }

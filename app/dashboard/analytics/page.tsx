@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { AnalyticsClient } from "./AnalyticsClient";
 import { getBusinessFeatures } from "@/lib/getFeatures";
 import { UpgradeGate } from "@/components/dashboard/UpgradeGate";
+import { plansWith, cheapestPlanWith } from "@/lib/planCopy";
 
 export const dynamic = 'force-dynamic';
 
@@ -20,7 +21,7 @@ export default async function AnalyticsPage() {
       <UpgradeGate
         title="Analytics"
         subtitle="Revenue charts & KPIs"
-        description="Detailed analytics including 12-month revenue trends, service distribution, and top clients are available on the Professional and Business plans."
+        description={`Detailed analytics including 12-month revenue trends, service distribution, and top clients are available on the ${plansWith("analytics")} plans.`}
       />
     );
   }

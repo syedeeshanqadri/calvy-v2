@@ -566,7 +566,7 @@ const NOTICE_TITLE: Record<SubscriptionNoticeKind, string> = {
   payment_failed_1: "We could not take your Calvy payment",
   payment_failed_2: "Your Calvy payment is still unpaid",
   payment_failed_3: "Last reminder: your Calvy payment is unpaid",
-  downgraded: "Your account is now on the Basic plan",
+  downgraded: "Your account is now on the Free plan",
   renewal_link: "Your Calvy renewal is ready to pay",
 };
 
@@ -580,12 +580,12 @@ export function subscriptionNoticeLines(p: SubscriptionNoticeProps): string[] {
     case "started": return [`${hi} your ${plan} plan for ${p.businessName} is active.${p.amountLabel ? ` You paid ${p.amountLabel}.` : ""}`, p.dateLabel ? `Your next payment is on ${p.dateLabel}.` : "", p.invoiceNumber ? `Invoice ${p.invoiceNumber} is in your Billing page.` : ""].filter(Boolean);
     case "upgraded": return [`${hi} ${p.businessName} is now on ${plan}.${p.amountLabel ? ` You paid ${p.amountLabel}${p.creditLabel ? `, after a credit of ${p.creditLabel} for the unused part of your old plan` : ""}.` : ""}`, p.dateLabel ? `Your next payment is on ${p.dateLabel}.` : "", p.invoiceNumber ? `Invoice ${p.invoiceNumber} is in your Billing page.` : ""].filter(Boolean);
     case "downgrade_scheduled": return [`${hi} ${p.businessName} will move to ${plan} on ${p.dateLabel ?? "the end of your billing period"}.`, "Until then you keep everything in your current plan. You can undo this any time before that date from your Billing page."];
-    case "cancelled": return [`${hi} your subscription for ${p.businessName} is cancelled and you will not be charged again.`, `You keep your paid features until ${p.dateLabel ?? "the end of your billing period"}, then your account moves to the Basic plan. Nothing is deleted.`];
+    case "cancelled": return [`${hi} your subscription for ${p.businessName} is cancelled and you will not be charged again.`, `You keep your paid features until ${p.dateLabel ?? "the end of your billing period"}, then your account moves to the Free plan. Nothing is deleted.`];
     case "payment_failed_1": return [`${hi} we tried to charge ${p.amountLabel ?? "your plan"} for ${p.businessName} (${plan}) and it did not go through.`, `We will try again. Your paid features stay on until ${p.dateLabel ?? "7 days from now"}. Please check your payment method.`];
-    case "payment_failed_2": return [`${hi} the payment for ${p.businessName} (${plan}) is still unpaid.`, `Your paid features stay on until ${p.dateLabel ?? "the end of the grace period"}. After that your account moves to the Basic plan. Your data is kept.`];
-    case "payment_failed_3": return [`${hi} this is the last reminder: the payment for ${p.businessName} (${plan}) is still unpaid.`, `If we cannot take it by ${p.dateLabel ?? "the end of the grace period"}, your account moves to the Basic plan and paid features turn off. Your data is kept.`];
+    case "payment_failed_2": return [`${hi} the payment for ${p.businessName} (${plan}) is still unpaid.`, `Your paid features stay on until ${p.dateLabel ?? "the end of the grace period"}. After that your account moves to the Free plan. Your data is kept.`];
+    case "payment_failed_3": return [`${hi} this is the last reminder: the payment for ${p.businessName} (${plan}) is still unpaid.`, `If we cannot take it by ${p.dateLabel ?? "the end of the grace period"}, your account moves to the Free plan and paid features turn off. Your data is kept.`];
     case "renewal_link": return [`${hi} your ${plan} plan for ${p.businessName} renews on ${p.dateLabel ?? "the end of this period"} for ${p.amountLabel ?? "the plan price"}.`, "Your card is not charged automatically on your account, so please pay with the secure link below to keep your plan going without a break."];
-    case "downgraded": return [`${hi} we could not collect your payment, so ${p.businessName} is now on the Basic plan.`, "Your bookings, customers and settings are all still there; only the paid features are off. You can subscribe again from your Billing page at any time."];
+    case "downgraded": return [`${hi} we could not collect your payment, so ${p.businessName} is now on the Free plan.`, "Your bookings, customers and settings are all still there; only the paid features are off. You can subscribe again from your Billing page at any time."];
   }
 }
 
