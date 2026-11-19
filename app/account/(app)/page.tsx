@@ -5,6 +5,7 @@ import { BookingCard } from "@/components/my/BookingCard";
 import { PageHeader } from "@/components/my/PageHeader";
 import { VerifyNotice } from "./MyClient";
 import { LevelUpCelebration } from "./LevelUpCelebration";
+import { ForgetDevice } from "./ForgetDevice";
 
 export const dynamic = "force-dynamic";
 
@@ -115,6 +116,7 @@ export default async function MyOverviewPage() {
               {level.perk && <p className="text-sm mt-3">{level.perk}</p>}
               {level.perk && (level.level === "PRO" || level.level === "LEGEND") && <p className="text-xs text-[#6b6b80] mt-1">{level.perkReady ? "This quarter's free confirmation is ready." : "You have used this quarter's free confirmation."}</p>}
               <p className="text-xs text-[#6b6b80] mt-3">Visits count once the business marks them attended. Moving a booking is always free. The lower fee applies at businesses on the Basic plan in India.</p>
+              <ForgetDevice />
               {referral && (
                 <div className="mt-4 border-t border-[#e8e6e0] pt-3">
                   <p className="text-sm font-semibold">Refer a friend</p>

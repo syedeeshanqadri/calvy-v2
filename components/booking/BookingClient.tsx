@@ -56,6 +56,8 @@ interface Business {
   payConfig?: PayConfig | null;
   packId: string; termsOverride: unknown; bookingMode?: "SLOT" | "TOKEN";
   logoUrl?: string | null; socialLinks?: SocialLinks; googleReviewUrl?: string | null;
+  /** Where "Continue with Google" at checkout goes (the member sign-in page); null when Google sign-in is not set up. */
+  memberGoogleHref?: string | null;
   /** Offers the business shows (paid plans): applied automatically at confirm. */
   offers?: { id: string; name: string; summary: string }[];
   services: Service[]; staff: StaffMember[];
@@ -827,7 +829,7 @@ export function BookingClient({ business, fontClasses, homeHref = "/", followUp 
                 <DiscountBox
                   businessSlug={business.slug} serviceIds={selectedServices} email={form.email} phone={form.phone} verifiedTicket={vt || undefined}
                   date={tokenMode ? tokenDate : `${viewYear}-${String(viewMonth + 1).padStart(2, "0")}-${String(selectedDate).padStart(2, "0")}`} time={tokenMode ? null : selectedTime}
-                  onChange={setDiscount} formatMoney={(m) => formatCurrencyAmount(fromMinorUnits(m, business.currency), business.currency)}
+                  googleHref={business.memberGoogleHref ?? null} linkExpired={searchParams?.get("link") === "expired"} onChange={setDiscount} formatMoney={(m) => formatCurrencyAmount(fromMinorUnits(m, business.currency), business.currency)}
                 />
                 {forSomeone && <p className="st-muted" style={{ fontSize: "0.8125rem", marginTop: 8 }}>This is a separate {appt1} with its own {payNowMinor > 0 ? "payment" : "fee"} of {payNowMinor > 0 ? payNowLabel : formatCurrencyAmount(totalPrice, business.currency)}.</p>}
               </div>

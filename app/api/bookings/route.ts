@@ -33,11 +33,12 @@ import { resolveBookingMode, resolveMeetingUrl } from "@/lib/online";
 import { loadMeetingUrl } from "@/lib/onlineDb";
 import { Prisma } from "@prisma/client";
 import { suspended, suspendedResponse } from "@/lib/suspension";
-import { checkVerifiedLimits, getVerifiedLimits, isVerifiedBooker } from "@/lib/verifiedLimits";
+import { checkVerifiedLimits, getVerifiedLimits, isVerifiedBooker, verifiedCustomerId } from "@/lib/verifiedLimits";
 import { FollowUpTicketError, resolveFollowUp } from "@/lib/followUpDb";
 import { claimWaiver } from "@/lib/waiver";
 import { afterBooking } from "@/lib/rewards/referrals";
 import { deviceHash } from "@/lib/rewards/device";
+import { readDeviceTicket, setDeviceCookie } from "@/lib/verifiedDevice";
 import { CouponUnavailableError, redeemForAppointment } from "@/lib/coupons/service";
 import { priceAfterDiscount, resolveBusinessDiscount } from "@/lib/offers/service";
 import { claimFeeCoupon, resolveCalvyFee } from "@/lib/coupons/booking";
@@ -90,7 +91,7 @@ async function bookingHandler(req: NextRequest) {
   if (!business) return NextResponse.json({ error: "Business not found." }, { status: 404 });
   if (suspended(business)) return suspendedResponse(business.name);
   // A verified customer (proved by one of their own signed links) is held to the admin-set limits; guests keep the guest rules below.
-  const verifiedBooker = await isVerifiedBooker(prisma, [parsed.data.verifiedTicket, parsed.data.followUpTicket], clientEmail);
+  const verifiedBooker = await isVerifiedBooker(prisma, [parsed.data.verifiedTicket, parsed.data.followUpTicket, await readDeviceTicket()], clientEmail);
   if (verifiedBooker) {
     const verdict = await checkVerifiedLimits(prisma, { businessId: business.id, businessName: business.name, email: clientEmail, limits: await getVerifiedLimits(prisma) });
     if (!verdict.ok) return NextResponse.json({ error: verdict.message, code: verdict.code }, { status: verdict.status });
@@ -527,7 +528,7 @@ async function bookingHandler(req: NextRequest) {
  * were held back (daily cap), so this cannot be used to send repeated emails to an address.
  */
 async function POST_handler(req: NextRequest) {
-  const raw = (await req.clone().json().catch(() => null)) as { clientEmail?: unknown; clientName?: unknown; referralCode?: unknown } | null;
+  const raw = (await req.clone().json().catch(() => null)) as { clientEmail?: unknown; clientName?: unknown; referralCode?: unknown; verifiedTicket?: unknown; followUpTicket?: unknown } | null;
   const res = await bookingHandler(req);
   if (!res.ok) return res;
   const data = (await res.clone().json().catch(() => null)) as Record<string, unknown> | null;
@@ -537,6 +538,17 @@ async function POST_handler(req: NextRequest) {
       await afterBooking(prisma, { appointmentId: data.appointmentId, referralCode: typeof raw?.referralCode === "string" ? raw.referralCode : null, deviceHash: await deviceHash() });
     } catch (err) {
       logger.error("[Referral] could not record the booking", { err });
+    }
+  }
+  // A verified booking remembers this device for 90 days, so the next one needs no sign-in. Only when the booking really was a verified
+  // customer's (their own ticket or cookie, with a verified email that matches the booking), never for a guest.
+  if (data?.success && typeof raw?.clientEmail === "string") {
+    try {
+      const tickets = [typeof raw.verifiedTicket === "string" ? raw.verifiedTicket : null, typeof raw.followUpTicket === "string" ? raw.followUpTicket : null, await readDeviceTicket()];
+      const id = await verifiedCustomerId(prisma, tickets, raw.clientEmail);
+      if (id) await setDeviceCookie(id);
+    } catch (err) {
+      logger.error("[Verified] could not remember the device", { err });
     }
   }
   if (!data?.success || data.confirmationWithheld) return res;
