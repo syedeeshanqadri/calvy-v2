@@ -12,6 +12,7 @@ import { chargeFor, defaultGateway, sendConfirmationFor, startCheckout, type Pay
 import { assertMonthlyHeadroom } from "@/lib/limits";
 import { claimWaiver } from "@/lib/waiver";
 import { claimFeeCoupon, resolveCalvyFee } from "@/lib/coupons/booking";
+import { redeemForAppointment } from "@/lib/coupons/service";
 import { claimReward, RewardTakenError } from "@/lib/rewards/service";
 import { loadMeetingUrl } from "@/lib/onlineDb";
 import { addDays, formatDateLabel, parseYMD, utcToZoned, weekdayOf, zonedToUtc } from "@/lib/time";
@@ -143,6 +144,8 @@ export interface TokenBookingInput {
   verifiedBooker?: boolean;
   /** One discount code typed by the customer (checked here, taken inside the booking transaction). */
   couponCode?: string | null;
+  /** A business coupon already judged by the route: taken inside the booking transaction. Prices in `services` are already discounted. */
+  serviceCoupon?: { couponId: string; lines: { id: string; priceMinor: number }[] } | null;
   /** Who the token is for (the booker unless they booked for someone else). */
   patientName: string;
   /** Relation, age and gender of someone else (already limited to what the business collects). */
@@ -228,6 +231,7 @@ export async function bookToken(input: TokenBookingInput): Promise<NextResponse>
     if (waived && !(await claimWaiver(tx, { businessId: business.id, clientId: client.id, appointmentId: created.id }))) throw new WaiverTakenError();
     if (rewarded && !(await claimReward(tx, { appointmentId: created.id, email: input.client.email, phone: input.client.phone }))) throw new RewardTakenError();
     if (coupon) await claimFeeCoupon(tx, { couponId: coupon.couponId, appointmentId: created.id, businessId: business.id, feeMinor: coupon.feeMinor, customer: { email: input.client.email, phone: input.client.phone, tz } });
+    if (input.serviceCoupon) await redeemForAppointment(tx, { couponId: input.serviceCoupon.couponId, appointmentId: created.id, customer: { email: input.client.email, phone: input.client.phone, tz }, ctx: { target: "SERVICE", businessId: business.id, services: input.serviceCoupon.lines } });
     return created;
   });
 

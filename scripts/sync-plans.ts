@@ -38,6 +38,7 @@ async function main() {
       broadcasts: l.broadcasts,
       csvExport: l.csvExport,
       expenseTracking: l.expenseTracking,
+      offers: l.offers,
       customSlotInterval: l.customSlotInterval,
       removeBranding: l.removeBranding,
       prioritySupport: l.prioritySupport,

@@ -16,6 +16,7 @@ const db = vi.hoisted(() => {
     client: { findFirst: vi.fn(), create: vi.fn(), update: vi.fn() },
     notification: { findFirst: vi.fn() },
     planConfig: { findUnique: vi.fn() },
+    businessOffer: { findMany: vi.fn(async () => []) },
     $executeRaw: vi.fn(),
   };
   d.$transaction = vi.fn(async (fn: (tx: unknown) => unknown) => fn(d));

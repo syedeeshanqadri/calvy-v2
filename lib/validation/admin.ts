@@ -90,7 +90,7 @@ const limitNum = z.coerce.number().int().min(-1).max(1_000_000);
 const PLAN_FLAGS = [
   "analytics", "customBranding", "imageUpload", "seoControls", "chatbotWidget", "groupBooking",
   "multiService", "stripePayments", "emailReminders", "smsReminders", "broadcasts", "csvExport",
-  "expenseTracking", "wallet", "customSlotInterval", "removeBranding", "prioritySupport",
+  "expenseTracking", "offers", "wallet", "customSlotInterval", "removeBranding", "prioritySupport",
 ] as const;
 const flagShape = Object.fromEntries(PLAN_FLAGS.map((k) => [k, z.boolean().optional()])) as Record<
   (typeof PLAN_FLAGS)[number],

@@ -56,6 +56,8 @@ interface Business {
   payConfig?: PayConfig | null;
   packId: string; termsOverride: unknown; bookingMode?: "SLOT" | "TOKEN";
   logoUrl?: string | null; socialLinks?: SocialLinks; googleReviewUrl?: string | null;
+  /** Offers the business shows (paid plans): applied automatically at confirm. */
+  offers?: { id: string; name: string; summary: string }[];
   services: Service[]; staff: StaffMember[];
 }
 
@@ -128,7 +130,7 @@ export function BookingClient({ business, fontClasses, homeHref = "/", followUp 
   const [reward, setReward] = useState<{ done: number; of: number; available: number } | null>(null);
   const [rewardUsed, setRewardUsed] = useState(false);
   // One discount code per booking; the server re-checks it when the booking is confirmed.
-  const [discountState, setDiscountState] = useState<{ key: string; result: DiscountResult } | null>(null);
+  const [discount, setDiscount] = useState<DiscountResult | null>(null);
   /** "created" / "verify": the booker's account waits for its emailed verify link. */
   const [accountNotice, setAccountNotice] = useState<string | null>(null);
   const [tokenDate, setTokenDate] = useState("");
@@ -325,14 +327,12 @@ export function BookingClient({ business, fontClasses, homeHref = "/", followUp 
   const patientLabel = forSomeone && patientName.trim() ? patientName.trim() : form.name;
   const serviceNamesLabel = selectedServiceObjs.map(s => s.name).join(" & ") || "—";
   // Online charge for this booking (same calculator as the server, which stays authoritative).
-  // A code was checked for one email and one set of services: change either and it must be checked again.
-  const discountKey = `${form.email}|${selectedServices.join(",")}`;
-  const discount = discountState?.key === discountKey ? discountState.result : null;
-  const setDiscount = (r: DiscountResult | null) => setDiscountState(r ? { key: discountKey, result: r } : null);
   const payConfig = business.payConfig ?? null;
   const onlineCharge = payConfig ? chargeForConfig(payConfig, selectedServiceObjs.map((sv) => ({ serviceId: sv.id, price: sv.price }))) : null;
   const rewardFree = !!reward && reward.available > 0 && onlineCharge?.route === "CALVY";
   const payNowMinor = discount?.ok && discount.payNowMinor !== undefined ? discount.payNowMinor : onlineCharge?.chargeMinor ?? 0;
+  // Offers and codes lower the service total (the server decides; this only shows it).
+  const discountedTotal = discount?.ok && discount.totalMinor !== undefined ? fromMinorUnits(discount.totalMinor, business.currency) : totalPrice;
   const payNowLabel = formatCurrencyAmount(fromMinorUnits(payNowMinor, business.currency), business.currency);
   // Phone is required in India, and whenever an online payment is due.
   const phoneNeeded = !!business.phoneRequired || (payNowMinor > 0 && payConfig?.country === "IN");
@@ -545,6 +545,11 @@ export function BookingClient({ business, fontClasses, homeHref = "/", followUp 
             <section className="bk-step">
               <h2>Choose {svcN}</h2>
               <p className="bk-sub">Select one or more {svcN} you&apos;d like to book.</p>
+              {!!business.offers?.length && (
+                <ul className="bk-note" aria-label="Offers" style={{ listStyle: "none", margin: "0 0 12px", padding: "10px 14px" }}>
+                  {business.offers.map((o) => <li key={o.id}><strong>{o.name}</strong> <span className="st-muted">· {o.summary}</span></li>)}
+                </ul>
+              )}
               {services.length > 4 && (
                 <input
                   type="text"
@@ -815,10 +820,12 @@ export function BookingClient({ business, fontClasses, homeHref = "/", followUp 
               <div className="bk-card" data-testid="booking-summary">
                 <p><span className="st-muted">Booking for:</span> <strong>{patientLabel}</strong>
                   <span className="st-muted"> · Booked by:</span> <strong>{form.name}</strong>
-                  <span className="st-muted"> · </span><strong style={{ color: "var(--brand-ink)" }}>{payNowMinor > 0 ? payNowLabel : formatCurrencyAmount(totalPrice, business.currency)}</strong></p>
-                {payConfig && (
-                  <DiscountBox businessSlug={business.slug} serviceIds={selectedServices} email={form.email} phone={form.phone} verifiedTicket={vt ?? undefined} applied={discount} onChange={setDiscount} />
-                )}
+                  <span className="st-muted"> · </span><strong style={{ color: "var(--brand-ink)" }}>{payNowMinor > 0 ? payNowLabel : formatCurrencyAmount(discountedTotal, business.currency)}</strong></p>
+                <DiscountBox
+                  businessSlug={business.slug} serviceIds={selectedServices} email={form.email} phone={form.phone} verifiedTicket={vt || undefined}
+                  date={tokenMode ? tokenDate : `${viewYear}-${String(viewMonth + 1).padStart(2, "0")}-${String(selectedDate).padStart(2, "0")}`} time={tokenMode ? null : selectedTime}
+                  onChange={setDiscount} formatMoney={(m) => formatCurrencyAmount(fromMinorUnits(m, business.currency), business.currency)}
+                />
                 {forSomeone && <p className="st-muted" style={{ fontSize: "0.8125rem", marginTop: 8 }}>This is a separate {appt1} with its own {payNowMinor > 0 ? "payment" : "fee"} of {payNowMinor > 0 ? payNowLabel : formatCurrencyAmount(totalPrice, business.currency)}.</p>}
               </div>
               <div className="bk-rows">
@@ -851,7 +858,8 @@ export function BookingClient({ business, fontClasses, homeHref = "/", followUp 
                     <span>{row.value || "—"}</span>
                   </div>
                 ))}
-                <div className="bk-total"><span>Total</span><span>{formatCurrencyAmount(totalPrice, business.currency)}</span></div>
+                {!!discount?.discountMinor && <div className="bk-row"><span>{discount.offer ? `Offer: ${discount.offer.name}` : `Code ${discount.code}`}</span><span>− {formatCurrencyAmount(fromMinorUnits(discount.discountMinor, business.currency), business.currency)}</span></div>}
+                <div className="bk-total"><span>Total</span><span>{formatCurrencyAmount(discountedTotal, business.currency)}</span></div>
                 <div className="bk-row" style={{ borderBottom: 0, paddingBottom: 14 }}>
                   <span>Payment</span>
                   <span style={{ color: payAtVenue ? "#92400e" : "#166534" }}>{paymentLabel}</span>

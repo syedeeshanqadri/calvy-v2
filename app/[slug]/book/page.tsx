@@ -7,6 +7,8 @@ import { getPayConfig } from "@/lib/onlinePayment";
 import { contactRequirements } from "@/lib/patients";
 import { parseSocialLinks, safeReviewLink } from "@/lib/brandLinks";
 import { followUpFromQuery } from "@/lib/followUpDb";
+import { publicOffers } from "@/lib/offers/service";
+import { getBusinessFeatures } from "@/lib/getFeatures";
 import { BookingClient } from "@/components/booking/BookingClient";
 import { headers } from "next/headers";
 import { siteBase } from "@/lib/siteBase";
@@ -60,6 +62,7 @@ export default async function BookNowPage(props: { params: Promise<{ slug: strin
     phoneRequired: contactRequirements(business.currency).phone,
     whatsappOffered: await whatsappOffered(business.id),
     payConfig: await getPayConfig(business),
+    offers: await publicOffers(prisma, business.id, (await getBusinessFeatures(business.id)).offers),
     termsOverride: business.termsOverride,
     description: business.description ?? "",
     phone: business.phone ?? "",

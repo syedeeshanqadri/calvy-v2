@@ -5,7 +5,7 @@ import {
   LayoutDashboard, Calendar, Users, CalendarDays, CreditCard,
   BarChart2, Wrench, Link2, ChevronLeft, SlidersHorizontal,
   Sparkles, UserCog, Wallet, Globe, Megaphone, Receipt, LifeBuoy, ListOrdered,
-  Bell,
+  Bell, BadgePercent,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useFlags } from "@/components/providers/FlagsProvider";
@@ -26,6 +26,7 @@ const NAV_ITEMS: { label: string; href: string; icon: typeof LayoutDashboard; fl
   { label: "Analytics", href: "/dashboard/analytics", icon: BarChart2 },
   { label: "Expenses", href: "/dashboard/expenses", icon: Receipt },
   { term: "service", label: "Services", href: "/dashboard/services", icon: Wrench },
+  { label: "Offers", href: "/dashboard/offers", icon: BadgePercent },
   { label: "Broadcasts", href: "/dashboard/broadcasts", icon: Megaphone, flag: "broadcasts" },
   { label: "Booking Page", href: "/dashboard/booking-page", icon: Link2 },
   { label: "Website", href: "/dashboard/website", icon: Globe },

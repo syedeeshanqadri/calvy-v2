@@ -36,7 +36,8 @@ import { suspended, suspendedResponse } from "@/lib/suspension";
 import { checkVerifiedLimits, getVerifiedLimits, isVerifiedBooker } from "@/lib/verifiedLimits";
 import { FollowUpTicketError, resolveFollowUp } from "@/lib/followUpDb";
 import { claimWaiver } from "@/lib/waiver";
-import { CouponUnavailableError } from "@/lib/coupons/service";
+import { CouponUnavailableError, redeemForAppointment } from "@/lib/coupons/service";
+import { priceAfterDiscount, resolveBusinessDiscount } from "@/lib/offers/service";
 import { claimFeeCoupon, resolveCalvyFee } from "@/lib/coupons/booking";
 import { WaiverTakenError } from "@/lib/tokenBooking";
 import { claimReward, progressFor, RewardTakenError } from "@/lib/rewards/service";
@@ -199,7 +200,7 @@ async function bookingHandler(req: NextRequest) {
   const followUpTakenResponse = () =>
     NextResponse.json({ error: "Your free follow-up has already been used. Please book again as a new appointment.", code: "FOLLOW_UP_USED" }, { status: 409 });
 
-  const totalPrice = followUpOfId ? 0 : orderedServices.reduce((sum, s) => sum + s.price, 0);
+  let totalPrice = followUpOfId ? 0 : orderedServices.reduce((sum, s) => sum + s.price, 0);
   const totalDuration = orderedServices.reduce((sum, s) => sum + s.duration, 0);
   const serviceNamesLabel = orderedServices.map(s => s.name).join(" & ");
 
@@ -210,7 +211,33 @@ async function bookingHandler(req: NextRequest) {
   if (onlinePayments && !payConfig && process.env.NODE_ENV === "production" && business.currency?.toUpperCase() === "INR") {
     return NextResponse.json({ error: "Online payments are temporarily unavailable. Please try again later." }, { status: 503 });
   }
-  const charge = chargeFor(payConfig, orderedServices.map((sv) => ({ serviceId: sv.id, price: followUpOfId ? 0 : sv.price })));
+  let charge = chargeFor(payConfig, orderedServices.map((sv) => ({ serviceId: sv.id, price: followUpOfId ? 0 : sv.price })));
+
+  // Business discount (paid plans): the better of ONE business coupon and the best offer, never stacked. It lowers the service prices,
+  // so the amount paid online (if any) and the stored price follow it. Calvy's Rs 10 is separate and only on Basic, where this is off.
+  let pricedServices = orderedServices;
+  let serviceCoupon: { couponId: string; lines: { id: string; priceMinor: number }[] } | null = null;
+  let businessCodeConsumed = false;
+  const biz = business;
+  const typedCode = parsed.data.couponCode;
+  async function applyBusinessDiscount(start: Date | null): Promise<NextResponse | null> {
+    const r = await resolveBusinessDiscount(prisma, {
+      business: biz, offersEnabled: !!limits.offers && !followUpOfId, services: orderedServices.map((s) => ({ id: s.id, price: s.price })), start,
+      customer: { email: clientEmail, phone: clientPhone }, couponCode: typedCode,
+    });
+    if (!r.ok) return NextResponse.json({ error: r.error, code: "COUPON_INVALID" }, { status: 400 });
+    businessCodeConsumed = r.codeConsumed;
+    if (r.discountMinor > 0) {
+      const prices = priceAfterDiscount(orderedServices.map((s) => ({ id: s.id, price: s.price })), r.discountMinor, biz.currency);
+      pricedServices = orderedServices.map((s, i) => ({ ...s, price: prices[i] }));
+      totalPrice = pricedServices.reduce((sum, s) => sum + s.price, 0);
+      charge = chargeFor(payConfig, pricedServices.map((sv) => ({ serviceId: sv.id, price: sv.price })));
+      if (r.coupon) serviceCoupon = { couponId: r.coupon.couponId, lines: orderedServices.map((s) => ({ id: s.id, priceMinor: toMinor(s.price, biz.currency) })) };
+    }
+    return null;
+  }
+  // The code goes to Calvy's fee side only when it was not one of this business's own coupons.
+  const feeCode = () => (businessCodeConsumed ? null : typedCode ?? null);
   // A phone number is needed for the Indian gateways; a card or PayPal payment abroad does not need one.
   if (charge.chargeMinor > 0 && !clientPhone && payConfig?.country === "IN") {
     return NextResponse.json({ error: "A phone number is needed to pay online." }, { status: 400 });
@@ -219,12 +246,14 @@ async function bookingHandler(req: NextRequest) {
   // Token businesses book a numbered place in a session; there is no clock time to choose.
   if (business.bookingMode === "TOKEN") {
     if (!tokenSessionId) return NextResponse.json({ error: "Please choose a session." }, { status: 400 });
+    const tokenDiscount = await applyBusinessDiscount(null);
+    if (tokenDiscount) return tokenDiscount;
     try {
       return await bookToken({
-        business, services: orderedServices, tokenSessionId, date, tz: bizTz,
+        business, services: pricedServices, tokenSessionId, date, tz: bizTz,
         client: { name: clientName, email: clientEmail, phone: clientPhone },
         notes, maxMonthlyAppointments: limits.maxMonthlyAppointments, monthStart, payConfig, patientName, patientDetails, followUpOfId,
-        maxPeoplePerBooker: business.maxPeoplePerBooker, isOnline, verifiedBooker, couponCode: parsed.data.couponCode,
+        maxPeoplePerBooker: business.maxPeoplePerBooker, isOnline, verifiedBooker, couponCode: feeCode(), serviceCoupon,
       });
     } catch (err) {
       if (err instanceof DuplicatePatientError) return await duplicateResponse(err);
@@ -248,6 +277,9 @@ async function bookingHandler(req: NextRequest) {
   if (isPastBooking(appointmentStart.getTime())) {
     return NextResponse.json({ error: "That time has already passed. Please pick a future slot." }, { status: 400 });
   }
+
+  const slotDiscount = await applyBusinessDiscount(appointmentStart);
+  if (slotDiscount) return slotDiscount;
 
   const capacity = Math.max(1, orderedServices[0].capacity ?? 1);
   const conflictResponse = () =>
@@ -343,6 +375,7 @@ async function bookingHandler(req: NextRequest) {
             if (waive && !(await claimWaiver(tx, { businessId: business!.id, clientId, appointmentId: created.id }))) throw new WaiverTakenError();
             // Same for the loyalty reward: spent inside the booking's own transaction.
             if (reward && !(await claimReward(tx, { appointmentId: created.id, email: clientEmail, phone: clientPhone }))) throw new RewardTakenError();
+            if (serviceCoupon) await redeemForAppointment(tx, { couponId: serviceCoupon.couponId, appointmentId: created.id, customer: { email: clientEmail, phone: clientPhone, tz: bizTz }, ctx: { target: "SERVICE", businessId: business!.id, services: serviceCoupon.lines } });
             if (feeCoupon) await claimFeeCoupon(tx, { couponId: feeCoupon.couponId, appointmentId: created.id, businessId: business!.id, feeMinor: feeCoupon.feeMinor, customer: { email: clientEmail, phone: clientPhone, tz: bizTz } });
             return created;
           },
@@ -430,7 +463,7 @@ async function bookingHandler(req: NextRequest) {
     // What reduces Calvy's Rs 10: the kept-fee waiver first, then ONE of a Calvy coupon or a loyalty reward (lib/coupons/booking.ts).
     const fee = await resolveCalvyFee(prisma, {
       businessId: business.id, clientId: client.id, fullCharge: charge, verifiedBooker,
-      customer: { email: clientEmail, phone: clientPhone, tz: bizTz }, couponCode: parsed.data.couponCode,
+      customer: { email: clientEmail, phone: clientPhone, tz: bizTz }, couponCode: feeCode(),
     });
     if (!fee.ok) return NextResponse.json({ error: fee.error, code: fee.code }, { status: fee.status });
     const { charge: payCharge, waived, rewarded, coupon } = fee.value;
