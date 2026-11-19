@@ -36,6 +36,8 @@ model User {
   passwordChangedAt   DateTime?
   /// When the one-time sign-up ticket was used. Set atomically on first use, so the ticket cannot open a second session.
   signupTicketUsedAt  DateTime?
+  /// Set when a verified sign-in took over this (unverified) account from whoever signed up with the address. Shown in Admin for review.
+  ownershipTransferredAt DateTime?
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
   business            Business?
@@ -47,6 +49,7 @@ model User {
   whatsappOptIn       Boolean              @default(false)
   whatsappVerifiedAt  DateTime?            @db.Timestamptz(3)
   passwordResetTokens PasswordResetToken[]
+  loginTokens         OwnerLoginToken[]
 
   @@index([signupRef])
 }
@@ -61,6 +64,22 @@ model PasswordResetToken {
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+/// Single-use emailed sign-in links for owners (purpose "signin" or "resume"); only the hash is stored. Using one signs the owner in and verifies the address.
+model OwnerLoginToken {
+  id        String    @id @default(cuid())
+  userId    String
+  purpose   String
+  /// For "resume": the onboarding step the link opens.
+  step      Int?
+  tokenHash String    @unique
+  expiresAt DateTime
+  createdAt DateTime  @default(now())
+  usedAt    DateTime?
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, purpose])
 }
 
 // Written once by the auth_lifecycle migration: groups of records whose emails
@@ -542,11 +561,21 @@ model Lead {
   businessType  String?
   demoRequested Boolean  @default(false)
   message       String?
-  status        String   @default("new") // new | contacted | qualified | demo | won | lost
+  status        String   @default("new") // new | contacted | qualified | demo | won | lost | converted
   source        String   @default("landing")
   notes         String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+
+  /// Sign-up leads (source "signup"): the owner, how far onboarding got, reminder state, and how it ended.
+  userId          String?   @unique
+  onboardingStep  Int?
+  lastActivityAt  DateTime?
+  remindersSent   Int       @default(0)
+  lastReminderAt  DateTime?
+  unsubscribedAt  DateTime?
+  plan            String?
+  convertedAt     DateTime?
 
   @@index([status, createdAt])
 }

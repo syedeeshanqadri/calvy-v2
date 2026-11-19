@@ -1,5 +1,6 @@
 "use client";
 import { LockedExport } from "@/components/dashboard/LockedExport";
+import { VerifiedOnly } from "@/components/auth/VerifyEmail";
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
@@ -160,6 +161,7 @@ export function AppointmentsClient({ appointments, services, staff, csvExport = 
             </div>
             {canExport && !csvExport && <LockedExport compact upgradeHref={upgradeHref} />}
             {canExport && csvExport && (
+              <VerifiedOnly what="Exporting appointments">
               <a
                 href={exportHref}
                 download
@@ -169,6 +171,7 @@ export function AppointmentsClient({ appointments, services, staff, csvExport = 
               >
                 <Download size={14} />
               </a>
+              </VerifiedOnly>
             )}
             {canWrite && <Button size="sm" className="gap-1.5" onClick={() => setShowModal(true)}><Plus size={14} /> New</Button>}
           </div>

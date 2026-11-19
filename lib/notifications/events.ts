@@ -258,3 +258,33 @@ export function leadAcknowledgment(i: { leadId: string; to: string; name: string
     payload: { name: i.name, demoRequested: i.demoRequested },
   };
 }
+
+/* ── Owner sign-in links, account takeover notice, onboarding reminders ─────── */
+
+export const ONBOARDING_REMINDER_EVENT = "onboarding.reminder";
+
+const appBase = (baseUrl?: string) => (baseUrl ?? process.env.NEXT_PUBLIC_APP_URL ?? "https://calvy.io").replace(/\/+$/, "");
+
+/** "Email me a sign-in link": one tap signs the owner in and proves the address. The link lives only in the encrypted secret. */
+export function ownerMagicLinkEmail(i: { userId: string; to: string; name: string; token: string; baseUrl?: string }): NotificationInput {
+  return {
+    event: "auth.reset", audience: "BUSINESS", subjectId: i.userId, version: createHash("sha256").update(i.token).digest("hex").slice(0, 16),
+    recipient: i.to, template: "owner_magic_link", payload: { name: i.name }, secret: `${appBase(i.baseUrl)}/auth/magic?token=${i.token}`,
+  };
+}
+
+/** Sent to the address when a verified sign-in took over an account that had been created there without verification. */
+export function ownershipTransferredEmail(i: { userId: string; to: string; name: string; via: "google" | "magic-link"; at: Date }): NotificationInput {
+  return {
+    event: "auth.notice", audience: "BUSINESS", subjectId: i.userId, version: i.at.getTime(), recipient: i.to,
+    template: "ownership_transferred", payload: { name: i.name, via: i.via },
+  };
+}
+
+/** One of the four reminders to an owner who stopped during onboarding. Each carries a one-click resume link (the secret) and a stop link. */
+export function onboardingReminderEmail(i: { leadId: string; to: string; name: string; n: number; token: string; activityAt: Date; baseUrl?: string }): NotificationInput {
+  return {
+    event: ONBOARDING_REMINDER_EVENT, audience: "BUSINESS", subjectId: i.leadId, version: `${i.activityAt.getTime()}:${i.n}`, recipient: i.to,
+    template: "onboarding_reminder", payload: { name: i.name, n: i.n, leadId: i.leadId }, secret: `${appBase(i.baseUrl)}/auth/magic?token=${i.token}`,
+  };
+}

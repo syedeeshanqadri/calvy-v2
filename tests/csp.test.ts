@@ -19,6 +19,30 @@ async function load(env: Record<string, string> = {}) {
 }
 afterEach(() => vi.unstubAllEnvs());
 
+describe("Cloudflare Turnstile is allowed on the sign-up and login pages only, and only its one host", () => {
+  it("script-src and frame-src get https://challenges.cloudflare.com there, and nothing else is added", async () => {
+    const { cspOf, directive } = await load();
+    for (const source of ["/signup", "/login"]) {
+      const csp = cspOf(source);
+      expect(directive(csp, "script-src"), source).toContain("https://challenges.cloudflare.com");
+      expect(directive(csp, "frame-src"), source).toContain("https://challenges.cloudflare.com");
+      expect(directive(csp, "connect-src"), source).not.toContain("cloudflare");
+      expect(directive(csp, "frame-ancestors"), source).toEqual(["'self'"]);
+    }
+  });
+  it("no other page's policy mentions Cloudflare", async () => {
+    const { rules } = await load();
+    for (const r of rules) {
+      if (r.source === "/signup" || r.source === "/login") continue;
+      expect(r.headers.find((h) => h.key === "Content-Security-Policy")?.value ?? "", r.source).not.toContain("cloudflare");
+    }
+  });
+  it("one-time link pages never leak their token in a Referer", async () => {
+    const { rule } = await load();
+    for (const source of ["/auth/magic", "/account/claim"]) expect(rule(source).headers.find((h) => h.key === "Referrer-Policy")?.value, source).toBe("no-referrer");
+  });
+});
+
 describe("Razorpay Checkout is allowed on the billing page only", () => {
   it("the billing policy adds exactly what Checkout needs", async () => {
     const { cspOf, directive } = await load();
@@ -148,7 +172,7 @@ describe("audit of every third party the app loads in the browser, and that the 
       }
     };
     for (const r of roots) walk(r);
-    const allowed = new Set(["https://sdk.cashfree.com", "https://connect.facebook.net", "https://checkout.razorpay.com"]);
+    const allowed = new Set(["https://sdk.cashfree.com", "https://connect.facebook.net", "https://checkout.razorpay.com", "https://challenges.cloudflare.com"]);
     expect([...hits].filter((h) => !allowed.has(h))).toEqual([]);
   });
 });

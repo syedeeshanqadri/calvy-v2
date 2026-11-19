@@ -6,6 +6,7 @@ import { canAccessOwnerArea, isCustomerToken } from "@/lib/customerAccess";
 import { ALWAYS_OPEN, ROUTE_PERMISSIONS } from "@/lib/permissions";
 import { accountBucket, csrfBlocked, ipBucket, skipsRateLimit } from "@/lib/apiGuard";
 import { clientIp, rateLimit } from "@/lib/ratelimit";
+import { verifyGateForApi, unverifiedResponse } from "@/lib/verification";
 
 function tooMany(retryAfter: number, requestId: string) {
   return NextResponse.json(
@@ -107,6 +108,17 @@ export default async function middleware(req: NextRequest) {
         const v = await viewAsForToken(token.uid, req.cookies.get("calvy_admin")?.value).catch(() => null);
         const blocked = viewAsBlock(v?.mode, req.method, pathname);
         if (blocked) return blocked;
+      }
+    }
+
+    // "Verify your email to continue": gateway changes, WhatsApp connection and data exports are refused for an owner who signed up by email and has
+    // not verified it yet. Done here, in front of the routes, so no gateway or billing file changes. Only a token that says unverified costs a lookup.
+    const gate = verifyGateForApi(req.method, pathname);
+    if (gate) {
+      const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET }).catch(() => null);
+      if (token && token.ev === false && !isCustomerToken(token) && typeof token.uid === "string") {
+        const { ownerEmailVerified } = await import("@/lib/verification");
+        if (!(await ownerEmailVerified(token.uid).catch(() => true))) return unverifiedResponse(gate);
       }
     }
 

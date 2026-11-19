@@ -1,3 +1,4 @@
+import { VerifiedOnly } from "@/components/auth/VerifyEmail";
 "use client";
 import { fromMinorUnits } from "@/lib/currency";
 import { useState } from "react";
@@ -74,7 +75,7 @@ export function PaymentsClient({ payments, totalPaid, totalPending, paidCount, c
         <CardHeader>
           <CardTitle>Payment history</CardTitle>
           {csvExport
-            ? <a href="/api/payments/export" download className="text-xs text-accent font-medium hover:underline">Export CSV</a>
+            ? <VerifiedOnly what="Exporting payments"><a href="/api/payments/export" download className="text-xs text-accent font-medium hover:underline">Export CSV</a></VerifiedOnly>
             : <LockedExport upgradeHref={upgradeHref} />}
         </CardHeader>
         <div className="overflow-x-auto">

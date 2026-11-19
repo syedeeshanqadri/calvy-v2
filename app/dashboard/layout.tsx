@@ -11,6 +11,7 @@ import { getFlags } from "@/lib/flags";
 import { FlagsProvider } from "@/components/providers/FlagsProvider";
 import { CurrencyProvider } from "@/components/providers/CurrencyProvider";
 import { TermsProvider } from "@/components/providers/TermsProvider";
+import { VerifyEmailBanner } from "@/components/auth/VerifyEmail";
 
 export const metadata: Metadata = { ...appManifestMetadata };
 
@@ -71,6 +72,7 @@ export default async function DashboardRootLayout({ children }: { children: Reac
         <CurrencyProvider currency={currency}>
           <TermsProvider packId={packId} termsOverride={termsOverride} bookingMode={bookingMode}>
             {viewAs && <ViewAsBanner mode={viewAs.mode} businessName={viewAs.businessName} expiresAt={viewAs.expiresAt} businessId={session?.user?.businessId ?? ""} />}
+            {!viewAs && <VerifyEmailBanner />}
             {suspended && !viewAs && (
               <div role="status" className="bg-amber-50 border-b border-amber-200 text-amber-900 text-sm px-4 py-2 text-center">
                 Your account is temporarily suspended: new bookings are paused. Existing bookings and reminders carry on. Please contact Calvy support.

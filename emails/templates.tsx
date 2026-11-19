@@ -30,6 +30,9 @@ export interface BookingProps {
   online?: { meetingUrl: string | null };
   /** Loyalty progress (confirmation only): every 8th attended visit has the Rs 10 confirmation free. */
   reward?: { done: number; of: number; available: number };
+  /** Confirmation only: the customer's account link. `claimed` false = a one-time "claim your Calvy account" link; true = a plain link to their account. */
+  claimUrl?: string;
+  claimed?: boolean;
 }
 
 /** Loyalty progress line for the confirmation email and its text version. */
@@ -111,6 +114,13 @@ export function BookingConfirmationEmail(p: BookingProps) {
       ) : null}
       {p.reward ? <P>{rewardLine(p.reward)}</P> : null}
       <P>We&apos;ve added this to your calendar (see the attachment). See you soon.</P>
+      {p.claimUrl ? (
+        <>
+          <Hairline />
+          <P>{p.claimed ? "See and change all your bookings in one place." : "We saved this booking to a Calvy account in your name, so you can see and change it any time. Claim it with one tap: no password needed."}</P>
+          <CTA href={p.claimUrl} label={p.claimed ? "Manage your bookings" : "Manage your bookings — claim your Calvy account"} />
+        </>
+      ) : null}
     </EmailLayout>
   );
 }
@@ -597,6 +607,50 @@ export function SubscriptionNoticeEmail(p: SubscriptionNoticeProps) {
       <P>{first}</P>
       {rest.map((l) => <P key={l}>{l}</P>)}
       <CTA href={p.linkUrl ?? p.billingUrl} label={p.linkUrl ? "Pay now" : p.kind === "downgraded" || p.kind.startsWith("payment_failed") ? "Fix payment" : "Open Billing"} />
+    </EmailLayout>
+  );
+}
+
+/** "Email me a sign-in link": one tap signs the owner in. */
+export function OwnerMagicLinkEmail({ name, linkUrl }: { name: string; linkUrl: string }) {
+  return (
+    <EmailLayout preview="Your Calvy sign-in link">
+      <H>Sign in to Calvy</H>
+      <P>Hi {name.split(" ")[0]}, tap the button to sign in. No password needed.</P>
+      <CTA href={linkUrl} label="Sign in to Calvy" />
+      <P>This link works once and expires in 15 minutes. If you did not ask for it, ignore this email: nothing happens unless someone opens it.</P>
+    </EmailLayout>
+  );
+}
+
+/** A verified sign-in took over an account that someone had created on this address without verifying it. */
+export function OwnershipTransferredEmail({ name, via }: { name: string; via: "google" | "magic-link" }) {
+  return (
+    <EmailLayout preview="Your email address was verified on Calvy">
+      <H>Your email address is now verified on Calvy</H>
+      <P>Hi {name.split(" ")[0]}, someone signed in to Calvy with this email address using {via === "google" ? "Google" : "a sign-in link sent to it"}, so it is now confirmed as yours. Any earlier sign-up with this address that had not been verified has been closed off.</P>
+      <P>If this was you, there is nothing to do. If it was not, reply to this email and our team will look into it.</P>
+    </EmailLayout>
+  );
+}
+
+const REMINDER_COPY = [
+  { subject: "Finish setting up your Calvy booking page", lead: "You started setting up your booking page on Calvy and stopped part-way. Your answers are saved, so you can pick up where you left off." },
+  { subject: "Your Calvy booking page is waiting", lead: "A quick reminder that your Calvy setup is saved and ready. It takes a few minutes to finish, and then customers can book you online." },
+  { subject: "Need a hand with your Calvy setup?", lead: "We noticed your Calvy setup is not finished. If something was unclear, just reply to this email and we will help. Otherwise you can continue from where you stopped." },
+  { subject: "A last note about your Calvy setup", lead: "This is our last reminder. Your setup stays saved, and you can finish it any time with the button below. We will not email you about it again." },
+] as const;
+export const onboardingReminderSubject = (n: number) => (REMINDER_COPY[Math.min(Math.max(n, 1), 4) - 1]).subject;
+export const onboardingReminderLead = (n: number) => (REMINDER_COPY[Math.min(Math.max(n, 1), 4) - 1]).lead;
+
+/** Plain, non-promotional reminder with a one-click resume link. The footer carries the stop link. */
+export function OnboardingReminderEmail({ name, n, resumeUrl, unsubscribeUrl }: { name: string; n: number; resumeUrl: string; unsubscribeUrl?: string }) {
+  return (
+    <EmailLayout preview={onboardingReminderSubject(n)} unsubscribeUrl={unsubscribeUrl}>
+      <H>{onboardingReminderSubject(n)}</H>
+      <P>Hi {name.split(" ")[0]}, {onboardingReminderLead(n)}</P>
+      <CTA href={resumeUrl} label="Continue setup" />
+      <P>The button signs you in and takes you straight to your next step. It works once and is valid for 7 days.</P>
     </EmailLayout>
   );
 }

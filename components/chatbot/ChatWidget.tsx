@@ -174,7 +174,7 @@ export function ChatWidget({ business }: { business: ChatBusiness }) {
         setTimeout(() => { window.location.href = data.url; }, 900);
       } else {
         push(msg("bot", `✅ **Booking confirmed!** A confirmation email has been sent to **${details.email}**. See you soon! 🎉`));
-        if (data.account) push(msg("bot", `Verify your email to create your account and track your appointments and payments. We sent a link to set your password to **${details.email}**. Your booking is confirmed either way.`));
+        if (data.account) push(msg("bot", `Your confirmation email to **${details.email}** has a button to manage your bookings and claim your free Calvy account. Your booking is confirmed either way.`));
         setStep("success");
       }
     } catch (e) {
@@ -387,6 +387,7 @@ export function ChatWidget({ business }: { business: ChatBusiness }) {
                   style={{ background: color }}>
                   {submitting ? "Confirming…" : "✓ Confirm Booking"}
                 </button>
+                <p className="text-[10px] text-center text-gray-400" data-testid="chat-privacy-note">We save your booking details so you can manage them. <a href="/privacy" target="_blank" rel="noreferrer" className="underline">Privacy policy</a></p>
                 <button onClick={() => setStep("details")}
                   className="w-full py-1.5 text-xs text-gray-400 hover:text-gray-600 transition-colors flex items-center justify-center gap-1">
                   <ChevronLeft size={11} /> Edit details

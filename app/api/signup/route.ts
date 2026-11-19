@@ -3,24 +3,23 @@ import { NextRequest, NextResponse, after } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createBusinessForUser } from "@/lib/createBusiness";
 import { sendFormNotification } from "@/lib/email";
-import { notify } from "@/lib/notifications/enqueue";
-import { authEmail } from "@/lib/notifications/events";
 import { logger } from "@/lib/logger";
 import { rateLimit, clientIp } from "@/lib/ratelimit";
 import { parseRefCookie } from "@/lib/calvyBadge";
 import { parseBody } from "@/lib/validation/common";
 import { signupSchema } from "@/lib/validation/public";
 import { detectRegion, detectCountry, currencyFor } from "@/lib/onboarding";
-import { testTokenHookEnabled } from "@/lib/auth-http";
-import { createSetupToken } from "@/lib/auth-tokens";
+import { verifyTurnstile } from "@/lib/turnstile";
+import { upsertSignupLead } from "@/lib/leads";
 import { signTicket } from "@/lib/signedTicket";
 import { SIGNUP_TICKET_PURPOSE, SIGNUP_TICKET_TTL_MS } from "@/lib/signupTicket";
 
 export const dynamic = 'force-dynamic';
 
 /**
- * Passwordless sign-up: name, email, phone (India), business type. The owner goes straight into the onboarding
- * wizard with a one-time sign-in ticket; the email carries the link that verifies the address and sets the password.
+ * Passwordless sign-up with no email step: name, business name, email, phone (India). The owner is signed in at once with a one-time ticket and goes
+ * straight into onboarding; the email stays unverified until they use a link (the "set your password" email sent when onboarding finishes, a sign-in
+ * link, or Google). An invisible Turnstile check and the rate limit stand in front of it.
  */
 async function POST_handler(req: NextRequest) {
   const ip = clientIp(req);
@@ -34,13 +33,15 @@ async function POST_handler(req: NextRequest) {
 
   const parsed = await parseBody(req, signupSchema);
   if (!parsed.ok) return parsed.res;
-  const { name, email, phone, packId, timezone } = parsed.data;
+  const { name, businessName, email, phone, timezone, turnstileToken } = parsed.data;
+  const bot = await verifyTurnstile(turnstileToken, ip);
+  if (!bot.ok) return NextResponse.json({ error: "We could not confirm you are not a robot. Please reload the page and try again." }, { status: 400 });
   const region = detectRegion(timezone);
   const country = detectCountry(timezone);
 
   const existing = await prisma.user.findFirst({ where: { email: { equals: email, mode: "insensitive" } } });
   if (existing) {
-    return NextResponse.json({ error: "An account with this email already exists. Try signing in, or use Forgot password." }, { status: 409 });
+    return NextResponse.json({ error: "An account with this email already exists. Sign in with Google, or choose \"Email me a sign-in link\" on the sign-in page." }, { status: 409 });
   }
 
   // Came from a business's "Bookings by Calvy" link? The cookie (set by components/RefCapture) says which site; first touch wins.
@@ -50,36 +51,29 @@ async function POST_handler(req: NextRequest) {
     ownerId: user.id,
     ownerName: name,
     ownerEmail: email,
-    businessName: `${name.split(/\s+/)[0]}'s Business`,
+    businessName,
     currency: currencyFor(region, country),
     region,
     timezone,
-    packId,
     phone,
-    onboardingStep: 2, // country (currency) and type are already known: start at the basics
+    onboardingStep: 1, // the business type is asked first (the pack is OTHER until then)
     welcome: false,
   });
 
-  // The email: verify the address and choose a password, in one step.
-  const { token, tokenHash, expiresAt } = createSetupToken();
-  await prisma.passwordResetToken.create({ data: { userId: user.id, tokenHash, expiresAt } });
-  try {
-    await notify(authEmail({ template: "owner_account_setup", userId: user.id, to: email, name, token }));
-  } catch (err) {
-    logger.error("[signup] setup email not queued", { err });
-  }
+  // A lead for the team (Admin → Leads), so an owner who never finishes onboarding is not lost. The reminders and the "set your password" email follow
+  // from onboarding state, not from here.
+  await upsertSignupLead(prisma, { id: user.id, name, email }, { phone: phone ?? null, step: 1 }).catch((err) => logger.error("[signup] lead not saved", { err }));
 
   after(() => sendFormNotification({
     title: "New signup",
-    fields: { Name: name, Email: email, Phone: phone ?? "-", Type: packId, Region: region },
+    fields: { Name: name, Email: email, Phone: phone ?? "-", Business: businessName, Region: region },
   }));
 
   const secret = process.env.NEXTAUTH_SECRET ?? "";
   return NextResponse.json(
     {
-      message: "Account created. Check your email to verify it and set your password.",
+      message: "Account created.",
       ticket: signTicket(SIGNUP_TICKET_PURPOSE, user.id, secret, SIGNUP_TICKET_TTL_MS),
-      ...(testTokenHookEnabled() ? { devToken: token } : {}),
     },
     { status: 201 },
   );

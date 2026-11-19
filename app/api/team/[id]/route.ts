@@ -7,6 +7,7 @@ import { PERMISSIONS, sanitizePermissions } from "@/lib/permissions";
 import { removeUserDevices } from "@/lib/pushQueue";
 import { id, parseBody, text } from "@/lib/validation/common";
 import { audit } from "@/lib/audit";
+import { isManagerLike, ownerEmailVerified, unverifiedResponse } from "@/lib/verification";
 import { removeMember, serializeMember } from "@/lib/teamDb";
 
 export const dynamic = "force-dynamic";
@@ -38,6 +39,8 @@ async function PATCH_handler(req: NextRequest, { params }: Ctx) {
   }
 
   const nextPerms = b.permissions ? sanitizePermissions(b.permissions) : undefined;
+  // Widening a member to manager level needs a verified owner.
+  if ((nextPerms || b.roleName !== undefined) && isManagerLike(nextPerms ?? existing.permissions, b.roleName ?? existing.roleName) && !isManagerLike(existing.permissions, existing.roleName) && !(await ownerEmailVerified(s.user.id))) return unverifiedResponse("team");
   const updated = await prisma.teamMember.update({
     where: { id: existing.id },
     data: {

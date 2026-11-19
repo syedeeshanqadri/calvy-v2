@@ -37,12 +37,13 @@ describe("pricing display", () => {
 import { signupSchema } from "@/lib/validation/public";
 
 describe("sign-up asks only for the essentials", () => {
-  const base = { name: "Jo", email: "jo@x.test", packId: "SALON_SPA" };
-  it("India needs a phone number, other regions do not, and the type is required", () => {
+  const base = { name: "Jo", businessName: "Jo Salon", email: "jo@x.test" };
+  it("India needs a phone number, other regions do not, and the business name is required (the type is asked in onboarding)", () => {
     expect(signupSchema.safeParse({ ...base, timezone: "Asia/Kolkata" }).success).toBe(false);
     expect(signupSchema.safeParse({ ...base, timezone: "Asia/Kolkata", phone: "+91 98765 43210" }).success).toBe(true);
     expect(signupSchema.safeParse({ ...base, timezone: "Europe/London" }).success).toBe(true);
     expect(signupSchema.safeParse({ name: "Jo", email: "jo@x.test", timezone: "Europe/London" }).success).toBe(false);
+    expect(signupSchema.safeParse({ ...base, timezone: "Europe/London", packId: "SALON_SPA" }).success).toBe(true); // an old client may still send it: ignored
   });
   it("has no password field", () => {
     const r = signupSchema.safeParse({ ...base, timezone: "Europe/London", password: "ignored" });

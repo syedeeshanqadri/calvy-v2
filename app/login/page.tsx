@@ -20,6 +20,8 @@ export default function LoginPage() {
   const [resendMsg, setResendMsg] = useState("");
   const [resendError, setResendError] = useState("");
   const [emailError, setEmailError] = useState("");
+  const [magicBusy, setMagicBusy] = useState(false);
+  const [magicMsg, setMagicMsg] = useState("");
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -53,7 +55,7 @@ export default function LoginPage() {
     const result = await signIn("credentials", { email, password, redirect: false });
     setLoading(false);
     if (result?.error === "EmailNotVerified") {
-      setError("Your email is not verified yet. Check your inbox for the verification link, or send a new one.");
+      setError("Your email is not verified yet. Choose \"Email me a sign-in link\" below: it signs you in and verifies your email.");
       setCanResend(true);
     } else if (result?.error === "TooManyAttempts") {
       setError("Too many attempts. Please wait a minute and try again.");
@@ -79,6 +81,16 @@ export default function LoginPage() {
     setResending(false);
     if (r.ok) setResendMsg("If that account is not verified yet, we've sent a new link.");
     else setResendError(r.message);
+  }
+
+  async function handleMagic() {
+    setMagicMsg(""); setError(""); setEmailError("");
+    if (!email.trim()) { setEmailError("Enter your email address first."); document.getElementById("login-email")?.focus(); return; }
+    setMagicBusy(true);
+    const r = await postAuth("/api/auth/magic-link", { email: email.trim() });
+    setMagicBusy(false);
+    if (r.ok) setMagicMsg("If that email has an account, we have sent a sign-in link. It works once and lasts 15 minutes.");
+    else setError(r.message);
   }
 
   return (
@@ -142,6 +154,11 @@ export default function LoginPage() {
           {loading ? "Signing in…" : "Sign in"}
         </button>
       </form>
+
+      <div className="mt-3 space-y-2">
+        <button type="button" onClick={handleMagic} disabled={magicBusy} aria-busy={magicBusy || undefined} className={secondaryBtn}>{magicBusy ? "Sending…" : "Email me a sign-in link"}</button>
+        <div role="status">{magicMsg && <p className="text-sm text-green-700 bg-green-50 rounded-xl px-4 py-3">{magicMsg}</p>}</div>
+      </div>
 
       <SocialAuthButtons callbackUrl="/dashboard" />
 

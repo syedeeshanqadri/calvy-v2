@@ -15,6 +15,14 @@ interface Lead {
   source: string;
   notes: string | null;
   createdAt: string;
+  /** Sign-up leads: how far onboarding got, reminders sent, and how it ended. */
+  onboardingStep?: number | null;
+  lastActivityAt?: string | null;
+  remindersSent?: number;
+  lastReminderAt?: string | null;
+  unsubscribedAt?: string | null;
+  plan?: string | null;
+  convertedAt?: string | null;
 }
 
 const STAGES: { id: string; label: string; color: string }[] = [
@@ -24,6 +32,7 @@ const STAGES: { id: string; label: string; color: string }[] = [
   { id: "demo", label: "Demo", color: "#ec4899" },
   { id: "won", label: "Won", color: "#22c55e" },
   { id: "lost", label: "Lost", color: "#94a3b8" },
+  { id: "converted", label: "Converted (signed up)", color: "#14b8a6" },
 ];
 
 function timeAgo(iso: string) {
@@ -95,6 +104,8 @@ export function CrmBoard({ initialLeads }: { initialLeads: Lead[] }) {
                     <p className="text-xs text-[#6b6b80] truncate mt-1">{lead.email}</p>
                     <div className="flex items-center gap-1.5 mt-2 flex-wrap">
                       <span className="text-[9px] font-medium text-sky-700 bg-sky-50 rounded px-1.5 py-0.5">{lead.source}</span>
+                      {lead.source === "signup" && lead.status !== "converted" && <span data-testid="lead-step" className="text-[9px] font-semibold text-amber-800 bg-amber-100 rounded px-1.5 py-0.5">Step {lead.onboardingStep ?? 1} of 7</span>}
+                      {lead.status === "converted" && lead.plan && <span className="text-[9px] font-semibold text-teal-800 bg-teal-100 rounded px-1.5 py-0.5 capitalize">{lead.plan === "professional" ? "Pro" : lead.plan}</span>}
                       {lead.businessType && <span className="text-[9px] text-[#9b9b9b] capitalize">{lead.businessType}</span>}
                       <span className="text-[10px] text-[#c5c3bf] flex items-center gap-1 ml-auto"><Clock size={9} />{timeAgo(lead.createdAt)}</span>
                     </div>

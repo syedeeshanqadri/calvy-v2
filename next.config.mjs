@@ -56,7 +56,12 @@ export function buildCsp({ ancestors = "public", extra = {} } = {}) {
 }
 
 // Pages that must never be framed by another site or subdomain.
-const privateSources = ["/dashboard/:path*", "/admin/:path*", "/crm/:path*", "/account/:path*", "/login", "/signup", "/onboarding/:path*"];
+// Cloudflare Turnstile (the invisible sign-up bot check): script and frame from that one host, on the sign-up and login pages only.
+const TURNSTILE = ["https://challenges.cloudflare.com"];
+
+const privateSources = ["/dashboard/:path*", "/admin/:path*", "/crm/:path*", "/account/:path*", "/onboarding/:path*"];
+// The sign-up and login pages are private too, with Turnstile added (their own rule below, so each source has exactly one policy).
+const turnstileSources = ["/login", "/signup"];
 
 const securityHeaders = [
   { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },
@@ -80,6 +85,9 @@ const noReferrerSources = [
   "/api/customer/use-credit",
   "/api/customer/follow-up",
   "/api/payments/:path*",
+  // One-time sign-in and claim links carry their token in the URL.
+  "/auth/magic",
+  "/account/claim",
 ];
 
 // Old addresses, kept as permanent 301s so any link already sent keeps working (queries such as ?service=&date= are carried over).
@@ -120,6 +128,7 @@ const nextConfig = {
       ...privateSources.map((source) => ({ source, headers: [csp(buildCsp({ ancestors: "private" })), framing] })),
       // The billing page opens Razorpay Checkout (international plan billing): its script, frames and calls are allowed here and nowhere else.
       { source: "/dashboard/billing", headers: [csp(buildCsp({ ancestors: "private", extra: { script: RAZORPAY.script, frame: RAZORPAY.frame, connect: RAZORPAY.connect, img: RAZORPAY.img } })), framing] },
+      ...turnstileSources.map((source) => ({ source, headers: [csp(buildCsp({ ancestors: "private", extra: { script: TURNSTILE, frame: TURNSTILE } })), framing] })),
       ...noReferrerSources.map((source) => ({ source, headers: noReferrer })),
     ];
   },

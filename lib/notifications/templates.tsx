@@ -7,6 +7,7 @@ import {
   PasswordResetEmail, OwnerAccountSetupEmail, TeamInviteEmail, QueueClosedEmail, QueueMovedBackEmail, ReviewRequestEmail, StatusChangeEmail, WelcomeEmail, businessAlertHeadline,
   type SubscriptionNoticeProps, type BookingProps, type BusinessAlertProps, type DailySummaryProps, type InvoiceProps,
   rewardLine,
+  OwnerMagicLinkEmail, OwnershipTransferredEmail, OnboardingReminderEmail, onboardingReminderSubject, onboardingReminderLead,
 } from "@/emails/templates";
 import type { TenantBrand } from "@/emails/EmailLayout";
 import { formatCurrencyAmount } from "@/lib/currency";
@@ -104,7 +105,7 @@ export const TEMPLATES = {
   confirmation: define<ConfirmationPayload>({
     subject: (p) => (p.token ? `Queue number #${p.token.number} confirmed: ${p.businessName}` : `Booking confirmed: ${p.serviceName} at ${p.businessName}`),
     Email: (p) => <BookingConfirmationEmail {...p} />,
-    text: (p) => lines(`Hi ${first(p.clientName)}, your ${appt(p)} at ${p.businessName} is confirmed.`, detailsText(p), joinText(p), p.token && p.trackUrl && `Track your place in line: ${p.trackUrl}`, p.reward && rewardLine(p.reward)),
+    text: (p) => lines(`Hi ${first(p.clientName)}, your ${appt(p)} at ${p.businessName} is confirmed.`, detailsText(p), joinText(p), p.claimUrl && `${p.claimed ? "Manage your bookings" : "Manage your bookings and claim your Calvy account"}: ${p.claimUrl}`, p.token && p.trackUrl && `Track your place in line: ${p.trackUrl}`, p.reward && rewardLine(p.reward)),
     attachments: icsAttachments,
   }),
   reminder: define<BookingPayload>({
@@ -250,6 +251,21 @@ export const TEMPLATES = {
     subject: (p) => `Links mode: ${p.businessName}`,
     Email: (p) => <BillingLinksModeEmail {...p} />,
     text: (p) => lines(`Razorpay refused recurring card billing for ${p.businessName} (${p.businessId}), so it was put on renewal payment links with email reminders.`, `Reason: ${p.reason}`, p.adminUrl),
+  }),
+  owner_magic_link: define<AuthPayload>({
+    subject: () => "Your Calvy sign-in link",
+    Email: (p) => <OwnerMagicLinkEmail name={p.name} linkUrl={p.secret} />,
+    text: (p) => lines(`Hi ${first(p.name)}, tap the link to sign in to Calvy. No password needed.`, p.secret, "This link works once and expires in 15 minutes. If you did not ask for it, ignore this message."),
+  }),
+  ownership_transferred: define<{ name: string; via: "google" | "magic-link" }>({
+    subject: () => "Your email address was verified on Calvy",
+    Email: (p) => <OwnershipTransferredEmail name={p.name} via={p.via} />,
+    text: (p) => lines(`Hi ${first(p.name)}, someone signed in to Calvy with this address using ${p.via === "google" ? "Google" : "a sign-in link sent to it"}, so it is now confirmed as yours. Any earlier sign-up with it that was not verified has been closed off.`, "If this was you, there is nothing to do. If it was not, reply to this email and we will look into it."),
+  }),
+  onboarding_reminder: define<{ name: string; n: number; secret: string }>({
+    subject: (p) => onboardingReminderSubject(p.n),
+    Email: (p) => <OnboardingReminderEmail name={p.name} n={p.n} resumeUrl={p.secret} unsubscribeUrl={(p as { unsubscribeUrl?: string }).unsubscribeUrl} />,
+    text: (p) => lines(`Hi ${first(p.name)}, ${onboardingReminderLead(p.n)}`, `Continue setup: ${p.secret}`, "The link signs you in, works once and is valid for 7 days."),
   }),
   member_link: define<{ name: string; secret: string }>({
     subject: () => "Sign in to pay your member price",

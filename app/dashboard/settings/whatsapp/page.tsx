@@ -7,6 +7,7 @@ import { metaEnv } from "@/lib/whatsapp/embedded";
 import { coexistenceEnabled } from "@/lib/whatsapp/embeddedSession";
 import { WhatsAppClient } from "./WhatsAppClient";
 import { plansWith } from "@/lib/planCopy";
+import { VerifyGateNotice } from "@/components/auth/VerifyEmail";
 
 export const dynamic = "force-dynamic";
 
@@ -20,5 +21,5 @@ export default async function WhatsAppSettingsPage() {
   }
   const [config, templates] = await Promise.all([prisma.whatsAppConfig.findUnique({ where: { businessId } }), listCurrentTemplates(businessId)]);
   const env = metaEnv(); // the App ID and configuration ID are public identifiers, so they go to the browser as props
-  return <WhatsAppClient initialConfig={publicView(config)} initialTemplates={templates} embedded={env ? { appId: env.appId, configId: env.configId, coexistence: coexistenceEnabled() } : null} />;
+  return <><div className="px-4 pt-4"><VerifyGateNotice what="Connecting WhatsApp" /></div><WhatsAppClient initialConfig={publicView(config)} initialTemplates={templates} embedded={env ? { appId: env.appId, configId: env.configId, coexistence: coexistenceEnabled() } : null} /></>;
 }
