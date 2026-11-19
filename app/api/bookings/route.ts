@@ -318,6 +318,8 @@ async function bookingHandler(req: NextRequest) {
   // concurrent booking took it, fall through to the next candidate.
   // Set when a Calvy coupon reduces the Rs 10 for this booking; taken inside the booking transaction.
   let feeCoupon: { couponId: string; code: string; discountMinor: number; feeMinor: number } | null = null;
+  // The Calvy level and fee decided once at checkout; stored on the booking so a later level change never alters it.
+  let feeLevelInfo: { id: string; feeMinor: number } | null = null;
   async function createAppointment(
     clientId: string,
     paymentStatus: string,
@@ -362,6 +364,7 @@ async function bookingHandler(req: NextRequest) {
                 bufferAfterMin: availability.ok ? availability.bufferAfterMin : 0,
                 duration: totalDuration,
                 price: totalPrice,
+                ...(feeLevelInfo ? { feeLevel: feeLevelInfo.id, feeMinor: feeLevelInfo.feeMinor } : {}),
                 followUpOfId,
                 status: holdExpiresAt ? PENDING_PAYMENT : "confirmed",
                 holdExpiresAt,
@@ -468,8 +471,9 @@ async function bookingHandler(req: NextRequest) {
       customer: { email: clientEmail, phone: clientPhone, tz: bizTz }, couponCode: feeCode(),
     });
     if (!fee.ok) return NextResponse.json({ error: fee.error, code: fee.code }, { status: fee.status });
-    const { charge: payCharge, waived, rewarded, coupon } = fee.value;
+    const { charge: payCharge, waived, rewarded, coupon, level } = fee.value;
     feeCoupon = coupon;
+    feeLevelInfo = level;
     const gateway = payCharge.route === "GATEWAY" ? await defaultGateway(business.id) : null;
     if (payCharge.route === "GATEWAY" && !gateway) return NextResponse.json({ error: "Online payments are temporarily unavailable. Please try again later.", code: "PAYMENT_START_FAILED" }, { status: 503 });
     const hold = payCharge.chargeMinor > 0 ? holdExpiry() : null;

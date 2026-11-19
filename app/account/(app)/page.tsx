@@ -4,8 +4,13 @@ import { getCustomerData } from "@/lib/customerData";
 import { BookingCard } from "@/components/my/BookingCard";
 import { PageHeader } from "@/components/my/PageHeader";
 import { VerifyNotice } from "./MyClient";
+import { LevelUpCelebration } from "./LevelUpCelebration";
 
 export const dynamic = "force-dynamic";
+
+const LEVEL_TONE: Record<string, string> = {
+  STARTER: "bg-gray-100 text-gray-700", REGULAR: "bg-sky-100 text-sky-800", INSIDER: "bg-violet-100 text-violet-800", PRO: "bg-amber-100 text-amber-800", LEGEND: "bg-rose-100 text-rose-800",
+};
 
 const TONE: Record<string, string> = {
   info: "bg-sky-50 text-sky-700", good: "bg-green-50 text-green-700", warn: "bg-amber-50 text-amber-700", muted: "bg-gray-100 text-gray-600",
@@ -25,7 +30,7 @@ export default async function MyOverviewPage() {
     );
   }
 
-  const { upcoming, stats, updates, waivers, reward, ladder, referral } = data;
+  const { upcoming, stats, updates, waivers, reward, level, referral } = data;
   const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN ?? "calvy.io";
   const next = upcoming[0];
   const waiverTotal = waivers.length === 0 ? "None" : waivers.length === 1 ? waivers[0].businessName : `${waivers.length} businesses`;
@@ -41,6 +46,7 @@ export default async function MyOverviewPage() {
   return (
     <>
       <PageHeader title={`Hi ${first}`} subtitle={`Bookings made with ${data.me.email}`} />
+      {level?.pendingLevelUp && <LevelUpCelebration level={level.pendingLevelUp.label} feeLabel={`Rs ${level.feeMinor / 100}`} perk={level.perk} />}
 
       <section aria-label="Summary" className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
         {cards.map((c) => (
@@ -94,18 +100,21 @@ export default async function MyOverviewPage() {
             )}
           </section>
 
-          {ladder && (
-            <section aria-labelledby="ladder" className="bg-white rounded-2xl border border-[#e8e6e0] p-5">
-              <h2 id="ladder" className="font-syne font-bold text-lg flex items-center gap-2"><Gift size={17} aria-hidden />Your rewards</h2>
-              <p className="text-sm mt-2 flex items-center gap-2 flex-wrap">{ladder.tier !== "NONE" && <span data-testid="tier-badge" className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold ${ladder.tier === "GOLD" ? "bg-amber-100 text-amber-800" : ladder.tier === "SILVER" ? "bg-slate-200 text-slate-700" : "bg-sky-100 text-sky-800"}`}>{ladder.label}</span>}<span>{ladder.attendedDays} attended {ladder.attendedDays === 1 ? "day" : "days"}</span></p>
-              {ladder.next && <p className="text-xs text-[#6b6b80] mt-1">{ladder.next.daysNeeded} more attended {ladder.next.daysNeeded === 1 ? "day" : "days"} to {ladder.next.label}.</p>}
-              {ladder.perks.length > 0 && (
-                <ul className="mt-3 space-y-1 text-sm list-disc pl-5">
-                  {ladder.perks.map((p) => <li key={p}>{p}</li>)}
-                </ul>
-              )}
-              {ladder.tier === "GOLD" && <p className="text-xs text-[#6b6b80] mt-2">{ladder.perkReady ? "Your extra free Rs 10 for this quarter is ready. It ends when the quarter does." : "You have used this quarter's extra free Rs 10."}</p>}
-              <p className="text-xs text-[#6b6b80] mt-3">Visits count once the business marks them attended. Visiting again within 30 days earns an extra stamp (once a month). Moving a booking is always free.</p>
+          {level && (
+            <section aria-labelledby="level" className="bg-white rounded-2xl border border-[#e8e6e0] p-5">
+              <h2 id="level" className="font-syne font-bold text-lg flex items-center gap-2"><Gift size={17} aria-hidden />Your Calvy level</h2>
+              <p className="text-sm mt-2 flex items-center gap-2 flex-wrap">
+                <span data-testid="level-badge" className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold ${LEVEL_TONE[level.level]}`}>{level.label}</span>
+                <span>Confirmation fee: <strong>Rs {level.feeMinor / 100}</strong>{level.feeMinor < level.baseFeeMinor ? ` instead of Rs ${level.baseFeeMinor / 100}` : ""}</span>
+              </p>
+              <div className="mt-3" role="progressbar" aria-label="Progress to your next level" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(level.progressRatio * 100)}>
+                <div className="h-2 rounded-full bg-[#eceae3] overflow-hidden"><div className="h-full rounded-full bg-sky-600" style={{ width: `${Math.round(level.progressRatio * 100)}%` }} /></div>
+              </div>
+              <p className="text-xs text-[#6b6b80] mt-2">{level.progressText}</p>
+              {level.streakMonths > 0 && <p className="text-xs mt-2" data-testid="streak">{level.streakMonths}-month streak: you visited in {level.streakMonths} {level.streakMonths === 1 ? "month" : "months"} in a row.</p>}
+              {level.perk && <p className="text-sm mt-3">{level.perk}</p>}
+              {level.perk && (level.level === "PRO" || level.level === "LEGEND") && <p className="text-xs text-[#6b6b80] mt-1">{level.perkReady ? "This quarter's free confirmation is ready." : "You have used this quarter's free confirmation."}</p>}
+              <p className="text-xs text-[#6b6b80] mt-3">Visits count once the business marks them attended. Moving a booking is always free. The lower fee applies at businesses on the Basic plan in India.</p>
               {referral && (
                 <div className="mt-4 border-t border-[#e8e6e0] pt-3">
                   <p className="text-sm font-semibold">Refer a friend</p>

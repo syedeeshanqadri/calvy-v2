@@ -9,7 +9,8 @@ import { formatDateLabel, formatTimeLabel, safeTimeZone, utcToZoned, zonedToUtc 
 import { formatCurrencyAmount } from "@/lib/currency";
 import { trackingUrl } from "@/lib/tracking";
 import { meetingUrlFor } from "@/lib/online";
-import { ladderFor, progressFor } from "@/lib/rewards/service";
+import { progressFor } from "@/lib/rewards/service";
+import { levelView } from "@/lib/rewards/levelService";
 import { ensureReferralCode } from "@/lib/rewards/referrals";
 import { prisma } from "@/lib/prisma";
 
@@ -111,9 +112,9 @@ export const getCustomerData = cache(async () => {
 
   // Loyalty progress ("x of 7"), for the verified email only.
   const reward = await progressFor(prisma, { email: me.email }).catch(() => null);
-  // Tier, perks and the referral code (made on first view). Never stops the page.
-  const ladder = await ladderFor(prisma, { email: me.email });
-  const referralCode = ladder ? await ensureReferralCode(prisma, { email: me.email }).catch(() => null) : null;
+  // Calvy level (name, fee, vague progress, streak) and the referral code (made on first view). Never stops the page.
+  const level = await levelView(prisma, { email: me.email });
+  const referralCode = level ? await ensureReferralCode(prisma, { email: me.email }).catch(() => null) : null;
   const referralSlug = all[0]?.business.slug ?? null;
-  return { me, verified: true as const, upcoming, past, stats: { ...stats, next: nextAt }, updates, waivers, reward, ladder, referral: referralCode && referralSlug ? { code: referralCode, slug: referralSlug } : null };
+  return { me, verified: true as const, upcoming, past, stats: { ...stats, next: nextAt }, updates, waivers, reward, level, referral: referralCode && referralSlug ? { code: referralCode, slug: referralSlug } : null };
 });

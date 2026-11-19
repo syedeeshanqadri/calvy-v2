@@ -7,7 +7,9 @@ import type { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { safeTimeZone, utcToZoned } from "@/lib/time";
 import { LOYALTY_KEY, countsTowardReward, earnedFor, identityKey, progressView, type ProgressView, type Tally } from "./rules";
-import { GIFT_TIER, SILVER_MIN, hasQuarterlyPerk, isComeback, istMonthOf, nextTier, quarterOf, tierFor, TIERS, type TierId } from "./ladder";
+import { isComeback, istMonthOf, quarterOf } from "./ladder";
+import { currentLevel, getLevelConfig, istDay, onAttended, quarterlyPerkReady } from "./levelService";
+import { hasQuarterlyPerk } from "./levels";
 import { qualifyReferral } from "./referrals";
 
 type Db = Prisma.TransactionClient | typeof prisma;
@@ -48,11 +50,8 @@ export async function recordAttended(db: Db, appointmentId: string): Promise<boo
   const row = await db.rewardProgress.upsert({ where: key, create: { offerId: offer.id, identity, counted: stamps, earned: earnedFor(stamps, offer.every) }, update: { counted: { increment: stamps } } });
   const earned = earnedFor(row.counted, offer.every);
   if (earned !== row.earned) await db.rewardProgress.update({ where: { id: row.id }, data: { earned } });
-  // Reaching Silver gives a ONE-TIME free Rs 10 (the unique key makes it once, however the count crosses the line, even by two stamps at once).
-  if (row.counted >= SILVER_MIN) {
-    const gift = await db.tierGrant.createMany({ data: [{ identity, tier: GIFT_TIER }], skipDuplicates: true });
-    if (gift.count === 1) await db.rewardProgress.update({ where: { id: row.id }, data: { bonus: { increment: 1 } } });
-  }
+  // Calvy Levels: earn, fast-track, hold and level up on this newly counted day (never lets a failure undo the count).
+  await onAttended(db, { identity, day, offerId: offer.id });
   // A referred friend's FIRST attended visit pays out the referral (both get a free Rs 10). Never lets a failure undo the count.
   if ((await db.rewardCount.count({ where: { offerId: offer.id, identity, kind: "VISIT" } })) === 1) {
     try { await qualifyReferral(db, offer.id, identity); } catch (err) { logger.error("[Rewards] referral payout failed", { err }); }
@@ -77,7 +76,7 @@ export async function progressFor(db: Db, c: { email?: string | null; phone?: st
     const t = await tallyOf(db, offer.id, identity);
     const view = progressView(t, offer.every);
     // Gold's quarterly Rs 10 counts as one more free confirmation while it is unused this quarter.
-    return (await perkReady(db, identity, t.counted)) ? { ...view, available: view.available + 1 } : view;
+    return (await perkReady(db, identity)) ? { ...view, available: view.available + 1 } : view;
   } catch (err) {
     logger.error("[Rewards] progress lookup failed", { err });
     return null;
@@ -88,44 +87,19 @@ export async function rewardAvailable(db: Db, c: { email?: string | null; phone?
   return ((await progressFor(db, c))?.available ?? 0) > 0;
 }
 
-/** Calvy runs on India time: the quarter (and so Gold's perk) changes at midnight IST on 1 Jan, Apr, Jul and Oct. */
+/** Calvy runs on India time: the quarter (and so a Pro or Legend perk) changes at midnight IST on 1 Jan, Apr, Jul and Oct. */
 function currentQuarter(now = new Date()): string {
-  return quarterOf(utcToZoned(now, "Asia/Kolkata").date);
+  return quarterOf(istDay(now));
 }
 
-/** Gold, and the perk is not yet used this quarter. */
-async function perkReady(db: Db, identity: string, counted: number): Promise<boolean> {
-  if (!hasQuarterlyPerk(tierFor(counted))) return false;
-  const used = await db.quarterlyPerk.findUnique({ where: { identity_quarter: { identity, quarter: currentQuarter() } } });
-  return !used;
-}
-
-export interface LadderView {
-  tier: TierId;
-  label: string;
-  attendedDays: number;
-  next: { label: string; daysNeeded: number } | null;
-  perks: string[];
-  perkReady: boolean;
-}
-
-/** The customer's tier and what it gives, for the account page. Null when rewards are off or there is no identity (never throws). */
-export async function ladderFor(db: Db, c: { email?: string | null; phone?: string | null }): Promise<LadderView | null> {
+/** A Pro or Legend customer whose free Rs 10 for this quarter is not yet used. */
+async function perkReady(db: Db, identity: string): Promise<boolean> {
   try {
-    const identity = identityKey(c);
-    const offer = await loyaltyOffer(db);
-    if (!identity || !offer || !offer.enabled) return null;
-    const t = await tallyOf(db, offer.id, identity);
-    const tier = tierFor(t.counted);
-    const n = nextTier(t.counted);
-    return {
-      tier, label: tier === "NONE" ? "Not yet" : (TIERS.find((x) => x.id === tier)?.label ?? ""), attendedDays: t.counted,
-      next: n ? { label: n.label, daysNeeded: n.daysNeeded } : null,
-      perks: TIERS.find((x) => x.id === tier)?.perks ?? [], perkReady: await perkReady(db, identity, t.counted),
-    };
+    const level = await currentLevel(db, identity, await getLevelConfig(db));
+    return await quarterlyPerkReady(db, identity, level);
   } catch (err) {
-    logger.error("[Rewards] ladder lookup failed", { err });
-    return null;
+    logger.error("[Rewards] perk lookup failed", { err });
+    return false; // levels are a bonus: they never stop a reward lookup
   }
 }
 
@@ -138,8 +112,8 @@ export async function claimReward(tx: Prisma.TransactionClient, p: { appointment
   const offer = await loyaltyOffer(tx);
   if (!identity || !offer || !offer.enabled) return false;
   const cur = await tx.rewardProgress.findUnique({ where: { offerId_identity: { offerId: offer.id, identity } } });
-  // Gold's quarterly perk goes first: it expires at quarter end, the stamp rewards never do. ON CONFLICT DO NOTHING keeps the transaction healthy.
-  if (cur && hasQuarterlyPerk(tierFor(cur.counted))) {
+  // A Pro or Legend quarterly perk goes first: it expires at quarter end, the stamp rewards never do. ON CONFLICT DO NOTHING keeps the transaction healthy.
+  if (hasQuarterlyPerk(await currentLevel(tx, identity, await getLevelConfig(tx)))) {
     const got = await tx.quarterlyPerk.createMany({ data: [{ identity, quarter: currentQuarter(), appointmentId: p.appointmentId }], skipDuplicates: true });
     if (got.count === 1) return true;
   }

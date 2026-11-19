@@ -15,6 +15,8 @@ export interface DiscountResult {
   /** What a Calvy fee coupon took off the Rs 10, and what is to be paid online now. */
   feeDiscountMinor?: number;
   payNowMinor?: number;
+  /** The customer's Calvy level and its confirmation fee (verified customers only). */
+  level?: { id: string; label: string; feeMinor: number };
   error?: string;
 }
 
@@ -75,6 +77,7 @@ export function DiscountBox({ businessSlug, serviceIds, email, phone, date, time
 
   return (
     <div style={{ marginTop: 12 }}>
+      {result?.level && <p className="bk-note" role="status" data-testid="level-badge"><span style={{ fontWeight: 700 }}>{result.level.label}</span> level: your confirmation fee is {formatMoney(result.level.feeMinor)}.</p>}
       {result?.offer && <p className="bk-note" role="status">Offer applied: <strong>{result.offer.name}</strong>{result.discountMinor ? ` (−${formatMoney(result.discountMinor)})` : ""}</p>}
       {applied && result?.code ? (
         <p className="bk-note" role="status" style={{ marginTop: 8 }}>

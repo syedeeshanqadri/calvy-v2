@@ -1,41 +1,8 @@
-// Rewards ladder, referral and comeback rules (pure, no database). They sit on top of the attended-day tally in ./rules.ts.
-//  - Tiers count attended DAYS (the same days the 7-day stamp counts): Regular at 3, Silver at 10, Gold at 25.
-//  - Free reschedule is for EVERYONE (a reschedule moves the same booking and never charges again); it is not a tier perk.
-//  - Silver: a ONE-TIME free Rs 10 confirmation, granted when the tier is first reached (plus the Silver badge).
-//  - Gold: the Silver gift (if not already given) and ONE extra free Rs 10 per calendar quarter, which expires at quarter end. (Waitlist priority is
-//    skipped: there is no waitlist yet.)
+// Referral, comeback and quarter rules (pure, no database), on top of the attended-day tally in ./rules.ts. The Calvy Levels
+// (Starter to Legend, fee discounts, perks) live in ./levels.ts and replaced the old Regular/Silver/Gold tiers.
+//  - Free reschedule is for EVERYONE (a reschedule moves the same booking and never charges again).
 //  - Comeback: +1 stamp when an attended day is within 30 days of the previous attended day, at most ONE bonus stamp per calendar month (India time).
 //  - Referral: the friend must be NEW; both get a free Rs 10 after the friend's first ATTENDED visit; at most 5 rewarded referrals per referrer per month.
-
-export type TierId = "NONE" | "REGULAR" | "SILVER" | "GOLD";
-export const TIERS: readonly { id: Exclude<TierId, "NONE">; label: string; min: number; perks: string[] }[] = [
-  { id: "REGULAR", label: "Regular", min: 3, perks: [] },
-  { id: "SILVER", label: "Silver", min: 10, perks: ["A one-time free Rs 10 confirmation, given when you reach Silver"] },
-  { id: "GOLD", label: "Gold", min: 25, perks: ["One extra free Rs 10 confirmation every quarter"] },
-];
-
-export function tierFor(attendedDays: number): TierId {
-  const n = Math.max(0, attendedDays);
-  let t: TierId = "NONE";
-  for (const tier of TIERS) if (n >= tier.min) t = tier.id;
-  return t;
-}
-
-export function tierLabel(t: TierId): string {
-  return TIERS.find((x) => x.id === t)?.label ?? "Not yet";
-}
-
-/** The next tier up and how many more attended days it needs; null at the top. */
-export function nextTier(attendedDays: number): { id: TierId; label: string; daysNeeded: number } | null {
-  const n = Math.max(0, attendedDays);
-  const next = TIERS.find((t) => n < t.min);
-  return next ? { id: next.id, label: next.label, daysNeeded: next.min - n } : null;
-}
-
-/** The tier whose first arrival gives the one-time free Rs 10. */
-export const GIFT_TIER = "SILVER" as const;
-export const SILVER_MIN = 10;
-export const hasQuarterlyPerk = (t: TierId): boolean => t === "GOLD";
 
 /** "2026-Q4" for a calendar day "YYYY-MM-DD" (the perk expires when the quarter changes). */
 export function quarterOf(day: string): string {

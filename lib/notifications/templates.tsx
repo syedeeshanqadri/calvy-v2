@@ -2,7 +2,7 @@ import * as React from "react";
 import { render } from "@react-email/render";
 import {
   BookingCancellationEmail, QueueNextEmail, BookingConfirmationEmail, BookingReminderEmail, BookingRescheduleEmail, BusinessAlertEmail, BusinessLiveEmail,
-  CustomerAccountSetupEmail, CustomerResetEmail, CustomerVerifyEmail, DailySummaryEmail, EmailVerificationEmail, InvoiceEmail, LeadAcknowledgmentEmail, MeetingLinkEmail,
+  CustomerAccountSetupEmail, LevelUpEmail, CustomerResetEmail, CustomerVerifyEmail, DailySummaryEmail, EmailVerificationEmail, InvoiceEmail, LeadAcknowledgmentEmail, MeetingLinkEmail,
   SubscriptionNoticeEmail, subscriptionNoticeLines, subscriptionNoticeSubject,
   PasswordResetEmail, OwnerAccountSetupEmail, TeamInviteEmail, QueueClosedEmail, QueueMovedBackEmail, ReviewRequestEmail, StatusChangeEmail, WelcomeEmail, businessAlertHeadline,
   type SubscriptionNoticeProps, type BookingProps, type BusinessAlertProps, type DailySummaryProps, type InvoiceProps,
@@ -240,6 +240,11 @@ export const TEMPLATES = {
     subject: () => "Verify your account to keep track of your appointments",
     Email: (p) => <CustomerAccountSetupEmail name={p.name} setupUrl={p.secret} />,
     text: (p) => lines(`Hi ${first(p.name)}, thanks for your booking. Verify your account and set a password to keep track of all your appointments.`, p.secret, "Your booking is confirmed either way. This link expires in 24 hours."),
+  }),
+  level_up: define<{ level: string; levelLabel: string; feeMinor: number; baseFeeMinor: number; perk: string | null; accountUrl: string }>({
+    subject: (p) => `You reached ${p.levelLabel} on Calvy`,
+    Email: (p) => <LevelUpEmail levelLabel={p.levelLabel} feeLabel={`Rs ${p.feeMinor / 100}`} perk={p.perk} accountUrl={p.accountUrl} />,
+    text: (p) => lines(`You reached ${p.levelLabel}. Your Calvy confirmation fee is now Rs ${p.feeMinor / 100} at businesses where it applies.`, p.perk ?? "", p.accountUrl),
   }),
   customer_password_reset: define<AuthPayload>({
     subject: () => "Reset your password",
