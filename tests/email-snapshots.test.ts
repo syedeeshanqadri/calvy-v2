@@ -38,6 +38,7 @@ const FIXTURES: Record<TemplateId, object> = {
   customer_password_reset: { name: "Riya Kapoor", secret: SECRET },
   customer_account_setup: { name: "Riya Kapoor", secret: SECRET },
   deletion_requested: { name: "Riya Kapoor", executeAfterLabel: "20 December 2026", secret: SECRET },
+  billing_links_mode: { businessName: "Glow Studio", businessId: "biz_1", reason: "International cards are not enabled for recurring", adminUrl: "https://x.test/admin/billing" },
   member_link: { name: "Riya Kapoor", secret: SECRET },
   level_up: { level: "INSIDER", levelLabel: "Insider", feeMinor: 800, baseFeeMinor: 1000, perk: "One free booking, on us, for reaching Insider.", accountUrl: "https://x.test/account" },
   lead: { name: "Asha Rao", demoRequested: true },

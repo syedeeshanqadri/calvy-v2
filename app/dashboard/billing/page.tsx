@@ -5,13 +5,14 @@ import { prisma } from "@/lib/prisma";
 import { normalizePlanId } from "@/lib/plans";
 import { isFeatureEnabled } from "@/lib/flags";
 import { REGION_PRICING } from "@/lib/pricing";
-import { INTERVALS, PAID_PLANS, overrideActive, plansAboveNoAfaLimit, planAmountMinor, planName } from "@/lib/subscriptions/rules";
+import { INTERVALS, PAID_PLANS, overrideActive, plansAboveNoAfaLimit, planName, planPriceFor } from "@/lib/subscriptions/rules";
+import { billingGateway, intlBillingEnabled } from "@/lib/subscriptions/razorpayService";
 import { currentSubscription, reconcileSubscription } from "@/lib/subscriptions/service";
 import BillingClient, { type BillingData } from "./BillingClient";
 
 export const dynamic = "force-dynamic";
 
-/** The owner's plan page: current plan, next bill, payment method, invoices, upgrade / downgrade / cancel. India only (international: coming soon). */
+/** The owner's plan page: current plan, next bill, payment method, invoices, upgrade / downgrade / cancel. India: rupees via Cashfree. International: dollars via Razorpay (when switched on). */
 export default async function BillingPage({ searchParams }: { searchParams: Promise<{ subscription_id?: string }> }) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.businessId) redirect("/login");
@@ -31,9 +32,16 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
   const invoices = await prisma.subscriptionInvoice.findMany({ where: { businessId }, orderBy: { issuedAt: "desc" }, take: 36 });
   const now = new Date();
   const above = plansAboveNoAfaLimit();
+  const gateway = billingGateway(business);
+  const priceList = REGION_PRICING[gateway === "RAZORPAY" ? "INTL" : "IN"];
 
   const data: BillingData = {
-    isIndia: (business.currency ?? "").toUpperCase() === "INR",
+    isIndia: gateway === "CASHFREE",
+    gateway,
+    currency: gateway === "RAZORPAY" ? "USD" : "INR",
+    intlOn: intlBillingEnabled(),
+    billingMode: sub && sub.gateway === "RAZORPAY" ? (sub.billingMode === "LINKS" ? "LINKS" : "RECURRING") : null,
+    renewalLinkUrl: sub && sub.gateway === "RAZORPAY" ? sub.renewalLinkUrl : null,
     paymentsOn: isFeatureEnabled("onlinePayments"),
     planId: normalizePlanId(business.plan),
     planLabel: planName(normalizePlanId(business.plan)),
@@ -46,9 +54,9 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
       graceUntil: sub.graceUntil?.toISOString() ?? null, endedReason: sub.endedReason,
     } : null,
     plans: PAID_PLANS.map((id) => ({
-      id, name: planName(id), blurb: REGION_PRICING.IN.plans.find((p) => p.id === id)?.description ?? "",
-      features: (REGION_PRICING.IN.plans.find((p) => p.id === id)?.features ?? []).slice(0, 6),
-      prices: Object.fromEntries(INTERVALS.map((i) => [i, planAmountMinor(id, i)])) as Record<"MONTHLY" | "YEARLY", number>,
+      id, name: planName(id), blurb: priceList.plans.find((p) => p.id === id)?.description ?? "",
+      features: (priceList.plans.find((p) => p.id === id)?.features ?? []).slice(0, 6),
+      prices: Object.fromEntries(INTERVALS.map((i) => [i, planPriceFor(gateway, id, i)])) as Record<"MONTHLY" | "YEARLY", number>,
     })),
     invoices: invoices.map((i) => ({ id: i.id, number: i.number, kind: i.kind, issuedAt: i.issuedAt.toISOString(), amountMinor: i.amountMinor, planLabel: planName(i.planId), interval: i.interval })),
     extraAuthPlans: above.map((a) => `${planName(a.planId)} ${a.interval === "YEARLY" ? "yearly" : "monthly"}`),

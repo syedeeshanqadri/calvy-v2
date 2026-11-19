@@ -20,6 +20,17 @@ export function planAmountMinor(planId: PaidPlanId, interval: Interval): number 
   return Math.round((interval === "YEARLY" ? p.yearlyTotal : p.monthly) * 100);
 }
 
+/** International (USD) price of a paid plan per cycle in cents, from the dollar price list (lib/pricing.ts INTL). Yearly is the price billed once a year. */
+export function intlPlanAmountMinor(planId: PaidPlanId, interval: Interval): number {
+  const p = REGION_PRICING.INTL.plans.find((x) => x.id === planId);
+  if (!p) throw new Error(`No price for plan ${planId}`);
+  return Math.round((interval === "YEARLY" ? p.yearlyTotal : p.monthly) * 100);
+}
+
+/** The price list of the billing gateway's region: rupees via Cashfree, dollars via Razorpay. */
+export const planPriceFor = (gateway: "CASHFREE" | "RAZORPAY", planId: PaidPlanId, interval: Interval): number =>
+  gateway === "RAZORPAY" ? intlPlanAmountMinor(planId, interval) : planAmountMinor(planId, interval);
+
 export function planName(planId: string): string {
   return REGION_PRICING.IN.plans.find((x) => x.id === planId)?.name ?? planId;
 }
@@ -109,8 +120,12 @@ export function financialYear(at: Date): string {
 
 export const invoiceNumber = (fy: string, seq: number) => `CALVY/${fy}/${String(seq).padStart(4, "0")}`;
 
+/** GST (India), IGST (export of services without an LUT), LUT (export under a Letter of Undertaking: no tax line). */
+export type TaxKind = "GST" | "IGST" | "LUT";
+
 export interface InvoiceLines {
   kind: "TAX_INVOICE" | "RECEIPT";
+  taxKind: TaxKind;
   grossMinor: number;
   creditMinor: number;
   /** A plan coupon, shown as its own line. */
@@ -125,19 +140,27 @@ export interface InvoiceLines {
  * With a GSTIN: a tax invoice, the amount paid split into taxable value and GST (prices are GST inclusive). Without one: a plain receipt,
  * no GST line (taxable = total, GST = 0), because Calvy may not be GST registered yet.
  */
-export function invoiceLines(i: { grossMinor: number; creditMinor: number; couponMinor?: number; gstin: string | null; gstRatePercent: number }): InvoiceLines {
+export function invoiceLines(i: { grossMinor: number; creditMinor: number; couponMinor?: number; gstin: string | null; gstRatePercent: number; taxKind?: TaxKind }): InvoiceLines {
   const couponMinor = Math.max(0, i.couponMinor ?? 0);
+  const taxKind = i.taxKind ?? "GST";
   const amountMinor = Math.max(0, i.grossMinor - i.creditMinor - couponMinor);
-  if (!i.gstin) return { kind: "RECEIPT", grossMinor: i.grossMinor, creditMinor: i.creditMinor, couponMinor, amountMinor, taxableMinor: amountMinor, gstMinor: 0, gstRate: 0 };
+  if (!i.gstin) return { kind: "RECEIPT", taxKind, grossMinor: i.grossMinor, creditMinor: i.creditMinor, couponMinor, amountMinor, taxableMinor: amountMinor, gstMinor: 0, gstRate: 0 };
+  // An export under an LUT carries no tax line at all; otherwise (GST or IGST) the price is tax inclusive and is split.
+  if (taxKind === "LUT") return { kind: "TAX_INVOICE", taxKind, grossMinor: i.grossMinor, creditMinor: i.creditMinor, couponMinor, amountMinor, taxableMinor: amountMinor, gstMinor: 0, gstRate: 0 };
   const { baseMinor, gstMinor } = gstSplit(amountMinor, i.gstRatePercent);
-  return { kind: "TAX_INVOICE", grossMinor: i.grossMinor, creditMinor: i.creditMinor, couponMinor, amountMinor, taxableMinor: baseMinor, gstMinor, gstRate: i.gstRatePercent };
+  return { kind: "TAX_INVOICE", taxKind, grossMinor: i.grossMinor, creditMinor: i.creditMinor, couponMinor, amountMinor, taxableMinor: baseMinor, gstMinor, gstRate: i.gstRatePercent };
 }
+
+/** The tax treatment of an invoice: India is GST; international is zero-rated under an LUT when one is set, otherwise IGST (never decided by currency). */
+export const taxKindFor = (gateway: string, lutNumber: string | null): TaxKind => (gateway === "RAZORPAY" ? (lutNumber ? "LUT" : "IGST") : "GST");
 
 /* ── Failed payments ── */
 export const GRACE_DAYS = 7;
 /** Dunning emails go out on days 0, 3 and 6 after the first failure; the charge is retried on days 2 and 5. */
 export const DUNNING_DAYS = [0, 3, 6] as const;
 export const RETRY_DAYS = [2, 5] as const;
+/** Razorpay (international): the plan is "halted" after its own retries, then 7 days of grace with reminder emails on days 1, 3 and 6. */
+export const RZP_DUNNING_DAYS = [1, 3, 6] as const;
 const DAY = 86_400_000;
 
 export function graceEnd(firstFailedAt: Date): Date {
@@ -147,10 +170,10 @@ export function graceEnd(firstFailedAt: Date): Date {
 export interface DunningState { firstFailedAt: Date; dunningSent: number; lastChargeRetryAt: Date | null; now: Date }
 
 /** Which dunning email (1-3) is due now, or null. Sent in order, never twice. */
-export function dunningDue(s: DunningState): 1 | 2 | 3 | null {
+export function dunningDue(s: DunningState, days: readonly number[] = DUNNING_DAYS): 1 | 2 | 3 | null {
   const next = s.dunningSent;
-  if (next >= DUNNING_DAYS.length) return null;
-  const due = s.firstFailedAt.getTime() + DUNNING_DAYS[next] * DAY;
+  if (next >= days.length) return null;
+  const due = s.firstFailedAt.getTime() + days[next] * DAY;
   return s.now.getTime() >= due ? ((next + 1) as 1 | 2 | 3) : null;
 }
 

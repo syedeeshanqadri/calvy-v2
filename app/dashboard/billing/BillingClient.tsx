@@ -7,6 +7,14 @@ import { formatCurrencyAmount } from "@/lib/currency";
 type Interval = "MONTHLY" | "YEARLY";
 export interface BillingData {
   isIndia: boolean;
+  /** Who bills this business: Cashfree (India, rupees) or Razorpay (international, dollars). */
+  gateway: "CASHFREE" | "RAZORPAY";
+  currency: string;
+  /** International billing is switched on (flag and keys). */
+  intlOn: boolean;
+  /** Razorpay: recurring card billing, or the payment-link fallback; and the open link to pay. */
+  billingMode: "RECURRING" | "LINKS" | null;
+  renewalLinkUrl: string | null;
   paymentsOn: boolean;
   planId: string;
   planLabel: string;
@@ -19,11 +27,13 @@ export interface BillingData {
 }
 interface Quote { kind: string; grossMinor: number; creditMinor: number; couponMinor?: number; coupon?: { code: string; name: string } | null; couponError?: string | null; dueMinor: number; mandate: { needsExtraAuth: boolean; note: string | null } }
 
-const rs = (minor: number) => formatCurrencyAmount(minor / 100, "INR");
 const day = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Kolkata" }) : "");
 const card = "bg-white rounded-2xl border border-[#e8e6e0] p-5";
 const btn = "h-10 px-4 rounded-xl text-sm font-semibold disabled:opacity-50";
 const CASHFREE_SDK = "https://sdk.cashfree.com/js/v3/cashfree.js";
+const RAZORPAY_SDK = "https://checkout.razorpay.com/v1/checkout.js";
+interface RzpResponse { razorpay_payment_id: string; razorpay_subscription_id: string; razorpay_signature: string }
+type RazorpayCtor = new (o: { key: string; subscription_id: string; name: string; description: string; handler: (r: RzpResponse) => void; modal?: { ondismiss?: () => void } }) => { open(): void };
 
 type CashfreeFactory = (o: { mode: "sandbox" | "production" }) => { subscriptionsCheckout(o: { subsSessionId: string; redirectTarget: "_self" }): Promise<unknown> };
 function loadScript(src: string): Promise<void> {
@@ -36,6 +46,8 @@ function loadScript(src: string): Promise<void> {
 }
 
 export default function BillingClient({ data }: { data: BillingData }) {
+  const rs = (minor: number) => formatCurrencyAmount(minor / 100, data.currency);
+  const intl = data.gateway === "RAZORPAY";
   const router = useRouter();
   const [interval, setIntervalChoice] = useState<Interval>(data.subscription?.interval === "YEARLY" ? "YEARLY" : "MONTHLY");
   const [pick, setPick] = useState<{ planId: "professional" | "business"; interval: Interval } | null>(null);
@@ -68,10 +80,40 @@ export default function BillingClient({ data }: { data: BillingData }) {
     try {
       const r = await post("/api/subscriptions/checkout", { ...pick, method, ...(quote?.coupon ? { couponCode: code } : {}) });
       if (!r.ok) { setError(r.json.error ?? "Could not start the payment."); return; }
+      if (r.json.gateway === "RAZORPAY") {
+        // The fallback: Razorpay would not do recurring for this card or currency, so the plan is paid by link each period.
+        if (r.json.mode === "LINKS") { window.location.href = r.json.url; return; }
+        await openRazorpay(r.json.keyId, r.json.razorpaySubscriptionId, "Calvy plan");
+        return;
+      }
       await loadScript(CASHFREE_SDK);
       const factory = (window as unknown as { Cashfree?: CashfreeFactory }).Cashfree;
       if (!factory) throw new Error("Could not load the payment page.");
       await factory({ mode: r.json.env }).subscriptionsCheckout({ subsSessionId: r.json.sessionId, redirectTarget: "_self" });
+    } catch (e) { setError((e as Error).message); } finally { setBusy(false); }
+  }
+
+  /** Razorpay Checkout for a subscription (or a replacement card). On success the server verifies the signature and activates the plan at once. */
+  async function openRazorpay(keyId: string, subscriptionId: string, description: string) {
+    await loadScript(RAZORPAY_SDK);
+    const Ctor = (window as unknown as { Razorpay?: RazorpayCtor }).Razorpay;
+    if (!Ctor) throw new Error("Could not load the payment page.");
+    new Ctor({
+      key: keyId, subscription_id: subscriptionId, name: "Calvy", description,
+      handler: async (resp) => {
+        await post("/api/subscriptions/razorpay/confirm", { paymentId: resp.razorpay_payment_id, razorpaySubscriptionId: resp.razorpay_subscription_id, signature: resp.razorpay_signature });
+        setNotice("Thank you. Your payment went through; your plan updates in a moment.");
+        setPick(null); setQuote(null); router.refresh();
+      },
+    }).open();
+  }
+
+  async function updateCard() {
+    setBusy(true); setError("");
+    try {
+      const r = await post("/api/subscriptions/card", {});
+      if (!r.ok) { setError(r.json.error ?? "Could not start the card update."); return; }
+      await openRazorpay(r.json.keyId, r.json.razorpaySubscriptionId, "Update your card");
     } catch (e) { setError((e as Error).message); } finally { setBusy(false); }
   }
 
@@ -86,7 +128,7 @@ export default function BillingClient({ data }: { data: BillingData }) {
     } finally { setBusy(false); }
   }
 
-  if (!data.isIndia) {
+  if (!data.isIndia && !data.intlOn) {
     return (
       <DashboardLayout title="Your plan" subtitle="Plan and billing">
         <div className={`${card} max-w-xl space-y-2`}>
@@ -109,18 +151,21 @@ export default function BillingClient({ data }: { data: BillingData }) {
           <p className="font-syne font-bold text-2xl">{data.planLabel}</p>
           {sub && (
             <div className="text-sm text-[#3d3d4d] space-y-1">
-              <p>{sub.planLabel} · {sub.interval === "YEARLY" ? "yearly" : "monthly"} · {rs(sub.amountMinor)} per {sub.interval === "YEARLY" ? "year" : "month"} (GST included)</p>
+              <p>{sub.planLabel} · {sub.interval === "YEARLY" ? "yearly" : "monthly"} · {rs(sub.amountMinor)} per {sub.interval === "YEARLY" ? "year" : "month"} {intl ? "" : " (GST included)"}</p>
               {sub.state === "PAST_DUE"
-                ? <p className="text-red-700 font-semibold">Your last payment failed. We will retry; please check your payment method. Paid features stay on until {day(sub.graceUntil)}.</p>
+                ? <p className="text-red-700 font-semibold">Your last payment failed. Please {intl && data.billingMode === "LINKS" ? "pay your renewal link" : "update your card"}. Paid features stay on until {day(sub.graceUntil)}.</p>
                 : sub.pendingPlanId === "free"
                   ? <p>Cancelled. You keep your plan until {day(sub.periodEnd)}, then move to Basic. You will not be charged again.</p>
                   : <p>Next bill: <strong>{day(sub.periodEnd)}</strong>{sub.pendingPlanLabel ? ` · changes to ${sub.pendingPlanLabel} ${sub.pendingInterval === "YEARLY" ? "yearly" : "monthly"} then` : ""}</p>}
               {sub.method && <p>Payment method: {sub.method}</p>}
+              {intl && data.billingMode === "LINKS" && <p className="text-xs text-[#6b6b80]">Your plan is paid with a secure payment link each period; we email it to you ahead of time. Your card is not charged automatically.</p>}
             </div>
           )}
-          {!sub && data.planId === "free" && <p className="text-sm text-[#6b6b80]">Basic is free. You pay Calvy a Rs 10 confirmation fee on online bookings. Paid plans remove that fee and let you take payments straight into your own account.</p>}
+          {!sub && data.planId === "free" && <p className="text-sm text-[#6b6b80]">{intl ? "Free is free forever. Paid plans unlock more staff, branding, WhatsApp and payments into your own account." : "Basic is free. You pay Calvy a Rs 10 confirmation fee on online bookings. Paid plans remove that fee and let you take payments straight into your own account."}</p>}
           {sub && (
             <div className="flex flex-wrap gap-2 pt-2">
+              {intl && data.billingMode === "RECURRING" && <button type="button" disabled={busy} onClick={updateCard} className={`${btn} border border-[#e8e6e0]`}>Update card</button>}
+              {intl && data.billingMode === "LINKS" && data.renewalLinkUrl && <a href={data.renewalLinkUrl} className={`${btn} bg-[#0f0f1a] text-white inline-flex items-center`}>Pay your renewal</a>}
               {(sub.pendingPlanId) && <button type="button" disabled={busy} onClick={() => change("undo")} className={`${btn} border border-[#e8e6e0]`}>Undo scheduled change</button>}
               {!sub.pendingPlanId && <button type="button" disabled={busy} onClick={() => { if (confirm("Cancel your subscription? You keep your plan until the end of the period you paid for.")) change("cancel"); }} className={`${btn} border border-red-200 text-red-700`}>Cancel subscription</button>}
             </div>
@@ -141,7 +186,7 @@ export default function BillingClient({ data }: { data: BillingData }) {
                 return (
                   <div key={p.id} className={`${card} space-y-3 ${current ? "ring-2 ring-[#0f0f1a]" : ""}`}>
                     <p className="font-syne font-bold text-lg">{p.name}</p>
-                    <p><span className="text-2xl font-bold">{rs(p.prices[interval])}</span> <span className="text-sm text-[#6b6b80]">per {interval === "YEARLY" ? "year" : "month"}, GST included</span></p>
+                    <p><span className="text-2xl font-bold">{rs(p.prices[interval])}</span> <span className="text-sm text-[#6b6b80]">per {interval === "YEARLY" ? "year" : "month"}{intl ? "" : ", GST included"}</span></p>
                     <p className="text-sm text-[#6b6b80]">{p.blurb}</p>
                     <ul className="text-sm text-[#3d3d4d] list-disc pl-5 space-y-0.5">{p.features.map((f) => <li key={f}>{f}</li>)}</ul>
                     <button type="button" disabled={busy || !!current} onClick={() => openQuote(p.id)} className={`${btn} bg-[#0f0f1a] text-white w-full`}>{current ? "Your current plan" : sub ? "Switch to this plan" : "Choose this plan"}</button>
@@ -149,7 +194,7 @@ export default function BillingClient({ data }: { data: BillingData }) {
                 );
               })}
             </div>
-            {data.extraAuthPlans.length > 0 && <p className="text-xs text-[#6b6b80]">Above Rs 15,000 per payment ({data.extraAuthPlans.join(", ")}) your bank asks for an extra authentication on each payment.</p>}
+            {!intl && data.extraAuthPlans.length > 0 && <p className="text-xs text-[#6b6b80]">Above Rs 15,000 per payment ({data.extraAuthPlans.join(", ")}) your bank asks for an extra authentication on each payment.</p>}
           </section>
         ) : <p className="text-sm rounded-xl bg-amber-50 text-amber-900 px-3 py-2">Plan payments are not switched on yet. Email support to change your plan.</p>}
 
@@ -165,7 +210,7 @@ export default function BillingClient({ data }: { data: BillingData }) {
             ) : (
               <>
                 <dl className="text-sm space-y-1">
-                  <div className="flex justify-between"><dt>Plan price (GST included)</dt><dd>{rs(quote.grossMinor)}</dd></div>
+                  <div className="flex justify-between"><dt>Plan price{intl ? "" : " (GST included)"}</dt><dd>{rs(quote.grossMinor)}</dd></div>
                   {quote.creditMinor > 0 && <div className="flex justify-between text-emerald-700"><dt>Credit for the unused part of your current plan</dt><dd>- {rs(quote.creditMinor)}</dd></div>}
                   {!!quote.couponMinor && <div className="flex justify-between text-emerald-700"><dt>Coupon {quote.coupon?.code} (−{rs(quote.couponMinor)})</dt><dd>- {rs(quote.couponMinor)}</dd></div>}
                   <div className="flex justify-between font-bold border-t border-[#e8e6e0] pt-1"><dt>Due now</dt><dd>{rs(quote.dueMinor)}</dd></div>
@@ -175,14 +220,14 @@ export default function BillingClient({ data }: { data: BillingData }) {
                   <button type="submit" disabled={busy || !code.trim()} className={`${btn} border border-[#e8e6e0]`}>Apply</button>
                   {quote.couponError && <span role="alert" className="text-xs text-red-700">{quote.couponError}</span>}
                 </form>
-                <p className="text-xs text-[#6b6b80]">Your plan starts now. A coupon takes money off the first payment only. After this, {rs(quote.grossMinor)} is charged every {pick.interval === "YEARLY" ? "year" : "month"} automatically. Cancel any time; you keep access to the end of the period.</p>
-                <fieldset className="flex flex-wrap gap-2" aria-label="Payment method">
+                <p className="text-xs text-[#6b6b80]">Your plan starts now. A coupon takes money off the first payment only. After this, {rs(quote.grossMinor)} is charged every {pick.interval === "YEARLY" ? "year" : "month"} {intl ? "to your card" : "automatically"}. Cancel any time; you keep access to the end of the period.</p>
+                {!intl && <fieldset className="flex flex-wrap gap-2" aria-label="Payment method">
                   <button type="button" onClick={() => setMethod("upi_card")} aria-pressed={method === "upi_card"} className={`${btn} border ${method === "upi_card" ? "border-[#0f0f1a] bg-[#f6f5f1]" : "border-[#e8e6e0]"}`}>UPI Autopay or card</button>
                   <button type="button" onClick={() => setMethod("enach")} aria-pressed={method === "enach"} className={`${btn} border ${method === "enach" ? "border-[#0f0f1a] bg-[#f6f5f1]" : "border-[#e8e6e0]"}`}>Bank e-mandate</button>
-                </fieldset>
-                {method === "enach" && <p className="text-xs text-[#6b6b80]">With a bank e-mandate nothing is taken while you set it up; the first payment is collected a day later.</p>}
+                </fieldset>}
+                {!intl && method === "enach" && <p className="text-xs text-[#6b6b80]">With a bank e-mandate nothing is taken while you set it up; the first payment is collected a day later.</p>}
                 {quote.mandate.note && <p className="text-xs rounded-lg bg-amber-50 text-amber-900 px-3 py-2">{quote.mandate.note}</p>}
-                <button type="button" disabled={busy} onClick={pay} className={`${btn} bg-[#0f0f1a] text-white`}>{busy ? "Opening…" : `Pay ${method === "enach" ? "later" : rs(quote.dueMinor)} and start`}</button>
+                <button type="button" disabled={busy} onClick={pay} className={`${btn} bg-[#0f0f1a] text-white`}>{busy ? "Opening…" : `Pay ${!intl && method === "enach" ? "later" : rs(quote.dueMinor)} and start`}</button>
               </>
             )}
             <button type="button" onClick={() => { setPick(null); setQuote(null); }} className="text-sm underline text-[#6b6b80] ml-3">Cancel</button>

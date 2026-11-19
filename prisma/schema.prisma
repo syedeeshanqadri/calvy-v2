@@ -1126,6 +1126,22 @@ model Subscription {
   /// A Calvy coupon taken off the first charge (folded into creditMinor); kept here for the usage log. durationMonths on the coupon is unused for now.
   couponId               String?
   couponMinor            Int                   @default(0)
+  /// Who bills this plan: CASHFREE (India, INR) or RAZORPAY (international, USD). Decided by the business's region when it subscribes.
+  gateway                String                @default("CASHFREE")
+  currency               String                @default("INR")
+  /// Razorpay only: its subscription id (sub_...), its plan id, and how it is billed. RECURRING = Razorpay charges the card each period;
+  /// LINKS = the fallback (Razorpay refused recurring for this card or currency): a payment link per period plus email reminders.
+  rzpSubscriptionId      String?               @unique
+  rzpPlanId              String?
+  billingMode            String                @default("RECURRING")
+  linksReason            String?
+  /// LINKS mode: the open payment link for the next period, and the period start it pays for.
+  renewalLinkId          String?
+  renewalLinkUrl         String?
+  renewalForPeriodStart  DateTime?             @db.Timestamptz(3)
+  linkRemindersSent      Int                   @default(0)
+  /// A replacement subscription made by "Update card": it takes over the old one's paid period instead of starting a new one.
+  cardUpdate             Boolean               @default(false)
   /// upi_card (the authorisation payment IS the first charge) | enach (authorise for 0, then Calvy raises the first charge)
   method                 String                @default("upi_card")
   paymentMethodLabel     String?
@@ -1174,6 +1190,11 @@ model SubscriptionInvoice {
   /// A plan coupon taken off this payment (shown as its own line), and its code.
   couponMinor        Int          @default(0)
   couponCode         String?
+  /// Currency of every amount here (INR for India, USD for Razorpay) and the tax treatment: GST (India), IGST (export without an LUT),
+  /// LUT (export of services under a Letter of Undertaking: no tax line, the LUT number is printed).
+  currency           String       @default("INR")
+  taxKind            String       @default("GST")
+  lutNumber          String?
   amountMinor        Int
   taxableMinor       Int
   gstMinor           Int

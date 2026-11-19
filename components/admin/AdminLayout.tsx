@@ -18,6 +18,7 @@ const NAV: { label: string; href: string; icon: typeof LayoutDashboard; exact?: 
   { label: "Businesses", href: "/admin/businesses", icon: Building2 },
   { label: "Plans & Pricing", href: "/admin/plans", icon: CreditCard },
   { label: "Revenue", href: "/admin/revenue", icon: TrendingUp },
+  { label: "Billing", href: "/admin/billing", icon: CreditCard },
   { label: "Offers", href: "/admin/offers", icon: Gift },
   { label: "Coupons", href: "/admin/coupons", icon: Gift },
   { label: "Customers", href: "/admin/customers", icon: Users },

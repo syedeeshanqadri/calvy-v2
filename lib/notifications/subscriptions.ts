@@ -18,6 +18,8 @@ export interface SubscriptionNotice {
   dateLabel?: string;
   creditLabel?: string;
   invoiceNumber?: string;
+  /** Payment-link billing: where to pay. */
+  linkUrl?: string;
   /** Makes the key unique for events that can legitimately happen again (invoice number, charge id). */
   version?: string;
 }
@@ -36,7 +38,7 @@ export function subscriptionNotice(n: SubscriptionNotice): NotificationInput {
     payload: {
       kind: n.kind, name: n.name, businessName: n.businessName, planName: n.planName, intervalLabel: n.intervalLabel,
       ...(n.amountLabel ? { amountLabel: n.amountLabel } : {}), ...(n.dateLabel ? { dateLabel: n.dateLabel } : {}),
-      ...(n.creditLabel ? { creditLabel: n.creditLabel } : {}), ...(n.invoiceNumber ? { invoiceNumber: n.invoiceNumber } : {}),
+      ...(n.creditLabel ? { creditLabel: n.creditLabel } : {}), ...(n.invoiceNumber ? { invoiceNumber: n.invoiceNumber } : {}), ...(n.linkUrl ? { linkUrl: n.linkUrl } : {}),
       billingUrl: `${appUrl()}/dashboard/billing`,
     },
   };
