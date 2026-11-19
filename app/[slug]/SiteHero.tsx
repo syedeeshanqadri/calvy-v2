@@ -87,7 +87,7 @@ export function SiteHero({ layout, businessName, badge, headline, subheadline, c
         {image && (
           <div className="st-hero-media">
             <div className="st-hero-frame">
-              <SafeImage src={image} alt={businessName} fill priority sizes={layout === "immersive" ? "100vw" : "(max-width: 900px) 100vw, 50vw"} style={{ objectPosition: focusPosition(imageFocus) }} unoptimized />
+              <SafeImage src={image} alt={businessName} fill preload fetchPriority="high" sizes={layout === "immersive" ? "100vw" : "(max-width: 900px) 100vw, 50vw"} style={{ objectPosition: focusPosition(imageFocus) }} unoptimized />
             </div>
             {layout === "arch" && (
               <svg className="st-seal" viewBox="0 0 120 120" role="img" aria-label="Book online">

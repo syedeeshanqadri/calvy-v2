@@ -11,7 +11,7 @@ import { logger } from "@/lib/logger";
 import { t } from "@/lib/terms";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { DashboardKPIStats } from "@/components/dashboard/DashboardKPIStats";
-import { RevenueChart } from "@/components/dashboard/RevenueChart";
+import { RevenueChart } from "@/components/dashboard/RevenueChartLazy";
 import { AppointmentList } from "@/components/dashboard/AppointmentList";
 import { MiniCalendar } from "@/components/dashboard/MiniCalendar";
 import { TeamWidget } from "@/components/dashboard/TeamWidget";

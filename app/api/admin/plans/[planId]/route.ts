@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 
 import { parseBody } from "@/lib/validation/common";
 import { planPatchSchema } from "@/lib/validation/admin";
+import { clearPlanConfigCache } from "@/lib/plans";
 
 export const dynamic = 'force-dynamic';
 
@@ -61,6 +62,7 @@ async function PATCH_handler(req: NextRequest, props: { params: Promise<{ planId
     },
   });
 
+  clearPlanConfigCache(); // this server sees the new limits at once; others within 30 seconds
   return NextResponse.json(updated);
 }
 

@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { jsonLdString } from "@/lib/jsonLd";
 import { Unavailable } from "@/components/site/Unavailable";
 import { notFound } from "next/navigation";
@@ -37,7 +38,8 @@ import { siteBase, publicSiteUrl } from "@/lib/siteBase";
 
 export const dynamic = "force-dynamic";
 
-async function getBusiness(slug: string) {
+// One read per request: generateMetadata and the page share it.
+const getBusiness = cache(async (slug: string) => {
   return prisma.business.findUnique({
     where: { slug },
     include: {
@@ -46,7 +48,7 @@ async function getBusiness(slug: string) {
       workingHours: { where: { staffId: null } },
     },
   });
-}
+});
 
 const ROOT_DOMAIN = process.env.NEXT_PUBLIC_ROOT_DOMAIN ?? "calvy.io";
 const publicUrlFor = (slug: string) => publicSiteUrl(slug, ROOT_DOMAIN);
@@ -103,9 +105,17 @@ export default async function TenantWebsitePage(props: { params: Promise<{ slug:
   const reviewUrl = safeReviewLink(business.googleReviewUrl);
   const hours = formatOpeningHours(business.workingHours);
   const hasHours = business.workingHours.length > 0;
-  const bookingUrl = `${siteBase((await headers()).get("host"), business.slug, ROOT_DOMAIN)}/book`;
-  const features = await getBusinessFeatures(business.id);
-  const offersWhatsApp = await whatsappOffered(business.id);
+  // Everything the page needs besides the business row, in ONE round (these used to run one after another, each a database round trip).
+  const [host, features, offersWhatsApp, fontClasses, showBadge, allOffers] = await Promise.all([
+    headers().then((h) => h.get("host")),
+    getBusinessFeatures(business.id),
+    whatsappOffered(business.id),
+    siteFontClasses(business.packId),
+    showCalvyBadge(business.id, business.websiteJson),
+    publicOffers(prisma, business.id, true), // read alongside the plan lookup; shown only when the plan includes offers (below)
+  ]);
+  const offers = features.offers ? allOffers : [];
+  const bookingUrl = `${siteBase(host, business.slug, ROOT_DOMAIN)}/book`;
 
   // ── SEO: schema.org structured data (LocalBusiness + service offers) ──
   const publicUrl = publicUrlFor(business.slug);
@@ -143,7 +153,6 @@ export default async function TenantWebsitePage(props: { params: Promise<{ slug:
     })),
   };
 
-  const fontClasses = await siteFontClasses(business.packId);
   const status = hasHours ? openStatus(business.workingHours, business.timezone) : null;
   const showHours = cfg.contact.showHours !== false && hasHours;
   const showAddress = cfg.contact.showAddress && !!business.address;
@@ -164,7 +173,6 @@ export default async function TenantWebsitePage(props: { params: Promise<{ slug:
   const aboutImage = currentPhoto(cfg.about.image, business.businessType, "about");
   const onInvert = primaryFg === "#ffffff" ? brandInk(primary) : primary;
   const footerHours = summarizeHours(hours);
-  const showBadge = await showCalvyBadge(business.id, business.websiteJson);
   const pack = getPack(business.packId);
   const serviceCount = business.services.length;
   const staffCount = business.staff.length;
@@ -188,7 +196,6 @@ export default async function TenantWebsitePage(props: { params: Promise<{ slug:
   if (serviceCount > 0) heroTrust.push({ icon: <PackIcon name={pack.icons.service} />, text: `${serviceCount} ${t(business, "service", { plural: serviceCount !== 1 })}` });
   heroTrust.push({ icon: <Check aria-hidden />, text: cfg.contact.ctaNote || "Book online in minutes" });
   const quickServices = cfg.services.enabled ? business.services.slice(0, 5) : [];
-  const offers = await publicOffers(prisma, business.id, (await getBusinessFeatures(business.id)).offers);
   const railItems = [
     social.whatsapp && { href: social.whatsapp, label: "WhatsApp", icon: <MessageCircle className="st-ico" aria-hidden />, external: true },
     { href: bookingUrl, label: "Book now", icon: <CalendarClock className="st-ico" aria-hidden />, external: false },
