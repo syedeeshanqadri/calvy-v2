@@ -434,6 +434,19 @@ export function MemberLinkEmail({ name, linkUrl }: { name: string; linkUrl: stri
   );
 }
 
+/** The account-deletion request was received: what happens, when, and the link to cancel. */
+export function DeletionRequestedEmail({ name, executeAfterLabel, cancelUrl }: { name: string; executeAfterLabel: string; cancelUrl: string }) {
+  return (
+    <EmailLayout preview="Your account deletion request">
+      <H>We received your deletion request</H>
+      <P>Hi {name.split(" ")[0]}, you asked us to delete your Calvy account. We will do it on {executeAfterLabel}, 30 days from now. Until then nothing changes and you can still sign in.</P>
+      <P>If you did not ask for this, or you changed your mind, cancel it here.</P>
+      <CTA href={cancelUrl} label="Keep my account" />
+      <P>After that date your name, email, phone number and login are removed. Businesses keep their own booking records without your details.</P>
+    </EmailLayout>
+  );
+}
+
 export interface LevelUpProps { levelLabel: string; feeLabel: string; perk: string | null; accountUrl: string }
 
 /** A customer reached a new Calvy level. Names only the level, the new fee and the perk; the requirements are never listed. */

@@ -20,6 +20,7 @@ const NAV: { label: string; href: string; icon: typeof LayoutDashboard; exact?: 
   { label: "Revenue", href: "/admin/revenue", icon: TrendingUp },
   { label: "Offers", href: "/admin/offers", icon: Gift },
   { label: "Coupons", href: "/admin/coupons", icon: Gift },
+  { label: "Customers", href: "/admin/customers", icon: Users },
   { label: "Referrals", href: "/admin/referrals", icon: Gift },
   { label: "Rewards", href: "/admin/rewards", icon: Gift },
   { label: "Notifications", href: "/admin/notifications", icon: Send, exact: true },

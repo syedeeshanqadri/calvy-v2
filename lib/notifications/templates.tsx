@@ -2,7 +2,7 @@ import * as React from "react";
 import { render } from "@react-email/render";
 import {
   BookingCancellationEmail, QueueNextEmail, BookingConfirmationEmail, BookingReminderEmail, BookingRescheduleEmail, BusinessAlertEmail, BusinessLiveEmail,
-  CustomerAccountSetupEmail, LevelUpEmail, MemberLinkEmail, CustomerResetEmail, CustomerVerifyEmail, DailySummaryEmail, EmailVerificationEmail, InvoiceEmail, LeadAcknowledgmentEmail, MeetingLinkEmail,
+  CustomerAccountSetupEmail, DeletionRequestedEmail, LevelUpEmail, MemberLinkEmail, CustomerResetEmail, CustomerVerifyEmail, DailySummaryEmail, EmailVerificationEmail, InvoiceEmail, LeadAcknowledgmentEmail, MeetingLinkEmail,
   SubscriptionNoticeEmail, subscriptionNoticeLines, subscriptionNoticeSubject,
   PasswordResetEmail, OwnerAccountSetupEmail, TeamInviteEmail, QueueClosedEmail, QueueMovedBackEmail, ReviewRequestEmail, StatusChangeEmail, WelcomeEmail, businessAlertHeadline,
   type SubscriptionNoticeProps, type BookingProps, type BusinessAlertProps, type DailySummaryProps, type InvoiceProps,
@@ -240,6 +240,11 @@ export const TEMPLATES = {
     subject: () => "Verify your account to keep track of your appointments",
     Email: (p) => <CustomerAccountSetupEmail name={p.name} setupUrl={p.secret} />,
     text: (p) => lines(`Hi ${first(p.name)}, thanks for your booking. Verify your account and set a password to keep track of all your appointments.`, p.secret, "Your booking is confirmed either way. This link expires in 24 hours."),
+  }),
+  deletion_requested: define<{ name: string; executeAfterLabel: string; secret: string }>({
+    subject: () => "Your account deletion request",
+    Email: (p) => <DeletionRequestedEmail name={p.name} executeAfterLabel={p.executeAfterLabel} cancelUrl={p.secret} />,
+    text: (p) => lines(`Hi ${first(p.name)}, we received your request to delete your Calvy account. We will delete it on ${p.executeAfterLabel}. Until then nothing changes.`, `To keep your account, cancel the request here: ${p.secret}`, "After that date your name, email, phone number and login are removed. Businesses keep their own booking records without your details."),
   }),
   member_link: define<{ name: string; secret: string }>({
     subject: () => "Sign in to pay your member price",

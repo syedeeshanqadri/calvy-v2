@@ -83,25 +83,30 @@ export function ProfileCard({ name, email }: { name: string; email: string }) {
   );
 }
 
-export function DeleteAccountCard({ email }: { email: string }) {
+export function DeleteAccountCard({ email, pendingUntil }: { email: string; pendingUntil: string | null }) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [confirm, setConfirm] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [blocking, setBlocking] = useState<{ businessName: string; date: string }[]>([]);
   const [busy, setBusy] = useState(false);
+  const [until, setUntil] = useState<string | null>(pendingUntil);
+  const label = (iso: string) => new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "Asia/Kolkata" });
 
-  async function remove(e: React.FormEvent) {
+  async function request(e: React.FormEvent) {
     e.preventDefault();
-    setError(""); setBusy(true);
+    setError(""); setBlocking([]); setBusy(true);
     try {
-      const res = await fetch("/api/customer/profile", {
-        method: "DELETE",
+      const res = await fetch("/api/customer/deletion", {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ confirmEmail: confirm, ...(password ? { password } : {}) }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) { setError(data.error ?? "Could not delete the account."); return; }
-      await signOut({ callbackUrl: "/account/login" });
+      if (res.status === 409 && data.code === "UPCOMING_BOOKINGS") { setError(data.error); setBlocking(data.bookings ?? []); return; }
+      if (!res.ok) { setError(data.error ?? "Could not send the request."); return; }
+      setUntil(data.executeAfter ?? null); setOpen(false); router.refresh();
     } catch {
       setError("We could not reach the server. Please try again.");
     } finally {
@@ -109,25 +114,45 @@ export function DeleteAccountCard({ email }: { email: string }) {
     }
   }
 
+  async function cancel() {
+    setBusy(true);
+    try {
+      await fetch("/api/customer/deletion", { method: "DELETE" });
+      setUntil(null); router.refresh();
+    } finally { setBusy(false); }
+  }
+
   return (
     <section aria-labelledby="del" className="bg-white rounded-2xl border border-[#e8e6e0] p-5">
-      <h2 id="del" className="font-syne font-bold text-lg">Delete account</h2>
-      <p className="text-sm text-[#6b6b80] mt-1">This removes your Calvy login, your saved details. Businesses keep their own booking records, and any credit saved with them can no longer be reached from here.</p>
-      {!open ? (
-        <button type="button" onClick={() => setOpen(true)} className="mt-4 min-h-11 px-4 rounded-xl border border-red-200 text-red-700 text-sm font-semibold hover:bg-red-50">Delete my account</button>
+      <h2 id="del" className="font-syne font-bold text-lg">Request account deletion</h2>
+      {until ? (
+        <>
+          <p className="text-sm mt-1" role="status">Deletion requested. Your account will be deleted on <strong>{label(until)}</strong>. Until then nothing changes, and we emailed you a link to cancel.</p>
+          <button type="button" onClick={cancel} disabled={busy} className="mt-4 min-h-11 px-4 rounded-xl border border-[#e8e6e0] text-sm font-semibold hover:bg-[#f8f7f4] disabled:opacity-60">{busy ? "Cancelling…" : "Cancel the request"}</button>
+        </>
       ) : (
-        <form onSubmit={remove} className="mt-4 space-y-3">
-          <div>
-            <label htmlFor="del-email" className="text-sm font-medium block mb-1.5">Type your email ({email}) to confirm</label>
-            <input id="del-email" value={confirm} onChange={(e) => setConfirm(e.target.value)} autoComplete="off" className={inputClass} />
-          </div>
-          <PasswordInput id="del-password" label="Password (if you have one)" value={password} onChange={setPassword} autoComplete="current-password" required={false} />
-          {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
-          <div className="flex gap-2">
-            <button type="submit" disabled={busy || !confirm} className="min-h-11 px-4 rounded-xl bg-red-600 text-white text-sm font-semibold disabled:opacity-60">{busy ? "Deleting…" : "Delete permanently"}</button>
-            <button type="button" onClick={() => { setOpen(false); setError(""); }} className="min-h-11 px-4 rounded-xl border border-[#e8e6e0] text-sm font-semibold">Cancel</button>
-          </div>
-        </form>
+        <>
+          <p className="text-sm text-[#6b6b80] mt-1">We delete your account 30 days after you ask, and you can cancel any time until then. After that your name, email, phone number and login are removed. Businesses keep their own booking records without your details. You can only ask when you have no upcoming bookings.</p>
+          {!open ? (
+            <button type="button" onClick={() => setOpen(true)} className="mt-4 min-h-11 px-4 rounded-xl border border-red-200 text-red-700 text-sm font-semibold hover:bg-red-50">Request deletion</button>
+          ) : (
+            <form onSubmit={request} className="mt-4 space-y-3">
+              <div>
+                <label htmlFor="del-email" className="text-sm font-medium block mb-1.5">Type your email ({email}) to confirm</label>
+                <input id="del-email" value={confirm} onChange={(e) => setConfirm(e.target.value)} autoComplete="off" className={inputClass} />
+              </div>
+              <PasswordInput id="del-password" label="Password (if you have one)" value={password} onChange={setPassword} autoComplete="current-password" required={false} />
+              {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
+              {blocking.length > 0 && (
+                <ul className="text-sm list-disc pl-5">{blocking.map((b, i) => <li key={i}>{b.businessName}, {label(b.date)}</li>)}</ul>
+              )}
+              <div className="flex gap-2">
+                <button type="submit" disabled={busy || !confirm} className="min-h-11 px-4 rounded-xl bg-red-600 text-white text-sm font-semibold disabled:opacity-60">{busy ? "Sending…" : "Request deletion"}</button>
+                <button type="button" onClick={() => { setOpen(false); setError(""); setBlocking([]); }} className="min-h-11 px-4 rounded-xl border border-[#e8e6e0] text-sm font-semibold">Close</button>
+              </div>
+            </form>
+          )}
+        </>
       )}
     </section>
   );

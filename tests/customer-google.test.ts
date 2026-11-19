@@ -2,12 +2,15 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
 
 // Customer accounts: Google sign-in (verified email only, no silent linking, always a customer session),
-// account deletion, and "Book again" with the service chosen.
+// account deletion (a request with a 30-day grace period, never instant), and "Book again" with the service chosen.
 
 const db = vi.hoisted(() => ({
   user: { findUnique: vi.fn(), findFirst: vi.fn(), create: vi.fn(), update: vi.fn() },
   customer: { findUnique: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn() },
+  customerDeletionRequest: { findUnique: vi.fn(async () => null), upsert: vi.fn(async () => ({})), updateMany: vi.fn(async () => ({ count: 1 })) },
+  appointment: { findMany: vi.fn(async () => []) },
 }));
+vi.mock("@/lib/notifications/enqueue", () => ({ notify: vi.fn(async () => {}) }));
 const cookieJar = vi.hoisted(() => ({ value: undefined as string | undefined, name: "" }));
 const session = vi.hoisted(() => ({ current: null as unknown }));
 vi.mock("@/lib/prisma", () => ({ prisma: db }));
@@ -20,7 +23,7 @@ vi.mock("next-auth", () => ({ getServerSession: vi.fn(async () => session.curren
 import bcrypt from "bcryptjs";
 import { authOptions } from "@/lib/auth";
 import { CUSTOMER_LINK_COOKIE, LINK_COOKIE, signCustomerLinkIntent, signLinkIntent, verifyCustomerLinkIntent, verifyLinkIntent } from "@/lib/googleLink";
-import { DELETE as deleteAccount } from "@/app/api/customer/profile/route";
+import { POST as deleteAccount } from "@/app/api/customer/deletion/route";
 import { isCustomerToken, canAccessOwnerArea } from "@/lib/customerAccess";
 
 const SECRET = "test-secret";
@@ -80,8 +83,8 @@ describe("customer Google sign-in", () => {
   });
 });
 
-describe("delete account", () => {
-  const del = (body: unknown) => deleteAccount(new NextRequest("http://localhost/api/customer/profile", { method: "DELETE", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }));
+describe("request account deletion", () => {
+  const del = (body: unknown) => deleteAccount(new NextRequest("http://localhost/api/customer/deletion", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }));
   const signedIn = () => { session.current = { user: { kind: "customer", customerId: "c1" } }; };
   beforeEach(() => { signedIn(); });
 
@@ -98,7 +101,9 @@ describe("delete account", () => {
     expect((await del({ confirmEmail: "riya@mail.test", password: "wrong" })).status).toBe(400);
     expect(db.customer.delete).not.toHaveBeenCalled();
     expect((await del({ confirmEmail: "Riya@Mail.test", password: "secret-pass" })).status).toBe(200);
-    expect(db.customer.delete).toHaveBeenCalledWith({ where: { id: "c1" } });
+    // A request, not a delete: the account stays for the 30-day grace period.
+    expect(db.customerDeletionRequest.upsert).toHaveBeenCalled();
+    expect(db.customer.delete).not.toHaveBeenCalled();
   });
   it("a Google-only account (no password) confirms with the email alone", async () => {
     db.customer.findUnique.mockResolvedValue({ id: "c1", name: "Riya", email: "riya@mail.test", emailVerified: new Date(), passwordChangedAt: null, password: null });

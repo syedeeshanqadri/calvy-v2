@@ -109,6 +109,11 @@ Write the deletion script with a dry run, and run it only after confirming which
 - Customer UI: /account shows the level, current fee, a progress bar with a vague phrase ("You're close to your next level") and the consecutive-month streak, never the exact rules. Checkout shows the real fee and a level badge. Reaching a level shows a celebration screen once and sends an email.
 - Migration: Silver holders become Regular, Gold holders Insider (their Silver one-time Rs 10 stays granted; Insider's free booking is marked given so Gold holders do not get it twice).
 
+### Step 35: Customer account deletion (decisions)
+- No instant delete. "Request account deletion" (customers only; business owner accounts unchanged) is blocked while the customer has upcoming bookings (confirmed or pending, in the future, any business). It starts a 30-day grace period (`CustomerDeletionRequest`), emails a confirmation with a single-use cancel link, and the account shows a cancel button. Sign-in works during the 30 days. Admin -> Customers lists "Deletion pending" and can process now or cancel (audited, reason required, ids only in the audit entry).
+- After 30 days the daily cron `/api/cron/account-deletions` anonymises the person (same function as admin "Process now"; skipped and left pending if upcoming bookings appeared meanwhile): name "Deleted customer"; email, phone, password, Google link, sessions, tokens, referral codes, devices seen and message addresses removed; rewards identities moved to an anonymised id so history stays; the remembered-device cookie can no longer match any email. Business-side appointment records (date, service, amount, receipt) are kept, with the person's name, email and phone removed from the business's client record. Customers have no push subscriptions (those belong to business users).
+- Privacy and data-deletion pages updated to match.
+
 ### Step 25c: gateways by region (decisions)
 - India list: Razorpay, Cashfree, PhonePe PG, PayU, CCAvenue, Paytm PG. International list: Stripe, PayPal; Square, Mollie and Adyen later. Filtered by region (currency now, `Business.country` when it exists), in the UI and on the server.
 - Own gateways on paid plans only, in both regions. India Basic = the Rs 10 to Calvy; International Free = pay at the venue; international never pays the Rs 10.

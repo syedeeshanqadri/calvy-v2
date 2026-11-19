@@ -832,19 +832,22 @@ model CustomerCredit {
 /// A customer account (email + password), separate from business-owner User accounts. Bookings are
 /// linked by VERIFIED email only: nothing is shown until emailVerified is set.
 model Customer {
-  id                String          @id @default(cuid())
+  id                String                   @id @default(cuid())
   name              String
   /// Lowercased.
-  email             String          @unique
+  email             String                   @unique
   /// Null for an account created automatically at booking, until the emailed setup link sets it.
   password          String?
   /// Google account id (profile.sub); set by a verified Google sign-up or an explicit "Link Google" while logged in. Never linked silently by email.
-  googleId          String?         @unique
+  googleId          String?                  @unique
   emailVerified     DateTime?
+  /// Set when the account was anonymised after a deletion request (name "Deleted customer", no email, phone or login).
+  anonymisedAt      DateTime?
   passwordChangedAt DateTime?
-  createdAt         DateTime        @default(now())
-  updatedAt         DateTime        @updatedAt
+  createdAt         DateTime                 @default(now())
+  updatedAt         DateTime                 @updatedAt
   tokens            CustomerToken[]
+  deletionRequest   CustomerDeletionRequest?
 }
 
 /// Single-use emailed links for customers (purpose "verify" or "reset"); only the hash is stored.
@@ -1417,4 +1420,22 @@ model FastTrackBoost {
   createdAt DateTime @default(now())
 
   @@unique([identity, month])
+}
+
+/// A customer's request to delete their account. PENDING for a 30-day grace period (they can cancel), then the nightly job anonymises the person
+/// (DONE). One row per customer: asking again after a cancel reuses it. The cancel link's token is stored only as a hash.
+model CustomerDeletionRequest {
+  id              String    @id @default(cuid())
+  customerId      String    @unique
+  status          String    @default("PENDING")
+  requestedAt     DateTime  @default(now())
+  executeAfter    DateTime  @db.Timestamptz(3)
+  cancelTokenHash String?   @unique
+  processedAt     DateTime?
+  /// "cron", or the admin who processed or cancelled it.
+  processedBy     String?
+  reason          String?
+  customer        Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([status, executeAfter])
 }
