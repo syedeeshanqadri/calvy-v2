@@ -327,6 +327,9 @@ model PlanConfig {
 
 model Appointment {
   id                 String             @id @default(cuid())
+  /// The Calvy level and level fee (minor units) that applied when this booking was made. Stored once, so a later level change never alters it.
+  feeLevel           String?
+  feeMinor           Int?
   businessId         String
   clientId           String
   staffId            String?
@@ -1384,4 +1387,34 @@ model DeviceSeen {
 
   @@unique([identity, deviceHash])
   @@index([deviceHash])
+}
+
+/// The admin-editable Calvy Levels settings (one row, id "default"): fees, requirements, windows, retention, fast-track. Missing = built-in defaults.
+model LevelConfig {
+  id        String   @id
+  config    Json
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+}
+
+/// A customer's held Calvy level (identity like rewards: "e:email" / "p:phone"). The level held is kept after the last attended visit and drops with inactivity.
+model CustomerLevel {
+  id             String    @id @default(cuid())
+  identity       String    @unique
+  level          String    @default("STARTER")
+  levelSince     DateTime  @default(now())
+  lastAttendedAt DateTime? @db.Timestamptz(3)
+  /// A level reached but not yet shown to the customer (the level-up screen); cleared when seen.
+  pendingLevelUp String?
+  updatedAt      DateTime  @updatedAt
+}
+
+/// One fast-track boost per person per calendar month ("2026-11"); the unique key is the monthly cap.
+model FastTrackBoost {
+  id        String   @id @default(cuid())
+  identity  String
+  month     String
+  createdAt DateTime @default(now())
+
+  @@unique([identity, month])
 }

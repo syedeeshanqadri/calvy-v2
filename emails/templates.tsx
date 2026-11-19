@@ -422,6 +422,32 @@ export function CustomerAccountSetupEmail({ name, setupUrl }: { name: string; se
   );
 }
 
+/** The member sign-in link from checkout: one tap, no password. Names nothing but the action. */
+export function MemberLinkEmail({ name, linkUrl }: { name: string; linkUrl: string }) {
+  return (
+    <EmailLayout preview="Your member price is one tap away">
+      <H>Pay your member price</H>
+      <P>Hi {name.split(" ")[0]}, tap the button to sign in and go back to your booking with your member price. No password needed.</P>
+      <CTA href={linkUrl} label="Sign in and continue" />
+      <P>This link works once and expires in 15 minutes. If you did not ask for it, ignore this email: nothing happens unless someone opens it.</P>
+    </EmailLayout>
+  );
+}
+
+export interface LevelUpProps { levelLabel: string; feeLabel: string; perk: string | null; accountUrl: string }
+
+/** A customer reached a new Calvy level. Names only the level, the new fee and the perk; the requirements are never listed. */
+export function LevelUpEmail({ levelLabel, feeLabel, perk, accountUrl }: LevelUpProps) {
+  return (
+    <EmailLayout preview={`You reached ${levelLabel}`}>
+      <H>You reached {levelLabel}</H>
+      <P>Thank you for showing up. Your Calvy confirmation fee is now {feeLabel} at businesses where it applies.</P>
+      {perk && <P>{perk}</P>}
+      <CTA href={accountUrl} label="See my level" />
+    </EmailLayout>
+  );
+}
+
 export function CustomerResetEmail({ name, resetUrl }: { name: string; resetUrl: string }) {
   return (
     <EmailLayout preview="Reset your password">

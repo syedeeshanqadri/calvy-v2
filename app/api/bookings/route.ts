@@ -33,11 +33,12 @@ import { resolveBookingMode, resolveMeetingUrl } from "@/lib/online";
 import { loadMeetingUrl } from "@/lib/onlineDb";
 import { Prisma } from "@prisma/client";
 import { suspended, suspendedResponse } from "@/lib/suspension";
-import { checkVerifiedLimits, getVerifiedLimits, isVerifiedBooker } from "@/lib/verifiedLimits";
+import { checkVerifiedLimits, getVerifiedLimits, isVerifiedBooker, verifiedCustomerId } from "@/lib/verifiedLimits";
 import { FollowUpTicketError, resolveFollowUp } from "@/lib/followUpDb";
 import { claimWaiver } from "@/lib/waiver";
 import { afterBooking } from "@/lib/rewards/referrals";
 import { deviceHash } from "@/lib/rewards/device";
+import { readDeviceTicket, setDeviceCookie } from "@/lib/verifiedDevice";
 import { CouponUnavailableError, redeemForAppointment } from "@/lib/coupons/service";
 import { priceAfterDiscount, resolveBusinessDiscount } from "@/lib/offers/service";
 import { claimFeeCoupon, resolveCalvyFee } from "@/lib/coupons/booking";
@@ -90,7 +91,7 @@ async function bookingHandler(req: NextRequest) {
   if (!business) return NextResponse.json({ error: "Business not found." }, { status: 404 });
   if (suspended(business)) return suspendedResponse(business.name);
   // A verified customer (proved by one of their own signed links) is held to the admin-set limits; guests keep the guest rules below.
-  const verifiedBooker = await isVerifiedBooker(prisma, [parsed.data.verifiedTicket, parsed.data.followUpTicket], clientEmail);
+  const verifiedBooker = await isVerifiedBooker(prisma, [parsed.data.verifiedTicket, parsed.data.followUpTicket, await readDeviceTicket()], clientEmail);
   if (verifiedBooker) {
     const verdict = await checkVerifiedLimits(prisma, { businessId: business.id, businessName: business.name, email: clientEmail, limits: await getVerifiedLimits(prisma) });
     if (!verdict.ok) return NextResponse.json({ error: verdict.message, code: verdict.code }, { status: verdict.status });
@@ -318,6 +319,8 @@ async function bookingHandler(req: NextRequest) {
   // concurrent booking took it, fall through to the next candidate.
   // Set when a Calvy coupon reduces the Rs 10 for this booking; taken inside the booking transaction.
   let feeCoupon: { couponId: string; code: string; discountMinor: number; feeMinor: number } | null = null;
+  // The Calvy level and fee decided once at checkout; stored on the booking so a later level change never alters it.
+  let feeLevelInfo: { id: string; feeMinor: number } | null = null;
   async function createAppointment(
     clientId: string,
     paymentStatus: string,
@@ -362,6 +365,7 @@ async function bookingHandler(req: NextRequest) {
                 bufferAfterMin: availability.ok ? availability.bufferAfterMin : 0,
                 duration: totalDuration,
                 price: totalPrice,
+                ...(feeLevelInfo ? { feeLevel: feeLevelInfo.id, feeMinor: feeLevelInfo.feeMinor } : {}),
                 followUpOfId,
                 status: holdExpiresAt ? PENDING_PAYMENT : "confirmed",
                 holdExpiresAt,
@@ -468,8 +472,9 @@ async function bookingHandler(req: NextRequest) {
       customer: { email: clientEmail, phone: clientPhone, tz: bizTz }, couponCode: feeCode(),
     });
     if (!fee.ok) return NextResponse.json({ error: fee.error, code: fee.code }, { status: fee.status });
-    const { charge: payCharge, waived, rewarded, coupon } = fee.value;
+    const { charge: payCharge, waived, rewarded, coupon, level } = fee.value;
     feeCoupon = coupon;
+    feeLevelInfo = level;
     const gateway = payCharge.route === "GATEWAY" ? await defaultGateway(business.id) : null;
     if (payCharge.route === "GATEWAY" && !gateway) return NextResponse.json({ error: "Online payments are temporarily unavailable. Please try again later.", code: "PAYMENT_START_FAILED" }, { status: 503 });
     const hold = payCharge.chargeMinor > 0 ? holdExpiry() : null;
@@ -523,7 +528,7 @@ async function bookingHandler(req: NextRequest) {
  * were held back (daily cap), so this cannot be used to send repeated emails to an address.
  */
 async function POST_handler(req: NextRequest) {
-  const raw = (await req.clone().json().catch(() => null)) as { clientEmail?: unknown; clientName?: unknown; referralCode?: unknown } | null;
+  const raw = (await req.clone().json().catch(() => null)) as { clientEmail?: unknown; clientName?: unknown; referralCode?: unknown; verifiedTicket?: unknown; followUpTicket?: unknown } | null;
   const res = await bookingHandler(req);
   if (!res.ok) return res;
   const data = (await res.clone().json().catch(() => null)) as Record<string, unknown> | null;
@@ -533,6 +538,17 @@ async function POST_handler(req: NextRequest) {
       await afterBooking(prisma, { appointmentId: data.appointmentId, referralCode: typeof raw?.referralCode === "string" ? raw.referralCode : null, deviceHash: await deviceHash() });
     } catch (err) {
       logger.error("[Referral] could not record the booking", { err });
+    }
+  }
+  // A verified booking remembers this device for 90 days, so the next one needs no sign-in. Only when the booking really was a verified
+  // customer's (their own ticket or cookie, with a verified email that matches the booking), never for a guest.
+  if (data?.success && typeof raw?.clientEmail === "string") {
+    try {
+      const tickets = [typeof raw.verifiedTicket === "string" ? raw.verifiedTicket : null, typeof raw.followUpTicket === "string" ? raw.followUpTicket : null, await readDeviceTicket()];
+      const id = await verifiedCustomerId(prisma, tickets, raw.clientEmail);
+      if (id) await setDeviceCookie(id);
+    } catch (err) {
+      logger.error("[Verified] could not remember the device", { err });
     }
   }
   if (!data?.success || data.confirmationWithheld) return res;

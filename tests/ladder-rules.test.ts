@@ -1,33 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
-  COMEBACK_DAYS, GIFT_TIER, REFERRAL_CAP_PER_MONTH, TIERS, capReached, hasQuarterlyPerk, isComeback, istMonthOf, isReferralCode, monthOf, needsReview,
-  nextTier, quarterOf, referralBlock, tierFor, tierLabel,
+  COMEBACK_DAYS, REFERRAL_CAP_PER_MONTH, capReached, isComeback, istMonthOf, isReferralCode, monthOf, needsReview,
+  quarterOf, referralBlock,
 } from "@/lib/rewards/ladder";
 import { availableRewards } from "@/lib/rewards/rules";
-
-describe("tiers count attended days: Regular 3, Silver 10, Gold 25", () => {
-  it("thresholds", () => {
-    expect([0, 2, 3, 9, 10, 24, 25, 400].map(tierFor)).toEqual(["NONE", "NONE", "REGULAR", "REGULAR", "SILVER", "SILVER", "GOLD", "GOLD"]);
-    expect(tierFor(-5)).toBe("NONE");
-    expect(tierLabel("GOLD")).toBe("Gold");
-    expect(tierLabel("NONE")).toBe("Not yet");
-  });
-  it("what is next", () => {
-    expect(nextTier(0)).toEqual({ id: "REGULAR", label: "Regular", daysNeeded: 3 });
-    expect(nextTier(9)).toEqual({ id: "SILVER", label: "Silver", daysNeeded: 1 });
-    expect(nextTier(24)).toEqual({ id: "GOLD", label: "Gold", daysNeeded: 1 });
-    expect(nextTier(25)).toBeNull();
-  });
-  it("the quarterly Rs 10 is only for Gold", () => {
-    expect(["NONE", "REGULAR", "SILVER", "GOLD"].map((t) => hasQuarterlyPerk(t as never))).toEqual([false, false, false, true]);
-  });
-  it("Silver's perk is a one-time free Rs 10; free reschedule is NOT a tier perk (it is for everyone)", () => {
-    expect(GIFT_TIER).toBe("SILVER");
-    const text = TIERS.flatMap((t) => t.perks).join(" ").toLowerCase();
-    expect(text).toContain("one-time free rs 10");
-    expect(text).not.toContain("reschedule");
-  });
-});
 
 describe("quarters and months", () => {
   it("quarter boundaries", () => {

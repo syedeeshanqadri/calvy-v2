@@ -2,6 +2,7 @@ import type { Prisma, PrismaClient } from "@prisma/client";
 import { tryNormalizeEmail } from "@/lib/email-normalize";
 import { signTicket, verifyTicket } from "@/lib/signedTicket";
 import { readFollowUpTicket } from "@/lib/followUpDb";
+import { DEVICE_PURPOSE } from "@/lib/verifiedDevice";
 
 type Db = PrismaClient | Prisma.TransactionClient;
 
@@ -34,22 +35,27 @@ const PURPOSE = "verified-booker";
 export const signVerifiedTicket = (customerId: string) => signTicket(PURPOSE, customerId, process.env.NEXTAUTH_SECRET ?? "", 2 * 3_600_000);
 
 /**
- * Is this booking made by a verified customer? Any of their own tickets proves who is booking, the customer must be verified,
- * and the booking's contact email must be theirs (a ticket never lends verified status to someone else's booking).
+ * The verified customer behind this booking, or null. Any of their own tickets proves who is booking (a "Book again" or follow-up link, or the
+ * 90-day remembered-device cookie), the customer must be verified, and the booking's contact email must be theirs (a ticket never lends
+ * verified status to someone else's booking).
  */
-export async function isVerifiedBooker(db: Db, tickets: (string | null | undefined)[], bookingEmail: string): Promise<boolean> {
+export async function verifiedCustomerId(db: Db, tickets: (string | null | undefined)[], bookingEmail: string): Promise<string | null> {
   const secret = process.env.NEXTAUTH_SECRET ?? "";
   const ids = new Set<string>();
   for (const t of tickets) {
     if (!t) continue;
-    const id = verifyTicket(PURPOSE, t, secret) ?? readFollowUpTicket(t)?.customerId ?? null;
+    const id = verifyTicket(PURPOSE, t, secret) ?? verifyTicket(DEVICE_PURPOSE, t, secret) ?? readFollowUpTicket(t)?.customerId ?? null;
     if (id) ids.add(id);
   }
   for (const id of ids) {
     const c = await db.customer.findUnique({ where: { id }, select: { email: true, emailVerified: true } });
-    if (c?.emailVerified && tryNormalizeEmail(c.email) === tryNormalizeEmail(bookingEmail)) return true;
+    if (c?.emailVerified && tryNormalizeEmail(c.email) === tryNormalizeEmail(bookingEmail)) return id;
   }
-  return false;
+  return null;
+}
+
+export async function isVerifiedBooker(db: Db, tickets: (string | null | undefined)[], bookingEmail: string): Promise<boolean> {
+  return (await verifiedCustomerId(db, tickets, bookingEmail)) !== null;
 }
 
 export type LimitVerdict = { ok: true } | { ok: false; code: "VERIFIED_UPCOMING_LIMIT" | "VERIFIED_DAILY_LIMIT"; status: 409 | 429; message: string };

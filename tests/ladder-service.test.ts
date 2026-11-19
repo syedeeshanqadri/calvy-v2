@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/prisma", () => ({ prisma: {} }));
-import { claimReward, ladderFor, progressFor, recordAttended, releaseReward } from "@/lib/rewards/service";
+import { levelModels } from "./helpers/levelsFake";
+import { progressFor, recordAttended } from "@/lib/rewards/service";
 import { afterBooking, ensureReferralCode, qualifyReferral, referralAdminView } from "@/lib/rewards/referrals";
 
 type Appt = { id: string; status: string; source: string; date: Date; client: { email: string | null; phone: string | null }; business: { timezone: string } };
@@ -23,7 +24,9 @@ function fakeDb(o: { enabled?: boolean; prior?: number; clients?: { email: strin
   const grants: { identity: string; tier: string }[] = [];
   let n = 0;
   const pk = (w: { offerId_identity: { offerId: string; identity: string } }) => `${w.offerId_identity.offerId}|${w.offerId_identity.identity}`;
+  const lv = levelModels();
   const db: Record<string, unknown> = {
+    ...lv.models,
     $executeRaw: async () => 0,
     offer: { findUnique: async () => offer },
     appointment: { findUnique: async ({ where }: { where: { id: string } }) => appts.get(where.id) ?? null, count: async () => o.prior ?? 0 },
@@ -103,7 +106,8 @@ function fakeDb(o: { enabled?: boolean; prior?: number; clients?: { email: strin
         for (const d of data) if (!referrals.some((r) => r.referredIdentity === d.referredIdentity)) { referrals.push({ id: `f${++n}`, status: "PENDING", reason: null, appointmentId: null, createdAt: new Date(), qualifiedAt: null, ...d } as Ref); c++; }
         return { count: c };
       },
-      count: async ({ where }: { where: { referrerIdentity: string; status: string; qualifiedAt: { gte: Date } } }) => referrals.filter((r) => r.referrerIdentity === where.referrerIdentity && r.status === where.status && r.qualifiedAt && r.qualifiedAt >= where.qualifiedAt.gte).length,
+      count: async ({ where }: { where: { referrerIdentity: string; status: string | { in: string[] }; qualifiedAt?: { gte: Date } } }) =>
+        referrals.filter((r) => r.referrerIdentity === where.referrerIdentity && (typeof where.status === "string" ? r.status === where.status : where.status.in.includes(r.status)) && (!where.qualifiedAt || (r.qualifiedAt && r.qualifiedAt >= where.qualifiedAt.gte))).length,
       updateMany: async ({ where, data }: { where: { id: string; status: string }; data: Partial<Ref> }) => {
         const r = referrals.find((x) => x.id === where.id && x.status === where.status);
         if (!r) return { count: 0 };
@@ -181,100 +185,6 @@ describe("comeback stamp", () => {
   it("is off when the offer is off", async () => {
     const f = fakeDb({ enabled: false });
     expect(await attend(f, "a1", 0)).toBe(false);
-  });
-});
-
-describe("Silver: a ONE-TIME free Rs 10 on reaching the tier", () => {
-  const bonus = (f: F) => [...f.progress.values()][0]?.bonus ?? 0;
-  it("is granted when the 10th attended day is reached, not before", async () => {
-    const f = fakeDb();
-    for (let i = 0; i < 9; i++) await attend(f, `s${i}`, i * 40);
-    expect(bonus(f)).toBe(0);
-    expect(f.grants).toHaveLength(0);
-    await attend(f, "s9", 9 * 40);
-    expect(bonus(f)).toBe(1);
-    expect(f.grants).toEqual([{ identity: "e:ann@x.com", tier: "SILVER" }]);
-  });
-  it("only once: more visits, and reaching Gold, never grant it again", async () => {
-    const f = fakeDb();
-    for (let i = 0; i < 30; i++) await attend(f, `s${i}`, i * 40);
-    expect(bonus(f)).toBe(1);
-    expect(f.grants).toHaveLength(1);
-  });
-  it("is granted once even when a comeback jumps the count over the line (two stamps at once)", async () => {
-    const f = fakeDb();
-    for (let i = 0; i < 8; i++) await attend(f, `s${i}`, i * 40); // 8 stamps
-    await attend(f, "c1", 7 * 40 + 10);   // comeback: 8 -> 10 in one visit
-    expect(counted(f)).toBe(10);
-    expect(bonus(f)).toBe(1);
-  });
-  it("is spendable like any reward (it counts as an available free confirmation)", async () => {
-    const f = fakeDb();
-    for (let i = 0; i < 10; i++) await attend(f, `s${i}`, i * 40);
-    // 10 days: floor(10/7) = 1 stamp reward + the Silver gift = 2 ready
-    expect((await progressFor(f.db, ann))?.available).toBe(2);
-    expect(await claimReward(f.db, { appointmentId: "b1", ...ann })).toBe(true);
-    expect(await claimReward(f.db, { appointmentId: "b2", ...ann })).toBe(true);
-    expect(await claimReward(f.db, { appointmentId: "b3", ...ann })).toBe(false);
-  });
-  it("attended-only: no-shows and cancelled bookings never take someone to Silver", async () => {
-    const f = fakeDb();
-    for (let i = 0; i < 12; i++) await attend(f, `n${i}`, i * 40, { status: i % 2 ? "no-show" : "completed" });
-    expect(counted(f)).toBe(6);
-    expect(f.grants).toHaveLength(0);
-  });
-});
-
-describe("tiers and Gold's quarterly perk", () => {
-  async function gold(f: F) { for (let i = 0; i < 25; i++) await attend(f, `g${i}`, i * 40); }
-  it("shows the tier, what is next and the perks", async () => {
-    const f = fakeDb();
-    for (let i = 0; i < 10; i++) await attend(f, `s${i}`, i * 40);
-    const v = await ladderFor(f.db, ann);
-    expect(v).toEqual(expect.objectContaining({ tier: "SILVER", label: "Silver", attendedDays: 10, perkReady: false }));
-    expect(v?.perks.join(" ")).toContain("one-time free Rs 10");
-    expect(v?.next).toEqual({ label: "Gold", daysNeeded: 15 });
-  });
-  describe("with Gold", () => {
-    beforeEach(() => { vi.useFakeTimers({ toFake: ["Date"] }); vi.setSystemTime(new Date("2026-11-20T10:00:00Z")); });
-    afterEach(() => vi.useRealTimers());
-    it("the extra free Rs 10 is used first, once per quarter, then the stamp rewards", async () => {
-      const f = fakeDb();
-      await gold(f);
-      expect((await ladderFor(f.db, ann))?.perkReady).toBe(true);
-      expect((await progressFor(f.db, ann))?.available).toBeGreaterThanOrEqual(1);
-      const stampsBefore = [...f.progress.values()][0];
-      const usedBefore = stampsBefore.used;
-      expect(await claimReward(f.db, { appointmentId: "b1", ...ann })).toBe(true);
-      expect(f.perks).toHaveLength(1);
-      expect(stampsBefore.used).toBe(usedBefore); // the perk was spent, not a stamp reward
-      expect(await claimReward(f.db, { appointmentId: "b2", ...ann })).toBe(true);
-      expect(f.perks).toHaveLength(1); // a second perk in the same quarter is refused; a stamp reward is used instead
-      expect(stampsBefore.used).toBe(usedBefore + 1);
-    });
-    it("a cancelled booking gives the perk back", async () => {
-      const f = fakeDb();
-      await gold(f);
-      await claimReward(f.db, { appointmentId: "b1", ...ann });
-      await releaseReward(f.db as never, "b1");
-      expect(f.perks).toHaveLength(0);
-      expect((await ladderFor(f.db, ann))?.perkReady).toBe(true);
-    });
-    it("expires at quarter end: next quarter a new one is ready", async () => {
-      const f = fakeDb();
-      await gold(f);
-      await claimReward(f.db, { appointmentId: "b1", ...ann });
-      expect((await ladderFor(f.db, ann))?.perkReady).toBe(false);
-      vi.setSystemTime(new Date("2027-01-02T10:00:00Z"));
-      expect((await ladderFor(f.db, ann))?.perkReady).toBe(true);
-    });
-    it("below Gold there is no perk", async () => {
-      const f = fakeDb();
-      for (let i = 0; i < 24; i++) await attend(f, `x${i}`, i * 40);
-      expect((await ladderFor(f.db, ann))?.perkReady).toBe(false);
-      expect(await claimReward(f.db, { appointmentId: "b1", ...ann })).toBe(true); // a normal stamp reward (24 days earned 3)
-      expect(f.perks).toHaveLength(0);
-    });
   });
 });
 

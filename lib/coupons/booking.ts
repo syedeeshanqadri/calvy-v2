@@ -9,6 +9,8 @@ import { waiverAvailable } from "@/lib/waiver";
 import { rewardAvailable } from "@/lib/rewards/service";
 import { rewardApplies } from "@/lib/rewards/rules";
 import { chooseCalvyBenefit } from "./rules";
+import { feeForCustomer } from "@/lib/rewards/levelService";
+import type { LevelId } from "@/lib/rewards/levels";
 import { CALVY_OWNER, previewCoupon, redeemForAppointment } from "./service";
 
 type Db = Prisma.TransactionClient | typeof prisma;
@@ -20,6 +22,8 @@ export interface FeeResolution {
   waived: boolean;
   rewarded: boolean;
   coupon: { couponId: string; code: string; discountMinor: number; feeMinor: number } | null;
+  /** The Calvy level and level fee (before any coupon or reward) decided for this booking, to store on it; null where Calvy has no fee. */
+  level: { id: LevelId; feeMinor: number } | null;
 }
 export type FeeResult = { ok: true; value: FeeResolution } | { ok: false; status: number; error: string; code: string };
 
@@ -27,7 +31,7 @@ export async function resolveCalvyFee(db: Db, i: {
   businessId: string; clientId: string | null; fullCharge: Charge; verifiedBooker: boolean;
   customer: { email?: string | null; phone?: string | null; tz?: string | null }; couponCode?: string | null; now?: Date;
 }): Promise<FeeResult> {
-  const { fullCharge } = i;
+  let { fullCharge } = i;
   const isFee = fullCharge.route === "CALVY" && fullCharge.chargeMinor > 0 && fullCharge.platformFeeMinor > 0;
   const code = i.couponCode?.trim() || null;
   let coupon: FeeResolution["coupon"] = null;
@@ -36,7 +40,17 @@ export async function resolveCalvyFee(db: Db, i: {
   // A typed code that cannot work here is refused out loud, not silently ignored.
   if (code && !isFee) return { ok: false, status: 400, error: "This code is not valid here.", code: "COUPON_INVALID" };
 
-  if (isFee && i.clientId && (await waiverAvailable(db, i.businessId, i.clientId))) return { ok: true, value: { charge: FREE, waived: true, rewarded: false, coupon: null } };
+  // Calvy Levels: a verified customer pays their level's fee instead of the plan's (decided once, here, and stored on the booking by the caller).
+  // Only where Calvy's own fee exists (Basic, India): everything else has no fee to lower.
+  let level: FeeResolution["level"] = null;
+  if (isFee) {
+    const base = fullCharge.platformFeeMinor;
+    const lv = i.verifiedBooker ? await feeForCustomer(db, i.customer, base, i.now) : { level: "STARTER" as LevelId, feeMinor: base };
+    level = { id: lv.level, feeMinor: lv.feeMinor };
+    if (lv.feeMinor < base) fullCharge = { chargeMinor: lv.feeMinor, platformFeeMinor: lv.feeMinor, businessShareMinor: 0, route: "CALVY" };
+  }
+
+  if (isFee && i.clientId && (await waiverAvailable(db, i.businessId, i.clientId))) return { ok: true, value: { charge: FREE, waived: true, rewarded: false, coupon: null, level } };
 
   if (isFee && code) {
     const { coupon: def, verdict } = await previewCoupon(db, {
@@ -50,12 +64,12 @@ export async function resolveCalvyFee(db: Db, i: {
   const rewardReady = isFee && i.verifiedBooker && rewardApplies(fullCharge) && (await rewardAvailable(db, i.customer));
   const benefit = chooseCalvyBenefit({ feeMinor: isFee ? fullCharge.platformFeeMinor : 0, couponDiscountMinor: couponDiscount, rewardReady });
 
-  if (benefit.use === "REWARD") return { ok: true, value: { charge: FREE, waived: false, rewarded: true, coupon: null } };
+  if (benefit.use === "REWARD") return { ok: true, value: { charge: FREE, waived: false, rewarded: true, coupon: null, level } };
   if (benefit.use === "COUPON" && coupon) {
     const charge: Charge = benefit.remainderMinor === 0 ? FREE : { chargeMinor: benefit.remainderMinor, platformFeeMinor: benefit.remainderMinor, businessShareMinor: 0, route: "CALVY" };
-    return { ok: true, value: { charge, waived: false, rewarded: false, coupon: { ...coupon, discountMinor: coupon.feeMinor - benefit.remainderMinor } } };
+    return { ok: true, value: { charge, waived: false, rewarded: false, coupon: { ...coupon, discountMinor: coupon.feeMinor - benefit.remainderMinor }, level } };
   }
-  return { ok: true, value: { charge: fullCharge, waived: false, rewarded: false, coupon: null } };
+  return { ok: true, value: { charge: fullCharge, waived: false, rewarded: false, coupon: null, level } };
 }
 
 /** Take the coupon's use inside the booking's transaction (the unique appointment id stops a repeat). */

@@ -7,6 +7,8 @@ import { getPayConfig } from "@/lib/onlinePayment";
 import { contactRequirements } from "@/lib/patients";
 import { parseSocialLinks, safeReviewLink } from "@/lib/brandLinks";
 import { followUpFromQuery } from "@/lib/followUpDb";
+import { oauthEnabled } from "@/lib/auth";
+import { usesTenantSubdomains } from "@/lib/siteBase";
 import { publicOffers } from "@/lib/offers/service";
 import { getBusinessFeatures } from "@/lib/getFeatures";
 import { BookingClient } from "@/components/booking/BookingClient";
@@ -47,6 +49,7 @@ export default async function BookNowPage(props: { params: Promise<{ slug: strin
   if (!business) notFound();
   if (business.suspendedAt) return <Unavailable name={business.name} />;
 
+  const root = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "calvy.io";
   const data = {
     slug: business.slug,
     name: business.name,
@@ -63,6 +66,7 @@ export default async function BookNowPage(props: { params: Promise<{ slug: strin
     whatsappOffered: await whatsappOffered(business.id),
     payConfig: await getPayConfig(business),
     offers: await publicOffers(prisma, business.id, (await getBusinessFeatures(business.id)).offers),
+    memberGoogleHref: oauthEnabled.google ? `${usesTenantSubdomains(root) ? `https://${root}` : ""}/account/member?business=${encodeURIComponent(business.slug)}` : null,
     termsOverride: business.termsOverride,
     description: business.description ?? "",
     phone: business.phone ?? "",

@@ -8,6 +8,9 @@ import { chargeFor, getPayConfig } from "@/lib/onlinePayment";
 import { isFeatureEnabled } from "@/lib/flags";
 import { isVerifiedBooker } from "@/lib/verifiedLimits";
 import { getEffectiveLimits } from "@/lib/getFeatures";
+import { LEVEL_LABEL } from "@/lib/rewards/levels";
+import { readDeviceTicket } from "@/lib/verifiedDevice";
+import { memberHintFor } from "@/lib/memberLink";
 import { resolveCalvyFee } from "@/lib/coupons/booking";
 import { priceAfterDiscount, resolveBusinessDiscount } from "@/lib/offers/service";
 import { safeTimeZone, zonedTimeToUtc } from "@/lib/time";
@@ -63,14 +66,24 @@ async function POST_handler(req: NextRequest) {
   let fee: { code: string; discountMinor: number; payNowMinor: number } | null = null;
   let feeError: string | null = null;
   let payNowMinor = fullCharge.chargeMinor;
+  let level: { id: string; label: string; feeMinor: number } | null = null;
+  let memberHint: { maskedName: string } | null = null;
   const feeCode = code && !biz.codeConsumed ? code : null;
   if (feeCode || (!code && fullCharge.route === "CALVY")) {
-    const verifiedBooker = await isVerifiedBooker(prisma, [verifiedTicket], email);
+    const verifiedBooker = await isVerifiedBooker(prisma, [verifiedTicket, await readDeviceTicket()], email);
     const existing = await prisma.client.findFirst({ where: { businessId: business.id, email: { equals: email.toLowerCase(), mode: "insensitive" } }, select: { id: true } });
     const r = await resolveCalvyFee(prisma, { businessId: business.id, clientId: existing?.id ?? null, fullCharge, verifiedBooker, customer: { email, phone, tz }, couponCode: feeCode });
     if (!r.ok) feeError = r.error;
     else {
       payNowMinor = r.value.charge.chargeMinor;
+      // The level badge and fee are only for a customer who proved their email; anyone else sees the plain fee.
+      // An unverified visitor learns only that a member price exists and a masked first name; never the level, the fee or the full name.
+      // The hint is its own, stricter rate limit, because it tells a stranger that an address belongs to a member.
+      if (!verifiedBooker && r.value.level && fullCharge.route === "CALVY") {
+        const hintLimit = await rateLimit(`member-hint:${clientIp(req)}`, 10, 60_000);
+        if (hintLimit.ok) memberHint = await memberHintFor(prisma, email);
+      }
+      if (verifiedBooker && r.value.level && r.value.level.id !== "STARTER") level = { id: r.value.level.id, label: LEVEL_LABEL[r.value.level.id], feeMinor: r.value.level.feeMinor };
       if (r.value.coupon) fee = { code: r.value.coupon.code, discountMinor: r.value.coupon.discountMinor, payNowMinor: r.value.charge.chargeMinor };
       else if (feeCode) feeError = r.value.waived ? "You already have a free booking here, so no code is needed." : r.value.rewarded ? "Your loyalty reward covers the fee, so the code is kept for later." : "This code is not valid.";
     }
@@ -87,6 +100,8 @@ async function POST_handler(req: NextRequest) {
     totalMinor,
     feeDiscountMinor: fee?.discountMinor ?? 0,
     payNowMinor,
+    ...(level ? { level } : {}),
+    ...(memberHint ? { memberHint } : {}),
   });
 }
 

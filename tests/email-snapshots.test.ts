@@ -37,6 +37,8 @@ const FIXTURES: Record<TemplateId, object> = {
   customer_verification: { name: "Riya Kapoor", secret: SECRET },
   customer_password_reset: { name: "Riya Kapoor", secret: SECRET },
   customer_account_setup: { name: "Riya Kapoor", secret: SECRET },
+  member_link: { name: "Riya Kapoor", secret: SECRET },
+  level_up: { level: "INSIDER", levelLabel: "Insider", feeMinor: 800, baseFeeMinor: 1000, perk: "One free booking, on us, for reaching Insider.", accountUrl: "https://x.test/account" },
   lead: { name: "Asha Rao", demoRequested: true },
   form_notification: { title: "New lead", fields: { Name: "Jo", Demo: true }, at: "2 Nov 2026, 10:00" },
 };

@@ -202,7 +202,7 @@ export async function bookToken(input: TokenBookingInput): Promise<NextResponse>
     customer: { email: input.client.email, phone: input.client.phone, tz }, couponCode: input.couponCode,
   });
   if (!fee.ok) return err(fee.status, fee.error, fee.code);
-  const { charge, waived, rewarded, coupon } = fee.value;
+  const { charge, waived, rewarded, coupon, level } = fee.value;
   const gateway = charge.route === "GATEWAY" ? await defaultGateway(business.id) : null;
   if (charge.route === "GATEWAY" && !gateway) return err(503, "Online payments are temporarily unavailable. Please try again later.", "PAYMENT_START_FAILED");
   const holdExpiresAt = charge.chargeMinor > 0 ? holdExpiry() : null;
@@ -221,7 +221,7 @@ export async function bookToken(input: TokenBookingInput): Promise<NextResponse>
       data: {
         businessId: business.id, clientId: client.id, staffId: session.staffId, serviceId: services[0].id,
         date: estimatedAt, endAt: new Date(estimatedAt.getTime() + session.minutesPerToken * 60_000),
-        duration: session.minutesPerToken, price: totalPrice, followUpOfId: input.followUpOfId ?? null, notes, patientName: input.patientName, ...input.patientDetails, isOnline: input.isOnline ?? false,
+        duration: session.minutesPerToken, price: totalPrice, ...(level ? { feeLevel: level.id, feeMinor: level.feeMinor } : {}), followUpOfId: input.followUpOfId ?? null, notes, patientName: input.patientName, ...input.patientDetails, isOnline: input.isOnline ?? false,
         status: holdExpiresAt ? PENDING_PAYMENT : "confirmed", holdExpiresAt,
         paymentStatus: "unpaid", paymentMode: business.paymentMode,
         tokenSessionId: session.id, sessionDate: dateOnly(date), tokenNumber: a.number, estimatedAt,

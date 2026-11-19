@@ -1,4 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { levelModels } from "./helpers/levelsFake";
+
+vi.mock("@/lib/prisma", () => ({ prisma: {} }));
+vi.mock("@/lib/notifications/enqueue", () => ({ notify: async () => {} }));
 import { claimReward, lookupProgress, progressFor, recordAttended, releaseReward, rewardAvailable } from "@/lib/rewards/service";
 
 type Appt = { id: string; status: string; source: string; date: Date; client: { email: string | null; phone: string | null }; business: { timezone: string } };
@@ -13,6 +17,7 @@ function fakeDb(offer: { enabled: boolean; every: number } = { enabled: true, ev
   let n = 0;
   const pk = (w: { offerId_identity: { offerId: string; identity: string } }) => `${w.offerId_identity.offerId}|${w.offerId_identity.identity}`;
   const db = {
+    ...levelModels().models,
     offer: { findUnique: async () => off },
     appointment: { findUnique: async ({ where }: { where: { id: string } }) => appts.get(where.id) ?? null },
     rewardCount: {
@@ -26,7 +31,7 @@ function fakeDb(offer: { enabled: boolean; every: number } = { enabled: true, ev
         counts.filter((c) => c.identity === where.identity && (c.kind ?? "VISIT") === where.kind && c.day < where.day.lt).sort((a, b) => (a.day < b.day ? 1 : -1))[0] ?? null,
       count: async ({ where }: { where: { identity: string; kind: string } }) => counts.filter((c) => c.identity === where.identity && (c.kind ?? "VISIT") === where.kind).length,
     },
-    referral: { findUnique: async () => null },
+    referral: { findUnique: async () => null, count: async () => 0 },
     tierGrant: { createMany: async () => ({ count: 0 }) },
     quarterlyPerk: { findUnique: async () => null, createMany: async () => ({ count: 0 }), deleteMany: async () => ({ count: 0 }) },
     rewardProgress: {

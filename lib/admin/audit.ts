@@ -9,7 +9,7 @@ export type AdminAction =
   | "view_as.start" | "view_as.end" | "view_as.expired" | "act_as.start" | "act_as.end" | "act_as.expired" | "act_as.edit"
   | "business.create" | "business.edit" | "business.suspend" | "business.unsuspend"
   | "business.plan_override" | "business.plan_override_clear" | "business.resend_setup_email" | "business.resend_live_email" | "business.reset_onboarding"
-  | "coupon.create" | "coupon.update" | "referral.review" | "whatsapp.review_template" | "settings.limits_changed" | "settings.app_changed" | "admin.api";
+  | "coupon.create" | "coupon.update" | "referral.review" | "rewards.config_changed" | "rewards.level_adjusted" | "whatsapp.review_template" | "settings.limits_changed" | "settings.app_changed" | "admin.api";
 
 export interface AdminActor { id: string; email: string }
 
