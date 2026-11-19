@@ -35,9 +35,11 @@ import { Prisma } from "@prisma/client";
 import { suspended, suspendedResponse } from "@/lib/suspension";
 import { checkVerifiedLimits, getVerifiedLimits, isVerifiedBooker } from "@/lib/verifiedLimits";
 import { FollowUpTicketError, resolveFollowUp } from "@/lib/followUpDb";
-import { claimWaiver, waiverAvailable } from "@/lib/waiver";
+import { claimWaiver } from "@/lib/waiver";
+import { CouponUnavailableError } from "@/lib/coupons/service";
+import { claimFeeCoupon, resolveCalvyFee } from "@/lib/coupons/booking";
 import { WaiverTakenError } from "@/lib/tokenBooking";
-import { claimReward, rewardAvailable, progressFor, RewardTakenError } from "@/lib/rewards/service";
+import { claimReward, progressFor, RewardTakenError } from "@/lib/rewards/service";
 import { rewardApplies } from "@/lib/rewards/rules";
 import { toMinor } from "@/lib/fees";
 
@@ -222,13 +224,13 @@ async function bookingHandler(req: NextRequest) {
         business, services: orderedServices, tokenSessionId, date, tz: bizTz,
         client: { name: clientName, email: clientEmail, phone: clientPhone },
         notes, maxMonthlyAppointments: limits.maxMonthlyAppointments, monthStart, payConfig, patientName, patientDetails, followUpOfId,
-        maxPeoplePerBooker: business.maxPeoplePerBooker, isOnline, verifiedBooker,
+        maxPeoplePerBooker: business.maxPeoplePerBooker, isOnline, verifiedBooker, couponCode: parsed.data.couponCode,
       });
     } catch (err) {
       if (err instanceof DuplicatePatientError) return await duplicateResponse(err);
       if (err instanceof LimitReachedError) return await limitResponse();
       if (followUpTaken(err)) return followUpTakenResponse();
-      if (err instanceof WaiverTakenError || err instanceof RewardTakenError) return NextResponse.json({ error: err.message, code: "WAIVER_CHANGED" }, { status: 409 });
+      if (err instanceof WaiverTakenError || err instanceof RewardTakenError || err instanceof CouponUnavailableError) return NextResponse.json({ error: err.message, code: "WAIVER_CHANGED" }, { status: 409 });
       throw err;
     }
   }
@@ -280,6 +282,8 @@ async function bookingHandler(req: NextRequest) {
   // For each candidate (preference order) take the lock on that staff member,
   // re-check the slot inside the lock with the same engine, then insert. If a
   // concurrent booking took it, fall through to the next candidate.
+  // Set when a Calvy coupon reduces the Rs 10 for this booking; taken inside the booking transaction.
+  let feeCoupon: { couponId: string; code: string; discountMinor: number; feeMinor: number } | null = null;
   async function createAppointment(
     clientId: string,
     paymentStatus: string,
@@ -339,6 +343,7 @@ async function bookingHandler(req: NextRequest) {
             if (waive && !(await claimWaiver(tx, { businessId: business!.id, clientId, appointmentId: created.id }))) throw new WaiverTakenError();
             // Same for the loyalty reward: spent inside the booking's own transaction.
             if (reward && !(await claimReward(tx, { appointmentId: created.id, email: clientEmail, phone: clientPhone }))) throw new RewardTakenError();
+            if (feeCoupon) await claimFeeCoupon(tx, { couponId: feeCoupon.couponId, appointmentId: created.id, businessId: business!.id, feeMinor: feeCoupon.feeMinor, customer: { email: clientEmail, phone: clientPhone, tz: bizTz } });
             return created;
           },
         );
@@ -422,20 +427,14 @@ async function bookingHandler(req: NextRequest) {
   // Online payments on: hold the slot while the customer pays, or confirm when nothing is due.
   if (onlinePayments) {
     client = await getOrCreateClient();
-    // A kept Rs 10 confirmation fee (earlier booking cancelled or not attended) waives the fee once at this business.
-    let payCharge = charge;
-    let waived = false;
-    if (charge.route === "CALVY" && charge.chargeMinor > 0 && (await waiverAvailable(prisma, business.id, client.id))) {
-      payCharge = { chargeMinor: 0, platformFeeMinor: 0, businessShareMinor: 0, route: "NONE" };
-      waived = true;
-    }
-    // A loyalty reward (every 8th attended visit) waives the Rs 10 the same way, for a verified customer only. The kept-fee
-    // rebooking above goes first, so one booking never spends both.
-    let rewarded = false;
-    if (!waived && verifiedBooker && rewardApplies(charge) && (await rewardAvailable(prisma, { email: clientEmail, phone: clientPhone }))) {
-      payCharge = { chargeMinor: 0, platformFeeMinor: 0, businessShareMinor: 0, route: "NONE" };
-      rewarded = true;
-    }
+    // What reduces Calvy's Rs 10: the kept-fee waiver first, then ONE of a Calvy coupon or a loyalty reward (lib/coupons/booking.ts).
+    const fee = await resolveCalvyFee(prisma, {
+      businessId: business.id, clientId: client.id, fullCharge: charge, verifiedBooker,
+      customer: { email: clientEmail, phone: clientPhone, tz: bizTz }, couponCode: parsed.data.couponCode,
+    });
+    if (!fee.ok) return NextResponse.json({ error: fee.error, code: fee.code }, { status: fee.status });
+    const { charge: payCharge, waived, rewarded, coupon } = fee.value;
+    feeCoupon = coupon;
     const gateway = payCharge.route === "GATEWAY" ? await defaultGateway(business.id) : null;
     if (payCharge.route === "GATEWAY" && !gateway) return NextResponse.json({ error: "Online payments are temporarily unavailable. Please try again later.", code: "PAYMENT_START_FAILED" }, { status: 503 });
     const hold = payCharge.chargeMinor > 0 ? holdExpiry() : null;
@@ -445,7 +444,7 @@ async function bookingHandler(req: NextRequest) {
     try {
       appointment = await createAppointment(client.id, "unpaid", venueMode, hold, waived, rewarded);
     } catch (err) {
-      if (err instanceof WaiverTakenError || err instanceof RewardTakenError) return NextResponse.json({ error: err.message, code: "WAIVER_CHANGED" }, { status: 409 });
+      if (err instanceof WaiverTakenError || err instanceof RewardTakenError || err instanceof CouponUnavailableError) return NextResponse.json({ error: err.message, code: "WAIVER_CHANGED" }, { status: 409 });
       if (err instanceof DuplicatePatientError) return await duplicateResponse(err);
       if (err instanceof SlotConflictError) return conflictResponse();
       if (err instanceof LimitReachedError) return await limitResponse();

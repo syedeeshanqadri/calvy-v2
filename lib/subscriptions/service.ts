@@ -1,5 +1,7 @@
 // Plan subscriptions: the database side. Every money/state change is one transaction, takes a per-subscription lock, and is idempotent
 // (a webhook, the return-page recheck and the cron can all report the same payment). Business.plan is set ONLY by applySubscriptionState.
+import { CALVY_OWNER, CouponUnavailableError, previewCoupon, redeemForSubscription } from "@/lib/coupons/service";
+import { capSubscriptionDiscount } from "@/lib/coupons/rules";
 import { Prisma, type Subscription } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
@@ -110,10 +112,12 @@ const methodLabel = (m: string | null | undefined) => (m === "upi" ? "UPI Autopa
 /* ── Starting and upgrading ── */
 
 export type CheckoutResult =
-  | { ok: true; subscriptionId: string; sessionId: string; env: "sandbox" | "production"; quote: { grossMinor: number; creditMinor: number; dueMinor: number }; mandate: ReturnType<typeof mandateCheck> }
+  | { ok: true; subscriptionId: string; sessionId: string; env: "sandbox" | "production"; quote: { grossMinor: number; creditMinor: number; couponMinor: number; dueMinor: number }; mandate: ReturnType<typeof mandateCheck> }
   | { ok: false; error: string; status: number };
 
-export async function quoteFor(businessId: string, planId: PaidPlanId, interval: Interval, now = new Date()) {
+export interface CouponQuote { couponId: string; code: string; name: string; couponMinor: number }
+
+export async function quoteFor(businessId: string, planId: PaidPlanId, interval: Interval, now = new Date(), couponCode?: string | null) {
   const current = await currentSubscription(prisma, businessId);
   const active = current && (current.state === "ACTIVE" || current.state === "PAST_DUE") ? current : null;
   const newAmount = planAmountMinor(planId, interval);
@@ -123,11 +127,25 @@ export async function quoteFor(businessId: string, planId: PaidPlanId, interval:
   const credit = active?.state === "ACTIVE" && active.currentPeriodStart && active.currentPeriodEnd && lastInvoice
     ? { paidMinor: lastInvoice.amountMinor, periodStart: active.currentPeriodStart, periodEnd: active.currentPeriodEnd }
     : null;
-  return { active, kind, newAmount, quote: quoteUpgrade({ newAmountMinor: newAmount, credit, now }) };
+  const base = quoteUpgrade({ newAmountMinor: newAmount, credit, now });
+  // A Calvy coupon takes money off the FIRST charge only (durationMonths is reserved for later). Checked here for the preview and again,
+  // under the coupon's lock, when the checkout is created.
+  let coupon: CouponQuote | null = null;
+  let couponError: string | null = null;
+  if (couponCode?.trim()) {
+    const { coupon: def, verdict } = await previewCoupon(prisma, { ownerKey: CALVY_OWNER, code: couponCode, ctx: { target: "SUBSCRIPTION", businessId, planId, amountMinor: base.dueMinor }, now });
+    if (def && verdict.ok) {
+      const couponMinor = capSubscriptionDiscount(base.dueMinor, verdict.discountMinor);
+      if (couponMinor > 0) coupon = { couponId: def.id, code: def.code, name: def.name, couponMinor };
+      else couponError = "This code does not reduce this plan's first payment.";
+    } else couponError = verdict.ok ? null : verdict.message;
+  }
+  const quote = { ...base, couponMinor: coupon?.couponMinor ?? 0, dueMinor: base.dueMinor - (coupon?.couponMinor ?? 0) };
+  return { active, kind, newAmount, quote, coupon, couponError };
 }
 
 /** Create the Cashfree subscription for a new plan or an upgrade and return what the browser needs to open Cashfree's authorisation page. */
-export async function startCheckout(i: { businessId: string; planId: PaidPlanId; interval: Interval; method: "upi_card" | "enach"; now?: Date; client?: SubsClient | null }): Promise<CheckoutResult> {
+export async function startCheckout(i: { businessId: string; planId: PaidPlanId; interval: Interval; method: "upi_card" | "enach"; couponCode?: string | null; now?: Date; client?: SubsClient | null }): Promise<CheckoutResult> {
   const now = i.now ?? new Date();
   const client = i.client === undefined ? getSubsClient() : i.client;
   if (!client) return { ok: false, status: 503, error: "Plan payments are not available right now. Please try again later." };
@@ -139,7 +157,8 @@ export async function startCheckout(i: { businessId: string; planId: PaidPlanId;
   if (!email) return { ok: false, status: 400, error: "Add a contact email in Settings first." };
   if (!phone || phone.length < 10) return { ok: false, status: 400, error: "Add a 10-digit phone number to your business profile in Settings first (your bank needs it to set up the payment)." };
 
-  const q = await quoteFor(i.businessId, i.planId, i.interval, now);
+  const q = await quoteFor(i.businessId, i.planId, i.interval, now, i.couponCode);
+  if (i.couponCode?.trim() && !q.coupon) return { ok: false, status: 400, error: q.couponError ?? "This code is not valid." };
   if (q.kind === "same") return { ok: false, status: 409, error: "You are already on this plan." };
   // A cheaper-ranked plan that costs more per cycle than the current mandate allows also needs a new mandate (handled as a switch with credit).
   if (q.kind === "downgrade" && q.active && q.newAmount <= q.active.amountMinor) return { ok: false, status: 409, error: "A downgrade starts at the end of your billing period. Use Change plan, not checkout." };
@@ -160,12 +179,25 @@ export async function startCheckout(i: { businessId: string; planId: PaidPlanId;
     logger.error("[Subscriptions] create failed", { err: e, businessId: i.businessId });
     return { ok: false, status: 502, error: "We could not start the payment. Please try again." };
   }
-  await prisma.subscription.create({
-    data: {
-      businessId: i.businessId, planId: i.planId, interval: i.interval, state: "PENDING", cashfreeSubscriptionId: subscriptionId, cfSubscriptionId: created.cfSubscriptionId,
-      amountMinor: q.newAmount, creditMinor: q.quote.creditMinor, firstChargeMinor: q.quote.dueMinor, upgradeOfId: q.active?.id ?? null, method: i.method,
-    },
-  });
+  try {
+    await prisma.$transaction(async (tx) => {
+      const sub = await tx.subscription.create({
+        data: {
+          businessId: i.businessId, planId: i.planId, interval: i.interval, state: "PENDING", cashfreeSubscriptionId: subscriptionId, cfSubscriptionId: created.cfSubscriptionId,
+          // The coupon is folded into the credit, so the first charge, the amount check and the invoice stay consistent.
+          amountMinor: q.newAmount, creditMinor: q.quote.creditMinor + q.quote.couponMinor, firstChargeMinor: q.quote.dueMinor, upgradeOfId: q.active?.id ?? null, method: i.method,
+          couponId: q.coupon?.couponId ?? null, couponMinor: q.quote.couponMinor,
+        },
+      });
+      if (q.coupon) {
+        const used = await redeemForSubscription(tx, { couponId: q.coupon.couponId, subscriptionId: sub.id, businessId: i.businessId, planId: i.planId, amountMinor: q.quote.dueMinor + q.quote.couponMinor });
+        if (used < q.quote.couponMinor) throw new CouponUnavailableError();
+      }
+    });
+  } catch (e) {
+    if (e instanceof CouponUnavailableError) return { ok: false, status: 409, error: e.message };
+    throw e;
+  }
   return { ok: true, subscriptionId, sessionId: created.sessionId, env: process.env.CASHFREE_ENV === "production" ? "production" : "sandbox", quote: q.quote, mandate };
 }
 

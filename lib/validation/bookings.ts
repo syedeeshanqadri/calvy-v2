@@ -32,6 +32,8 @@ export const bookingSchema = z
     /** Signed ticket from the customer's "Use credit" link in My wallet: wallet credit at this business reduces the online charge. */
     /** Signed ticket from a verified customer's "Book again" link: marks the booking as a verified customer's (admin-set limits apply). */
     verifiedTicket: z.preprocess(blankToUndef, z.string().max(800).optional()),
+    /** One discount code per booking (Calvy's or the business's). Checked on the server. */
+    couponCode: z.preprocess(blankToUndef, z.string().trim().max(40).optional()),
   })
   .refine((b) => (b.serviceIds?.length ?? 0) > 0 || !!b.serviceId, {
     message: "serviceId or serviceIds is required",

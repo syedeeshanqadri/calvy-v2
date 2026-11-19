@@ -17,7 +17,7 @@ export interface BillingData {
   invoices: { id: string; number: string; kind: string; issuedAt: string; amountMinor: number; planLabel: string; interval: string }[];
   extraAuthPlans: string[];
 }
-interface Quote { kind: string; grossMinor: number; creditMinor: number; dueMinor: number; mandate: { needsExtraAuth: boolean; note: string | null } }
+interface Quote { kind: string; grossMinor: number; creditMinor: number; couponMinor?: number; coupon?: { code: string; name: string } | null; couponError?: string | null; dueMinor: number; mandate: { needsExtraAuth: boolean; note: string | null } }
 
 const rs = (minor: number) => formatCurrencyAmount(minor / 100, "INR");
 const day = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Kolkata" }) : "");
@@ -41,18 +41,19 @@ export default function BillingClient({ data }: { data: BillingData }) {
   const [pick, setPick] = useState<{ planId: "professional" | "business"; interval: Interval } | null>(null);
   const [quote, setQuote] = useState<Quote | null>(null);
   const [method, setMethod] = useState<"upi_card" | "enach">("upi_card");
+  const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState(data.returnState === "activated" ? "Your plan is active. Thank you!" : data.returnState === "authorised" ? "Payment method set up. Your first payment is being collected." : data.returnState === "pending" ? "We are waiting for your bank to confirm. This page updates when it does." : data.returnState === "failed" ? "The payment was not completed. You have not been charged." : "");
   const sub = data.subscription && data.subscription.state !== "ENDED" ? data.subscription : null;
 
-  async function openQuote(planId: "professional" | "business") {
+  async function openQuote(planId: "professional" | "business", withCode = "") {
     setError(""); setBusy(true);
     try {
-      const res = await fetch(`/api/subscriptions/quote?planId=${planId}&interval=${interval}`);
+      const res = await fetch(`/api/subscriptions/quote?planId=${planId}&interval=${interval}${withCode ? `&coupon=${encodeURIComponent(withCode)}` : ""}`);
       const json = await res.json().catch(() => ({}));
       if (!res.ok) { setError(json.error ?? "Could not load the price."); return; }
-      setPick({ planId, interval }); setQuote(json);
+      setPick({ planId, interval }); setQuote(json); if (!withCode) setCode("");
     } finally { setBusy(false); }
   }
 
@@ -65,7 +66,7 @@ export default function BillingClient({ data }: { data: BillingData }) {
     if (!pick) return;
     setBusy(true); setError("");
     try {
-      const r = await post("/api/subscriptions/checkout", { ...pick, method });
+      const r = await post("/api/subscriptions/checkout", { ...pick, method, ...(quote?.coupon ? { couponCode: code } : {}) });
       if (!r.ok) { setError(r.json.error ?? "Could not start the payment."); return; }
       await loadScript(CASHFREE_SDK);
       const factory = (window as unknown as { Cashfree?: CashfreeFactory }).Cashfree;
@@ -166,9 +167,15 @@ export default function BillingClient({ data }: { data: BillingData }) {
                 <dl className="text-sm space-y-1">
                   <div className="flex justify-between"><dt>Plan price (GST included)</dt><dd>{rs(quote.grossMinor)}</dd></div>
                   {quote.creditMinor > 0 && <div className="flex justify-between text-emerald-700"><dt>Credit for the unused part of your current plan</dt><dd>- {rs(quote.creditMinor)}</dd></div>}
+                  {!!quote.couponMinor && <div className="flex justify-between text-emerald-700"><dt>Coupon {quote.coupon?.code}</dt><dd>- {rs(quote.couponMinor)}</dd></div>}
                   <div className="flex justify-between font-bold border-t border-[#e8e6e0] pt-1"><dt>Due now</dt><dd>{rs(quote.dueMinor)}</dd></div>
                 </dl>
-                <p className="text-xs text-[#6b6b80]">Your plan starts now. After this, {rs(quote.grossMinor)} is charged every {pick.interval === "YEARLY" ? "year" : "month"} automatically. Cancel any time; you keep access to the end of the period.</p>
+                <form className="flex flex-wrap items-center gap-2" onSubmit={(e) => { e.preventDefault(); if (code.trim()) void openQuote(pick.planId, code.trim()); }}>
+                  <input value={code} onChange={(e) => setCode(e.target.value)} maxLength={40} placeholder="Coupon code" aria-label="Coupon code" className="h-10 rounded-xl border border-[#e8e6e0] px-3 text-sm uppercase" />
+                  <button type="submit" disabled={busy || !code.trim()} className={`${btn} border border-[#e8e6e0]`}>Apply</button>
+                  {quote.couponError && <span role="alert" className="text-xs text-red-700">{quote.couponError}</span>}
+                </form>
+                <p className="text-xs text-[#6b6b80]">Your plan starts now. A coupon takes money off the first payment only. After this, {rs(quote.grossMinor)} is charged every {pick.interval === "YEARLY" ? "year" : "month"} automatically. Cancel any time; you keep access to the end of the period.</p>
                 <fieldset className="flex flex-wrap gap-2" aria-label="Payment method">
                   <button type="button" onClick={() => setMethod("upi_card")} aria-pressed={method === "upi_card"} className={`${btn} border ${method === "upi_card" ? "border-[#0f0f1a] bg-[#f6f5f1]" : "border-[#e8e6e0]"}`}>UPI Autopay or card</button>
                   <button type="button" onClick={() => setMethod("enach")} aria-pressed={method === "enach"} className={`${btn} border ${method === "enach" ? "border-[#0f0f1a] bg-[#f6f5f1]" : "border-[#e8e6e0]"}`}>Bank e-mandate</button>

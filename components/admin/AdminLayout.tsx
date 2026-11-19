@@ -19,6 +19,7 @@ const NAV: { label: string; href: string; icon: typeof LayoutDashboard; exact?: 
   { label: "Plans & Pricing", href: "/admin/plans", icon: CreditCard },
   { label: "Revenue", href: "/admin/revenue", icon: TrendingUp },
   { label: "Offers", href: "/admin/offers", icon: Gift },
+  { label: "Coupons", href: "/admin/coupons", icon: Gift },
   { label: "Notifications", href: "/admin/notifications", icon: Send, exact: true },
   { label: "Delivery log", href: "/admin/notifications/log", icon: ScrollText },
   { label: "WhatsApp review", href: "/admin/whatsapp-review", icon: Send },
