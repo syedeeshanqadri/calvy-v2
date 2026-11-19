@@ -397,6 +397,7 @@ model Appointment {
 
   @@unique([tokenSessionId, sessionDate, tokenNumber])
   @@index([businessId, date])
+  @@index([businessId, status, date])
   @@index([staffId, date])
   @@index([date, reminderSent])
   @@index([status, holdExpiresAt])

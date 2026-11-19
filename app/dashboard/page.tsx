@@ -1,5 +1,4 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSession, getBusinessCore } from "@/lib/requestCache";
 import { resolveAccess } from "@/lib/access";
 import { MemberHome } from "@/components/dashboard/MemberHome";
 import { TodayList } from "@/components/dashboard/TodayList";
@@ -30,7 +29,7 @@ const DAYS_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MONTHS_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 export default async function DashboardPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   const access = await resolveAccess(session);
   if (access && !access.isOwner) return <MemberHome name={session?.user?.name ?? ""} roleName={access.roleName} permissions={access.permissions} today={await loadToday(access)} />;
   if (!session?.user?.businessId) redirect("/login");
@@ -38,8 +37,7 @@ export default async function DashboardPage() {
   const businessId = session.user.businessId;
   const firstName = session.user.name?.split(" ")[0] ?? "there";
 
-  const biz = await prisma.business.findUnique({ where: { id: businessId }, select: { timezone: true, packId: true, termsOverride: true, plan: true, intendedPlan: true, upgradeBannerDismissedAt: true } });
-  const todayData = access ? await loadToday(access) : null;
+  const biz = await getBusinessCore(businessId);
   const tz = safeTimeZone(biz?.timezone);
   const now = new Date();
   const hour = utcToZoned(now, tz).minutes / 60;
@@ -65,34 +63,38 @@ export default async function DashboardPage() {
   const thisWeekStart = new Date(todayStart);
   thisWeekStart.setDate(thisWeekStart.getDate() - 6);
 
-  const [todayAppts, weekAppts, monthAppts, thisMonthAppts, totalClients, newClientsThisWeek, dbStaff, dbServices, monthExpensesAgg] = await Promise.all([
+  // One round of queries, only the columns the page shows. The week, the six-month chart and this month's revenue all come from ONE range query
+  // (date, price, status, payment) instead of three overlapping full-row reads.
+  const rangeEnd = thisMonthEnd > todayEnd ? thisMonthEnd : todayEnd;
+  const [todayAppts, rangeAppts, totalClients, newClientsThisWeek, dbStaff, dbServices, monthExpensesAgg, todayData] = await Promise.all([
     prisma.appointment.findMany({
       where: { businessId, date: { gte: todayStart, lte: todayEnd }, status: { not: "expired" } },
-      include: { client: true, service: true, staff: true },
+      select: {
+        id: true, date: true, duration: true, price: true, status: true, paymentStatus: true, notes: true, staffId: true, patientName: true,
+        client: { select: { name: true, email: true, phone: true } }, service: { select: { name: true, color: true } }, staff: { select: { name: true } },
+      },
       orderBy: { date: "asc" },
     }),
     prisma.appointment.findMany({
-      where: { businessId, date: { gte: weekStart, lte: todayEnd } },
-    }),
-    prisma.appointment.findMany({
-      where: { businessId, date: { gte: monthsStart, lte: todayEnd } },
-    }),
-    prisma.appointment.findMany({
-      where: { businessId, date: { gte: thisMonthStart, lte: thisMonthEnd }, status: { not: "cancelled" } },
-      select: { price: true, paymentStatus: true },
+      where: { businessId, date: { gte: monthsStart, lte: rangeEnd } },
+      select: { date: true, price: true, paymentStatus: true, status: true },
     }),
     prisma.client.count({ where: { businessId } }),
     prisma.client.count({ where: { businessId, createdAt: { gte: thisWeekStart } } }),
-    prisma.staff.findMany({ where: { businessId, isActive: true } }),
-    prisma.service.findMany({ where: { businessId, isActive: true } }),
+    prisma.staff.findMany({ where: { businessId, isActive: true }, select: { id: true, name: true, role: true, color: true } }),
+    prisma.service.findMany({ where: { businessId, isActive: true }, select: { id: true, name: true, duration: true, price: true } }),
     prisma.expense.aggregate({
       where: { businessId, date: { gte: new Date(now.getFullYear(), now.getMonth(), 1), lte: new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59) } },
       _sum: { amount: true },
     }),
+    access ? loadToday(access) : Promise.resolve(null),
   ]).catch((err) => {
     logger.error("[Dashboard] queries failed:", { err, businessId });
-    return [[], [], [], [], 0, 0, [], [], { _sum: { amount: null } }] as const;
+    return [[], [], 0, 0, [], [], { _sum: { amount: null } }, null] as const;
   });
+  const weekAppts = rangeAppts.filter((a) => a.date >= weekStart && a.date <= todayEnd);
+  const monthAppts = rangeAppts.filter((a) => a.date <= todayEnd);
+  const thisMonthAppts = rangeAppts.filter((a) => a.date >= thisMonthStart && a.date <= thisMonthEnd && a.status !== "cancelled");
 
   // KPI stats
   const monthExpenses = monthExpensesAgg._sum.amount ?? 0;

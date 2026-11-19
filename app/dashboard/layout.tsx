@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
-import { getServerSession } from "next-auth";
+import { getSession, getBusinessCore } from "@/lib/requestCache";
 import { appManifestMetadata } from "@/lib/appMetadata";
 import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth";
 import { resolveAccess } from "@/lib/access";
 import { ViewAsBanner } from "@/components/admin/ViewAsBanner";
 import { AccessProvider } from "@/components/providers/AccessProvider";
@@ -15,7 +14,7 @@ import { TermsProvider } from "@/components/providers/TermsProvider";
 export const metadata: Metadata = { ...appManifestMetadata };
 
 export default async function DashboardRootLayout({ children }: { children: React.ReactNode }) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   let currency = "USD";
   let packId: string | undefined;
   let termsOverride: unknown;
@@ -26,10 +25,7 @@ export default async function DashboardRootLayout({ children }: { children: Reac
   const access = await resolveAccess(session);
   if (session?.user?.businessId || (access && !access.isOwner)) {
     try {
-      const biz = await prisma.business.findUnique({
-        where: { id: access?.businessId ?? session?.user?.businessId },
-        select: { currency: true, packId: true, termsOverride: true, bookingMode: true, onboardingCompletedAt: true, suspendedAt: true },
-      });
+      const biz = await getBusinessCore((access?.businessId ?? session?.user?.businessId) as string);
       currency = biz?.currency ?? "USD";
       packId = biz?.packId;
       termsOverride = biz?.termsOverride;

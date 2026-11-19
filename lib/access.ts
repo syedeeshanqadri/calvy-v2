@@ -4,6 +4,8 @@
 // Members have no `businessId` in their JWT, so any route that was not converted to this helper
 // refuses them by default (owner-only).
 import { getServerSession, type Session } from "next-auth";
+import { cache } from "react";
+import { getSession } from "@/lib/requestCache";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -21,7 +23,7 @@ export interface Access {
 export type AccessSession = Session & { user: Session["user"] & { businessId: string }; access: Access };
 
 /** Resolve who this session is for the business. Null when the session is nobody's team login. */
-export async function resolveAccess(session: Session | null): Promise<Access | null> {
+async function resolveAccessUncached(session: Session | null): Promise<Access | null> {
   const u = session?.user;
   if (!u || u.kind === "customer") return null;
   if (u.businessId) {
@@ -32,6 +34,9 @@ export async function resolveAccess(session: Session | null): Promise<Access | n
   if (!m) return null;
   return { userId: u.id, businessId: m.businessId, isOwner: false, permissions: sanitizePermissions(m.permissions), staffId: m.staffId, roleName: m.roleName };
 }
+
+/** Memoised per request by session object: the layout and the page share one team-member lookup. */
+export const resolveAccess = cache(resolveAccessUncached);
 
 type Need = Permission | readonly Permission[] | "owner";
 
@@ -56,7 +61,7 @@ export async function accessSession(need?: Need): Promise<AccessSession | null> 
 
 /** For pages and server actions: sends the visitor to sign in, or back to the dashboard when not allowed. */
 export async function pageAccess(need?: Need): Promise<AccessSession> {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   const access = await resolveAccess(session);
   if (!session || !access) redirect("/login");
   if (!allowed(access, need)) redirect("/dashboard/no-access"); // a clear "no access" screen, not a silent bounce to the home screen

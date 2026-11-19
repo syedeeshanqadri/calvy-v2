@@ -1,3 +1,4 @@
+import { getBusinessCore } from "@/lib/requestCache";
 import { safeTimeZone, utcToZoned } from "@/lib/time";
 import { pageAccess, appointmentWhere } from "@/lib/access";
 import { prisma } from "@/lib/prisma";
@@ -8,13 +9,11 @@ export const dynamic = 'force-dynamic';
 
 export default async function CalendarPage() {
   const session = await pageAccess(["calendar.manage", "appointments.view_all", "appointments.view_own"]);
-  const tz = safeTimeZone((await prisma.business.findUnique({ where: { id: session.user.businessId }, select: { timezone: true } }))?.timezone);
-
   const now = new Date();
   const rangeStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 14);
   const rangeEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 30);
 
-  const [appointments, staff, services] = await Promise.all([
+  const [appointments, staff, services, core] = await Promise.all([
     prisma.appointment.findMany({
       where: { businessId: session.user.businessId, date: { gte: rangeStart, lte: rangeEnd }, status: { not: "expired" }, ...appointmentWhere(session.access) },
       include: { client: true, service: true, staff: true },
@@ -23,7 +22,9 @@ export default async function CalendarPage() {
       where: { businessId: session.user.businessId, isActive: true },
     }),
     prisma.service.findMany({ where: { businessId: session.user.businessId, isActive: true } }),
+    getBusinessCore(session.user.businessId),
   ]);
+  const tz = safeTimeZone(core?.timezone);
 
   const apptRows = appointments.map(a => {
     // Multi-service bookings store extra names as "__services__:Name2|Name3\n..." prefix

@@ -31,8 +31,35 @@ const PAYMENT_STATUS_STYLES: Record<string, string> = {
 
 type Row = ApptDetail;
 
-export function AppointmentsClient({ appointments, services, staff, csvExport = false, upgradeHref = null, canExport = true, canWrite = true, clinicRecords = false }: { appointments: Row[]; services: ServiceOption[]; staff: StaffOption[]; csvExport?: boolean; upgradeHref?: string | null; canExport?: boolean; canWrite?: boolean; canCancel?: boolean; clinicRecords?: boolean }) {
+export function AppointmentsClient({ appointments: windowRows, olderCount = 0, windowStartIso, services, staff, csvExport = false, upgradeHref = null, canExport = true, canWrite = true, clinicRecords = false }: { appointments: Row[]; olderCount?: number; windowStartIso: string; services: ServiceOption[]; staff: StaffOption[]; csvExport?: boolean; upgradeHref?: string | null; canExport?: boolean; canWrite?: boolean; canCancel?: boolean; clinicRecords?: boolean }) {
   const router = useRouter();
+
+  // Older history arrives a page at a time; the page itself carries only the recent window.
+  const [older, setOlder] = useState<Row[]>([]);
+  const [cursor, setCursor] = useState(windowStartIso);
+  const [hasMore, setHasMore] = useState(olderCount > 0);
+  const [loadingOlder, setLoadingOlder] = useState(false);
+  const [olderError, setOlderError] = useState("");
+  const appointments = (() => { const seen = new Set(windowRows.map((r) => r.id)); return [...windowRows, ...older.filter((r) => !seen.has(r.id))]; })();
+  async function fetchHistory(params: Record<string, string>): Promise<{ rows: Row[]; hasMore: boolean; nextBefore: string | null } | null> {
+    try {
+      const res = await fetch(`/api/appointments/history?${new URLSearchParams(params)}`);
+      if (!res.ok) { setOlderError("Could not load older " + apptN + "."); return null; }
+      return await res.json();
+    } catch { setOlderError("We could not reach the server. Please try again."); return null; }
+  }
+  async function loadOlder() {
+    setLoadingOlder(true); setOlderError("");
+    const r = await fetchHistory({ before: cursor });
+    if (r) { setOlder((o) => [...o, ...r.rows]); setHasMore(r.hasMore); if (r.nextBefore) setCursor(r.nextBefore); }
+    setLoadingOlder(false);
+  }
+  async function searchOlder() {
+    setLoadingOlder(true); setOlderError("");
+    const r = await fetchHistory({ before: windowStartIso, q: search.trim() });
+    if (r) setOlder((o) => [...o, ...r.rows]);
+    setLoadingOlder(false);
+  }
   const searchParams = useSearchParams();
   const { t } = useTerms();
   const apptN = t("appointment", { plural: true });
@@ -68,6 +95,7 @@ export function AppointmentsClient({ appointments, services, staff, csvExport = 
     setHandledOpen(openId);
     const hit = appointments.find((a) => a.id === openId);
     if (hit) setViewAppt(hit);
+    else void fetchHistory({ id: openId }).then((r) => { if (r?.rows[0]) { setOlder((o) => [...o, r.rows[0]]); setViewAppt(r.rows[0]); } });
   }
   useEffect(() => { if (openId) router.replace("/dashboard/appointments"); }, [openId, router]);
 
@@ -104,7 +132,7 @@ export function AppointmentsClient({ appointments, services, staff, csvExport = 
   })();
 
   return (
-    <DashboardLayout title={ApptN} subtitle={`${appointments.length} total ${apptN}`}>
+    <DashboardLayout title={ApptN} subtitle={`${appointments.length} ${apptN}${hasMore ? " (recent first)" : ""}`}>
       <Card>
         <div className="px-6 py-4 border-b border-[#f0ede8] flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
           <div className="flex gap-1 bg-[#f8f7f4] rounded-xl p-1 flex-wrap">
@@ -237,6 +265,13 @@ export function AppointmentsClient({ appointments, services, staff, csvExport = 
               ))}
             </tbody>
           </table>
+          {(hasMore || olderError) && (
+            <div className="flex flex-col items-center gap-2 py-4 border-t border-[#f0ede8]">
+              {olderError && <p role="alert" className="text-sm text-red-600">{olderError}</p>}
+              {hasMore && <Button variant="outline" size="sm" loading={loadingOlder} onClick={loadOlder}>Load older {apptN}</Button>}
+              {hasMore && search.trim() && <Button variant="ghost" size="sm" loading={loadingOlder} onClick={searchOlder}>Search older {apptN} for “{search.trim()}”</Button>}
+            </div>
+          )}
           {filtered.length === 0 && (
             <div className="text-center py-16 text-[#6b6b80]">
               <CalendarX size={32} className="mx-auto mb-3 opacity-30" />
