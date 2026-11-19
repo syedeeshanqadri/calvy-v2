@@ -1212,8 +1212,10 @@ model RewardProgress {
   counted   Int      @default(0)
   /// Rewards earned so far = floor(counted / every).
   earned    Int      @default(0)
-  /// Rewards spent on a booking. Available = earned - used. Rewards never expire.
+  /// Rewards spent on a booking. Available = earned + bonus - used. Rewards never expire.
   used      Int      @default(0)
+  /// Free Rs 10 confirmations granted by referrals (the same use and the same no-expiry as earned ones).
+  bonus     Int      @default(0)
   updatedAt DateTime @updatedAt
   offer     Offer    @relation(fields: [offerId], references: [id], onDelete: Cascade)
 
@@ -1226,6 +1228,8 @@ model RewardCount {
   offerId       String
   identity      String
   day           String
+  /// VISIT = an attended day; COMEBACK = the +1 stamp for attending within 30 days of the previous attended day (day is "<day>~comeback").
+  kind          String   @default("VISIT")
   appointmentId String?
   createdAt     DateTime @default(now())
   offer         Offer    @relation(fields: [offerId], references: [id], onDelete: Cascade)
@@ -1322,4 +1326,49 @@ model BusinessOffer {
   business    Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
   @@index([businessId, active])
+}
+
+/// Gold's extra free Rs 10, one per calendar quarter (quarter key like "2026-Q4"). It expires at quarter end; the unique key stops a second use.
+model QuarterlyPerk {
+  id            String   @id @default(cuid())
+  identity      String
+  quarter       String
+  appointmentId String   @unique
+  createdAt     DateTime @default(now())
+
+  @@unique([identity, quarter])
+}
+
+/// A customer's referral code (their identity, like rewards: "e:email" or "p:phone").
+model ReferralCode {
+  id        String   @id @default(cuid())
+  identity  String   @unique
+  code      String   @unique
+  createdAt DateTime @default(now())
+}
+
+/// One friend referred by one customer. PENDING until the friend's first ATTENDED visit; then REWARDED (both get a free Rs 10) or CAPPED
+/// (the referrer was at 5 rewarded referrals that month). REJECTED = blocked (reason: SELF, SAME_PHONE, SAME_DEVICE, LOOP, NOT_NEW).
+model Referral {
+  id               String    @id @default(cuid())
+  referrerIdentity String
+  referredIdentity String    @unique
+  status           String    @default("PENDING")
+  reason           String?
+  appointmentId    String?
+  createdAt        DateTime  @default(now())
+  qualifiedAt      DateTime?
+
+  @@index([referrerIdentity, createdAt])
+}
+
+/// A browser (random cookie, stored hashed) seen on a booking by a person: used to refuse a referral made from the referrer's own device.
+model DeviceSeen {
+  id         String   @id @default(cuid())
+  identity   String
+  deviceHash String
+  createdAt  DateTime @default(now())
+
+  @@unique([identity, deviceHash])
+  @@index([deviceHash])
 }

@@ -14,7 +14,7 @@ export function identityKey(c: { email?: string | null; phone?: string | null })
   return digits.length >= 7 ? `p:${digits}` : null;
 }
 
-export interface Tally { counted: number; earned: number; used: number }
+export interface Tally { counted: number; earned: number; used: number; /** Free confirmations granted by referrals (never expire, spent like earned ones). */ bonus?: number }
 
 export function earnedFor(counted: number, every: number): number {
   return every > 0 ? Math.floor(Math.max(0, counted) / every) : 0;
@@ -27,7 +27,7 @@ export function addDay(t: Tally, every: number): Tally {
 }
 
 export function availableRewards(t: Tally): number {
-  return Math.max(0, t.earned - t.used);
+  return Math.max(0, t.earned + (t.bonus ?? 0) - t.used);
 }
 
 export interface ProgressView {

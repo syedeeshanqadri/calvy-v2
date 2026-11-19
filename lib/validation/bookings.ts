@@ -34,6 +34,8 @@ export const bookingSchema = z
     verifiedTicket: z.preprocess(blankToUndef, z.string().max(800).optional()),
     /** One discount code per booking (Calvy's or the business's). Checked on the server. */
     couponCode: z.preprocess(blankToUndef, z.string().trim().max(40).optional()),
+    /** A friend's referral code (from the link they shared). Checked after the booking is made; it never blocks the booking. */
+    referralCode: z.preprocess(blankToUndef, z.string().trim().max(20).optional()),
   })
   .refine((b) => (b.serviceIds?.length ?? 0) > 0 || !!b.serviceId, {
     message: "serviceId or serviceIds is required",

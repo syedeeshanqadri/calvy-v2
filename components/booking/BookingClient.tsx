@@ -238,6 +238,8 @@ export function BookingClient({ business, fontClasses, homeHref = "/", followUp 
 
   // Loyalty reward: ask once the customer's own verified email is filled in (needs their signed link, ?vt=).
   const vt = searchParams?.get("vt") ?? "";
+  // A friend's referral code from the link they shared (?cref=CODE); the server decides whether it counts.
+  const referral = (searchParams?.get("cref") ?? "").trim().toUpperCase().slice(0, 20);
   useEffect(() => {
     if (!vt || !/^\S+@\S+\.\S+$/.test(form.email) || business.payConfig?.country !== "IN") return;
     let cancelled = false;
@@ -353,6 +355,7 @@ export function BookingClient({ business, fontClasses, homeHref = "/", followUp 
         body: JSON.stringify({
           businessSlug: business.slug,
           ...(discount?.ok && discount.code ? { couponCode: discount.code } : {}),
+          ...(referral ? { referralCode: referral } : {}),
           serviceIds: selectedServices,
           staffId: tokenMode ? null : selectedStaff === "any" ? null : selectedStaff,
           ...(tokenMode

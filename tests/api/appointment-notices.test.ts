@@ -16,6 +16,7 @@ const db = vi.hoisted(() => {
     payment: { findFirst: vi.fn() },
     confirmationWaiver: { updateMany: vi.fn(async () => ({ count: 0 })), findUnique: vi.fn(async () => null), count: vi.fn(async () => 0) },
     rewardRedemption: { findUnique: vi.fn(async () => null), deleteMany: vi.fn(async () => ({ count: 0 })) },
+    quarterlyPerk: { deleteMany: vi.fn(async () => ({ count: 0 })) },
     $executeRaw: vi.fn(),
   };
   d.$transaction = vi.fn(async (fn: (tx: unknown) => unknown) => fn(d));

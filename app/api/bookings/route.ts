@@ -36,6 +36,8 @@ import { suspended, suspendedResponse } from "@/lib/suspension";
 import { checkVerifiedLimits, getVerifiedLimits, isVerifiedBooker } from "@/lib/verifiedLimits";
 import { FollowUpTicketError, resolveFollowUp } from "@/lib/followUpDb";
 import { claimWaiver } from "@/lib/waiver";
+import { afterBooking } from "@/lib/rewards/referrals";
+import { deviceHash } from "@/lib/rewards/device";
 import { CouponUnavailableError, redeemForAppointment } from "@/lib/coupons/service";
 import { priceAfterDiscount, resolveBusinessDiscount } from "@/lib/offers/service";
 import { claimFeeCoupon, resolveCalvyFee } from "@/lib/coupons/booking";
@@ -521,10 +523,18 @@ async function bookingHandler(req: NextRequest) {
  * were held back (daily cap), so this cannot be used to send repeated emails to an address.
  */
 async function POST_handler(req: NextRequest) {
-  const raw = (await req.clone().json().catch(() => null)) as { clientEmail?: unknown; clientName?: unknown } | null;
+  const raw = (await req.clone().json().catch(() => null)) as { clientEmail?: unknown; clientName?: unknown; referralCode?: unknown } | null;
   const res = await bookingHandler(req);
   if (!res.ok) return res;
   const data = (await res.clone().json().catch(() => null)) as Record<string, unknown> | null;
+  // Remember this browser for the booker and, when they came with a friend's referral code, register it. Never affects the booking.
+  if (data?.success && typeof data.appointmentId === "string") {
+    try {
+      await afterBooking(prisma, { appointmentId: data.appointmentId, referralCode: typeof raw?.referralCode === "string" ? raw.referralCode : null, deviceHash: await deviceHash() });
+    } catch (err) {
+      logger.error("[Referral] could not record the booking", { err });
+    }
+  }
   if (!data?.success || data.confirmationWithheld) return res;
   let baseUrl: string | undefined;
   try { baseUrl = appBaseUrl(req); } catch { baseUrl = undefined; }
