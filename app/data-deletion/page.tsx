@@ -36,7 +36,7 @@ export default function DataDeletionPage() {
       <p>You can disconnect at any time yourself: in Calvy go to Settings &gt; WhatsApp and press Disconnect. That removes Calvy from your WhatsApp Business Account and deletes the access tokens we hold. You can also remove Calvy in your Facebook settings under Business Integrations. Disconnecting does not delete your Calvy account; to delete that too, send the email above.</p>
 
       <h2>If you booked as a customer</h2>
-      <p>Your booking details are shared with the business you booked with, and that business is responsible for how it uses them. Email us and we will delete the details we hold for you, and pass your request on to the business where we can. To stop WhatsApp or email messages without deleting anything, reply STOP to a WhatsApp message or use the unsubscribe link in an email.</p>
+      <p>If you have a customer account, you can request its deletion from your account page (you cannot while you have upcoming bookings). We wait 30 days, during which you can cancel, and then anonymise it: your name, email, phone number and sign-in details are removed, and the businesses keep their own booking records without your details. Your booking details are shared with the business you booked with, and that business is responsible for how it uses them. You can also email us and we will delete the details we hold for you, and pass your request on to the business where we can. To stop WhatsApp or email messages without deleting anything, reply STOP to a WhatsApp message or use the unsubscribe link in an email.</p>
 
       <p>More about how we handle data is in our <Link href="/privacy">Privacy Policy</Link>.</p>
     </LegalLayout>

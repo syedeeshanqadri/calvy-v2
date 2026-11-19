@@ -56,6 +56,7 @@ export default function PrivacyPolicyPage() {
 
       <h2>4. Data Retention</h2>
       <p>We retain your information for as long as your account is active or as needed to provide the Service. You may request deletion of your account and associated data at any time, subject to legal record-keeping obligations.</p>
+      <p><strong>Customer accounts.</strong> If you have a customer account (the one you use to see your bookings), you can ask for it to be deleted from your account page. You cannot ask while you have upcoming bookings. We email you a confirmation with a link to cancel, and wait 30 days: you can cancel at any time during that time and nothing changes. After 30 days we anonymise your account: your name becomes &quot;Deleted customer&quot;, and your email address, phone number, sign-in details, saved devices and referral codes are removed. The businesses you booked with keep their own booking records (the date, the service, the amount and the receipt) without your name, email or phone number, and your rewards history stays but can no longer be linked to you. Business owner accounts are handled separately, as described on our <Link href="/data-deletion">data deletion page</Link>.</p>
 
       <h2>5. Security</h2>
       <p>We use industry-standard technical and organizational measures to protect your data, including encryption in transit and access controls. However, no method of transmission or storage is completely secure, and we cannot guarantee absolute security.</p>

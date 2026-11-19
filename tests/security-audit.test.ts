@@ -74,7 +74,7 @@ describe("every API route is protected or on the reviewed public list", () => {
     "availability", "availability/month", "token-availability", "bookings",
     "customer/forgot-password", "customer/resend-verification", "customer/reset-password", "customer/signup", "customer/verify-email",
     "flags", "geo/rate", "region", "health", "leads", "signup", "track/[code]", "calendar/[token]",
-    "payments/status", "payments/mock/complete", "payments/cashfree/webhook", "payments/webhook/[key]", "subscriptions/webhook", "rewards/preview", "coupons/preview", "customer/member-link", "customer/member-link/open", "customer/device/forget", "data-deletion", "payments/return", "whatsapp/webhook", "whatsapp/webhook/[key]", "unsubscribe",
+    "payments/status", "payments/mock/complete", "payments/cashfree/webhook", "payments/webhook/[key]", "subscriptions/webhook", "rewards/preview", "coupons/preview", "customer/member-link", "customer/member-link/open", "customer/device/forget", "customer/deletion/cancel", "data-deletion", "payments/return", "whatsapp/webhook", "whatsapp/webhook/[key]", "unsubscribe",
   ]);
 
   const walk = (dir: string, out: string[] = []) => {
