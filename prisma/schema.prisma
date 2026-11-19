@@ -1165,6 +1165,9 @@ model SubscriptionInvoice {
   /// Price before credit, credit, and the total paid (all GST inclusive, paise); taxable + GST = total paid.
   grossMinor         Int
   creditMinor        Int          @default(0)
+  /// A plan coupon taken off this payment (shown as its own line), and its code.
+  couponMinor        Int          @default(0)
+  couponCode         String?
   amountMinor        Int
   taxableMinor       Int
   gstMinor           Int
@@ -1326,6 +1329,16 @@ model BusinessOffer {
   business    Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
   @@index([businessId, active])
+}
+
+/// The one-time free Rs 10 given when a person first reaches a tier (Silver). The unique key makes it once, however many visits cross the line.
+model TierGrant {
+  id        String   @id @default(cuid())
+  identity  String
+  tier      String
+  createdAt DateTime @default(now())
+
+  @@unique([identity, tier])
 }
 
 /// Gold's extra free Rs 10, one per calendar quarter (quarter key like "2026-Q4"). It expires at quarter end; the unique key stops a second use.

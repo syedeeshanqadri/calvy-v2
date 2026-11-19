@@ -97,7 +97,7 @@ export default async function MyOverviewPage() {
           {ladder && (
             <section aria-labelledby="ladder" className="bg-white rounded-2xl border border-[#e8e6e0] p-5">
               <h2 id="ladder" className="font-syne font-bold text-lg flex items-center gap-2"><Gift size={17} aria-hidden />Your rewards</h2>
-              <p className="text-sm mt-2"><strong>{ladder.label}</strong> · {ladder.attendedDays} attended {ladder.attendedDays === 1 ? "day" : "days"}</p>
+              <p className="text-sm mt-2 flex items-center gap-2 flex-wrap">{ladder.tier !== "NONE" && <span data-testid="tier-badge" className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold ${ladder.tier === "GOLD" ? "bg-amber-100 text-amber-800" : ladder.tier === "SILVER" ? "bg-slate-200 text-slate-700" : "bg-sky-100 text-sky-800"}`}>{ladder.label}</span>}<span>{ladder.attendedDays} attended {ladder.attendedDays === 1 ? "day" : "days"}</span></p>
               {ladder.next && <p className="text-xs text-[#6b6b80] mt-1">{ladder.next.daysNeeded} more attended {ladder.next.daysNeeded === 1 ? "day" : "days"} to {ladder.next.label}.</p>}
               {ladder.perks.length > 0 && (
                 <ul className="mt-3 space-y-1 text-sm list-disc pl-5">
@@ -105,7 +105,7 @@ export default async function MyOverviewPage() {
                 </ul>
               )}
               {ladder.tier === "GOLD" && <p className="text-xs text-[#6b6b80] mt-2">{ladder.perkReady ? "Your extra free Rs 10 for this quarter is ready. It ends when the quarter does." : "You have used this quarter's extra free Rs 10."}</p>}
-              <p className="text-xs text-[#6b6b80] mt-3">Visits count once the business marks them attended. Visiting again within 30 days earns an extra stamp.</p>
+              <p className="text-xs text-[#6b6b80] mt-3">Visits count once the business marks them attended. Visiting again within 30 days earns an extra stamp (once a month). Moving a booking is always free.</p>
               {referral && (
                 <div className="mt-4 border-t border-[#e8e6e0] pt-3">
                   <p className="text-sm font-semibold">Refer a friend</p>

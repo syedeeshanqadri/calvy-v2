@@ -27,6 +27,7 @@ function fakeDb(offer: { enabled: boolean; every: number } = { enabled: true, ev
       count: async ({ where }: { where: { identity: string; kind: string } }) => counts.filter((c) => c.identity === where.identity && (c.kind ?? "VISIT") === where.kind).length,
     },
     referral: { findUnique: async () => null },
+    tierGrant: { createMany: async () => ({ count: 0 }) },
     quarterlyPerk: { findUnique: async () => null, createMany: async () => ({ count: 0 }), deleteMany: async () => ({ count: 0 }) },
     rewardProgress: {
       findUnique: async ({ where }: { where: { offerId_identity: { offerId: string; identity: string } } }) => progress.get(pk(where)) ?? null,
@@ -59,21 +60,22 @@ function fakeDb(offer: { enabled: boolean; every: number } = { enabled: true, ev
   return { db: db as never, addAppt, appts, counts, progress, redemptions };
 }
 
-// Visits 40 days apart, so the 30-day comeback stamp (tested separately below) does not apply to the 7-day stamp tests.
-const dayIso = (i: number) => new Date(Date.UTC(2025, 0, 10 + i * 40, 8)).toISOString();
+const dayIso = (i: number) => `2026-03-${String(i + 1).padStart(2, "0")}T08:00:00Z`;
 const who = { email: "ann@x.com" };
 
-async function attend(f: ReturnType<typeof fakeDb>, days: number) {
-  for (let i = 0; i < days; i++) { f.addAppt(`a${i}`, {}, dayIso(i)); await recordAttended(f.db, `a${i}`); }
+// Consecutive days by default. A visit within 30 days of the last earns ONE comeback stamp per calendar month, so the tests that count stamps
+// exactly use `spaced` (visits 40 days apart: no comeback). The comeback rules themselves are tested in ladder-service.test.ts.
+async function attend(f: ReturnType<typeof fakeDb>, days: number, spaced = false) {
+  for (let i = 0; i < days; i++) { f.addAppt(`a${i}`, {}, spaced ? new Date(Date.UTC(2025, 0, 10 + i * 40, 8)).toISOString() : dayIso(i)); await recordAttended(f.db, `a${i}`); }
 }
 
 describe("recordAttended", () => {
   it("counts 7 attended days, then the reward is ready", async () => {
     const f = fakeDb();
-    await attend(f, 6);
+    await attend(f, 6, true);
     expect(await rewardAvailable(f.db, who)).toBe(false);
     expect(await progressFor(f.db, who)).toEqual({ done: 6, of: 7, available: 0 });
-    await attend(f, 7);
+    await attend(f, 7, true);
     expect(await progressFor(f.db, who)).toEqual({ done: 0, of: 7, available: 1 });
   });
   it("counts several bookings on the same business-local day once", async () => {
@@ -133,7 +135,7 @@ describe("claim and release", () => {
   });
   it("cannot be spent before it is earned, or while the offer is disabled", async () => {
     const f = fakeDb();
-    await attend(f, 6);
+    await attend(f, 6, true);
     expect(await claimReward(f.db, { appointmentId: "b1", ...who })).toBe(false);
     const g = fakeDb({ enabled: false, every: 7 });
     expect(await claimReward(g.db, { appointmentId: "b1", ...who })).toBe(false);
@@ -165,7 +167,7 @@ describe("claim and release", () => {
 describe("lookupProgress (admin)", () => {
   it("finds a person by email or phone", async () => {
     const f = fakeDb();
-    await attend(f, 3);
+    await attend(f, 3, true);
     const r = await lookupProgress(f.db, "ANN@x.com");
     expect(r?.counted).toBe(3);
     expect(r?.view).toEqual({ done: 3, of: 7, available: 0 });

@@ -167,7 +167,7 @@ export default function BillingClient({ data }: { data: BillingData }) {
                 <dl className="text-sm space-y-1">
                   <div className="flex justify-between"><dt>Plan price (GST included)</dt><dd>{rs(quote.grossMinor)}</dd></div>
                   {quote.creditMinor > 0 && <div className="flex justify-between text-emerald-700"><dt>Credit for the unused part of your current plan</dt><dd>- {rs(quote.creditMinor)}</dd></div>}
-                  {!!quote.couponMinor && <div className="flex justify-between text-emerald-700"><dt>Coupon {quote.coupon?.code}</dt><dd>- {rs(quote.couponMinor)}</dd></div>}
+                  {!!quote.couponMinor && <div className="flex justify-between text-emerald-700"><dt>Coupon {quote.coupon?.code} (−{rs(quote.couponMinor)})</dt><dd>- {rs(quote.couponMinor)}</dd></div>}
                   <div className="flex justify-between font-bold border-t border-[#e8e6e0] pt-1"><dt>Due now</dt><dd>{rs(quote.dueMinor)}</dd></div>
                 </dl>
                 <form className="flex flex-wrap items-center gap-2" onSubmit={(e) => { e.preventDefault(); if (code.trim()) void openQuote(pick.planId, code.trim()); }}>

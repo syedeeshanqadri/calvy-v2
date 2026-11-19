@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  COMEBACK_DAYS, REFERRAL_CAP_PER_MONTH, capReached, hasFreeReschedule, hasQuarterlyPerk, isComeback, isReferralCode, monthOf, needsReview,
+  COMEBACK_DAYS, GIFT_TIER, REFERRAL_CAP_PER_MONTH, TIERS, capReached, hasQuarterlyPerk, isComeback, istMonthOf, isReferralCode, monthOf, needsReview,
   nextTier, quarterOf, referralBlock, tierFor, tierLabel,
 } from "@/lib/rewards/ladder";
 import { availableRewards } from "@/lib/rewards/rules";
@@ -18,9 +18,14 @@ describe("tiers count attended days: Regular 3, Silver 10, Gold 25", () => {
     expect(nextTier(24)).toEqual({ id: "GOLD", label: "Gold", daysNeeded: 1 });
     expect(nextTier(25)).toBeNull();
   });
-  it("perks: free reschedule from Silver, the quarterly Rs 10 only at Gold", () => {
-    expect(["NONE", "REGULAR", "SILVER", "GOLD"].map((t) => hasFreeReschedule(t as never))).toEqual([false, false, true, true]);
+  it("the quarterly Rs 10 is only for Gold", () => {
     expect(["NONE", "REGULAR", "SILVER", "GOLD"].map((t) => hasQuarterlyPerk(t as never))).toEqual([false, false, false, true]);
+  });
+  it("Silver's perk is a one-time free Rs 10; free reschedule is NOT a tier perk (it is for everyone)", () => {
+    expect(GIFT_TIER).toBe("SILVER");
+    const text = TIERS.flatMap((t) => t.perks).join(" ").toLowerCase();
+    expect(text).toContain("one-time free rs 10");
+    expect(text).not.toContain("reschedule");
   });
 });
 
@@ -33,6 +38,14 @@ describe("quarters and months", () => {
     expect(() => quarterOf("bad")).toThrow();
   });
   it("month key", () => expect(monthOf(new Date("2026-11-20T10:00:00Z"))).toBe("2026-11"));
+});
+
+describe("India-time month (the comeback cap's calendar month)", () => {
+  it("uses India time, not UTC", () => {
+    expect(istMonthOf(new Date("2026-01-31T20:00:00Z"))).toBe("2026-02"); // 01:30 IST on 1 Feb
+    expect(istMonthOf(new Date("2026-01-31T18:00:00Z"))).toBe("2026-01"); // 23:30 IST on 31 Jan
+    expect(istMonthOf(new Date("2026-12-31T18:30:00Z"))).toBe("2027-01"); // midnight IST on 1 Jan
+  });
 });
 
 describe("comeback: attending 1 to 30 days after the previous attended day", () => {

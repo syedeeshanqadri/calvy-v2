@@ -88,11 +88,11 @@ async function sendNotice(sub: Subscription, kind: Parameters<typeof subscriptio
 
 /* ── Invoices ── */
 
-async function issueInvoice(tx: Prisma.TransactionClient, sub: Subscription, i: { paymentKey: string; grossMinor: number; creditMinor: number; periodStart: Date; periodEnd: Date; now: Date; method: string | null }) {
+async function issueInvoice(tx: Prisma.TransactionClient, sub: Subscription, i: { paymentKey: string; grossMinor: number; creditMinor: number; couponMinor?: number; couponCode?: string | null; periodStart: Date; periodEnd: Date; now: Date; method: string | null }) {
   const existing = await tx.subscriptionInvoice.findUnique({ where: { paymentKey: i.paymentKey } });
   if (existing) return { invoice: existing, created: false as const };
   const issuer = invoiceIssuer();
-  const lines = invoiceLines({ grossMinor: i.grossMinor, creditMinor: i.creditMinor, gstin: issuer.gstin, gstRatePercent: issuer.gstRatePercent });
+  const lines = invoiceLines({ grossMinor: i.grossMinor, creditMinor: i.creditMinor, couponMinor: i.couponMinor, gstin: issuer.gstin, gstRatePercent: issuer.gstRatePercent });
   const fy = financialYear(i.now);
   // Atomic per-year counter: two invoices can never get the same number.
   const counter = await tx.invoiceCounter.upsert({ where: { fy }, create: { fy, last: 1 }, update: { last: { increment: 1 } } });
@@ -100,11 +100,18 @@ async function issueInvoice(tx: Prisma.TransactionClient, sub: Subscription, i: 
     data: {
       businessId: sub.businessId, subscriptionId: sub.id, number: invoiceNumber(fy, counter.last), kind: lines.kind, paymentKey: i.paymentKey,
       planId: sub.planId, interval: sub.interval, periodStart: i.periodStart, periodEnd: i.periodEnd,
-      grossMinor: lines.grossMinor, creditMinor: lines.creditMinor, amountMinor: lines.amountMinor, taxableMinor: lines.taxableMinor, gstMinor: lines.gstMinor,
+      grossMinor: lines.grossMinor, creditMinor: lines.creditMinor, couponMinor: lines.couponMinor, couponCode: lines.couponMinor > 0 ? i.couponCode ?? null : null, amountMinor: lines.amountMinor, taxableMinor: lines.taxableMinor, gstMinor: lines.gstMinor,
       gstRate: lines.gstRate, paymentMethodLabel: i.method, issuedAt: i.now,
     },
   });
   return { invoice, created: true as const };
+}
+
+/** The first payment's discounts: the proration credit and the plan coupon are separate lines on the invoice (the coupon is stored folded into creditMinor). */
+async function firstInvoiceDiscounts(tx: Prisma.TransactionClient, sub: Subscription): Promise<{ creditMinor: number; couponMinor: number; couponCode: string | null }> {
+  const couponMinor = Math.min(sub.couponMinor, sub.creditMinor);
+  const code = couponMinor > 0 && sub.couponId ? (await tx.coupon.findUnique({ where: { id: sub.couponId }, select: { code: true } }))?.code ?? null : null;
+  return { creditMinor: sub.creditMinor - couponMinor, couponMinor, couponCode: code };
 }
 
 const methodLabel = (m: string | null | undefined) => (m === "upi" ? "UPI Autopay" : m === "card" ? "Card" : m === "enach" ? "Bank e-mandate" : null);
@@ -220,7 +227,7 @@ export async function onAuthorised(cashfreeSubscriptionId: string, info: { metho
       return "authorised" as const;
     }
     const end = addInterval(now, sub.interval as Interval);
-    const { invoice, created } = await issueInvoice(tx, sub, { paymentKey: `first:${sub.id}`, grossMinor: sub.amountMinor, creditMinor: sub.creditMinor, periodStart: now, periodEnd: end, now, method: label });
+    const { invoice, created } = await issueInvoice(tx, sub, { paymentKey: `first:${sub.id}`, grossMinor: sub.amountMinor, ...(await firstInvoiceDiscounts(tx, sub)), periodStart: now, periodEnd: end, now, method: label });
     await tx.subscription.update({ where: { id: sub.id }, data: { state: "ACTIVE", currentPeriodStart: now, currentPeriodEnd: end, nextChargeAt: end, paymentMethodLabel: label, failedCount: 0, firstFailedAt: null, graceUntil: null, dunningSent: 0 } });
     if (sub.upgradeOfId) {
       const old = await tx.subscription.findUnique({ where: { id: sub.upgradeOfId } });
@@ -271,7 +278,7 @@ export async function onChargeSucceeded(cashfreeSubscriptionId: string, p: { pay
     const start = first ? now : sub.currentPeriodEnd ?? now;
     const end = addInterval(start, sub.interval as Interval);
     const label = methodLabel(p.method) ?? sub.paymentMethodLabel;
-    const { invoice } = await issueInvoice(tx, sub, { paymentKey: p.paymentId, grossMinor: sub.amountMinor, creditMinor: first ? sub.creditMinor : 0, periodStart: start, periodEnd: end, now, method: label });
+    const { invoice } = await issueInvoice(tx, sub, { paymentKey: p.paymentId, grossMinor: sub.amountMinor, ...(first ? await firstInvoiceDiscounts(tx, sub) : { creditMinor: 0 }), periodStart: start, periodEnd: end, now, method: label });
     await tx.subscription.update({ where: { id: sub.id }, data: { state: "ACTIVE", currentPeriodStart: start, currentPeriodEnd: end, nextChargeAt: end, chargePaymentId: null, chargeRaisedAt: null, failedCount: 0, firstFailedAt: null, graceUntil: null, dunningSent: 0, lastChargeRetryAt: null, paymentMethodLabel: label } });
     if (first && sub.upgradeOfId) {
       const old = await tx.subscription.findUnique({ where: { id: sub.upgradeOfId } });

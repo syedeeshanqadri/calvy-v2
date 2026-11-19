@@ -20,6 +20,7 @@ function fakeDb(o: { enabled?: boolean; prior?: number; clients?: { email: strin
   const codes: { identity: string; code: string }[] = [];
   const devices: { identity: string; deviceHash: string }[] = [];
   const perks: { identity: string; quarter: string; appointmentId: string }[] = [];
+  const grants: { identity: string; tier: string }[] = [];
   let n = 0;
   const pk = (w: { offerId_identity: { offerId: string; identity: string } }) => `${w.offerId_identity.offerId}|${w.offerId_identity.identity}`;
   const db: Record<string, unknown> = {
@@ -47,7 +48,12 @@ function fakeDb(o: { enabled?: boolean; prior?: number; clients?: { email: strin
         progress.set(pk(where), row);
         return { ...row };
       },
-      update: async ({ where, data }: { where: { id: string }; data: { earned: number } }) => { const r = [...progress.values()].find((p) => p.id === where.id)!; r.earned = data.earned; return r; },
+      update: async ({ where, data }: { where: { id: string }; data: { earned?: number; bonus?: { increment: number } } }) => {
+        const r = [...progress.values()].find((p) => p.id === where.id)!;
+        if (data.earned !== undefined) r.earned = data.earned;
+        if (data.bonus) r.bonus += data.bonus.increment;
+        return r;
+      },
       updateMany: async ({ where, data }: { where: { id?: string; used?: number | { gt: number }; offerId?: string; identity?: string }; data: { used: { increment?: number; decrement?: number } } }) => {
         const r = [...progress.values()].find((p) => (where.id ? p.id === where.id : p.offerId === where.offerId && p.identity === where.identity));
         if (!r) return { count: 0 };
@@ -61,6 +67,13 @@ function fakeDb(o: { enabled?: boolean; prior?: number; clients?: { email: strin
       create: async ({ data }: { data: { offerId: string; identity: string; appointmentId: string } }) => { redemptions.push({ id: `r${++n}`, ...data }); },
       findUnique: async ({ where }: { where: { appointmentId: string } }) => redemptions.find((r) => r.appointmentId === where.appointmentId) ?? null,
       deleteMany: async ({ where }: { where: { id: string } }) => { const i = redemptions.findIndex((r) => r.id === where.id); if (i < 0) return { count: 0 }; redemptions.splice(i, 1); return { count: 1 }; },
+    },
+    tierGrant: {
+      createMany: async ({ data }: { data: { identity: string; tier: string }[] }) => {
+        let c = 0;
+        for (const d of data) if (!grants.some((g) => g.identity === d.identity && g.tier === d.tier)) { grants.push(d); c++; }
+        return { count: c };
+      },
     },
     quarterlyPerk: {
       findUnique: async ({ where }: { where: { identity_quarter: { identity: string; quarter: string } } }) => perks.find((p) => p.identity === where.identity_quarter.identity && p.quarter === where.identity_quarter.quarter) ?? null,
@@ -103,7 +116,7 @@ function fakeDb(o: { enabled?: boolean; prior?: number; clients?: { email: strin
   db.$transaction = async (fn: (tx: unknown) => unknown) => fn(db);
   const addAppt = (id: string, over: Partial<Appt> = {}, iso = "2026-03-10T08:00:00Z") =>
     appts.set(id, { id, status: "completed", source: "ONLINE", date: new Date(iso), client: { email: "ann@x.com", phone: null }, business: { timezone: "Asia/Kolkata" }, ...over });
-  return { db: db as never, addAppt, counts, progress, referrals, codes, devices, perks, redemptions };
+  return { db: db as never, addAppt, counts, progress, referrals, codes, devices, perks, redemptions, grants };
 }
 type F = ReturnType<typeof fakeDb>;
 const day = (n: number) => new Date(Date.UTC(2026, 0, 1 + n, 8)).toISOString();
@@ -118,6 +131,30 @@ describe("comeback stamp", () => {
     expect(counted(f)).toBe(1);
     await attend(f, "a2", 10);
     expect(counted(f)).toBe(3);
+  });
+  it("at most ONE comeback stamp per calendar month: visits on days 0, 5 and 10 of January earn it once", async () => {
+    const f = fakeDb();
+    await attend(f, "a1", 0);
+    await attend(f, "a2", 5);
+    await attend(f, "a3", 10);
+    expect(counted(f)).toBe(4); // 3 visits + 1 comeback, not 5
+    expect(f.counts.filter((c) => c.kind === "COMEBACK")).toHaveLength(1);
+  });
+  it("the cap resets next month: a visit in February within 30 days of the last earns it again", async () => {
+    const f = fakeDb();
+    await attend(f, "a1", 0);   // 1 Jan
+    await attend(f, "a2", 5);   // 6 Jan: comeback (January)
+    await attend(f, "a3", 10);  // 11 Jan: capped
+    await attend(f, "a4", 35);  // 5 Feb, 25 days after 11 Jan: comeback (February)
+    expect(counted(f)).toBe(6); // 4 visits + 2 comebacks
+    expect(f.counts.filter((c) => c.kind === "COMEBACK").map((c) => c.day)).toEqual(["2026-01~comeback", "2026-02~comeback"]);
+  });
+  it("the month is India's: a visit at 01:30 IST on 1 February is a February visit even though it is 31 January in UTC", async () => {
+    const f = fakeDb();
+    f.addAppt("j1", {}, "2026-01-10T08:00:00Z"); await recordAttended(f.db, "j1");
+    f.addAppt("j2", {}, "2026-01-20T08:00:00Z"); await recordAttended(f.db, "j2"); // January comeback
+    f.addAppt("f1", {}, "2026-01-31T20:00:00Z"); await recordAttended(f.db, "f1"); // 1 Feb IST: a new month, so a new comeback
+    expect(f.counts.filter((c) => c.kind === "COMEBACK").map((c) => c.day)).toEqual(["2026-01~comeback", "2026-02~comeback"]);
   });
   it("not after 31 days, and the first visit never earns it", async () => {
     const f = fakeDb();
@@ -147,13 +184,55 @@ describe("comeback stamp", () => {
   });
 });
 
+describe("Silver: a ONE-TIME free Rs 10 on reaching the tier", () => {
+  const bonus = (f: F) => [...f.progress.values()][0]?.bonus ?? 0;
+  it("is granted when the 10th attended day is reached, not before", async () => {
+    const f = fakeDb();
+    for (let i = 0; i < 9; i++) await attend(f, `s${i}`, i * 40);
+    expect(bonus(f)).toBe(0);
+    expect(f.grants).toHaveLength(0);
+    await attend(f, "s9", 9 * 40);
+    expect(bonus(f)).toBe(1);
+    expect(f.grants).toEqual([{ identity: "e:ann@x.com", tier: "SILVER" }]);
+  });
+  it("only once: more visits, and reaching Gold, never grant it again", async () => {
+    const f = fakeDb();
+    for (let i = 0; i < 30; i++) await attend(f, `s${i}`, i * 40);
+    expect(bonus(f)).toBe(1);
+    expect(f.grants).toHaveLength(1);
+  });
+  it("is granted once even when a comeback jumps the count over the line (two stamps at once)", async () => {
+    const f = fakeDb();
+    for (let i = 0; i < 8; i++) await attend(f, `s${i}`, i * 40); // 8 stamps
+    await attend(f, "c1", 7 * 40 + 10);   // comeback: 8 -> 10 in one visit
+    expect(counted(f)).toBe(10);
+    expect(bonus(f)).toBe(1);
+  });
+  it("is spendable like any reward (it counts as an available free confirmation)", async () => {
+    const f = fakeDb();
+    for (let i = 0; i < 10; i++) await attend(f, `s${i}`, i * 40);
+    // 10 days: floor(10/7) = 1 stamp reward + the Silver gift = 2 ready
+    expect((await progressFor(f.db, ann))?.available).toBe(2);
+    expect(await claimReward(f.db, { appointmentId: "b1", ...ann })).toBe(true);
+    expect(await claimReward(f.db, { appointmentId: "b2", ...ann })).toBe(true);
+    expect(await claimReward(f.db, { appointmentId: "b3", ...ann })).toBe(false);
+  });
+  it("attended-only: no-shows and cancelled bookings never take someone to Silver", async () => {
+    const f = fakeDb();
+    for (let i = 0; i < 12; i++) await attend(f, `n${i}`, i * 40, { status: i % 2 ? "no-show" : "completed" });
+    expect(counted(f)).toBe(6);
+    expect(f.grants).toHaveLength(0);
+  });
+});
+
 describe("tiers and Gold's quarterly perk", () => {
   async function gold(f: F) { for (let i = 0; i < 25; i++) await attend(f, `g${i}`, i * 40); }
   it("shows the tier, what is next and the perks", async () => {
     const f = fakeDb();
     for (let i = 0; i < 10; i++) await attend(f, `s${i}`, i * 40);
     const v = await ladderFor(f.db, ann);
-    expect(v).toEqual(expect.objectContaining({ tier: "SILVER", attendedDays: 10, freeReschedule: true, perkReady: false }));
+    expect(v).toEqual(expect.objectContaining({ tier: "SILVER", label: "Silver", attendedDays: 10, perkReady: false }));
+    expect(v?.perks.join(" ")).toContain("one-time free Rs 10");
     expect(v?.next).toEqual({ label: "Gold", daysNeeded: 15 });
   });
   describe("with Gold", () => {
@@ -345,13 +424,14 @@ describe("admin review", () => {
   });
 });
 
-describe("Silver's free reschedule keeps the confirmation (source check)", () => {
-  it("the customer reschedule flow moves the same booking and never creates a payment or a new charge", async () => {
+describe("Free reschedule is for everyone (source check)", () => {
+  it("the customer reschedule flow, open to every customer, moves the same booking and never creates a payment or a new charge", async () => {
     const fs = await import("node:fs");
     const src = fs.readFileSync("lib/customerAppointments.ts", "utf8");
     const start = src.indexOf("export async function rescheduleByCustomer");
     const body = src.slice(start, src.indexOf("export async function", start + 10) > 0 ? src.indexOf("export async function", start + 10) : undefined);
     expect(body).toMatch(/appointment\.updateMany/);
     expect(body).not.toMatch(/payment\.create|startCheckout|chargeFor|computeCharge/);
+    expect(body).not.toMatch(/ladderFor|tierFor|SILVER|GOLD/); // no tier decides it
   });
 });

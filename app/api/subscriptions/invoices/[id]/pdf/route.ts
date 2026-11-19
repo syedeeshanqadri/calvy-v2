@@ -17,7 +17,7 @@ async function GET_handler(_req: NextRequest, { params }: Ctx) {
   if (!inv) return NextResponse.json({ error: "Not found" }, { status: 404 });
   const bytes = await buildInvoicePdf({
     number: inv.number, kind: inv.kind === "TAX_INVOICE" ? "TAX_INVOICE" : "RECEIPT", issuedAt: inv.issuedAt, planId: inv.planId, interval: inv.interval,
-    periodStart: inv.periodStart, periodEnd: inv.periodEnd, grossMinor: inv.grossMinor, creditMinor: inv.creditMinor, amountMinor: inv.amountMinor,
+    periodStart: inv.periodStart, periodEnd: inv.periodEnd, grossMinor: inv.grossMinor, creditMinor: inv.creditMinor, couponMinor: inv.couponMinor, couponCode: inv.couponCode, amountMinor: inv.amountMinor,
     taxableMinor: inv.taxableMinor, gstMinor: inv.gstMinor, gstRate: inv.gstRate, paymentMethodLabel: inv.paymentMethodLabel,
     customer: { businessName: inv.business.name, email: inv.business.email ?? inv.business.owner?.email ?? null }, issuer: invoiceIssuer(),
   });

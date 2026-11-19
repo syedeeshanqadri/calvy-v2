@@ -7,7 +7,7 @@ import type { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { safeTimeZone, utcToZoned } from "@/lib/time";
 import { LOYALTY_KEY, countsTowardReward, earnedFor, identityKey, progressView, type ProgressView, type Tally } from "./rules";
-import { hasQuarterlyPerk, isComeback, nextTier, quarterOf, tierFor, hasFreeReschedule, TIERS, type TierId } from "./ladder";
+import { GIFT_TIER, SILVER_MIN, hasQuarterlyPerk, isComeback, istMonthOf, nextTier, quarterOf, tierFor, TIERS, type TierId } from "./ladder";
 import { qualifyReferral } from "./referrals";
 
 type Db = Prisma.TransactionClient | typeof prisma;
@@ -35,11 +35,12 @@ export async function recordAttended(db: Db, appointmentId: string): Promise<boo
   // skipDuplicates (ON CONFLICT DO NOTHING): a repeat never raises, so this is safe inside a booking/queue transaction too.
   const made = await db.rewardCount.createMany({ data: [{ offerId: offer.id, identity, day, kind: "VISIT", appointmentId }], skipDuplicates: true });
   if (made.count !== 1) return false;
-  // Comeback: attending within 30 days of the previous attended day earns one extra stamp (once per day, attended days only).
+  // Comeback: attending within 30 days of the previous attended day earns one extra stamp, at most ONE per calendar month (India time).
+  // The month is part of the unique key, so a second one in the same month is refused by the database itself.
   const previous = await db.rewardCount.findFirst({ where: { offerId: offer.id, identity, kind: "VISIT", day: { lt: day } }, orderBy: { day: "desc" }, select: { day: true } });
   let stamps = 1;
   if (isComeback(previous?.day ?? null, day)) {
-    const bonus = await db.rewardCount.createMany({ data: [{ offerId: offer.id, identity, day: `${day}~comeback`, kind: "COMEBACK", appointmentId }], skipDuplicates: true });
+    const bonus = await db.rewardCount.createMany({ data: [{ offerId: offer.id, identity, day: `${istMonthOf(appt.date)}~comeback`, kind: "COMEBACK", appointmentId }], skipDuplicates: true });
     if (bonus.count === 1) stamps = 2;
   }
   // Increment first (atomic), then derive `earned` from the stored count, so two days counted at once cannot lose a reward.
@@ -47,6 +48,11 @@ export async function recordAttended(db: Db, appointmentId: string): Promise<boo
   const row = await db.rewardProgress.upsert({ where: key, create: { offerId: offer.id, identity, counted: stamps, earned: earnedFor(stamps, offer.every) }, update: { counted: { increment: stamps } } });
   const earned = earnedFor(row.counted, offer.every);
   if (earned !== row.earned) await db.rewardProgress.update({ where: { id: row.id }, data: { earned } });
+  // Reaching Silver gives a ONE-TIME free Rs 10 (the unique key makes it once, however the count crosses the line, even by two stamps at once).
+  if (row.counted >= SILVER_MIN) {
+    const gift = await db.tierGrant.createMany({ data: [{ identity, tier: GIFT_TIER }], skipDuplicates: true });
+    if (gift.count === 1) await db.rewardProgress.update({ where: { id: row.id }, data: { bonus: { increment: 1 } } });
+  }
   // A referred friend's FIRST attended visit pays out the referral (both get a free Rs 10). Never lets a failure undo the count.
   if ((await db.rewardCount.count({ where: { offerId: offer.id, identity, kind: "VISIT" } })) === 1) {
     try { await qualifyReferral(db, offer.id, identity); } catch (err) { logger.error("[Rewards] referral payout failed", { err }); }
@@ -100,7 +106,6 @@ export interface LadderView {
   attendedDays: number;
   next: { label: string; daysNeeded: number } | null;
   perks: string[];
-  freeReschedule: boolean;
   perkReady: boolean;
 }
 
@@ -116,7 +121,7 @@ export async function ladderFor(db: Db, c: { email?: string | null; phone?: stri
     return {
       tier, label: tier === "NONE" ? "Not yet" : (TIERS.find((x) => x.id === tier)?.label ?? ""), attendedDays: t.counted,
       next: n ? { label: n.label, daysNeeded: n.daysNeeded } : null,
-      perks: TIERS.find((x) => x.id === tier)?.perks ?? [], freeReschedule: hasFreeReschedule(tier), perkReady: await perkReady(db, identity, t.counted),
+      perks: TIERS.find((x) => x.id === tier)?.perks ?? [], perkReady: await perkReady(db, identity, t.counted),
     };
   } catch (err) {
     logger.error("[Rewards] ladder lookup failed", { err });

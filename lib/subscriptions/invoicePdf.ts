@@ -14,6 +14,9 @@ export interface InvoicePdfInput {
   periodEnd: Date;
   grossMinor: number;
   creditMinor: number;
+  /** A plan coupon, its own line (optional so older callers keep working). */
+  couponMinor?: number;
+  couponCode?: string | null;
   amountMinor: number;
   taxableMinor: number;
   gstMinor: number;
@@ -55,6 +58,7 @@ export async function buildInvoicePdf(i: InvoicePdfInput): Promise<Uint8Array> {
   const desc = `Calvy ${planName(i.planId)} plan, ${i.interval === "YEARLY" ? "yearly" : "monthly"} (${date(i.periodStart)} to ${date(i.periodEnd)})`;
   text(desc, 50, 10); right(rs(i.grossMinor), 545, 10); y -= 16;
   if (i.creditMinor > 0) { text("Credit for the unused part of your previous plan", 50, 10); right(`- ${rs(i.creditMinor)}`, 545, 10); y -= 16; }
+  if ((i.couponMinor ?? 0) > 0) { text(`Coupon ${i.couponCode ?? ""} (-${rs(i.couponMinor ?? 0)})`.replace("Coupon  ", "Coupon "), 50, 10); right(`- ${rs(i.couponMinor ?? 0)}`, 545, 10); y -= 16; }
   y -= 4; line(); y -= 18;
   if (i.kind === "TAX_INVOICE") {
     text("Taxable value", 300, 10); right(rs(i.taxableMinor), 545, 10); y -= 15;

@@ -113,6 +113,8 @@ export interface InvoiceLines {
   kind: "TAX_INVOICE" | "RECEIPT";
   grossMinor: number;
   creditMinor: number;
+  /** A plan coupon, shown as its own line. */
+  couponMinor: number;
   amountMinor: number;
   taxableMinor: number;
   gstMinor: number;
@@ -123,11 +125,12 @@ export interface InvoiceLines {
  * With a GSTIN: a tax invoice, the amount paid split into taxable value and GST (prices are GST inclusive). Without one: a plain receipt,
  * no GST line (taxable = total, GST = 0), because Calvy may not be GST registered yet.
  */
-export function invoiceLines(i: { grossMinor: number; creditMinor: number; gstin: string | null; gstRatePercent: number }): InvoiceLines {
-  const amountMinor = Math.max(0, i.grossMinor - i.creditMinor);
-  if (!i.gstin) return { kind: "RECEIPT", grossMinor: i.grossMinor, creditMinor: i.creditMinor, amountMinor, taxableMinor: amountMinor, gstMinor: 0, gstRate: 0 };
+export function invoiceLines(i: { grossMinor: number; creditMinor: number; couponMinor?: number; gstin: string | null; gstRatePercent: number }): InvoiceLines {
+  const couponMinor = Math.max(0, i.couponMinor ?? 0);
+  const amountMinor = Math.max(0, i.grossMinor - i.creditMinor - couponMinor);
+  if (!i.gstin) return { kind: "RECEIPT", grossMinor: i.grossMinor, creditMinor: i.creditMinor, couponMinor, amountMinor, taxableMinor: amountMinor, gstMinor: 0, gstRate: 0 };
   const { baseMinor, gstMinor } = gstSplit(amountMinor, i.gstRatePercent);
-  return { kind: "TAX_INVOICE", grossMinor: i.grossMinor, creditMinor: i.creditMinor, amountMinor, taxableMinor: baseMinor, gstMinor, gstRate: i.gstRatePercent };
+  return { kind: "TAX_INVOICE", grossMinor: i.grossMinor, creditMinor: i.creditMinor, couponMinor, amountMinor, taxableMinor: baseMinor, gstMinor, gstRate: i.gstRatePercent };
 }
 
 /* ── Failed payments ── */
