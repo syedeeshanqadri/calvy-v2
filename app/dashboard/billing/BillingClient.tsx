@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { formatCurrencyAmount } from "@/lib/currency";
+import { loadPaymentScript, notStarted } from "@/lib/loadPaymentScript";
 
 type Interval = "MONTHLY" | "YEARLY";
 export interface BillingData {
@@ -36,15 +37,6 @@ interface RzpResponse { razorpay_payment_id: string; razorpay_subscription_id: s
 type RazorpayCtor = new (o: { key: string; subscription_id: string; name: string; description: string; handler: (r: RzpResponse) => void; modal?: { ondismiss?: () => void } }) => { open(): void };
 
 type CashfreeFactory = (o: { mode: "sandbox" | "production" }) => { subscriptionsCheckout(o: { subsSessionId: string; redirectTarget: "_self" }): Promise<unknown> };
-function loadScript(src: string): Promise<void> {
-  return new Promise((resolve, reject) => {
-    if (document.querySelector(`script[src="${src}"]`)) return resolve();
-    const el = document.createElement("script");
-    el.src = src; el.async = true; el.onload = () => resolve(); el.onerror = () => reject(new Error("Could not load the payment page."));
-    document.head.appendChild(el);
-  });
-}
-
 export default function BillingClient({ data }: { data: BillingData }) {
   const rs = (minor: number) => formatCurrencyAmount(minor / 100, data.currency);
   const intl = data.gateway === "RAZORPAY";
@@ -86,18 +78,18 @@ export default function BillingClient({ data }: { data: BillingData }) {
         await openRazorpay(r.json.keyId, r.json.razorpaySubscriptionId, "Calvy plan");
         return;
       }
-      await loadScript(CASHFREE_SDK);
+      await loadPaymentScript(CASHFREE_SDK, "Cashfree");
       const factory = (window as unknown as { Cashfree?: CashfreeFactory }).Cashfree;
-      if (!factory) throw new Error("Could not load the payment page.");
+      if (!factory) throw notStarted("Cashfree", CASHFREE_SDK);
       await factory({ mode: r.json.env }).subscriptionsCheckout({ subsSessionId: r.json.sessionId, redirectTarget: "_self" });
     } catch (e) { setError((e as Error).message); } finally { setBusy(false); }
   }
 
   /** Razorpay Checkout for a subscription (or a replacement card). On success the server verifies the signature and activates the plan at once. */
   async function openRazorpay(keyId: string, subscriptionId: string, description: string) {
-    await loadScript(RAZORPAY_SDK);
+    await loadPaymentScript(RAZORPAY_SDK, "Razorpay");
     const Ctor = (window as unknown as { Razorpay?: RazorpayCtor }).Razorpay;
-    if (!Ctor) throw new Error("Could not load the payment page.");
+    if (!Ctor) throw notStarted("Razorpay", RAZORPAY_SDK);
     new Ctor({
       key: keyId, subscription_id: subscriptionId, name: "Calvy", description,
       handler: async (resp) => {
