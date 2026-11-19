@@ -2,7 +2,7 @@ import * as React from "react";
 import { render } from "@react-email/render";
 import {
   BookingCancellationEmail, QueueNextEmail, BookingConfirmationEmail, BookingReminderEmail, BookingRescheduleEmail, BusinessAlertEmail, BusinessLiveEmail,
-  CustomerAccountSetupEmail, DeletionRequestedEmail, LevelUpEmail, MemberLinkEmail, CustomerResetEmail, CustomerVerifyEmail, DailySummaryEmail, EmailVerificationEmail, InvoiceEmail, LeadAcknowledgmentEmail, MeetingLinkEmail,
+  BillingLinksModeEmail, CustomerAccountSetupEmail, DeletionRequestedEmail, LevelUpEmail, MemberLinkEmail, CustomerResetEmail, CustomerVerifyEmail, DailySummaryEmail, EmailVerificationEmail, InvoiceEmail, LeadAcknowledgmentEmail, MeetingLinkEmail,
   SubscriptionNoticeEmail, subscriptionNoticeLines, subscriptionNoticeSubject,
   PasswordResetEmail, OwnerAccountSetupEmail, TeamInviteEmail, QueueClosedEmail, QueueMovedBackEmail, ReviewRequestEmail, StatusChangeEmail, WelcomeEmail, businessAlertHeadline,
   type SubscriptionNoticeProps, type BookingProps, type BusinessAlertProps, type DailySummaryProps, type InvoiceProps,
@@ -245,6 +245,11 @@ export const TEMPLATES = {
     subject: () => "Your account deletion request",
     Email: (p) => <DeletionRequestedEmail name={p.name} executeAfterLabel={p.executeAfterLabel} cancelUrl={p.secret} />,
     text: (p) => lines(`Hi ${first(p.name)}, we received your request to delete your Calvy account. We will delete it on ${p.executeAfterLabel}. Until then nothing changes.`, `To keep your account, cancel the request here: ${p.secret}`, "After that date your name, email, phone number and login are removed. Businesses keep their own booking records without your details."),
+  }),
+  billing_links_mode: define<{ businessName: string; businessId: string; reason: string; adminUrl: string }>({
+    subject: (p) => `Links mode: ${p.businessName}`,
+    Email: (p) => <BillingLinksModeEmail {...p} />,
+    text: (p) => lines(`Razorpay refused recurring card billing for ${p.businessName} (${p.businessId}), so it was put on renewal payment links with email reminders.`, `Reason: ${p.reason}`, p.adminUrl),
   }),
   member_link: define<{ name: string; secret: string }>({
     subject: () => "Sign in to pay your member price",

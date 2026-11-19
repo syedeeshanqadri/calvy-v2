@@ -13,13 +13,13 @@ import { paymentBaseUrl } from "@/lib/paymentUrls";
 import { formatDateLabel } from "@/lib/time";
 import {
   addInterval, classifyChange, desiredPlan, dunningDue, financialYear, graceEnd, invoiceLines, invoiceNumber, isPaidPlan, mandateCheck,
-  overrideActive, planAmountMinor, planName, quoteUpgrade, retryDue, type Interval, type PaidPlanId,
+  overrideActive, planAmountMinor, planName, quoteUpgrade, retryDue, planPriceFor, taxKindFor, type Interval, type PaidPlanId,
 } from "@/lib/subscriptions/rules";
 import { getSubsClient, type SubsClient } from "@/lib/subscriptions/cashfree";
 
 type Db = typeof prisma | Prisma.TransactionClient;
-const TX = { timeout: 20_000, maxWait: 10_000 } as const;
-const lock = (tx: Prisma.TransactionClient, id: string) => tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${"sub:" + id}, 0))`;
+export const TX = { timeout: 20_000, maxWait: 10_000 } as const;
+export const lock = (tx: Prisma.TransactionClient, id: string) => tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${"sub:" + id}, 0))`;
 const intervalLabel = (i: string) => (i === "YEARLY" ? "yearly" : "monthly");
 const inr = (minor: number) => formatCurrencyAmount(minor / 100, "INR");
 const dateLabel = (d: Date) => formatDateLabel(d, "Asia/Kolkata");
@@ -32,6 +32,8 @@ export function invoiceIssuer(env: NodeJS.ProcessEnv = process.env) {
     legalName: clean(env.CALVY_LEGAL_NAME) || null,
     address: clean(env.CALVY_ADDRESS) || null,
     gstin: clean(env.CALVY_GSTIN).toUpperCase() || null,
+    /** Letter of Undertaking number: set = exports are zero-rated and USD invoices carry no tax line; empty = IGST applies. */
+    lutNumber: clean(env.CALVY_LUT_NUMBER) || null,
     cin: clean(env.CALVY_CIN) || null,
     gstRatePercent: Number.isFinite(rate) && rate >= 0 && rate <= 100 ? rate : 18,
   };
@@ -76,7 +78,7 @@ async function noticeContext(db: Db, sub: Subscription) {
   return b && to ? { to, name: b.owner?.name ?? "there", businessName: b.name } : null;
 }
 
-async function sendNotice(sub: Subscription, kind: Parameters<typeof subscriptionNotice>[0]["kind"], extra: Partial<Parameters<typeof subscriptionNotice>[0]> = {}) {
+export async function sendNotice(sub: Subscription, kind: Parameters<typeof subscriptionNotice>[0]["kind"], extra: Partial<Parameters<typeof subscriptionNotice>[0]> = {}) {
   try {
     const ctx = await noticeContext(prisma, sub);
     if (!ctx) return;
@@ -88,11 +90,13 @@ async function sendNotice(sub: Subscription, kind: Parameters<typeof subscriptio
 
 /* ── Invoices ── */
 
-async function issueInvoice(tx: Prisma.TransactionClient, sub: Subscription, i: { paymentKey: string; grossMinor: number; creditMinor: number; couponMinor?: number; couponCode?: string | null; periodStart: Date; periodEnd: Date; now: Date; method: string | null }) {
+export async function issueInvoice(tx: Prisma.TransactionClient, sub: Subscription, i: { paymentKey: string; grossMinor: number; creditMinor: number; couponMinor?: number; couponCode?: string | null; periodStart: Date; periodEnd: Date; now: Date; method: string | null }) {
   const existing = await tx.subscriptionInvoice.findUnique({ where: { paymentKey: i.paymentKey } });
   if (existing) return { invoice: existing, created: false as const };
   const issuer = invoiceIssuer();
-  const lines = invoiceLines({ grossMinor: i.grossMinor, creditMinor: i.creditMinor, couponMinor: i.couponMinor, gstin: issuer.gstin, gstRatePercent: issuer.gstRatePercent });
+  // Tax treatment follows who bills, never the currency: India is GST; international is zero-rated under an LUT when one is set, else IGST.
+  const taxKind = taxKindFor(sub.gateway, issuer.lutNumber);
+  const lines = invoiceLines({ grossMinor: i.grossMinor, creditMinor: i.creditMinor, couponMinor: i.couponMinor, gstin: issuer.gstin, gstRatePercent: issuer.gstRatePercent, taxKind });
   const fy = financialYear(i.now);
   // Atomic per-year counter: two invoices can never get the same number.
   const counter = await tx.invoiceCounter.upsert({ where: { fy }, create: { fy, last: 1 }, update: { last: { increment: 1 } } });
@@ -102,13 +106,14 @@ async function issueInvoice(tx: Prisma.TransactionClient, sub: Subscription, i: 
       planId: sub.planId, interval: sub.interval, periodStart: i.periodStart, periodEnd: i.periodEnd,
       grossMinor: lines.grossMinor, creditMinor: lines.creditMinor, couponMinor: lines.couponMinor, couponCode: lines.couponMinor > 0 ? i.couponCode ?? null : null, amountMinor: lines.amountMinor, taxableMinor: lines.taxableMinor, gstMinor: lines.gstMinor,
       gstRate: lines.gstRate, paymentMethodLabel: i.method, issuedAt: i.now,
+      currency: sub.currency, taxKind: lines.taxKind, lutNumber: lines.taxKind === "LUT" ? issuer.lutNumber : null,
     },
   });
   return { invoice, created: true as const };
 }
 
 /** The first payment's discounts: the proration credit and the plan coupon are separate lines on the invoice (the coupon is stored folded into creditMinor). */
-async function firstInvoiceDiscounts(tx: Prisma.TransactionClient, sub: Subscription): Promise<{ creditMinor: number; couponMinor: number; couponCode: string | null }> {
+export async function firstInvoiceDiscounts(tx: Prisma.TransactionClient, sub: Subscription): Promise<{ creditMinor: number; couponMinor: number; couponCode: string | null }> {
   const couponMinor = Math.min(sub.couponMinor, sub.creditMinor);
   const code = couponMinor > 0 && sub.couponId ? (await tx.coupon.findUnique({ where: { id: sub.couponId }, select: { code: true } }))?.code ?? null : null;
   return { creditMinor: sub.creditMinor - couponMinor, couponMinor, couponCode: code };
@@ -124,10 +129,11 @@ export type CheckoutResult =
 
 export interface CouponQuote { couponId: string; code: string; name: string; couponMinor: number }
 
-export async function quoteFor(businessId: string, planId: PaidPlanId, interval: Interval, now = new Date(), couponCode?: string | null) {
+export async function quoteFor(businessId: string, planId: PaidPlanId, interval: Interval, now = new Date(), couponCode?: string | null, gateway: "CASHFREE" | "RAZORPAY" = "CASHFREE") {
   const current = await currentSubscription(prisma, businessId);
-  const active = current && (current.state === "ACTIVE" || current.state === "PAST_DUE") ? current : null;
-  const newAmount = planAmountMinor(planId, interval);
+  // Only a subscription billed by the SAME gateway can be credited or upgraded from (India and international never mix).
+  const active = current && (current.state === "ACTIVE" || current.state === "PAST_DUE") && current.gateway === gateway ? current : null;
+  const newAmount = planPriceFor(gateway, planId, interval);
   const kind = classifyChange(active ? { planId: active.planId, interval: active.interval as Interval } : null, { planId, interval });
   // Credit = the unused part of what the customer actually PAID for the current period (the latest invoice), not the list price.
   const lastInvoice = active ? await prisma.subscriptionInvoice.findFirst({ where: { subscriptionId: active.id }, orderBy: { issuedAt: "desc" }, select: { amountMinor: true } }) : null;
@@ -141,7 +147,9 @@ export async function quoteFor(businessId: string, planId: PaidPlanId, interval:
   let couponError: string | null = null;
   if (couponCode?.trim()) {
     const { coupon: def, verdict } = await previewCoupon(prisma, { ownerKey: CALVY_OWNER, code: couponCode, ctx: { target: "SUBSCRIPTION", businessId, planId, amountMinor: base.dueMinor }, now });
-    if (def && verdict.ok) {
+    // A flat coupon is an amount of the currency it was made in (rupees, from the admin form): it never applies to a dollar plan. Percent coupons do.
+    if (def && verdict.ok && gateway === "RAZORPAY" && def.kind === "FLAT") couponError = "This code is only for India plans.";
+    else if (def && verdict.ok) {
       const couponMinor = capSubscriptionDiscount(base.dueMinor, verdict.discountMinor);
       if (couponMinor > 0) coupon = { couponId: def.id, code: def.code, name: def.name, couponMinor };
       else couponError = "This code does not reduce this plan's first payment.";
@@ -336,6 +344,8 @@ export async function scheduleChange(i: { businessId: string; action: "cancel" |
   const sub = await prisma.subscription.findFirst({ where: { businessId: i.businessId, state: { in: ["ACTIVE", "PAST_DUE"] } }, orderBy: { createdAt: "desc" } });
   if (!sub) return { ok: false, status: 404, error: "You have no active subscription." };
   if (i.action === "undo") {
+    // Razorpay cannot un-cancel: once the cancel or downgrade was sent to it (in the last 2 days of the period) it can no longer be undone here.
+    if (sub.gateway === "RAZORPAY" && sub.chargeRaisedAt) return { ok: false, status: 409, error: "This change was already sent to the payment provider and can no longer be undone. Subscribe again after it takes effect." };
     await prisma.subscription.update({ where: { id: sub.id }, data: { pendingPlanId: null, pendingInterval: null } });
     return { ok: true };
   }
@@ -347,7 +357,7 @@ export async function scheduleChange(i: { businessId: string; action: "cancel" |
   if (!i.planId || !i.interval) return { ok: false, status: 400, error: "Choose a plan." };
   const kind = classifyChange({ planId: sub.planId, interval: sub.interval as Interval }, { planId: i.planId, interval: i.interval });
   if (kind === "same") return { ok: false, status: 409, error: "You are already on this plan." };
-  if (kind !== "downgrade" || planAmountMinor(i.planId, i.interval) > sub.amountMinor) return { ok: false, status: 409, error: "That is an upgrade: it starts now, through checkout." };
+  if (kind !== "downgrade" || planPriceFor(sub.gateway === "RAZORPAY" ? "RAZORPAY" : "CASHFREE", i.planId, i.interval) > sub.amountMinor) return { ok: false, status: 409, error: "That is an upgrade: it starts now, through checkout." };
   await prisma.subscription.update({ where: { id: sub.id }, data: { pendingPlanId: i.planId, pendingInterval: i.interval } });
   await sendNotice(sub, "downgrade_scheduled", { planName: planName(i.planId), intervalLabel: intervalLabel(i.interval), dateLabel: sub.currentPeriodEnd ? dateLabel(sub.currentPeriodEnd) : undefined, version: `downgrade:${i.planId}:${i.interval}` });
   return { ok: true };
@@ -390,7 +400,7 @@ export async function processDueSubscriptions(now = new Date(), client: SubsClie
   const ahead = new Date(now.getTime() + 24 * 3_600_000);
 
   // 1. Renewals and the e-mandate first charge.
-  const due = await prisma.subscription.findMany({ where: { state: { in: ["ACTIVE", "AUTHORISED"] }, nextChargeAt: { lte: ahead }, chargePaymentId: null }, take: 200 });
+  const due = await prisma.subscription.findMany({ where: { gateway: "CASHFREE", state: { in: ["ACTIVE", "AUTHORISED"] }, nextChargeAt: { lte: ahead }, chargePaymentId: null }, take: 200 });
   for (const sub of due) {
     if (sub.state === "ACTIVE" && sub.pendingPlanId === "free") {
       // Cancel at period end: nothing more is charged; paid features run to the period end (desiredPlan).
@@ -415,7 +425,7 @@ export async function processDueSubscriptions(now = new Date(), client: SubsClie
   }
 
   // 2. Failed payments: retries, dunning emails, and the end of the grace.
-  const pastDue = await prisma.subscription.findMany({ where: { state: "PAST_DUE" }, take: 200 });
+  const pastDue = await prisma.subscription.findMany({ where: { gateway: "CASHFREE", state: "PAST_DUE" }, take: 200 });
   for (const sub of pastDue) {
     if (sub.graceUntil && now >= sub.graceUntil) {
       await prisma.$transaction(async (tx) => { await lock(tx, sub.id); await tx.subscription.update({ where: { id: sub.id }, data: { state: "ENDED", endedReason: "payment_failed", chargePaymentId: null } }); await applySubscriptionState(tx, sub.businessId, now); }, TX);

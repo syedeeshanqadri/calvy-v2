@@ -18,7 +18,7 @@ async function GET_handler(_req: NextRequest, { params }: Ctx) {
   const bytes = await buildInvoicePdf({
     number: inv.number, kind: inv.kind === "TAX_INVOICE" ? "TAX_INVOICE" : "RECEIPT", issuedAt: inv.issuedAt, planId: inv.planId, interval: inv.interval,
     periodStart: inv.periodStart, periodEnd: inv.periodEnd, grossMinor: inv.grossMinor, creditMinor: inv.creditMinor, couponMinor: inv.couponMinor, couponCode: inv.couponCode, amountMinor: inv.amountMinor,
-    taxableMinor: inv.taxableMinor, gstMinor: inv.gstMinor, gstRate: inv.gstRate, paymentMethodLabel: inv.paymentMethodLabel,
+    taxableMinor: inv.taxableMinor, gstMinor: inv.gstMinor, gstRate: inv.gstRate, paymentMethodLabel: inv.paymentMethodLabel, currency: inv.currency, taxKind: inv.taxKind === "IGST" || inv.taxKind === "LUT" ? inv.taxKind : "GST", lutNumber: inv.lutNumber,
     customer: { businessName: inv.business.name, email: inv.business.email ?? inv.business.owner?.email ?? null }, issuer: invoiceIssuer(),
   });
   const file = `${inv.number.replace(/\//g, "-")}.pdf`;

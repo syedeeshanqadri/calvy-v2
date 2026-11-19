@@ -33,3 +33,5 @@ These are written from the docs and tested with mocked responses only. Check eac
 
 ## Not part of 25a
 Rewards engine (25b). Customer-facing plan prices on the marketing site are unchanged.
+
+International (non-India) plan billing goes through Razorpay instead of Cashfree: see `docs/razorpay-international.md`. Cashfree here is India only.

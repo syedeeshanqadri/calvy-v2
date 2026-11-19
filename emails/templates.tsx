@@ -447,6 +447,18 @@ export function DeletionRequestedEmail({ name, executeAfterLabel, cancelUrl }: {
   );
 }
 
+/** To the Calvy team: a business could not use recurring card billing and was put on payment links. */
+export function BillingLinksModeEmail({ businessName, businessId, reason, adminUrl }: { businessName: string; businessId: string; reason: string; adminUrl: string }) {
+  return (
+    <EmailLayout preview="A business fell back to links mode">
+      <H>Links mode: {businessName}</H>
+      <P>Razorpay refused recurring card billing for this business, so it was put on renewal payment links with email reminders instead. This is not silent: it also shows in Admin, Billing.</P>
+      <P>Business: {businessName} ({businessId}). Reason from Razorpay: {reason}</P>
+      <CTA href={adminUrl} label="Open Admin, Billing" />
+    </EmailLayout>
+  );
+}
+
 export interface LevelUpProps { levelLabel: string; feeLabel: string; perk: string | null; accountUrl: string }
 
 /** A customer reached a new Calvy level. Names only the level, the new fee and the perk; the requirements are never listed. */
@@ -527,7 +539,7 @@ export function LeadAcknowledgmentEmail({ name, demoRequested }: { name: string;
   );
 }
 
-export type SubscriptionNoticeKind = "started" | "upgraded" | "downgrade_scheduled" | "cancelled" | "payment_failed_1" | "payment_failed_2" | "payment_failed_3" | "downgraded";
+export type SubscriptionNoticeKind = "started" | "upgraded" | "downgrade_scheduled" | "cancelled" | "payment_failed_1" | "payment_failed_2" | "payment_failed_3" | "downgraded" | "renewal_link";
 
 export interface SubscriptionNoticeProps {
   kind: SubscriptionNoticeKind;
@@ -541,6 +553,8 @@ export interface SubscriptionNoticeProps {
   dateLabel?: string;
   creditLabel?: string;
   invoiceNumber?: string;
+  /** Payment-link billing (international fallback): where to pay. */
+  linkUrl?: string;
   billingUrl: string;
 }
 
@@ -553,6 +567,7 @@ const NOTICE_TITLE: Record<SubscriptionNoticeKind, string> = {
   payment_failed_2: "Your Calvy payment is still unpaid",
   payment_failed_3: "Last reminder: your Calvy payment is unpaid",
   downgraded: "Your account is now on the Basic plan",
+  renewal_link: "Your Calvy renewal is ready to pay",
 };
 
 export const subscriptionNoticeSubject = (p: SubscriptionNoticeProps) => NOTICE_TITLE[p.kind];
@@ -569,6 +584,7 @@ export function subscriptionNoticeLines(p: SubscriptionNoticeProps): string[] {
     case "payment_failed_1": return [`${hi} we tried to charge ${p.amountLabel ?? "your plan"} for ${p.businessName} (${plan}) and it did not go through.`, `We will try again. Your paid features stay on until ${p.dateLabel ?? "7 days from now"}. Please check your payment method.`];
     case "payment_failed_2": return [`${hi} the payment for ${p.businessName} (${plan}) is still unpaid.`, `Your paid features stay on until ${p.dateLabel ?? "the end of the grace period"}. After that your account moves to the Basic plan. Your data is kept.`];
     case "payment_failed_3": return [`${hi} this is the last reminder: the payment for ${p.businessName} (${plan}) is still unpaid.`, `If we cannot take it by ${p.dateLabel ?? "the end of the grace period"}, your account moves to the Basic plan and paid features turn off. Your data is kept.`];
+    case "renewal_link": return [`${hi} your ${plan} plan for ${p.businessName} renews on ${p.dateLabel ?? "the end of this period"} for ${p.amountLabel ?? "the plan price"}.`, "Your card is not charged automatically on your account, so please pay with the secure link below to keep your plan going without a break."];
     case "downgraded": return [`${hi} we could not collect your payment, so ${p.businessName} is now on the Basic plan.`, "Your bookings, customers and settings are all still there; only the paid features are off. You can subscribe again from your Billing page at any time."];
   }
 }
@@ -580,7 +596,7 @@ export function SubscriptionNoticeEmail(p: SubscriptionNoticeProps) {
       <H>{NOTICE_TITLE[p.kind]}</H>
       <P>{first}</P>
       {rest.map((l) => <P key={l}>{l}</P>)}
-      <CTA href={p.billingUrl} label={p.kind === "downgraded" || p.kind.startsWith("payment_failed") ? "Fix payment" : "Open Billing"} />
+      <CTA href={p.linkUrl ?? p.billingUrl} label={p.linkUrl ? "Pay now" : p.kind === "downgraded" || p.kind.startsWith("payment_failed") ? "Fix payment" : "Open Billing"} />
     </EmailLayout>
   );
 }

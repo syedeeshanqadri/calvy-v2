@@ -114,6 +114,15 @@ Write the deletion script with a dry run, and run it only after confirming which
 - After 30 days the daily cron `/api/cron/account-deletions` anonymises the person (same function as admin "Process now"; skipped and left pending if upcoming bookings appeared meanwhile): name "Deleted customer"; email, phone, password, Google link, sessions, tokens, referral codes, devices seen and message addresses removed; rewards identities moved to an anonymised id so history stays; the remembered-device cookie can no longer match any email. Business-side appointment records (date, service, amount, receipt) are kept, with the person's name, email and phone removed from the business's client record. Customers have no push subscriptions (those belong to business users).
 - Privacy and data-deletion pages updated to match.
 
+### Step 32: Razorpay for international Calvy plans (decisions)
+- Razorpay is used ONLY for businesses outside India buying Calvy plans (USD, cards). India stays Cashfree Subscriptions; business-own gateway adapters (`lib/payments/**`) are untouched. Routing is by the business's region (`regionOf`, the same source as `REGION_PRICING` / `gatewaysForRegion`), not by currency; Razorpay refuses India and refuses INR. Switched on by `CF_INTL_SUBSCRIPTIONS` plus the keys; a live key is refused outside production.
+- Recurring cards by default. If Razorpay refuses recurring for the currency or card, the business falls back to a payment link per period plus email reminders ("links mode"), never silently: logged, a badge in Admin -> Billing, and an email to team@calvy.io.
+- Coupons (percent only on dollar plans) and upgrade credits lower the FIRST period only, in one checkout: a future `start_at` plus an add-on of the discounted first period (Razorpay charges only the add-on at authentication when `start_at` is in the future), then the full price from `start_at`.
+- Webhook `/api/billing/razorpay/webhook`: raw-body HMAC signature, idempotent on the event id and on the payment id; maps activated/charged/halted/cancelled onto the existing state model; receipts as in India.
+- Tax lines by who bills and the LUT, never by currency: no GSTIN = receipt only; India = GST; international = no tax line only when `CALVY_LUT_NUMBER` is set, otherwise IGST at `CALVY_GST_RATE`, shown on the invoice (prices are tax-inclusive).
+- Failed renewals: halted = past due, 7-day grace, reminders on days 1, 3 and 6, then the Free plan's features (no data deleted; enforcement respected once on). "Update card" = cancel and replace, starting at the current period end, no double charge.
+- Settlement is INR (Calvy's Razorpay account is Indian); expected, not a blocker. See docs/razorpay-international.md.
+
 ### Step 25c: gateways by region (decisions)
 - India list: Razorpay, Cashfree, PhonePe PG, PayU, CCAvenue, Paytm PG. International list: Stripe, PayPal; Square, Mollie and Adyen later. Filtered by region (currency now, `Business.country` when it exists), in the UI and on the server.
 - Own gateways on paid plans only, in both regions. India Basic = the Rs 10 to Calvy; International Free = pay at the venue; international never pays the Rs 10.

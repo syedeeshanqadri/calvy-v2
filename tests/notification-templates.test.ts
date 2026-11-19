@@ -37,6 +37,7 @@ const FIXTURES: Record<TemplateId, object> = {
   customer_password_reset: { name: "Riya Kapoor", secret: SECRET },
   customer_account_setup: { name: "Riya Kapoor", secret: SECRET },
   deletion_requested: { name: "Riya Kapoor", executeAfterLabel: "20 December 2026", secret: SECRET },
+  billing_links_mode: { businessName: "Glow Studio", businessId: "biz_1", reason: "International cards are not enabled for recurring", adminUrl: "https://x.test/admin/billing" },
   member_link: { name: "Riya Kapoor", secret: SECRET },
   level_up: { level: "INSIDER", levelLabel: "Insider", feeMinor: 800, baseFeeMinor: 1000, perk: "One free booking, on us, for reaching Insider.", accountUrl: "https://x.test/account" },
   lead: { name: "Asha Rao", demoRequested: true },
@@ -44,7 +45,7 @@ const FIXTURES: Record<TemplateId, object> = {
 };
 const ids = Object.keys(TEMPLATES) as TemplateId[];
 const tenant = { name: "Sunrise", color: "#0f766e", fg: "#ffffff" };
-const NO_TENANT = new Set<TemplateId>(["team_invite", "owner_account_setup", "verification", "password_reset", "customer_verification", "customer_password_reset", "customer_account_setup", "member_link", "deletion_requested", "level_up", "lead", "form_notification", "subscription_notice"]);
+const NO_TENANT = new Set<TemplateId>(["team_invite", "owner_account_setup", "verification", "password_reset", "customer_verification", "customer_password_reset", "customer_account_setup", "member_link", "billing_links_mode", "deletion_requested", "level_up", "lead", "form_notification", "subscription_notice"]);
 
 describe("every template", () => {
   it("has a fixture", () => expect(Object.keys(FIXTURES).sort()).toEqual([...ids].sort()));

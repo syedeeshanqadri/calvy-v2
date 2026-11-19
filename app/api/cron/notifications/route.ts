@@ -10,6 +10,7 @@ import { enqueueDueReminders } from "@/lib/notifications/reminders";
 import { enqueueDailySummaries } from "@/lib/notifications/summary";
 import { runWhatsAppHealth } from "@/lib/whatsapp/health";
 import { processDueSubscriptions } from "@/lib/subscriptions/service";
+import { processRazorpayDue } from "@/lib/subscriptions/razorpayService";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -30,10 +31,11 @@ async function GET_handler(req: NextRequest) {
   const expiredHolds = await step("hold sweep", () => releaseExpiredHolds());
   const expiredOverrides = await step("plan overrides", () => expirePlanOverrides(prisma));
   const subscriptions = await processDueSubscriptions().catch((err) => { logger.error("[Cron] subscriptions failed", { err }); return null; });
+  const razorpay = await processRazorpayDue().catch((err) => { logger.error("[Cron] razorpay billing failed", { err }); return null; });
   const remindersQueued = await step("reminder sweep", () => enqueueDueReminders());
   const summariesQueued = await step("daily summaries", () => enqueueDailySummaries());
   const whatsappChecked = await step("whatsapp health", () => runWhatsAppHealth());
-  return NextResponse.json({ ok: true, expiredHolds, expiredOverrides, subscriptions, remindersQueued, summariesQueued, whatsappChecked, ...(await runOutbox()) });
+  return NextResponse.json({ ok: true, expiredHolds, expiredOverrides, subscriptions, razorpay, remindersQueued, summariesQueued, whatsappChecked, ...(await runOutbox()) });
 }
 
 export const GET = safeRoute(GET_handler);
