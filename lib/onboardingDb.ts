@@ -124,7 +124,7 @@ export async function saveStep<S extends SavableStep>(businessId: string, step: 
       await tx.business.update({ where: { id: businessId }, data: { bookingMode: d.bookingMode, ...next } });
     } else if (step === "services") {
       const d = data as Input<"services">;
-      const max = (await getLimitsFromDB("free")).maxServices;
+      const max = (await getLimitsFromDB("free", "INTL")).maxServices;
       if (max !== -1 && d.services.length > max) throw new Error(`The Free plan includes ${max} services. You can add more after upgrading.`);
       if (d.services.length === 0) throw new Error("Add at least one service so customers can book.");
       const pack = getPack(cur.packId);

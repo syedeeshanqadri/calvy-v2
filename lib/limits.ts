@@ -88,7 +88,7 @@ export interface CheckOptions {
 export async function checkLimit(businessId: string, kind: LimitKind, opts: CheckOptions = {}): Promise<LimitDenial | null> {
   const business = await prisma.business.findUnique({
     where: { id: businessId },
-    select: { plan: true, planStatus: true, trialEndsAt: true, timezone: true },
+    select: { plan: true, planStatus: true, trialEndsAt: true, currency: true, timezone: true },
   });
   if (!business) return { kind, status: 402, code: "PLAN_EXPIRED", error: "Business not found." };
 

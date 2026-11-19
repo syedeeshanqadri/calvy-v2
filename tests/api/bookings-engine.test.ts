@@ -142,7 +142,7 @@ describe("POST /api/bookings: plan limits (S2-05)", () => {
       where.planId === "free" ? { ...freeCfg, ...cfg } : { maxMonthlyAppointments: -1 });
 
   it("limit reached -> 402 with the customer message, phone and owner notice", async () => {
-    db.business.findUnique.mockResolvedValue(business({ plan: "free", planStatus: "free" }));
+    db.business.findUnique.mockResolvedValue(business({ plan: "free", planStatus: "free", currency: "USD" }));
     db.appointment.count.mockResolvedValue(60);
     const res = await POST(req(valid));
     expect(res.status).toBe(402);
@@ -154,7 +154,7 @@ describe("POST /api/bookings: plan limits (S2-05)", () => {
   });
 
   it("limit is re-checked inside the lock: parallel bookings cannot overshoot it", async () => {
-    db.business.findUnique.mockResolvedValue(business({ plan: "free", planStatus: "free" }));
+    db.business.findUnique.mockResolvedValue(business({ plan: "free", planStatus: "free", currency: "USD" }));
     db.appointment.count.mockResolvedValueOnce(29).mockResolvedValue(60); // passes the early check, full inside the lock
     const res = await POST(req(valid));
     expect(res.status).toBe(402);
@@ -163,14 +163,14 @@ describe("POST /api/bookings: plan limits (S2-05)", () => {
   });
 
   it("no phone on file -> message without a number", async () => {
-    db.business.findUnique.mockResolvedValue(business({ phone: null, plan: "free", planStatus: "free" }));
+    db.business.findUnique.mockResolvedValue(business({ phone: null, plan: "free", planStatus: "free", currency: "USD" }));
     db.appointment.count.mockResolvedValue(60);
     const res = await POST(req(valid));
     expect((await res.json()).error).toBe("Online booking is unavailable right now, please contact Salon X.");
   });
 
   it("owner is told at most once a day", async () => {
-    db.business.findUnique.mockResolvedValue(business({ plan: "free", planStatus: "free" }));
+    db.business.findUnique.mockResolvedValue(business({ plan: "free", planStatus: "free", currency: "USD" }));
     db.appointment.count.mockResolvedValue(60);
     db.notification.findFirst.mockResolvedValue({ id: "n1" });
     const res = await POST(req(valid));
@@ -179,12 +179,20 @@ describe("POST /api/bookings: plan limits (S2-05)", () => {
   });
 
   it("expired plan is not rejected: Free-plan limits apply (read from the DB)", async () => {
-    db.business.findUnique.mockResolvedValue(business({ plan: "professional", planStatus: "past_due" }));
+    db.business.findUnique.mockResolvedValue(business({ plan: "professional", planStatus: "past_due", currency: "USD" }));
     planCfg({ maxMonthlyAppointments: 5 });
     db.appointment.count.mockResolvedValue(4);
     expect((await POST(req(valid))).status).toBe(200);
     db.appointment.count.mockResolvedValue(5);
     expect((await POST(req(valid))).status).toBe(402);
+  });
+
+  it("India Free has no appointment cap: bookings go through however many there are this month", async () => {
+    db.business.findUnique.mockResolvedValue(business({ plan: "free", planStatus: "free", currency: "INR" }));
+    planCfg({ maxMonthlyAppointments: 5 });
+    db.appointment.count.mockImplementation(async (args: { where?: { createdAt?: { gte: Date } } }) =>
+      (args?.where?.createdAt?.gte ?? new Date(0)) < new Date("2026-10-13T00:00:00Z") ? 5000 : 0);
+    expect((await POST(req(valid))).status).toBe(200);
   });
 
   it("an active paid plan keeps its own (unlimited) limits", async () => {

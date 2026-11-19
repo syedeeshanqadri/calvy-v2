@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { planFeatures, plansWith, planName, parsePlanParam, planQuery, SHOWN_PLANS, type CopyRegion } from "@/lib/planCopy";
-import { PLAN_LIMITS } from "@/lib/planData";
+import { PLAN_LIMITS, limitsForRegion } from "@/lib/planData";
 import { REGION_PRICING, isFeatureHeading } from "@/lib/pricing";
 
 const regions: CopyRegion[] = ["IN", "INTL"];
@@ -27,8 +27,13 @@ describe("plan copy: one source of truth", () => {
     expect(PLAN_LIMITS.professional.maxMonthlyAppointments).toBe(2000);
     for (const r of regions) expect(planFeatures("professional", r)).toContain("Up to 2,000 appointments/month");
   });
-  it("Free copy matches the real Free limit", () => {
-    for (const r of regions) expect(planFeatures("free", r)).toContain("Up to 60 appointments/month");
+  it("Free copy matches the real Free limit of each region: India unlimited, international 60", () => {
+    expect(planFeatures("free", "IN")).toContain("Unlimited appointments");
+    expect(planFeatures("free", "IN").join("|")).not.toMatch(/60 appointments/);
+    expect(planFeatures("free", "INTL")).toContain("Up to 60 appointments/month");
+    expect(limitsForRegion(PLAN_LIMITS.free, "free", "IN").maxMonthlyAppointments).toBe(-1);
+    expect(limitsForRegion(PLAN_LIMITS.free, "free", "INTL").maxMonthlyAppointments).toBe(60);
+    expect(limitsForRegion(PLAN_LIMITS.professional, "professional", "IN").maxMonthlyAppointments).toBe(2000);
   });
   it("upgrade prompts name the plans that really include a feature", () => {
     expect(plansWith("whatsappReminders")).toBe("Pro and Business");

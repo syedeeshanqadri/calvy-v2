@@ -329,6 +329,7 @@ export function PlansClient({ plans: initialPlans, tenantCounts }: Props) {
                 <h3 className="text-xs font-bold text-[#6b6b80] uppercase tracking-wider">
                   Limits <span className="font-normal normal-case">(-1 = unlimited, 0 = disabled)</span>
                 </h3>
+                <p className="text-xs text-[#6b6b80]">Appts/month on the Free plan is the international limit. Free in India is always unlimited (every booking pays the Rs 10 fee), whatever is set here.</p>
                 <div className="grid grid-cols-2 gap-3">
                   {[
                     { key: "maxStaff", label: "Max staff" },

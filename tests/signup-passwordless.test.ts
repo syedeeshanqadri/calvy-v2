@@ -4,7 +4,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 // verifies the address, and a ticket session ends when the account later gets a password.
 
 const db = vi.hoisted(() => ({
-  user: { findUnique: vi.fn(), findFirst: vi.fn(), create: vi.fn(), update: vi.fn() },
+  user: { findUnique: vi.fn(), findFirst: vi.fn(), create: vi.fn(), update: vi.fn(), updateMany: vi.fn() },
   passwordResetToken: { create: vi.fn(), deleteMany: vi.fn() },
   $transaction: vi.fn(),
 }));
@@ -32,7 +32,7 @@ const post = (url: string, body: unknown) => new NextRequest(`http://localhost${
 const ticketProvider = authOptions.providers.find((p) => (p as { options?: { id?: string } }).options?.id === "signup-ticket") as unknown as { options: { authorize: (c: unknown) => Promise<unknown> } };
 const authorize = (ticket: string | undefined) => ticketProvider.options.authorize({ ticket });
 
-beforeEach(() => { vi.clearAllMocks(); db.user.findFirst.mockResolvedValue(null); db.user.create.mockResolvedValue({ id: "u1" }); db.$transaction.mockResolvedValue([]); });
+beforeEach(() => { vi.clearAllMocks(); db.user.findFirst.mockResolvedValue(null); db.user.create.mockResolvedValue({ id: "u1" }); db.$transaction.mockResolvedValue([]); db.user.updateMany.mockResolvedValue({ count: 1 }); });
 
 describe("sign-up", () => {
   it("creates a passwordless user, queues the setup email, and returns a sign-in ticket", async () => {
@@ -104,5 +104,58 @@ describe("setup email resend", () => {
   });
   it("the setup link points at the reset page in setup mode", () => {
     expect(authEmail({ template: "owner_account_setup", userId: "u", to: "a@x.co", name: "A", token: "t", baseUrl: "https://calvy.io" }).secret).toBe("https://calvy.io/reset-password?setup=1&token=t");
+  });
+});
+
+import { CREDENTIALS_PROVIDER_IDS } from "@/lib/authProviders";
+
+describe("credentials providers and the signIn gate", () => {
+  const signIn = authOptions.callbacks!.signIn!;
+  const call = (account: unknown) => signIn({ user: { id: "u1", email: "a@x.co" }, account } as never);
+  it("registers exactly the credentials providers we intend: password, sign-up ticket, customer", () => {
+    const ids = authOptions.providers.filter((p) => (p as { type?: string }).type === "credentials").map((p) => (p as { options?: { id?: string } }).options?.id ?? (p as { id?: string }).id).sort();
+    expect(ids).toEqual([...CREDENTIALS_PROVIDER_IDS].sort());
+  });
+  it("admits the three, and refuses any other provider id, credentials or not", async () => {
+    for (const provider of CREDENTIALS_PROVIDER_IDS) expect(await call({ type: "credentials", provider })).toBe(true);
+    db.user.findUnique.mockResolvedValue(null); db.user.findFirst.mockResolvedValue(null);
+    expect(await call({ type: "credentials", provider: "made-up" })).not.toBe(true);
+    expect(await call({ type: "oauth", provider: "made-up" })).toBe(false);
+    expect(await call({ type: "oauth", provider: "signup-ticket" })).toBe(false); // the id alone is not enough: the type must be credentials
+  });
+});
+
+describe("sign-up then automatic sign-in", () => {
+  it("the ticket the sign-up returns opens the first session, and the signIn gate lets it through", async () => {
+    db.user.findFirst.mockResolvedValue(null);
+    db.user.create.mockResolvedValue({ id: "u1" });
+    const res = await signup(post("/api/signup", { name: "Asha Rao", email: "a@x.co", packId: "SALON_SPA", timezone: "Asia/Kolkata", phone: "+91 98765 43210" }));
+    const { ticket } = await res.json();
+    expect(ticket).toBeTruthy();
+    db.user.findUnique.mockResolvedValue({ id: "u1", name: "Asha", email: "a@x.co", password: null });
+    expect(await authorize(ticket)).toMatchObject({ id: "u1", viaTicket: true });
+    expect(await authOptions.callbacks!.signIn!({ user: { id: "u1", email: "a@x.co" }, account: { type: "credentials", provider: "signup-ticket" } } as never)).toBe(true);
+  });
+});
+
+describe("the sign-up ticket is single-use, short-lived and bound to one user", () => {
+  const fresh = () => signTicket(SIGNUP_TICKET_PURPOSE, "u1", SECRET, SIGNUP_TICKET_TTL_MS);
+  beforeEach(() => db.user.findUnique.mockResolvedValue({ id: "u1", name: "Asha", email: "a@x.co", password: null }));
+  it("a reused ticket is refused: the second claim finds it already spent", async () => {
+    const t = fresh();
+    db.user.updateMany.mockResolvedValueOnce({ count: 1 }).mockResolvedValueOnce({ count: 0 });
+    expect(await authorize(t)).toMatchObject({ id: "u1" });
+    expect(await authorize(t)).toBeNull();
+    // The claim is one conditional write on this user only, so two simultaneous requests cannot both win.
+    expect(db.user.updateMany).toHaveBeenCalledWith({ where: { id: "u1", password: null, signupTicketUsedAt: null }, data: { signupTicketUsedAt: expect.any(Date) } });
+  });
+  it("an expired ticket is refused and does not even try to claim", async () => {
+    expect(SIGNUP_TICKET_TTL_MS).toBeLessThanOrEqual(10 * 60_000);
+    expect(await authorize(signTicket(SIGNUP_TICKET_PURPOSE, "u1", SECRET, SIGNUP_TICKET_TTL_MS, Date.now() - SIGNUP_TICKET_TTL_MS - 1000))).toBeNull();
+    expect(db.user.updateMany).not.toHaveBeenCalled();
+  });
+  it("a ticket cannot be moved to another user", async () => {
+    expect(await authorize(fresh().replace("u1", "u2"))).toBeNull();
+    expect(db.user.updateMany).not.toHaveBeenCalled();
   });
 });

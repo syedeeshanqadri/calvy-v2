@@ -59,16 +59,24 @@ describe("enforcement ON: today's behaviour", () => {
   });
   it("the database row decides, and an expired paid plan is not active", async () => {
     db.planConfig.findUnique.mockResolvedValue({ ...configFromLimits({ ...PLAN_LIMITS.free, maxStaff: 7 }) });
-    expect((await getLimitsFromDB("free")).maxStaff).toBe(7);
+    expect((await getLimitsFromDB("free", "INTL")).maxStaff).toBe(7);
     expect(isActivePlan("past_due", "professional", null)).toBe(false);
     expect(isActivePlan("active", "professional", null)).toBe(true);
   });
   it("a lapsed paid plan falls back to Free limits for public bookings", async () => {
-    const limits = await getEffectiveLimits({ plan: "business", planStatus: "past_due" });
+    const limits = await getEffectiveLimits({ plan: "business", planStatus: "past_due", currency: "USD" });
     expect(limits).toEqual(PLAN_LIMITS.free);
   });
+  it("India Free has no appointment cap, international Free keeps 60, and a lapsed India plan falls back to uncapped Free", async () => {
+    db.planConfig.findUnique.mockResolvedValue({ ...configFromLimits(PLAN_LIMITS.free) });
+    expect((await getLimitsFromDB("free", "IN")).maxMonthlyAppointments).toBe(-1);
+    expect((await getLimitsFromDB("free", "INTL")).maxMonthlyAppointments).toBe(60);
+    expect((await getEffectiveLimits({ plan: "business", planStatus: "past_due", currency: "INR" })).maxMonthlyAppointments).toBe(-1);
+    db.planConfig.findUnique.mockResolvedValue({ ...configFromLimits(PLAN_LIMITS.professional) });
+    expect((await getLimitsFromDB("professional", "IN")).maxMonthlyAppointments).toBe(2000);
+  });
   it("API checks refuse what the plan lacks or has used up", async () => {
-    db.business.findUnique.mockResolvedValue({ plan: "free", planStatus: "free", trialEndsAt: null, timezone: "Asia/Kolkata" });
+    db.business.findUnique.mockResolvedValue({ plan: "free", planStatus: "free", trialEndsAt: null, currency: "USD", timezone: "Asia/Kolkata" });
     expect((await checkLimit("b1", "staff"))?.code).toBe("LIMIT_REACHED");
     expect((await checkLimit("b1", "services"))?.code).toBe("LIMIT_REACHED");
     expect((await checkLimit("b1", "monthlyAppointments"))?.code).toBe("LIMIT_REACHED");
@@ -98,19 +106,19 @@ describe("enforcement OFF: nothing is blocked", () => {
   it("Calvy's own online-booking fee is not a gate and is kept", async () => {
     expect(getLimits("free").platformFeeMinorIN).toBe(PLAN_LIMITS.free.platformFeeMinorIN);
     db.planConfig.findUnique.mockResolvedValue({ ...configFromLimits(PLAN_LIMITS.free) });
-    expect((await getLimitsFromDB("free")).platformFeeMinorIN).toBe(1000);
+    expect((await getLimitsFromDB("free", "INTL")).platformFeeMinorIN).toBe(1000);
   });
   it("an expired plan counts as active", () => {
     expect(isActivePlan("past_due", "professional", null)).toBe(true);
     expect(isActivePlan("cancelled", "business", null)).toBe(true);
   });
   it("a lapsed paid plan keeps everything for public bookings too", async () => {
-    const limits = await getEffectiveLimits({ plan: "business", planStatus: "past_due" });
+    const limits = await getEffectiveLimits({ plan: "business", planStatus: "past_due", currency: "USD" });
     expect(limits.whatsappReminders).toBe(true);
     expect(limits.maxMonthlyAppointments).toBe(-1);
   });
   it("API checks block nothing, even for a Free business over every cap", async () => {
-    db.business.findUnique.mockResolvedValue({ plan: "free", planStatus: "free", trialEndsAt: null, timezone: "Asia/Kolkata" });
+    db.business.findUnique.mockResolvedValue({ plan: "free", planStatus: "free", trialEndsAt: null, currency: "USD", timezone: "Asia/Kolkata" });
     for (const kind of ["staff", "services", "monthlyAppointments", "csv", "upload", "slotInterval", "expenses"] as const) {
       expect(await checkLimit("b1", kind), kind).toBeNull();
     }

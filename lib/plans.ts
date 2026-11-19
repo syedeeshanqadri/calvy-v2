@@ -1,6 +1,6 @@
 import { isPlanEnforcementOn } from "@/lib/flags";
-import { PLAN_LIMITS, type PlanId, type PlanLimits } from "@/lib/planData";
-export { PLAN_LIMITS };
+import { PLAN_LIMITS, limitsForRegion, type LimitRegion, type PlanId, type PlanLimits } from "@/lib/planData";
+export { PLAN_LIMITS, limitsForRegion };
 export type { PlanId, PlanLimits };
 
 import { PLAN_META } from "@/lib/planMeta";
@@ -86,13 +86,15 @@ export function planSeed(planId: PlanId) {
   };
 }
 
-export async function getLimitsFromDB(plan: string): Promise<PlanLimits> {
+/** Limits for a plan from the PlanConfig table. Pass the business's region: India Free has no appointment cap (see limitsForRegion). */
+export async function getLimitsFromDB(plan: string, region: LimitRegion): Promise<PlanLimits> {
+  const id = normalizePlanId(plan);
   try {
     const { prisma } = await import("@/lib/prisma");
-    const config = await prisma.planConfig.findUnique({ where: { planId: normalizePlanId(plan) } });
-    return config ? applyEnforcement(limitsFromConfig(config)) : getLimits(plan);
+    const config = await prisma.planConfig.findUnique({ where: { planId: id } });
+    return limitsForRegion(config ? applyEnforcement(limitsFromConfig(config)) : getLimits(plan), id, region);
   } catch {
-    return getLimits(plan);
+    return limitsForRegion(getLimits(plan), id, region);
   }
 }
 

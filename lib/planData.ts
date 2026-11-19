@@ -131,3 +131,12 @@ export const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
     prioritySupport: true,
   },
 };
+
+/**
+ * Some limits depend on the business's region. India Free has NO appointment cap: every online booking pays Calvy's Rs 10 fee, so Calvy is
+ * paid per booking and never limits them. International Free keeps the 60 a month in PLAN_LIMITS / the PlanConfig table.
+ */
+export type LimitRegion = "IN" | "INTL";
+export function limitsForRegion(limits: PlanLimits, plan: PlanId, region: LimitRegion): PlanLimits {
+  return plan === "free" && region === "IN" ? { ...limits, maxMonthlyAppointments: -1 } : limits;
+}

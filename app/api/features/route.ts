@@ -1,3 +1,4 @@
+import { regionOf } from "@/lib/payments/region";
 import { safeRoute } from "@/lib/api";
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
@@ -17,14 +18,14 @@ async function GET_handler() {
 
   const business = await prisma.business.findUnique({
     where: { id: businessId },
-    select: { plan: true },
+    select: { plan: true, currency: true },
   });
 
   if (!business) {
     return NextResponse.json({ error: "Business not found" }, { status: 404 });
   }
 
-  const limits = await getLimitsFromDB(business.plan);
+  const limits = await getLimitsFromDB(business.plan, regionOf({ currency: business.currency }));
 
   // `enforcement` says whether these limits are applied (off: everything is unlocked).
   return NextResponse.json({ limits, plan: business.plan, enforcement: isPlanEnforcementOn() });

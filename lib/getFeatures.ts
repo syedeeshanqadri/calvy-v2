@@ -1,18 +1,19 @@
 import { prisma } from "@/lib/prisma";
 import { expirePlanOverrides, overrideExpired } from "@/lib/planOverride";
 import { getLimitsFromDB, isActivePlan, type PlanLimits } from "@/lib/plans";
+import { regionOf } from "@/lib/payments/region";
 
 export async function getBusinessFeatures(businessId: string): Promise<PlanLimits> {
   let business = await prisma.business.findUnique({
     where: { id: businessId },
-    select: { plan: true, planOverridePlan: true, planOverrideUntil: true },
+    select: { plan: true, planOverridePlan: true, planOverrideUntil: true, currency: true },
   });
   // Safety net: an admin plan override that has ended is undone here too, so a late cron never leaves extra features on.
   if (business && overrideExpired(business, new Date())) {
     await expirePlanOverrides(prisma, new Date(), businessId);
-    business = await prisma.business.findUnique({ where: { id: businessId }, select: { plan: true, planOverridePlan: true, planOverrideUntil: true } });
+    business = await prisma.business.findUnique({ where: { id: businessId }, select: { plan: true, planOverridePlan: true, planOverrideUntil: true, currency: true } });
   }
-  return getLimitsFromDB(business?.plan ?? "free");
+  return getLimitsFromDB(business?.plan ?? "free", regionOf({ currency: business?.currency }));
 }
 
 /**
@@ -24,6 +25,8 @@ export async function getEffectiveLimits(business: {
   plan: string;
   planStatus: string;
   trialEndsAt?: Date | null;
+  /** Required so the region (India Free is uncapped) is never forgotten. */
+  currency: string | null;
 }): Promise<PlanLimits> {
-  return getLimitsFromDB(isActivePlan(business.planStatus, business.plan, business.trialEndsAt) ? business.plan : "free");
+  return getLimitsFromDB(isActivePlan(business.planStatus, business.plan, business.trialEndsAt) ? business.plan : "free", regionOf({ currency: business.currency }));
 }

@@ -1,7 +1,7 @@
 // ONE source of truth for plan wording. Everything a customer reads about a plan (onboarding, the pricing page, Billing, upgrade prompts, admin labels)
 // is derived here from the limits matrix in lib/planData.ts and the names in lib/planMeta.ts, so a limit changed in one place changes everywhere.
 // Client-safe: no server imports.
-import { PLAN_LIMITS, type PlanId, type PlanLimits } from "@/lib/planData";
+import { PLAN_LIMITS, limitsForRegion, type PlanId, type PlanLimits } from "@/lib/planData";
 import { PLAN_META } from "@/lib/planMeta";
 
 /** The three plans a customer can see. "starter" is legacy and never shown. */
@@ -69,8 +69,8 @@ const IN_FREE_FEE = "A nominal platform fee per confirmed online booking, paid b
 /** The feature list shown for a plan. Limits lead, then (for Pro and Business) an "Everything in X, plus:" heading, then only what is NEW at this tier. */
 export function planFeatures(id: ShownPlanId, region: CopyRegion): string[] {
   const i = SHOWN_PLANS.indexOf(id);
-  const l = PLAN_LIMITS[id];
-  const prev = i > 0 ? PLAN_LIMITS[SHOWN_PLANS[i - 1]] : null;
+  const l = limitsForRegion(PLAN_LIMITS[id], id, region);
+  const prev = i > 0 ? limitsForRegion(PLAN_LIMITS[SHOWN_PLANS[i - 1]], SHOWN_PLANS[i - 1], region) : null;
   const out: string[] = [staffLine(l.maxStaff), appointmentsLine(l.maxMonthlyAppointments)];
   if (!prev) out.push(`Up to ${l.maxServices} services`);
   if (l.maxTeamMembers > 0 && l.maxTeamMembers !== prev?.maxTeamMembers) out.push(`Up to ${l.maxTeamMembers} team logins`);
