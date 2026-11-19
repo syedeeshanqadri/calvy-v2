@@ -8,7 +8,7 @@ import { isActivePlan, type PlanLimits } from "@/lib/plans";
 import { getEffectiveLimits } from "@/lib/getFeatures";
 import { safeTimeZone, utcToZoned, zonedToUtc } from "@/lib/time";
 
-export type LimitKind = "staff" | "services" | "monthlyAppointments" | "upload" | "csv" | "group" | "slotInterval" | "expenses" | "team" | "branding";
+export type LimitKind = "staff" | "services" | "monthlyAppointments" | "upload" | "csv" | "group" | "slotInterval" | "expenses" | "team" | "branding" | "offers";
 
 export interface LimitDenial {
   kind: LimitKind;
@@ -18,9 +18,10 @@ export interface LimitDenial {
   limit?: number;
 }
 
-const LOCKED: Record<"upload" | "csv" | "group" | "slotInterval" | "expenses" | "branding", string> = {
+const LOCKED: Record<"upload" | "csv" | "group" | "slotInterval" | "expenses" | "branding" | "offers", string> = {
   branding: "Hiding the \"Bookings by Calvy\" footer is not available on your plan. Upgrade to hide it.",
   slotInterval: "Custom slot lengths are not available on your plan. Upgrade to change them.",
+  offers: "Offers & discounts are not available on your plan. Upgrade to make coupons and offers.",
   expenses: "Expense tracking is not available on your plan. Upgrade to use it.",
   upload: "Image upload is not available on your plan. Upgrade to add images.",
   csv: "CSV export is not available on your plan. Upgrade to download your data.",
@@ -59,6 +60,8 @@ export function evaluateLimit(limits: PlanLimits, kind: LimitKind, used = 0): Li
       return limits.customSlotInterval ? null : { kind, status: 402, code: "FEATURE_LOCKED", error: LOCKED.slotInterval };
     case "expenses":
       return limits.expenseTracking ? null : { kind, status: 402, code: "FEATURE_LOCKED", error: LOCKED.expenses };
+    case "offers":
+      return limits.offers ? null : { kind, status: 402, code: "FEATURE_LOCKED", error: LOCKED.offers };
     case "branding":
       return limits.removeBranding ? null : { kind, status: 402, code: "FEATURE_LOCKED", error: LOCKED.branding };
   }

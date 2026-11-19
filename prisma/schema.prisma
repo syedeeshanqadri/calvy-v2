@@ -85,6 +85,8 @@ model VerificationToken {
 
 model Business {
   id                       String                @id @default(cuid())
+  coupons                  Coupon[]
+  offers                   BusinessOffer[]
   name                     String
   slug                     String                @unique
   /// Secret token in the private calendar feed URL (all of this business's bookings). Regenerating it breaks the old URL.
@@ -313,6 +315,8 @@ model PlanConfig {
   broadcasts             Boolean  @default(false)
   csvExport              Boolean  @default(false)
   expenseTracking        Boolean  @default(false)
+  /// Offers & discounts: business coupons and business-funded offers (paid plans).
+  offers                 Boolean  @default(false)
   wallet                 Boolean  @default(false)
   customSlotInterval     Boolean  @default(false)
   removeBranding         Boolean  @default(false)
@@ -1113,6 +1117,9 @@ model Subscription {
   creditMinor            Int                   @default(0)
   firstChargeMinor       Int                   @default(0)
   upgradeOfId            String?
+  /// A Calvy coupon taken off the first charge (folded into creditMinor); kept here for the usage log. durationMonths on the coupon is unused for now.
+  couponId               String?
+  couponMinor            Int                   @default(0)
   /// upi_card (the authorisation payment IS the first charge) | enach (authorise for 0, then Calvy raises the first charge)
   method                 String                @default("upi_card")
   paymentMethodLabel     String?
@@ -1158,6 +1165,9 @@ model SubscriptionInvoice {
   /// Price before credit, credit, and the total paid (all GST inclusive, paise); taxable + GST = total paid.
   grossMinor         Int
   creditMinor        Int          @default(0)
+  /// A plan coupon taken off this payment (shown as its own line), and its code.
+  couponMinor        Int          @default(0)
+  couponCode         String?
   amountMinor        Int
   taxableMinor       Int
   gstMinor           Int
@@ -1205,8 +1215,10 @@ model RewardProgress {
   counted   Int      @default(0)
   /// Rewards earned so far = floor(counted / every).
   earned    Int      @default(0)
-  /// Rewards spent on a booking. Available = earned - used. Rewards never expire.
+  /// Rewards spent on a booking. Available = earned + bonus - used. Rewards never expire.
   used      Int      @default(0)
+  /// Free Rs 10 confirmations granted by referrals (the same use and the same no-expiry as earned ones).
+  bonus     Int      @default(0)
   updatedAt DateTime @updatedAt
   offer     Offer    @relation(fields: [offerId], references: [id], onDelete: Cascade)
 
@@ -1219,6 +1231,8 @@ model RewardCount {
   offerId       String
   identity      String
   day           String
+  /// VISIT = an attended day; COMEBACK = the +1 stamp for attending within 30 days of the previous attended day (day is "<day>~comeback").
+  kind          String   @default("VISIT")
   appointmentId String?
   createdAt     DateTime @default(now())
   offer         Offer    @relation(fields: [offerId], references: [id], onDelete: Cascade)
@@ -1236,4 +1250,138 @@ model RewardRedemption {
   offer         Offer    @relation(fields: [offerId], references: [id], onDelete: Cascade)
 
   @@index([offerId, identity])
+}
+
+/// A discount code. `ownerKey` is "CALVY" (made in /admin) or the business id (made by that business, paid plans only).
+/// target: FEE = Calvy's Rs 10 confirmation fee (Basic, India), SUBSCRIPTION = a Calvy plan's first charge, SERVICE = a business's own prices.
+model Coupon {
+  id               String             @id @default(cuid())
+  ownerKey         String
+  businessId       String?
+  code             String
+  name             String
+  target           String
+  /// PERCENT (value 1-100) or FLAT (value in minor units of the currency it applies to).
+  kind             String
+  value            Int
+  minAmountMinor   Int                @default(0)
+  startsAt         DateTime?          @db.Timestamptz(3)
+  endsAt           DateTime?          @db.Timestamptz(3)
+  maxRedemptions   Int?
+  perCustomerLimit Int                @default(1)
+  firstBookingOnly Boolean            @default(false)
+  /// Subscriptions: plan ids this works on (empty = all). Fee and subscription coupons: the businesses it is for (empty = all).
+  planIds          String[]
+  businessIds      String[]
+  /// Business coupons: the services it works on (empty = all).
+  serviceIds       String[]
+  /// Not used yet: how many billing periods a subscription coupon lasts (null = first period only).
+  durationMonths   Int?
+  active           Boolean            @default(true)
+  createdBy        String?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  business         Business?          @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  redemptions      CouponRedemption[]
+
+  @@unique([ownerKey, code])
+  @@index([businessId])
+}
+
+/// The usage log: one row per use. A booking use is tied to its appointment (unique); a subscription use to its subscription.
+/// `identity` is the person ("e:email" / "p:phone", like rewards) or "b:<businessId>" for a subscription.
+model CouponRedemption {
+  id             String   @id @default(cuid())
+  couponId       String
+  identity       String
+  appointmentId  String?  @unique
+  subscriptionId String?  @unique
+  discountMinor  Int
+  createdAt      DateTime @default(now())
+  coupon         Coupon   @relation(fields: [couponId], references: [id], onDelete: Cascade)
+
+  @@index([couponId, identity])
+}
+
+/// A business-funded offer, applied automatically at booking (paid plans). NTH_VISIT: every `nth` visit is `percent` off.
+/// HAPPY_HOUR: `percent` off bookings that start on `days` between `startMinute` and `endMinute` (business-local, minutes from midnight).
+/// BUNDLE: `percent` off when ALL of `serviceIds` are booked together.
+model BusinessOffer {
+  id          String    @id @default(cuid())
+  businessId  String
+  kind        String
+  name        String
+  percent     Int
+  nth         Int?
+  /// 0 = Sunday ... 6 = Saturday; empty = every day.
+  days        Int[]
+  startMinute Int?
+  endMinute   Int?
+  /// NTH_VISIT and HAPPY_HOUR: the services it covers (empty = all). BUNDLE: the services that must all be booked.
+  serviceIds  String[]
+  startsAt    DateTime? @db.Timestamptz(3)
+  endsAt      DateTime? @db.Timestamptz(3)
+  active      Boolean   @default(true)
+  /// Shown on the public website and the booking page.
+  showOnSite  Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  business    Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@index([businessId, active])
+}
+
+/// The one-time free Rs 10 given when a person first reaches a tier (Silver). The unique key makes it once, however many visits cross the line.
+model TierGrant {
+  id        String   @id @default(cuid())
+  identity  String
+  tier      String
+  createdAt DateTime @default(now())
+
+  @@unique([identity, tier])
+}
+
+/// Gold's extra free Rs 10, one per calendar quarter (quarter key like "2026-Q4"). It expires at quarter end; the unique key stops a second use.
+model QuarterlyPerk {
+  id            String   @id @default(cuid())
+  identity      String
+  quarter       String
+  appointmentId String   @unique
+  createdAt     DateTime @default(now())
+
+  @@unique([identity, quarter])
+}
+
+/// A customer's referral code (their identity, like rewards: "e:email" or "p:phone").
+model ReferralCode {
+  id        String   @id @default(cuid())
+  identity  String   @unique
+  code      String   @unique
+  createdAt DateTime @default(now())
+}
+
+/// One friend referred by one customer. PENDING until the friend's first ATTENDED visit; then REWARDED (both get a free Rs 10) or CAPPED
+/// (the referrer was at 5 rewarded referrals that month). REJECTED = blocked (reason: SELF, SAME_PHONE, SAME_DEVICE, LOOP, NOT_NEW).
+model Referral {
+  id               String    @id @default(cuid())
+  referrerIdentity String
+  referredIdentity String    @unique
+  status           String    @default("PENDING")
+  reason           String?
+  appointmentId    String?
+  createdAt        DateTime  @default(now())
+  qualifiedAt      DateTime?
+
+  @@index([referrerIdentity, createdAt])
+}
+
+/// A browser (random cookie, stored hashed) seen on a booking by a person: used to refuse a referral made from the referrer's own device.
+model DeviceSeen {
+  id         String   @id @default(cuid())
+  identity   String
+  deviceHash String
+  createdAt  DateTime @default(now())
+
+  @@unique([identity, deviceHash])
+  @@index([deviceHash])
 }

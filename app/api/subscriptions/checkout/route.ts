@@ -9,7 +9,7 @@ import { startCheckout } from "@/lib/subscriptions/service";
 
 export const dynamic = "force-dynamic";
 
-const schema = z.object({ planId: z.enum(["professional", "business"]), interval: z.enum(["MONTHLY", "YEARLY"]), method: z.enum(["upi_card", "enach"]).default("upi_card") });
+const schema = z.object({ planId: z.enum(["professional", "business"]), interval: z.enum(["MONTHLY", "YEARLY"]), method: z.enum(["upi_card", "enach"]).default("upi_card"), couponCode: z.string().trim().max(40).optional() });
 
 /** Start a new plan or an upgrade (immediate, with the prorated credit). Returns the Cashfree session to open. Owner only, India only. */
 async function POST_handler(req: NextRequest) {

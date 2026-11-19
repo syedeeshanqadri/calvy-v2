@@ -23,6 +23,8 @@ export interface PlanLimits {
   broadcasts: boolean;
   csvExport: boolean;
   expenseTracking: boolean;
+  /** Offers & discounts: business coupons and business-funded offers (paid plans). */
+  offers: boolean;
   customSlotInterval: boolean;
   removeBranding: boolean;
   prioritySupport: boolean;
@@ -49,6 +51,7 @@ export const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
     broadcasts: false,
     csvExport: false,
     expenseTracking: true,
+    offers: false,
     customSlotInterval: false,
     removeBranding: false,
     prioritySupport: false,
@@ -73,6 +76,7 @@ export const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
     broadcasts: false,
     csvExport: true,
     expenseTracking: true,
+    offers: false,
     customSlotInterval: true,
     removeBranding: false,
     prioritySupport: false,
@@ -97,6 +101,7 @@ export const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
     broadcasts: false,
     csvExport: true,
     expenseTracking: true,
+    offers: true,
     customSlotInterval: false,
     removeBranding: false,
     prioritySupport: false,
@@ -121,6 +126,7 @@ export const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
     broadcasts: true,
     csvExport: true,
     expenseTracking: true,
+    offers: true,
     customSlotInterval: true,
     removeBranding: true,
     prioritySupport: true,
@@ -181,7 +187,7 @@ export interface PlanConfigRow {
   maxStaff: number; maxServices: number; maxMonthlyAppointments: number; maxBroadcastsPerMonth: number; maxTeamMembers: number; platformFeeMinorIN: number;
   analytics: boolean; customBranding: boolean; imageUpload: boolean; seoControls: boolean; chatbotWidget: boolean;
   groupBooking: boolean; multiService: boolean; stripePayments: boolean; emailReminders: boolean; smsReminders: boolean;
-  broadcasts: boolean; csvExport: boolean; expenseTracking: boolean; customSlotInterval: boolean;
+  broadcasts: boolean; csvExport: boolean; expenseTracking: boolean; offers: boolean; customSlotInterval: boolean;
   removeBranding: boolean; prioritySupport: boolean;
 }
 

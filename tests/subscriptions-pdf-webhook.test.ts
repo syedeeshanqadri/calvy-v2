@@ -22,6 +22,17 @@ const text = async (i: InvoicePdfInput) => {
   return `${all}\n${decoded}`;
 };
 
+describe("invoice PDF: plan coupon line", () => {
+  it('shows "Coupon <CODE> (-Rs X)" as its own line, apart from the credit line', async () => {
+    const t = await text({ ...base, grossMinor: 99900, creditMinor: 10000, couponMinor: 5000, couponCode: "WELCOME50", amountMinor: 84900 });
+    expect(t).toMatch(/Coupon WELCOME50 \(-.*50/);
+    expect(t).toContain("Credit for the unused part of your previous plan");
+  });
+  it("has no coupon line without a coupon", async () => {
+    expect(await text(base)).not.toContain("Coupon");
+  });
+});
+
 describe("invoice PDF", () => {
   it("is a real PDF", async () => {
     const bytes = await buildInvoicePdf(base);

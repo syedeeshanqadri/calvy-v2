@@ -8,6 +8,7 @@ import { usableImageUrl } from "@/lib/images";
 import { CalvyBadge } from "@/components/site/CalvyBadge";
 import { showCalvyBadge } from "@/lib/calvyBadge";
 import { prisma } from "@/lib/prisma";
+import { publicOffers } from "@/lib/offers/service";
 import { t } from "@/lib/terms";
 import { parseWebsiteConfig, defaultWebsiteConfig, WebsiteConfig, currentPhoto, focusPosition } from "@/lib/website";
 import { MapPin, Phone, Mail, Clock, ArrowRight, Check, Users, Tag, MessageCircle, CalendarClock, Video } from "lucide-react";
@@ -187,6 +188,7 @@ export default async function TenantWebsitePage(props: { params: Promise<{ slug:
   if (serviceCount > 0) heroTrust.push({ icon: <PackIcon name={pack.icons.service} />, text: `${serviceCount} ${t(business, "service", { plural: serviceCount !== 1 })}` });
   heroTrust.push({ icon: <Check aria-hidden />, text: cfg.contact.ctaNote || "Book online in minutes" });
   const quickServices = cfg.services.enabled ? business.services.slice(0, 5) : [];
+  const offers = await publicOffers(prisma, business.id, (await getBusinessFeatures(business.id)).offers);
   const railItems = [
     social.whatsapp && { href: social.whatsapp, label: "WhatsApp", icon: <MessageCircle className="st-ico" aria-hidden />, external: true },
     { href: bookingUrl, label: "Book now", icon: <CalendarClock className="st-ico" aria-hidden />, external: false },
@@ -275,6 +277,15 @@ export default async function TenantWebsitePage(props: { params: Promise<{ slug:
                   </li>
                 ))}
               </ul>
+            </div>
+          </section>
+        )}
+
+        {/* ── OFFERS (paid plans) ── */}
+        {offers.length > 0 && (
+          <section className="st-offers" aria-label="Offers">
+            <div className="st-wrap">
+              <ul>{offers.map((o) => <li key={o.id}><b>{o.name}</b><span>{o.summary}</span></li>)}</ul>
             </div>
           </section>
         )}

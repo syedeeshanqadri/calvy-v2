@@ -9,7 +9,7 @@ import { quoteFor } from "@/lib/subscriptions/service";
 
 export const dynamic = "force-dynamic";
 
-const query = z.object({ planId: z.enum(["professional", "business"]), interval: z.enum(["MONTHLY", "YEARLY"]) });
+const query = z.object({ planId: z.enum(["professional", "business"]), interval: z.enum(["MONTHLY", "YEARLY"]), coupon: z.string().trim().max(40).optional() });
 
 /** What the owner would pay now for this plan (credit for the unused part of the current plan included). Owner only, India only. */
 async function GET_handler(req: NextRequest) {
@@ -19,8 +19,8 @@ async function GET_handler(req: NextRequest) {
   if (!q.ok) return q.res;
   const b = await prisma.business.findUnique({ where: { id: session.user.businessId }, select: { currency: true } });
   if ((b?.currency ?? "").toUpperCase() !== "INR") return NextResponse.json({ error: "Plan payments outside India are coming soon." }, { status: 403 });
-  const r = await quoteFor(session.user.businessId, q.data.planId, q.data.interval);
-  return NextResponse.json({ kind: r.kind, ...r.quote, mandate: mandateCheck(r.newAmount) });
+  const r = await quoteFor(session.user.businessId, q.data.planId, q.data.interval, new Date(), q.data.coupon);
+  return NextResponse.json({ kind: r.kind, ...r.quote, coupon: r.coupon ? { code: r.coupon.code, name: r.coupon.name } : null, couponError: r.couponError, mandate: mandateCheck(r.newAmount) });
 }
 
 export const GET = safeRoute(GET_handler);

@@ -9,7 +9,8 @@ import { formatDateLabel, formatTimeLabel, safeTimeZone, utcToZoned, zonedToUtc 
 import { formatCurrencyAmount } from "@/lib/currency";
 import { trackingUrl } from "@/lib/tracking";
 import { meetingUrlFor } from "@/lib/online";
-import { progressFor } from "@/lib/rewards/service";
+import { ladderFor, progressFor } from "@/lib/rewards/service";
+import { ensureReferralCode } from "@/lib/rewards/referrals";
 import { prisma } from "@/lib/prisma";
 
 /** Everything the customer screens need, shaped for the browser: plain values, no raw links to other bookings. */
@@ -110,5 +111,9 @@ export const getCustomerData = cache(async () => {
 
   // Loyalty progress ("x of 7"), for the verified email only.
   const reward = await progressFor(prisma, { email: me.email }).catch(() => null);
-  return { me, verified: true as const, upcoming, past, stats: { ...stats, next: nextAt }, updates, waivers, reward };
+  // Tier, perks and the referral code (made on first view). Never stops the page.
+  const ladder = await ladderFor(prisma, { email: me.email });
+  const referralCode = ladder ? await ensureReferralCode(prisma, { email: me.email }).catch(() => null) : null;
+  const referralSlug = all[0]?.business.slug ?? null;
+  return { me, verified: true as const, upcoming, past, stats: { ...stats, next: nextAt }, updates, waivers, reward, ladder, referral: referralCode && referralSlug ? { code: referralCode, slug: referralSlug } : null };
 });

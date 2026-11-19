@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => {
     staff: { findUnique: vi.fn() },
     $executeRaw: vi.fn(async () => 0),
     rewardRedemption: { findUnique: vi.fn(async () => null) },
+    quarterlyPerk: { deleteMany: vi.fn(async () => ({ count: 0 })) },
   };
   db.$transaction = vi.fn(async (fn: (tx: unknown) => unknown) => fn(db));
   return { db, notify: vi.fn(async (..._items: unknown[]) => {}), credit: vi.fn(async (..._a: unknown[]): Promise<boolean> => false) };

@@ -28,6 +28,7 @@ interface PlanConfig {
   broadcasts: boolean;
   csvExport: boolean;
   expenseTracking: boolean;
+  offers: boolean;
   customSlotInterval: boolean;
   removeBranding: boolean;
   prioritySupport: boolean;
@@ -82,6 +83,7 @@ const ALL_FLAG_GROUPS: FlagGroup[] = [
       { key: "analytics", label: "Analytics" },
       { key: "csvExport", label: "CSV export" },
       { key: "expenseTracking", label: "Expense tracking" },
+      { key: "offers", label: "Offers & discounts" },
     ],
   },
   {
@@ -175,6 +177,7 @@ export function PlansClient({ plans: initialPlans, tenantCounts }: Props) {
           broadcasts: form.broadcasts,
           csvExport: form.csvExport,
           expenseTracking: form.expenseTracking,
+          offers: form.offers,
           customSlotInterval: form.customSlotInterval,
           removeBranding: form.removeBranding,
           prioritySupport: form.prioritySupport,

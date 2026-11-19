@@ -10,9 +10,10 @@ import { trackingUrl } from "@/lib/tracking";
 import { assertNoDuplicatePatient, assertWithinPeopleCap, contactAtDailyCap } from "@/lib/patientsDb";
 import { chargeFor, defaultGateway, sendConfirmationFor, startCheckout, type PayConfig } from "@/lib/onlinePayment";
 import { assertMonthlyHeadroom } from "@/lib/limits";
-import { claimWaiver, waiverAvailable } from "@/lib/waiver";
-import { claimReward, rewardAvailable, RewardTakenError } from "@/lib/rewards/service";
-import { rewardApplies } from "@/lib/rewards/rules";
+import { claimWaiver } from "@/lib/waiver";
+import { claimFeeCoupon, resolveCalvyFee } from "@/lib/coupons/booking";
+import { redeemForAppointment } from "@/lib/coupons/service";
+import { claimReward, RewardTakenError } from "@/lib/rewards/service";
 import { loadMeetingUrl } from "@/lib/onlineDb";
 import { addDays, formatDateLabel, parseYMD, utcToZoned, weekdayOf, zonedToUtc } from "@/lib/time";
 import {
@@ -141,6 +142,10 @@ export interface TokenBookingInput {
   payConfig: PayConfig | null;
   /** The booker proved their email (own signed link): only then may a loyalty reward be spent. */
   verifiedBooker?: boolean;
+  /** One discount code typed by the customer (checked here, taken inside the booking transaction). */
+  couponCode?: string | null;
+  /** A business coupon already judged by the route: taken inside the booking transaction. Prices in `services` are already discounted. */
+  serviceCoupon?: { couponId: string; lines: { id: string; priceMinor: number }[] } | null;
   /** Who the token is for (the booker unless they booked for someone else). */
   patientName: string;
   /** Relation, age and gender of someone else (already limited to what the business collects). */
@@ -191,18 +196,13 @@ export async function bookToken(input: TokenBookingInput): Promise<NextResponse>
 
   const client = await findOrCreateClient(prisma, business.id, input.client, tz);
 
-  // A kept Rs 10 confirmation fee (earlier booking cancelled or not attended) waives the fee once at this business.
-  let charge = fullCharge;
-  let waived = false;
-  if (fullCharge.route === "CALVY" && fullCharge.chargeMinor > 0 && (await waiverAvailable(prisma, business.id, client.id))) {
-    charge = { chargeMinor: 0, platformFeeMinor: 0, businessShareMinor: 0, route: "NONE" };
-    waived = true;
-  }
-  let rewarded = false;
-  if (!waived && input.verifiedBooker && rewardApplies(fullCharge) && (await rewardAvailable(prisma, { email: input.client.email, phone: input.client.phone }))) {
-    charge = { chargeMinor: 0, platformFeeMinor: 0, businessShareMinor: 0, route: "NONE" };
-    rewarded = true;
-  }
+  // What reduces Calvy's Rs 10: the kept-fee waiver first, then ONE of a Calvy coupon or a loyalty reward (lib/coupons/booking.ts).
+  const fee = await resolveCalvyFee(prisma, {
+    businessId: business.id, clientId: client.id, fullCharge, verifiedBooker: !!input.verifiedBooker,
+    customer: { email: input.client.email, phone: input.client.phone, tz }, couponCode: input.couponCode,
+  });
+  if (!fee.ok) return err(fee.status, fee.error, fee.code);
+  const { charge, waived, rewarded, coupon } = fee.value;
   const gateway = charge.route === "GATEWAY" ? await defaultGateway(business.id) : null;
   if (charge.route === "GATEWAY" && !gateway) return err(503, "Online payments are temporarily unavailable. Please try again later.", "PAYMENT_START_FAILED");
   const holdExpiresAt = charge.chargeMinor > 0 ? holdExpiry() : null;
@@ -230,6 +230,8 @@ export async function bookToken(input: TokenBookingInput): Promise<NextResponse>
     // The waiver is claimed in the booking's own transaction: two parallel bookings cannot both skip the fee.
     if (waived && !(await claimWaiver(tx, { businessId: business.id, clientId: client.id, appointmentId: created.id }))) throw new WaiverTakenError();
     if (rewarded && !(await claimReward(tx, { appointmentId: created.id, email: input.client.email, phone: input.client.phone }))) throw new RewardTakenError();
+    if (coupon) await claimFeeCoupon(tx, { couponId: coupon.couponId, appointmentId: created.id, businessId: business.id, feeMinor: coupon.feeMinor, customer: { email: input.client.email, phone: input.client.phone, tz } });
+    if (input.serviceCoupon) await redeemForAppointment(tx, { couponId: input.serviceCoupon.couponId, appointmentId: created.id, customer: { email: input.client.email, phone: input.client.phone, tz }, ctx: { target: "SERVICE", businessId: business.id, services: input.serviceCoupon.lines } });
     return created;
   });
 

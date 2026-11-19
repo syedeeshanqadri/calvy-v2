@@ -23,6 +23,8 @@ Rule: keep ALL features open during the build (PLAN_ENFORCEMENT off). Plan restr
 - Pay-links. FULL_ONLINE unreachable.
 - WhatsApp marketing broadcasts via approved MARKETING templates + explicit marketing consent (the WhatsApp option was removed from Broadcasts in step 17).
 - Quiet hours for phone alerts (optional, per user: no alerts between chosen times, e.g. 22:00-07:00, held or dropped). Parked in Step 19 (PWA polish); needs one additive migration on the user's push preferences.
+- Prepaid session bundles (v1 "packages" are only a % off when several services are booked together): the customer buys N sessions up front at a bundle price and uses them over time. Needs a purchase flow, a balance per customer and business, expiry, refunds and the business's own gateway. Parked after Step 31.
+- Coupon and referral code in the chat widget (`components/chatbot/ChatWidget`): only the full booking page (`/book`) takes a discount code or `?cref=` referral code today; the widget books without them. Parked after Step 31.
 - Calvy-wide wallet (India only): customers pay at booking, can top up, cancellation/missed amounts stay in wallet (no refunds), wallet usable across all Calvy businesses. Owner has taken legal advice and has approval for this model. Parked for later; current per-business credit stays as is until then.
 
 ## Decisions: Payments (Nov 2026, step 24; supersedes Easy Split)
@@ -70,6 +72,28 @@ Write the deletion script with a dry run, and run it only after confirming which
 - Identity: the email (customer account), else phone digits. A reward can only be SPENT by a verified customer (own signed link, `?vt=`); progress is counted for everyone.
 - A reward only waives a booking that would charge the Rs 10 (Basic, India). The kept-fee rebooking (`ConfirmationWaiver`) goes first, so one booking never spends both. A cancelled booking gives its reward back; a not-attended one keeps it spent.
 - Shown on `/account`, the booking success screen (verified only), the confirmation email, and "This booking is free (reward)" at checkout.
+
+### Step 31: Coupons, offers & rewards ladder (decisions, Nov 18)
+**Calvy coupons (made in /admin/coupons)**
+- Targets: the Rs 10 confirmation fee (Basic, India) and a plan subscription's first payment. A coupon can be limited to businesses or plans.
+- Rules: percent or flat, minimum amount, start and end dates, total limit, per-customer limit, first-booking-only. One code per checkout, checked on the server; every use is logged (`CouponRedemption`), every admin change is audited.
+- Subscription coupons take money off the FIRST payment only. `Coupon.durationMonths` exists but is unused; recurring discounts come later. The discount is folded into the first charge's credit, so the amount check and the invoice stay consistent.
+- Fee side (Basic): a Calvy coupon OR a loyalty reward, never both. A coupon that clears the whole Rs 10 is used and the reward is KEPT. A ready reward beats a partial coupon (the coupon is kept). The kept-fee waiver (`ConfirmationWaiver`) always goes first. A coupon never leaves less than Rs 1 to pay (it clears the fee instead).
+- Uses are released when the booking is cancelled or expires, a payment hold lapses, or a plan checkout is abandoned.
+
+**Business coupons and offers (paid plans only, "Offers & discounts")**
+- Business coupons discount the business's own service prices; they are funded by the business. Calvy never touches that money.
+- Business-funded offers (shown on the website and booking page, applied automatically): every Nth visit % off, happy hours (days and times), and bundle packages (book these services together for % off).
+- One business discount per booking: the better of one business coupon and one business offer, never stacked. Calvy coupons and rewards only touch Calvy's Rs 10 (Basic only), so they cannot overlap with business discounts (paid plans have no Rs 10).
+- Gated by the plan flag `offers` in the page and in the API.
+
+**Rewards ladder (on the existing engine)**
+- Attended-only earning everywhere (a booking marked completed; walk-ins, cancellations and no-shows earn nothing). Tiers count attended DAYS, like the 7-day stamp: Regular at 3, Silver at 10, Gold at 25.
+- Free reschedule stays for EVERYONE (a reschedule moves the same booking and never charges again); it is not a tier perk. Silver: a ONE-TIME free Rs 10 confirmation, granted when the tier is first reached (`TierGrant`, unique per person and tier), plus a Silver badge on the account page. Gold: one extra free Rs 10 per quarter, which expires at quarter end (a perk). Gold waitlist priority is skipped: there is no waitlist feature yet.
+- Normal 7-day stamp rewards still never expire.
+- Referral: both people get a free Rs 10 after the friend's first ATTENDED visit. Blocked: self-referral, loops, same phone, same device. The referred person must be new (no earlier Calvy booking anywhere, any identity match); a person can be referred once; cap 5 rewarded referrals per month per referrer; referrers with more than 5 attempts a month are flagged in admin for review. No email-domain or name heuristics (false positives).
+- Comeback: +1 stamp when a customer attends a visit within 30 days of their previous attended visit, at most ONE bonus stamp per calendar month (India time); the month is part of the unique key, so the database enforces the cap.
+- Plan coupons show on the invoice and receipt as their own line, "Coupon <CODE> (-Rs X)", apart from the proration credit line.
 
 ### Step 25c: gateways by region (decisions)
 - India list: Razorpay, Cashfree, PhonePe PG, PayU, CCAvenue, Paytm PG. International list: Stripe, PayPal; Square, Mollie and Adyen later. Filtered by region (currency now, `Business.country` when it exists), in the UI and on the server.

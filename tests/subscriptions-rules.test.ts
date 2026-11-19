@@ -106,6 +106,14 @@ describe("GST: a tax invoice only with a GSTIN, otherwise a plain receipt", () =
     expect(l.gstMinor).toBe(9526);
     expect(l.gstRate).toBe(18);
   });
+  it("a plan coupon is its own line; credit and coupon both come off, and the split still adds up", () => {
+    const l = invoiceLines({ grossMinor: 99900, creditMinor: 10000, couponMinor: 5000, gstin: "29ABCDE1234F1Z5", gstRatePercent: 18 });
+    expect(l).toMatchObject({ kind: "TAX_INVOICE", creditMinor: 10000, couponMinor: 5000, amountMinor: 84900 });
+    expect(l.taxableMinor + l.gstMinor).toBe(84900);
+    const r = invoiceLines({ grossMinor: 99900, creditMinor: 0, couponMinor: 99900 + 5, gstin: null, gstRatePercent: 18 });
+    expect(r.amountMinor).toBe(0); // never negative
+    expect(invoiceLines({ grossMinor: 99900, creditMinor: 0, gstin: null, gstRatePercent: 18 }).couponMinor).toBe(0);
+  });
   it("without a GSTIN: a Receipt, no GST line at all", () => {
     const l = invoiceLines({ grossMinor: 34900, creditMinor: 0, gstin: null, gstRatePercent: 18 });
     expect(l).toMatchObject({ kind: "RECEIPT", amountMinor: 34900, taxableMinor: 34900, gstMinor: 0, gstRate: 0 });

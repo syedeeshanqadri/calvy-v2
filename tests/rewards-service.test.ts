@@ -6,8 +6,8 @@ type Appt = { id: string; status: string; source: string; date: Date; client: { 
 /** In-memory stand-in for the few Prisma calls the rewards service makes. */
 function fakeDb(offer: { enabled: boolean; every: number } = { enabled: true, every: 7 }) {
   const appts = new Map<string, Appt>();
-  const counts: { offerId: string; identity: string; day: string; appointmentId: string }[] = [];
-  const progress = new Map<string, { id: string; offerId: string; identity: string; counted: number; earned: number; used: number }>();
+  const counts: { offerId: string; identity: string; day: string; kind?: string; appointmentId: string }[] = [];
+  const progress = new Map<string, { id: string; offerId: string; identity: string; counted: number; earned: number; used: number; bonus: number }>();
   const redemptions: { id: string; offerId: string; identity: string; appointmentId: string }[] = [];
   const off = { id: "o1", key: "LOYALTY_EVERY_8TH", ...offer };
   let n = 0;
@@ -22,13 +22,19 @@ function fakeDb(offer: { enabled: boolean; every: number } = { enabled: true, ev
         return { count: c };
       },
       findMany: async ({ where }: { where: { identity: string } }) => counts.filter((c) => c.identity === where.identity).map((c) => ({ day: c.day })),
+      findFirst: async ({ where }: { where: { identity: string; kind: string; day: { lt: string } } }) =>
+        counts.filter((c) => c.identity === where.identity && (c.kind ?? "VISIT") === where.kind && c.day < where.day.lt).sort((a, b) => (a.day < b.day ? 1 : -1))[0] ?? null,
+      count: async ({ where }: { where: { identity: string; kind: string } }) => counts.filter((c) => c.identity === where.identity && (c.kind ?? "VISIT") === where.kind).length,
     },
+    referral: { findUnique: async () => null },
+    tierGrant: { createMany: async () => ({ count: 0 }) },
+    quarterlyPerk: { findUnique: async () => null, createMany: async () => ({ count: 0 }), deleteMany: async () => ({ count: 0 }) },
     rewardProgress: {
       findUnique: async ({ where }: { where: { offerId_identity: { offerId: string; identity: string } } }) => progress.get(pk(where)) ?? null,
       upsert: async ({ where, create, update }: { where: { offerId_identity: { offerId: string; identity: string } }; create: { offerId: string; identity: string; counted: number; earned: number }; update: { counted: { increment: number } } }) => {
         const cur = progress.get(pk(where));
         if (cur) { cur.counted += update.counted.increment; return { ...cur }; }
-        const row = { id: `p${++n}`, used: 0, ...create };
+        const row = { id: `p${++n}`, used: 0, bonus: 0, ...create };
         progress.set(pk(where), row);
         return { ...row };
       },
@@ -57,17 +63,19 @@ function fakeDb(offer: { enabled: boolean; every: number } = { enabled: true, ev
 const dayIso = (i: number) => `2026-03-${String(i + 1).padStart(2, "0")}T08:00:00Z`;
 const who = { email: "ann@x.com" };
 
-async function attend(f: ReturnType<typeof fakeDb>, days: number) {
-  for (let i = 0; i < days; i++) { f.addAppt(`a${i}`, {}, dayIso(i)); await recordAttended(f.db, `a${i}`); }
+// Consecutive days by default. A visit within 30 days of the last earns ONE comeback stamp per calendar month, so the tests that count stamps
+// exactly use `spaced` (visits 40 days apart: no comeback). The comeback rules themselves are tested in ladder-service.test.ts.
+async function attend(f: ReturnType<typeof fakeDb>, days: number, spaced = false) {
+  for (let i = 0; i < days; i++) { f.addAppt(`a${i}`, {}, spaced ? new Date(Date.UTC(2025, 0, 10 + i * 40, 8)).toISOString() : dayIso(i)); await recordAttended(f.db, `a${i}`); }
 }
 
 describe("recordAttended", () => {
   it("counts 7 attended days, then the reward is ready", async () => {
     const f = fakeDb();
-    await attend(f, 6);
+    await attend(f, 6, true);
     expect(await rewardAvailable(f.db, who)).toBe(false);
     expect(await progressFor(f.db, who)).toEqual({ done: 6, of: 7, available: 0 });
-    await attend(f, 7);
+    await attend(f, 7, true);
     expect(await progressFor(f.db, who)).toEqual({ done: 0, of: 7, available: 1 });
   });
   it("counts several bookings on the same business-local day once", async () => {
@@ -84,7 +92,8 @@ describe("recordAttended", () => {
     f.addAppt("x", {}, "2026-03-10T17:00:00Z");
     f.addAppt("y", {}, "2026-03-10T19:00:00Z");
     await recordAttended(f.db, "x"); await recordAttended(f.db, "y");
-    expect((await progressFor(f.db, who))?.done).toBe(2);
+    // The two business-local days (10 and 11 March) are consecutive, so the second one also earns the comeback stamp: 1 + 2 = 3.
+    expect((await progressFor(f.db, who))?.done).toBe(3);
   });
   it("is safe to repeat for one booking", async () => {
     const f = fakeDb();
@@ -126,7 +135,7 @@ describe("claim and release", () => {
   });
   it("cannot be spent before it is earned, or while the offer is disabled", async () => {
     const f = fakeDb();
-    await attend(f, 6);
+    await attend(f, 6, true);
     expect(await claimReward(f.db, { appointmentId: "b1", ...who })).toBe(false);
     const g = fakeDb({ enabled: false, every: 7 });
     expect(await claimReward(g.db, { appointmentId: "b1", ...who })).toBe(false);
@@ -158,7 +167,7 @@ describe("claim and release", () => {
 describe("lookupProgress (admin)", () => {
   it("finds a person by email or phone", async () => {
     const f = fakeDb();
-    await attend(f, 3);
+    await attend(f, 3, true);
     const r = await lookupProgress(f.db, "ANN@x.com");
     expect(r?.counted).toBe(3);
     expect(r?.view).toEqual({ done: 3, of: 7, available: 0 });

@@ -20,7 +20,7 @@ Object.assign(fake, {
     findUniqueOrThrow: async ({ where }: any) => { const r = mem.subs.find((x) => x.id === where.id); if (!r) throw new Error("nf"); return r; },
     findFirst: async ({ where, orderBy }: any = {}) => { const rows = mem.subs.filter((r) => subWhere(r, where)); return (orderBy ? rows.sort((a, b) => b.createdAt - a.createdAt) : rows)[0] ?? null; },
     findMany: async ({ where }: any = {}) => mem.subs.filter((r) => subWhere(r, where)),
-    create: async ({ data }: any) => { const r = { id: `s${++mem.seq}`, createdAt: mem.seq, creditMinor: 0, firstChargeMinor: 0, failedCount: 0, dunningSent: 0, chargePaymentId: null, pendingPlanId: null, pendingInterval: null, currentPeriodStart: null, currentPeriodEnd: null, nextChargeAt: null, firstFailedAt: null, graceUntil: null, lastChargeRetryAt: null, endedReason: null, upgradeOfId: null, paymentMethodLabel: null, ...data }; mem.subs.push(r); return r; },
+    create: async ({ data }: any) => { const r = { id: `s${++mem.seq}`, createdAt: mem.seq, creditMinor: 0, couponMinor: 0, couponId: null, firstChargeMinor: 0, failedCount: 0, dunningSent: 0, chargePaymentId: null, pendingPlanId: null, pendingInterval: null, currentPeriodStart: null, currentPeriodEnd: null, nextChargeAt: null, firstFailedAt: null, graceUntil: null, lastChargeRetryAt: null, endedReason: null, upgradeOfId: null, paymentMethodLabel: null, ...data }; mem.subs.push(r); return r; },
     update: async ({ where, data }: any) => { const r = mem.subs.find((x) => x.id === where.id)!; for (const [k, v] of Object.entries(data)) r[k] = v && typeof v === "object" && "increment" in (v as any) ? r[k] + (v as any).increment : v; return r; },
     updateMany: async ({ where, data }: any) => { const rows = mem.subs.filter((r) => subWhere(r, where)); rows.forEach((r) => Object.assign(r, data)); return { count: rows.length }; },
   },
@@ -34,6 +34,7 @@ Object.assign(fake, {
     findUnique: async ({ where }: any) => mem.business[where.id] ?? null,
     update: async ({ where, data }: any) => Object.assign(mem.business[where.id], data),
   },
+  coupon: { findUnique: async ({ where }: any) => (where.id === "c1" ? { code: "WELCOME50" } : null) },
   $executeRaw: async () => 0,
 });
 fake.$transaction = async (fn: any) => fn(fake);
@@ -55,6 +56,24 @@ beforeEach(() => {
   mem.business = { b1: { id: "b1", name: "Glow", plan: "free", planStatus: "free", currency: "INR", phone: "9999999999", email: "o@x.com", owner: { name: "Asha", email: "o@x.com" }, planOverridePlan: null, planOverrideUntil: null } };
   client.cancel.mockClear(); client.charge.mockClear();
   delete process.env.CALVY_GSTIN;
+});
+
+describe("a plan coupon is its own labelled line on the invoice", () => {
+  it("splits the coupon from the proration credit and records the code", async () => {
+    const s = await sub({ amountMinor: 34900, creditMinor: 7000 + 5000, couponMinor: 5000, couponId: "c1", firstChargeMinor: 22900 });
+    await onAuthorised(s.cashfreeSubscriptionId, { method: "upi", now: T0 });
+    expect(mem.invoices[0]).toMatchObject({ grossMinor: 34900, creditMinor: 7000, couponMinor: 5000, couponCode: "WELCOME50", amountMinor: 22900 });
+  });
+  it("with only a coupon the credit line is zero", async () => {
+    const s = await sub({ amountMinor: 34900, creditMinor: 5000, couponMinor: 5000, couponId: "c1", firstChargeMinor: 29900 });
+    await onAuthorised(s.cashfreeSubscriptionId, { method: "upi", now: T0 });
+    expect(mem.invoices[0]).toMatchObject({ creditMinor: 0, couponMinor: 5000, couponCode: "WELCOME50", amountMinor: 29900 });
+  });
+  it("without a coupon nothing changes", async () => {
+    const s = await sub();
+    await onAuthorised(s.cashfreeSubscriptionId, { method: "upi", now: T0 });
+    expect(mem.invoices[0]).toMatchObject({ couponMinor: 0, couponCode: null });
+  });
 });
 
 describe("a new subscription is authorised and paid", () => {

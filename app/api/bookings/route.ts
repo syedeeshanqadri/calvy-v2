@@ -35,9 +35,14 @@ import { Prisma } from "@prisma/client";
 import { suspended, suspendedResponse } from "@/lib/suspension";
 import { checkVerifiedLimits, getVerifiedLimits, isVerifiedBooker } from "@/lib/verifiedLimits";
 import { FollowUpTicketError, resolveFollowUp } from "@/lib/followUpDb";
-import { claimWaiver, waiverAvailable } from "@/lib/waiver";
+import { claimWaiver } from "@/lib/waiver";
+import { afterBooking } from "@/lib/rewards/referrals";
+import { deviceHash } from "@/lib/rewards/device";
+import { CouponUnavailableError, redeemForAppointment } from "@/lib/coupons/service";
+import { priceAfterDiscount, resolveBusinessDiscount } from "@/lib/offers/service";
+import { claimFeeCoupon, resolveCalvyFee } from "@/lib/coupons/booking";
 import { WaiverTakenError } from "@/lib/tokenBooking";
-import { claimReward, rewardAvailable, progressFor, RewardTakenError } from "@/lib/rewards/service";
+import { claimReward, progressFor, RewardTakenError } from "@/lib/rewards/service";
 import { rewardApplies } from "@/lib/rewards/rules";
 import { toMinor } from "@/lib/fees";
 
@@ -197,7 +202,7 @@ async function bookingHandler(req: NextRequest) {
   const followUpTakenResponse = () =>
     NextResponse.json({ error: "Your free follow-up has already been used. Please book again as a new appointment.", code: "FOLLOW_UP_USED" }, { status: 409 });
 
-  const totalPrice = followUpOfId ? 0 : orderedServices.reduce((sum, s) => sum + s.price, 0);
+  let totalPrice = followUpOfId ? 0 : orderedServices.reduce((sum, s) => sum + s.price, 0);
   const totalDuration = orderedServices.reduce((sum, s) => sum + s.duration, 0);
   const serviceNamesLabel = orderedServices.map(s => s.name).join(" & ");
 
@@ -208,7 +213,33 @@ async function bookingHandler(req: NextRequest) {
   if (onlinePayments && !payConfig && process.env.NODE_ENV === "production" && business.currency?.toUpperCase() === "INR") {
     return NextResponse.json({ error: "Online payments are temporarily unavailable. Please try again later." }, { status: 503 });
   }
-  const charge = chargeFor(payConfig, orderedServices.map((sv) => ({ serviceId: sv.id, price: followUpOfId ? 0 : sv.price })));
+  let charge = chargeFor(payConfig, orderedServices.map((sv) => ({ serviceId: sv.id, price: followUpOfId ? 0 : sv.price })));
+
+  // Business discount (paid plans): the better of ONE business coupon and the best offer, never stacked. It lowers the service prices,
+  // so the amount paid online (if any) and the stored price follow it. Calvy's Rs 10 is separate and only on Basic, where this is off.
+  let pricedServices = orderedServices;
+  let serviceCoupon: { couponId: string; lines: { id: string; priceMinor: number }[] } | null = null;
+  let businessCodeConsumed = false;
+  const biz = business;
+  const typedCode = parsed.data.couponCode;
+  async function applyBusinessDiscount(start: Date | null): Promise<NextResponse | null> {
+    const r = await resolveBusinessDiscount(prisma, {
+      business: biz, offersEnabled: !!limits.offers && !followUpOfId, services: orderedServices.map((s) => ({ id: s.id, price: s.price })), start,
+      customer: { email: clientEmail, phone: clientPhone }, couponCode: typedCode,
+    });
+    if (!r.ok) return NextResponse.json({ error: r.error, code: "COUPON_INVALID" }, { status: 400 });
+    businessCodeConsumed = r.codeConsumed;
+    if (r.discountMinor > 0) {
+      const prices = priceAfterDiscount(orderedServices.map((s) => ({ id: s.id, price: s.price })), r.discountMinor, biz.currency);
+      pricedServices = orderedServices.map((s, i) => ({ ...s, price: prices[i] }));
+      totalPrice = pricedServices.reduce((sum, s) => sum + s.price, 0);
+      charge = chargeFor(payConfig, pricedServices.map((sv) => ({ serviceId: sv.id, price: sv.price })));
+      if (r.coupon) serviceCoupon = { couponId: r.coupon.couponId, lines: orderedServices.map((s) => ({ id: s.id, priceMinor: toMinor(s.price, biz.currency) })) };
+    }
+    return null;
+  }
+  // The code goes to Calvy's fee side only when it was not one of this business's own coupons.
+  const feeCode = () => (businessCodeConsumed ? null : typedCode ?? null);
   // A phone number is needed for the Indian gateways; a card or PayPal payment abroad does not need one.
   if (charge.chargeMinor > 0 && !clientPhone && payConfig?.country === "IN") {
     return NextResponse.json({ error: "A phone number is needed to pay online." }, { status: 400 });
@@ -217,18 +248,20 @@ async function bookingHandler(req: NextRequest) {
   // Token businesses book a numbered place in a session; there is no clock time to choose.
   if (business.bookingMode === "TOKEN") {
     if (!tokenSessionId) return NextResponse.json({ error: "Please choose a session." }, { status: 400 });
+    const tokenDiscount = await applyBusinessDiscount(null);
+    if (tokenDiscount) return tokenDiscount;
     try {
       return await bookToken({
-        business, services: orderedServices, tokenSessionId, date, tz: bizTz,
+        business, services: pricedServices, tokenSessionId, date, tz: bizTz,
         client: { name: clientName, email: clientEmail, phone: clientPhone },
         notes, maxMonthlyAppointments: limits.maxMonthlyAppointments, monthStart, payConfig, patientName, patientDetails, followUpOfId,
-        maxPeoplePerBooker: business.maxPeoplePerBooker, isOnline, verifiedBooker,
+        maxPeoplePerBooker: business.maxPeoplePerBooker, isOnline, verifiedBooker, couponCode: feeCode(), serviceCoupon,
       });
     } catch (err) {
       if (err instanceof DuplicatePatientError) return await duplicateResponse(err);
       if (err instanceof LimitReachedError) return await limitResponse();
       if (followUpTaken(err)) return followUpTakenResponse();
-      if (err instanceof WaiverTakenError || err instanceof RewardTakenError) return NextResponse.json({ error: err.message, code: "WAIVER_CHANGED" }, { status: 409 });
+      if (err instanceof WaiverTakenError || err instanceof RewardTakenError || err instanceof CouponUnavailableError) return NextResponse.json({ error: err.message, code: "WAIVER_CHANGED" }, { status: 409 });
       throw err;
     }
   }
@@ -246,6 +279,9 @@ async function bookingHandler(req: NextRequest) {
   if (isPastBooking(appointmentStart.getTime())) {
     return NextResponse.json({ error: "That time has already passed. Please pick a future slot." }, { status: 400 });
   }
+
+  const slotDiscount = await applyBusinessDiscount(appointmentStart);
+  if (slotDiscount) return slotDiscount;
 
   const capacity = Math.max(1, orderedServices[0].capacity ?? 1);
   const conflictResponse = () =>
@@ -280,6 +316,8 @@ async function bookingHandler(req: NextRequest) {
   // For each candidate (preference order) take the lock on that staff member,
   // re-check the slot inside the lock with the same engine, then insert. If a
   // concurrent booking took it, fall through to the next candidate.
+  // Set when a Calvy coupon reduces the Rs 10 for this booking; taken inside the booking transaction.
+  let feeCoupon: { couponId: string; code: string; discountMinor: number; feeMinor: number } | null = null;
   async function createAppointment(
     clientId: string,
     paymentStatus: string,
@@ -339,6 +377,8 @@ async function bookingHandler(req: NextRequest) {
             if (waive && !(await claimWaiver(tx, { businessId: business!.id, clientId, appointmentId: created.id }))) throw new WaiverTakenError();
             // Same for the loyalty reward: spent inside the booking's own transaction.
             if (reward && !(await claimReward(tx, { appointmentId: created.id, email: clientEmail, phone: clientPhone }))) throw new RewardTakenError();
+            if (serviceCoupon) await redeemForAppointment(tx, { couponId: serviceCoupon.couponId, appointmentId: created.id, customer: { email: clientEmail, phone: clientPhone, tz: bizTz }, ctx: { target: "SERVICE", businessId: business!.id, services: serviceCoupon.lines } });
+            if (feeCoupon) await claimFeeCoupon(tx, { couponId: feeCoupon.couponId, appointmentId: created.id, businessId: business!.id, feeMinor: feeCoupon.feeMinor, customer: { email: clientEmail, phone: clientPhone, tz: bizTz } });
             return created;
           },
         );
@@ -422,20 +462,14 @@ async function bookingHandler(req: NextRequest) {
   // Online payments on: hold the slot while the customer pays, or confirm when nothing is due.
   if (onlinePayments) {
     client = await getOrCreateClient();
-    // A kept Rs 10 confirmation fee (earlier booking cancelled or not attended) waives the fee once at this business.
-    let payCharge = charge;
-    let waived = false;
-    if (charge.route === "CALVY" && charge.chargeMinor > 0 && (await waiverAvailable(prisma, business.id, client.id))) {
-      payCharge = { chargeMinor: 0, platformFeeMinor: 0, businessShareMinor: 0, route: "NONE" };
-      waived = true;
-    }
-    // A loyalty reward (every 8th attended visit) waives the Rs 10 the same way, for a verified customer only. The kept-fee
-    // rebooking above goes first, so one booking never spends both.
-    let rewarded = false;
-    if (!waived && verifiedBooker && rewardApplies(charge) && (await rewardAvailable(prisma, { email: clientEmail, phone: clientPhone }))) {
-      payCharge = { chargeMinor: 0, platformFeeMinor: 0, businessShareMinor: 0, route: "NONE" };
-      rewarded = true;
-    }
+    // What reduces Calvy's Rs 10: the kept-fee waiver first, then ONE of a Calvy coupon or a loyalty reward (lib/coupons/booking.ts).
+    const fee = await resolveCalvyFee(prisma, {
+      businessId: business.id, clientId: client.id, fullCharge: charge, verifiedBooker,
+      customer: { email: clientEmail, phone: clientPhone, tz: bizTz }, couponCode: feeCode(),
+    });
+    if (!fee.ok) return NextResponse.json({ error: fee.error, code: fee.code }, { status: fee.status });
+    const { charge: payCharge, waived, rewarded, coupon } = fee.value;
+    feeCoupon = coupon;
     const gateway = payCharge.route === "GATEWAY" ? await defaultGateway(business.id) : null;
     if (payCharge.route === "GATEWAY" && !gateway) return NextResponse.json({ error: "Online payments are temporarily unavailable. Please try again later.", code: "PAYMENT_START_FAILED" }, { status: 503 });
     const hold = payCharge.chargeMinor > 0 ? holdExpiry() : null;
@@ -445,7 +479,7 @@ async function bookingHandler(req: NextRequest) {
     try {
       appointment = await createAppointment(client.id, "unpaid", venueMode, hold, waived, rewarded);
     } catch (err) {
-      if (err instanceof WaiverTakenError || err instanceof RewardTakenError) return NextResponse.json({ error: err.message, code: "WAIVER_CHANGED" }, { status: 409 });
+      if (err instanceof WaiverTakenError || err instanceof RewardTakenError || err instanceof CouponUnavailableError) return NextResponse.json({ error: err.message, code: "WAIVER_CHANGED" }, { status: 409 });
       if (err instanceof DuplicatePatientError) return await duplicateResponse(err);
       if (err instanceof SlotConflictError) return conflictResponse();
       if (err instanceof LimitReachedError) return await limitResponse();
@@ -489,10 +523,18 @@ async function bookingHandler(req: NextRequest) {
  * were held back (daily cap), so this cannot be used to send repeated emails to an address.
  */
 async function POST_handler(req: NextRequest) {
-  const raw = (await req.clone().json().catch(() => null)) as { clientEmail?: unknown; clientName?: unknown } | null;
+  const raw = (await req.clone().json().catch(() => null)) as { clientEmail?: unknown; clientName?: unknown; referralCode?: unknown } | null;
   const res = await bookingHandler(req);
   if (!res.ok) return res;
   const data = (await res.clone().json().catch(() => null)) as Record<string, unknown> | null;
+  // Remember this browser for the booker and, when they came with a friend's referral code, register it. Never affects the booking.
+  if (data?.success && typeof data.appointmentId === "string") {
+    try {
+      await afterBooking(prisma, { appointmentId: data.appointmentId, referralCode: typeof raw?.referralCode === "string" ? raw.referralCode : null, deviceHash: await deviceHash() });
+    } catch (err) {
+      logger.error("[Referral] could not record the booking", { err });
+    }
+  }
   if (!data?.success || data.confirmationWithheld) return res;
   let baseUrl: string | undefined;
   try { baseUrl = appBaseUrl(req); } catch { baseUrl = undefined; }

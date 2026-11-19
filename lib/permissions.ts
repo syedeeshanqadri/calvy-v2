@@ -85,6 +85,7 @@ export const ROUTE_PERMISSIONS: { prefix: string; any: Permission[] }[] = [
   { prefix: "/dashboard/calendar", any: ["calendar.manage", "appointments.view_all", "appointments.view_own"] },
   { prefix: "/dashboard/clients", any: ["customers.view"] },
   { prefix: "/dashboard/services", any: ["services.manage"] },
+  { prefix: "/dashboard/offers", any: ["services.manage"] },
   { prefix: "/dashboard/website", any: ["website.edit"] },
   { prefix: "/dashboard/analytics", any: ["reports.view"] },
   { prefix: "/dashboard/settings/notifications", any: ["notifications.settings"] },

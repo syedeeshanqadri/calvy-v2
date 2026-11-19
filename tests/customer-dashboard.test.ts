@@ -73,6 +73,7 @@ const mocks = vi.hoisted(() => ({
     appointment: { findFirst: vi.fn(), updateMany: vi.fn(), update: vi.fn() },
     service: { findUnique: vi.fn() },
     rewardRedemption: { findUnique: vi.fn(async () => null) },
+    quarterlyPerk: { deleteMany: vi.fn(async () => ({ count: 0 })) },
     $transaction: vi.fn(),
   },
   notify: vi.fn(async (..._items: unknown[]) => {}),
