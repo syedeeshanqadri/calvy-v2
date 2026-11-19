@@ -153,3 +153,14 @@ body {
 }
 /* Keyboard focus: a clear ring on every marketing control. */
 .mk-focus:focus-visible, .mk a:focus-visible, .mk button:focus-visible { outline: 3px solid rgb(var(--mk-marigold)); outline-offset: 3px; border-radius: 10px; }
+
+/* Click feedback everywhere (Step 36a). */
+.route-progress { position: fixed; top: 0; left: 0; right: 0; height: 3px; z-index: 2147483000; transform-origin: 0 50%; transform: scaleX(0); opacity: 0; pointer-events: none; background: linear-gradient(90deg, #0284c7, #f5a623); transition: transform .18s ease-out, opacity .2s ease; box-shadow: 0 0 8px rgba(2, 132, 199, .5); }
+button, [role="button"], summary, a[href] { transition-property: color, background-color, border-color, opacity, box-shadow, scale, filter; transition-duration: .12s; }
+button:not(:disabled):not([aria-disabled="true"]):active, [role="button"]:not([aria-disabled="true"]):active, summary:active { scale: .97; filter: brightness(.93); }
+a[href]:active { opacity: .7; }
+/* A control that is busy: dimmed, not clickable, with a spinner after its label. Set aria-busy="true" (Button's loading prop does). */
+button[aria-busy="true"] { cursor: progress; pointer-events: none; opacity: .75; }
+button[aria-busy="true"]:not(:has(.animate-spin))::after { content: ""; width: 1em; height: 1em; margin-left: .5em; border: 2px solid currentColor; border-top-color: transparent; border-radius: 9999px; display: inline-block; animation: cv-spin .7s linear infinite; }
+@media (prefers-reduced-motion: reduce) { .route-progress { transition: none; } button:not(:disabled):active { scale: 1; } button[aria-busy="true"]::after { animation-duration: 2s; } }
+@keyframes cv-spin { to { transform: rotate(360deg); } }

@@ -23,8 +23,8 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       lg: "text-base px-8 py-3.5 gap-2",
     };
     return (
-      <button ref={ref} disabled={disabled || loading} className={cn(base, variants[variant], sizes[size], className)} {...props}>
-        {loading && <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />}
+      <button ref={ref} disabled={disabled || loading} aria-busy={loading || undefined} className={cn(base, variants[variant], sizes[size], className)} {...props}>
+        {loading && <span aria-hidden="true" className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />}
         {children}
       </button>
     );
