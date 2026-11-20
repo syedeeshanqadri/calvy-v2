@@ -86,12 +86,24 @@ export function planSeed(planId: PlanId) {
   };
 }
 
+// Plan rows change only when an admin edits them, so each server process keeps them for a short while instead of reading the table on every page view.
+// An admin save clears the cache in that process at once (clearPlanConfigCache); other processes catch up within the TTL. Off under test.
+const PLAN_CONFIG_TTL_MS = process.env.NODE_ENV === "test" ? 0 : 30_000;
+const planConfigCache = new Map<PlanId, { at: number; row: Awaited<ReturnType<typeof readPlanConfig>> }>();
+async function readPlanConfig(id: PlanId) {
+  const { prisma } = await import("@/lib/prisma");
+  return prisma.planConfig.findUnique({ where: { planId: id } });
+}
+export function clearPlanConfigCache() { planConfigCache.clear(); }
+
 /** Limits for a plan from the PlanConfig table. Pass the business's region: India Free has no appointment cap (see limitsForRegion). */
 export async function getLimitsFromDB(plan: string, region: LimitRegion): Promise<PlanLimits> {
   const id = normalizePlanId(plan);
   try {
-    const { prisma } = await import("@/lib/prisma");
-    const config = await prisma.planConfig.findUnique({ where: { planId: id } });
+    const hit = PLAN_CONFIG_TTL_MS > 0 ? planConfigCache.get(id) : undefined;
+    let config: Awaited<ReturnType<typeof readPlanConfig>>;
+    if (hit && Date.now() - hit.at < PLAN_CONFIG_TTL_MS) config = hit.row;
+    else { config = await readPlanConfig(id); if (PLAN_CONFIG_TTL_MS > 0) planConfigCache.set(id, { at: Date.now(), row: config }); }
     return limitsForRegion(config ? applyEnforcement(limitsFromConfig(config)) : getLimits(plan), id, region);
   } catch {
     return limitsForRegion(getLimits(plan), id, region);

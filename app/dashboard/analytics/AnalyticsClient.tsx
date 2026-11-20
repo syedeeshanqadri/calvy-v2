@@ -3,10 +3,16 @@ import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import { StatCard } from "@/components/ui/StatCard";
 import { useCurrency } from "@/components/providers/CurrencyProvider";
-import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
+import dynamic from "next/dynamic";
 import { TrendingUp, TrendingDown, Users, Calendar, DollarSign } from "lucide-react";
 
 const COLORS_PIE = ["#0284c7", "#3b82f6", "#22c55e", "#8b5cf6", "#f59e0b"];
+
+// The charts (recharts) load after the first paint, so the numbers and lists show without waiting for the chart library.
+const chartBox = (h: number) => function ChartLoading() { return <div aria-busy="true" aria-label="Loading chart" className="animate-pulse rounded-xl bg-[#f0ede8]" style={{ height: h }} />; };
+const RevenueTrend = dynamic(() => import("./AnalyticsCharts").then((m) => m.RevenueTrend), { ssr: false, loading: chartBox(240) });
+const WeekBars = dynamic(() => import("./AnalyticsCharts").then((m) => m.WeekBars), { ssr: false, loading: chartBox(180) });
+const ServicePie = dynamic(() => import("./AnalyticsCharts").then((m) => m.ServicePie), { ssr: false, loading: chartBox(150) });
 
 interface MonthPoint { day: string; revenue: number; expenses: number; profit: number; }
 interface WeekPoint { day: string; appointments: number; }
@@ -60,21 +66,7 @@ export function AnalyticsClient({
         <Card>
           <CardHeader><CardTitle>Revenue · Expenses · Profit (12 months)</CardTitle></CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={240}>
-              <LineChart data={monthlyRevenue}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0ede8" vertical={false} />
-                <XAxis dataKey="day" tick={{ fontSize: 11, fill: "#6b6b80" }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 11, fill: "#6b6b80" }} axisLine={false} tickLine={false} tickFormatter={v => `$${Math.round((v as number) / 1000)}k`} width={38} />
-                <Tooltip
-                  formatter={(v: number, name: string) => [formatPrice(v), name.charAt(0).toUpperCase() + name.slice(1)]}
-                  contentStyle={{ borderRadius: 12, border: "1px solid #e8e6e0", boxShadow: "0 8px 24px rgba(0,0,0,0.1)" }}
-                />
-                <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12, paddingTop: 8 }} />
-                <Line type="monotone" dataKey="revenue" stroke="#0284c7" strokeWidth={2.5} dot={false} activeDot={{ r: 5 }} />
-                <Line type="monotone" dataKey="expenses" stroke="#f43f5e" strokeWidth={2} dot={false} activeDot={{ r: 5 }} strokeDasharray="4 2" />
-                <Line type="monotone" dataKey="profit" stroke="#22c55e" strokeWidth={2.5} dot={false} activeDot={{ r: 5 }} />
-              </LineChart>
-            </ResponsiveContainer>
+            <RevenueTrend data={monthlyRevenue} formatPrice={formatPrice} />
           </CardContent>
         </Card>
       </div>
@@ -84,15 +76,7 @@ export function AnalyticsClient({
           <Card>
             <CardHeader><CardTitle>Appointments per day (this week)</CardTitle></CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={180}>
-                <BarChart data={weeklyAppointments} barCategoryGap="35%">
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f0ede8" vertical={false} />
-                  <XAxis dataKey="day" tick={{ fontSize: 12, fill: "#6b6b80" }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 12, fill: "#6b6b80" }} axisLine={false} tickLine={false} width={25} />
-                  <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid #e8e6e0" }} />
-                  <Bar dataKey="appointments" fill="#0284c7" radius={[6, 6, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+              <WeekBars data={weeklyAppointments} />
             </CardContent>
           </Card>
         </div>
@@ -101,14 +85,7 @@ export function AnalyticsClient({
           <CardContent>
             {serviceDist.length > 0 ? (
               <>
-                <ResponsiveContainer width="100%" height={150}>
-                  <PieChart>
-                    <Pie data={serviceDist} cx="50%" cy="50%" innerRadius={40} outerRadius={65} paddingAngle={3} dataKey="value">
-                      {serviceDist.map((_, i) => <Cell key={i} fill={COLORS_PIE[i % COLORS_PIE.length]} />)}
-                    </Pie>
-                    <Tooltip formatter={(v) => [`${v}%`, ""]} contentStyle={{ borderRadius: 12 }} />
-                  </PieChart>
-                </ResponsiveContainer>
+                <ServicePie data={serviceDist} />
                 <div className="space-y-2 mt-1">
                   {serviceDist.map((s, i) => (
                     <div key={s.name} className="flex items-center justify-between text-xs">

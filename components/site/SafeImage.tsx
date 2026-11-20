@@ -1,6 +1,7 @@
 "use client";
 import Image, { type ImageProps } from "next/image";
 import { useState, type ReactNode } from "react";
+import { isUnsplash, unsplashLoader } from "@/lib/imageLoaders";
 
 /** Neutral stand-in for a picture that cannot be loaded: a flat tone, never the browser's broken-image icon. */
 export const imagePlaceholder = <span aria-hidden style={{ position: "absolute", inset: 0, background: "#ece9e2" }} />;
@@ -9,6 +10,11 @@ export const imagePlaceholder = <span aria-hidden style={{ position: "absolute",
 export function SafeImage({ fallback, ...props }: ImageProps & { fallback?: ReactNode }) {
   const [failed, setFailed] = useState(false);
   if (failed) return <>{fallback ?? imagePlaceholder}</>;
+  // Library photos (Unsplash) are fetched at the width the layout needs (srcset from `sizes`); anything else keeps the caller's setting.
+  if (isUnsplash(props.src)) {
+    // eslint-disable-next-line jsx-a11y/alt-text
+    return <Image {...props} unoptimized={false} loader={unsplashLoader} onError={() => setFailed(true)} />;
+  }
   // eslint-disable-next-line jsx-a11y/alt-text
   return <Image {...props} onError={() => setFailed(true)} />;
 }
