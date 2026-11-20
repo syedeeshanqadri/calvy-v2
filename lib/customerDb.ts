@@ -52,7 +52,7 @@ export async function loadCustomerOverview(verifiedEmail: string, now: Date = ne
         duration: true, isOnline: true, meetingUrl: true, serviceId: true, staffId: true, followUpOfId: true, followUp: { select: { id: true } },
         service: { select: { name: true, meetingUrl: true } }, staff: { select: { name: true, meetingUrl: true } },
         tokenSession: { select: { name: true } }, client: { select: { name: true } },
-        business: { select: { name: true, slug: true, timezone: true, currency: true, phone: true, cancellationCutoffHours: true, followUpDays: true, googleReviewUrl: true } },
+        business: { select: { id: true, name: true, slug: true, timezone: true, currency: true, plan: true, phone: true, cancellationCutoffHours: true, followUpDays: true, googleReviewUrl: true } },
       },
     }),
     prisma.confirmationWaiver.findMany({

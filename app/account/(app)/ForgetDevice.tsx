@@ -12,9 +12,11 @@ export function ForgetDevice() {
     setDone(true);
   }
   return (
-    <p className="text-xs text-[#6b6b80] mt-3">
-      After a verified booking this device is remembered for 90 days so your member price needs no sign-in.{" "}
-      {done ? <span role="status">Forgotten on this device.</span> : <button type="button" onClick={forget} disabled={busy} aria-busy={busy || undefined} className="underline">Forget this device</button>}
-    </p>
+    <div>
+      <p className="mt-2 text-sm text-cv-mute">After a verified booking this device is remembered for 90 days, so your member price needs no sign-in.</p>
+      {done
+        ? <p role="status" className="mt-3 text-sm text-green-700">Forgotten on this device.</p>
+        : <button type="button" onClick={forget} disabled={busy} aria-busy={busy || undefined} className="mt-3 inline-flex min-h-11 items-center rounded-xl border border-cv-line bg-white px-5 text-sm font-semibold text-cv-ink hover:bg-cv-blue-tint/50">Forget this device</button>}
+    </div>
   );
 }

@@ -7,68 +7,52 @@ import { Logo } from "@/components/ui/Logo";
 import { cn } from "@/lib/utils";
 
 const NAV = [
-  { label: "Overview", href: "/account", icon: LayoutDashboard, exact: true },
+  { label: "Home", href: "/account", icon: LayoutDashboard, exact: true },
   { label: "Bookings", href: "/account/bookings", icon: CalendarDays },
   { label: "Profile", href: "/account/profile", icon: UserRound },
 ];
 
 const initials = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]!.toUpperCase()).join("") || "?";
 
-/** The customer app frame: a sidebar on laptops, a top bar and bottom tabs on phones. */
+/**
+ * The customer app frame: a slim top bar (logo, links, sign out) and one centred column, about 1100px wide. On a phone the links move to bottom tabs.
+ * Everything the customer needs is on the home page, so there is no side menu.
+ */
 export function MyShell({ name, email, children }: { name: string; email: string; children: React.ReactNode }) {
   const pathname = usePathname();
   const active = (n: (typeof NAV)[number]) => (n.exact ? pathname === n.href : pathname.startsWith(n.href));
 
   return (
-    <div className="min-h-dvh bg-[#f8f7f4] text-[#0f0f1a] lg:flex">
-      {/* Sidebar (laptop) */}
-      <aside className="hidden lg:flex lg:w-64 lg:shrink-0 lg:flex-col lg:sticky lg:top-0 lg:h-dvh bg-white border-r border-[#e8e6e0]">
-        <div className="h-16 px-5 flex items-center border-b border-[#e8e6e0]">
+    <div className="min-h-dvh bg-cv-paper font-dm text-cv-ink">
+      <header className="sticky top-0 z-30 border-b border-cv-line bg-cv-card/95 backdrop-blur">
+        <div className="mx-auto flex h-14 w-full max-w-[1100px] items-center justify-between gap-4 px-4 sm:px-6 lg:h-16 lg:px-8">
           <Link href="/account" aria-label="Calvy home"><Logo width={84} /></Link>
-        </div>
-        <nav aria-label="My account" className="flex-1 py-4 px-3 space-y-1">
-          {NAV.map((n) => (
-            <Link key={n.href} href={n.href} aria-current={active(n) ? "page" : undefined}
-              className={cn("flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors",
-                active(n) ? "bg-sky-50 text-sky-700" : "text-[#6b6b80] hover:bg-[#f8f7f4] hover:text-[#0f0f1a]")}>
-              <n.icon size={18} aria-hidden />{n.label}
-            </Link>
-          ))}
-        </nav>
-        <div className="p-3 border-t border-[#e8e6e0]">
-          <div className="flex items-center gap-3 px-2 py-2">
-            <span className="h-9 w-9 rounded-full bg-sky-100 text-sky-700 text-sm font-bold grid place-items-center" aria-hidden>{initials(name)}</span>
-            <span className="min-w-0">
-              <span className="block text-sm font-semibold truncate">{name}</span>
-              <span className="block text-xs text-[#6b6b80] truncate">{email}</span>
-            </span>
+          <nav aria-label="My account" className="hidden items-center gap-1 lg:flex">
+            {NAV.map((n) => (
+              <Link key={n.href} href={n.href} aria-current={active(n) ? "page" : undefined}
+                className={cn("rounded-xl px-4 py-2 text-sm font-semibold transition-colors", active(n) ? "bg-cv-blue-tint text-cv-blue" : "text-cv-mute hover:bg-cv-blue-tint/60 hover:text-cv-ink")}>
+                {n.label}
+              </Link>
+            ))}
+          </nav>
+          <div className="flex items-center gap-3">
+            <span className="hidden text-right sm:block"><span className="block max-w-[14rem] truncate text-sm font-semibold">{name}</span><span className="block max-w-[14rem] truncate text-xs text-cv-mute">{email}</span></span>
+            <span className="grid h-9 w-9 place-items-center rounded-full bg-cv-marigold text-xs font-bold text-cv-ink" aria-label={name}>{initials(name)}</span>
+            <button type="button" onClick={() => signOut({ callbackUrl: "/account/login" })} aria-label="Sign out" className="grid h-11 w-11 place-items-center rounded-xl text-cv-mute hover:bg-cv-blue-tint/60 hover:text-cv-ink"><LogOut size={18} aria-hidden /></button>
           </div>
-          <button type="button" onClick={() => signOut({ callbackUrl: "/account/login" })}
-            className="mt-1 w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-[#6b6b80] hover:bg-[#f8f7f4] hover:text-[#0f0f1a]">
-            <LogOut size={18} aria-hidden />Sign out
-          </button>
         </div>
-      </aside>
+      </header>
 
-      <div className="flex-1 min-w-0 flex flex-col">
-        {/* Top bar (phone) */}
-        <header className="lg:hidden sticky top-0 z-30 h-14 px-4 flex items-center justify-between bg-white/95 backdrop-blur border-b border-[#e8e6e0]">
-          <Link href="/account" aria-label="Calvy home"><Logo width={72} /></Link>
-          <span className="h-8 w-8 rounded-full bg-sky-100 text-sky-700 text-xs font-bold grid place-items-center" aria-label={name}>{initials(name)}</span>
-        </header>
+      <main className="mx-auto w-full min-w-0 max-w-[1100px] px-4 pb-28 pt-6 sm:px-6 lg:px-8 lg:pb-14 lg:pt-10">{children}</main>
 
-        <main className="flex-1 w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-10 py-6 lg:py-10 pb-28 lg:pb-12">{children}</main>
-
-        {/* Bottom tabs (phone) */}
-        <nav aria-label="My account" className="lg:hidden fixed bottom-0 inset-x-0 z-30 bg-white border-t border-[#e8e6e0] grid grid-cols-4 pb-[env(safe-area-inset-bottom)]">
-          {NAV.map((n) => (
-            <Link key={n.href} href={n.href} aria-current={active(n) ? "page" : undefined}
-              className={cn("flex flex-col items-center justify-center gap-1 min-h-16 text-[11px] font-medium", active(n) ? "text-sky-700" : "text-[#6b6b80]")}>
-              <n.icon size={20} aria-hidden />{n.label}
-            </Link>
-          ))}
-        </nav>
-      </div>
+      <nav aria-label="My account" className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-3 border-t border-cv-line bg-cv-card pb-[env(safe-area-inset-bottom)] lg:hidden">
+        {NAV.map((n) => (
+          <Link key={n.href} href={n.href} aria-current={active(n) ? "page" : undefined}
+            className={cn("flex min-h-16 flex-col items-center justify-center gap-1 text-[11px] font-semibold", active(n) ? "text-cv-blue" : "text-cv-mute")}>
+            <n.icon size={20} aria-hidden />{n.label}
+          </Link>
+        ))}
+      </nav>
     </div>
   );
 }

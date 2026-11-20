@@ -2,7 +2,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { CalendarClock, Clock, ListOrdered, Phone, RefreshCw, Repeat, Star, UserRound, Video, XCircle } from "lucide-react";
+import { CalendarPlus, CalendarClock, Clock, ListOrdered, Phone, RefreshCw, Repeat, Star, UserRound, Video, XCircle } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { cn } from "@/lib/utils";
 import type { BookingView } from "@/lib/customerData";
@@ -18,8 +18,8 @@ const CHIP: Record<string, string> = {
 };
 
 const btn = "min-h-10 inline-flex items-center justify-center gap-1.5 rounded-xl px-4 text-sm font-semibold border transition-colors disabled:opacity-60";
-const ghost = `${btn} border-[#e8e6e0] bg-white hover:bg-[#f8f7f4] text-[#0f0f1a]`;
-const primary = `${btn} border-transparent bg-sky-600 hover:bg-sky-700 text-white`;
+const ghost = `${btn} border-cv-line bg-white hover:bg-cv-blue-tint/50 text-cv-ink`;
+const primary = `${btn} border-transparent bg-cv-blue hover:bg-cv-blue-dark text-white`;
 
 async function call(url: string, init?: RequestInit): Promise<{ ok: boolean; data: Record<string, unknown> }> {
   try {
@@ -43,9 +43,9 @@ export function BookingCard({ b, highlight = false }: { b: BookingView; highligh
   const canManage = b.manage.ok;
 
   return (
-    <li className={cn("bg-white rounded-2xl border p-4 sm:p-5", highlight ? "border-sky-200 shadow-[0_12px_32px_-20px_rgba(2,132,199,.6)]" : "border-[#e8e6e0]")}>
+    <li className={cn("acct-card p-4 sm:p-5", highlight && "ring-2 ring-cv-marigold/70")}>
       <div className="flex items-start gap-3">
-        <span className="h-11 w-11 shrink-0 rounded-xl bg-sky-50 text-sky-700 font-bold grid place-items-center" aria-hidden>{b.businessName.charAt(0).toUpperCase()}</span>
+        <span className="h-11 w-11 shrink-0 rounded-xl bg-cv-blue-tint text-cv-blue font-display font-bold grid place-items-center" aria-hidden>{b.businessName.charAt(0).toUpperCase()}</span>
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
@@ -70,6 +70,7 @@ export function BookingCard({ b, highlight = false }: { b: BookingView; highligh
               ? <a href={b.meetingUrl} target="_blank" rel="noopener noreferrer" className={primary}><Video size={15} aria-hidden />Join online</a>
               : <span className={`${btn} border-amber-200 bg-amber-50 text-amber-700 cursor-default`}>Link coming soon</span>)}
             {live && b.trackUrl && <Link href={b.trackUrl} className={ghost}><ListOrdered size={15} aria-hidden />Track queue</Link>}
+            {live && <a href={`/api/customer/appointments/${b.id}/calendar`} className={ghost} download><CalendarPlus size={15} aria-hidden />Add to calendar</a>}
             {live && canManage && (
               <>
                 {!b.moveBlocked && <button type="button" className={ghost} onClick={() => setMode("reschedule")}><RefreshCw size={15} aria-hidden />{b.tokenNumber ? "Move to another day" : "Reschedule"}</button>}

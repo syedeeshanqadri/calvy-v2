@@ -15,11 +15,11 @@ export function LevelUpCelebration({ level, feeLabel, perk }: { level: string; f
   return (
     <div role="dialog" aria-modal="true" aria-labelledby="levelup-title" className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4">
       <div className="w-full max-w-sm rounded-3xl bg-white p-8 text-center shadow-xl">
-        <span className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-amber-100 text-amber-700"><PartyPopper size={28} aria-hidden /></span>
-        <h2 id="levelup-title" className="font-syne font-bold text-2xl mt-4">You reached {level}!</h2>
+        <span className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-cv-marigold text-cv-ink"><PartyPopper size={28} aria-hidden /></span>
+        <h2 id="levelup-title" className="font-display font-bold text-2xl mt-4">You reached {level}!</h2>
         <p className="text-sm text-[#4b4b5e] mt-2">Thank you for showing up. Your confirmation fee is now <strong>{feeLabel}</strong> where it applies.</p>
         {perk && <p className="text-sm mt-3">{perk}</p>}
-        <button ref={btn} type="button" onClick={close} className="mt-6 h-11 w-full rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-semibold">Great, thanks</button>
+        <button ref={btn} type="button" onClick={close} className="mt-6 h-11 w-full rounded-xl bg-cv-blue hover:bg-cv-blue-dark text-white font-semibold">Great, thanks</button>
       </div>
     </div>
   );
