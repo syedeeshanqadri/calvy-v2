@@ -1,7 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
 import { readFileSync, readdirSync } from "fs";
 import { join } from "path";
-import { barPercent, feeLines, ladderSteps, progressWords, REFERRAL_RULE, shareOrCopy, stampDots, STREAK_COPY } from "@/lib/my/levelUi";
+import { barPercent, feeLines, ladderSteps, progressWords, referralRule, rupees, shareOrCopy, stampDots, STREAK_COPY } from "@/lib/my/levelUi";
+import { levelFee, DEFAULT_LEVEL_CONFIG } from "@/lib/rewards/levels";
 import { LEVELS } from "@/lib/rewards/levels";
 
 // Step 36b: the customer dashboard. The level ladder, the plain-words progress, the stamps, the share fallback, and the wording rule: no fee amounts.
@@ -35,37 +36,47 @@ describe("progress is in words, never numbers", () => {
   });
 });
 
-describe("fee wording", () => {
-  it("fee lines appear only where a nominal fee applies, and never carry an amount", () => {
-    for (const lvl of LEVELS) expect(feeLines(lvl, false)).toEqual([]);
-    expect(feeLines("STARTER", true)).toEqual(["Your nominal fee drops as you level up."]);
-    expect(feeLines("PRO", true)).toEqual(["Lower nominal fee unlocked.", "Your nominal fee drops as you level up."]);
-    for (const lvl of LEVELS) for (const l of feeLines(lvl, true)) expect(l).not.toMatch(/\d|₹|Rs/);
-    expect(REFERRAL_RULE).not.toMatch(/\d|₹|Rs/);
+describe("fee wording: signed-in customers see their actual fee, the public marketing pages say \"nominal fee\"", () => {
+  it("the hero shows the customer's real fee for their level, from the same function checkout uses, only where a fee applies", () => {
+    expect(rupees(800)).toBe("\u20B98");
+    for (const lvl of LEVELS) expect(feeLines(lvl, false, 800, 1000)).toEqual([]);
+    expect(feeLines("INSIDER", true, 800, 1000)).toEqual(["Your booking fee: \u20B98 (instead of \u20B910)", "Your booking fee drops as you level up."]);
+    expect(feeLines("STARTER", true, 1000, 1000)).toEqual(["Your booking fee: \u20B910", "Your booking fee drops as you level up."]);
+    expect(feeLines("LEGEND", true, 600, 1000)).toEqual(["Your booking fee: \u20B96 (instead of \u20B910)"]);
+    // The number is the level's configured fee: the same levelFee() the booking charge reads.
+    for (const [lvl, rs] of [["STARTER", 10], ["REGULAR", 9], ["INSIDER", 8], ["PRO", 7], ["LEGEND", 6]] as const) {
+      const fee = levelFee(lvl, 1000, DEFAULT_LEVEL_CONFIG);
+      expect(feeLines(lvl, true, fee, 1000)[0]).toContain(`\u20B9${rs}`);
+    }
+  });
+  it("the referral rule names the real free confirmation", () => {
+    expect(referralRule(1000)).toBe("When your friend attends their first visit, you both get a free \u20B910 confirmation (up to 5 a month).");
   });
   const read = (p: string) => readFileSync(p, "utf8");
-  const AMOUNT = /(?:Rs\.?|₹|INR)\s?\d/;
-  it("no customer-facing screen or email shows a fee amount (checkout, receipts and invoices are the exceptions, and are not in this list)", () => {
-    const files = [
-      "app/account/(app)/page.tsx", "app/account/(app)/LevelUpCelebration.tsx", "app/account/(app)/ForgetDevice.tsx", "app/account/(app)/MyClient.tsx",
-      "components/my/LevelHero.tsx", "components/my/LevelIcons.tsx", "components/my/AccountCards.tsx", "components/my/RateVisits.tsx", "components/my/SettingsParts.tsx", "components/my/BookingCard.tsx",
-      "lib/my/levelUi.ts", "lib/customerView.ts", "lib/queue.ts", "app/booking/[code]/TrackClient.tsx", "lib/notifications/templates.tsx",
-    ];
-    for (const f of files) expect(read(f).split("\n").filter((l) => !/^\s*(\/\/|\*|\/\*)/.test(l)).filter((l) => AMOUNT.test(l)), f).toEqual([]);
-    // The email components: only the ones customers receive (receipts/invoices carry the paid amount on purpose).
-    const emails = read("emails/templates.tsx");
-    for (const name of ["LevelUpEmail", "BookingConfirmationEmail", "QueueMovedBackEmail", "QueueClosedEmail"]) {
-      const i = emails.indexOf(`export function ${name}`);
-      if (i < 0) continue;
-      const body = emails.slice(i, emails.indexOf("\nexport function", i + 10) === -1 ? undefined : emails.indexOf("\nexport function", i + 10));
-      expect(AMOUNT.test(body), name).toBe(false);
+  const code = (p: string) => read(p).split("\n").filter((l) => !/^\s*(\/\/|\*|\/\*)/.test(l)).join("\n");
+  const FEE = /(?:\u20B9|Rs\.?)\s?(?:10|[6-9])(?!\d)/;
+  it("logged-in customer areas, emails and the tracking page keep exact amounts (no 'nominal' replacements there)", () => {
+    for (const f of ["components/my/LevelHero.tsx", "app/account/(app)/LevelUpCelebration.tsx", "lib/customerView.ts", "lib/queue.ts", "app/booking/[code]/TrackClient.tsx", "emails/templates.tsx", "lib/notifications/templates.tsx"]) {
+      expect(code(f), f).not.toMatch(/nominal/i);
     }
-    expect(emails).not.toMatch(/Rs 10 confirmation/);
+    expect(code("lib/customerView.ts")).toContain("Rs 10");
+    expect(code("emails/templates.tsx")).toContain("Rs 10 confirmation fee");
+    expect(code("lib/queue.ts")).toContain("Rs 10 confirmation fee");
+    expect(code("app/booking/[code]/TrackClient.tsx")).toContain("Rs 10 confirmation fee");
+    expect(code("app/account/(app)/LevelUpCelebration.tsx")).toContain("{feeLabel}");
+    expect(code("lib/notifications/templates.tsx")).toMatch(/feeLabel=\{`Rs \$\{p\.feeMinor \/ 100\}`\}/);
   });
-  it("no level perk names an amount", () => {
+  it("the public marketing home page and About carry no Calvy fee amount (they say 'nominal fee'); checkout, terms, refund policy, help and owner settings keep exact amounts", () => {
+    for (const f of ["app/page.tsx", "app/about/page.tsx", "lib/landingFeatures.ts", "lib/landingFaq.ts", "lib/pricing.ts", "lib/planCopy.ts", ...readdirSync("components/landing").map((n) => `components/landing/${n}`)]) expect(code(f), f).not.toMatch(FEE);
+    expect(code("lib/landingFeatures.ts")).toMatch(/nominal confirmation fee/);
+    expect(code("lib/planCopy.ts")).toMatch(/nominal platform fee/);
+    expect(code("app/terms/page.tsx")).toContain("\u20B910");
+    expect(code("app/refund-policy/page.tsx")).toContain("\u20B910");
+    expect(code("lib/helpArticles.ts")).toContain("Rs 10");
+  });
+  it("level perks carry no amount", () => {
     const src = read("lib/rewards/levelService.ts");
-    const perks = src.slice(src.indexOf("export const PERK_TEXT"), src.indexOf("/** Pro and Legend"));
-    expect(perks).not.toMatch(AMOUNT);
+    expect(src.slice(src.indexOf("export const PERK_TEXT"), src.indexOf("/** Pro and Legend"))).not.toMatch(FEE);
   });
 });
 

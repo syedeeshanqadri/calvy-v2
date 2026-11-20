@@ -7,10 +7,10 @@ import { LevelIcon } from "@/components/my/LevelIcons";
 
 /**
  * The hero of /account: where the customer is on the Calvy level ladder. Five steps (past ones ticked, the current one filled marigold, the rest muted),
- * a bar that fills to the next level in plain words (never a number), the level's perk, and (only where a nominal fee applies to them) one line about it.
+ * a bar that fills to the next level in plain words (never a number), the level's perk, and (only where a confirmation fee applies to them) their actual booking fee.
  * On a narrow phone the ladder scrolls sideways and opens with the current level in view.
  */
-export function LevelHero({ level, perk, feeApplies, progressRatio }: { level: LevelId; perk: string | null; feeApplies: boolean; progressRatio: number }) {
+export function LevelHero({ level, perk, feeApplies, feeMinor, baseFeeMinor, progressRatio }: { level: LevelId; perk: string | null; feeApplies: boolean; feeMinor: number; baseFeeMinor: number; progressRatio: number }) {
   const steps = ladderSteps(level);
   const atTop = level === "LEGEND";
   const words = progressWords(progressRatio, atTop);
@@ -33,7 +33,7 @@ export function LevelHero({ level, perk, feeApplies, progressRatio }: { level: L
           <span className="grid h-16 w-16 place-items-center rounded-full bg-cv-marigold text-cv-ink shadow-[0_8px_24px_-8px_rgba(232,163,23,.7)]"><LevelIcon level={level} size={34} /></span>
           <h2 id="level-title" data-testid="level-name" className="font-display text-3xl font-bold leading-none sm:text-4xl">{LEVEL_LABEL[level]}</h2>
           {perk && <p className="max-w-md text-sm text-white/85">{perk}</p>}
-          {feeLines(level, feeApplies).map((l) => <p key={l} data-testid="fee-line" className="max-w-md text-sm text-white/85">{l}</p>)}
+          {feeLines(level, feeApplies, feeMinor, baseFeeMinor).map((l) => <p key={l} data-testid="fee-line" className="max-w-md text-sm text-white/85">{l}</p>)}
         </div>
       </div>
 

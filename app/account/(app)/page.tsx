@@ -42,9 +42,9 @@ export default async function MyOverviewPage() {
   return (
     <div className="mx-auto w-full max-w-[1100px] space-y-8 lg:space-y-10">
       <PageHeader title={`Hi ${first}`} subtitle={`Your bookings with ${data.me.email}`} />
-      {level?.pendingLevelUp && <LevelUpCelebration level={level.pendingLevelUp.label} perk={level.perk} />}
+      {level?.pendingLevelUp && <LevelUpCelebration level={level.pendingLevelUp.label} feeLabel={`\u20B9${level.feeMinor / 100}`} perk={level.perk} />}
 
-      {level && <LevelHero level={level.level} perk={level.perk} feeApplies={feeApplies} progressRatio={level.progressRatio} />}
+      {level && <LevelHero level={level.level} perk={level.perk} feeApplies={feeApplies} feeMinor={level.feeMinor} baseFeeMinor={level.baseFeeMinor} progressRatio={level.progressRatio} />}
 
       {(reward || level || referral) && (
         <div className="grid gap-4 lg:grid-cols-2 lg:gap-6">
@@ -52,7 +52,7 @@ export default async function MyOverviewPage() {
             {reward && <StampsCard done={reward.done} of={reward.of} available={reward.available} bookHref={bookAgain} />}
             {level && <StreakCard months={level.streakMonths} />}
           </div>
-          <ReferralCard code={referral?.code ?? null} url={referralUrl} />
+          <ReferralCard code={referral?.code ?? null} url={referralUrl} baseFeeMinor={level?.baseFeeMinor ?? 1000} />
         </div>
       )}
 

@@ -2,7 +2,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Flame, Share2, Copy, Check, Stamp } from "lucide-react";
-import { REFERRAL_RULE, STREAK_COPY, shareOrCopy, stampDots } from "@/lib/my/levelUi";
+import { referralRule, STREAK_COPY, shareOrCopy, stampDots } from "@/lib/my/levelUi";
 
 export function SectionHeading({ id, title, hint, action }: { id: string; title: string; hint?: string; action?: React.ReactNode }) {
   return (
@@ -60,12 +60,12 @@ export function StreakCard({ months }: { months: number }) {
 }
 
 /** The referral code and link: Share with the browser's share sheet, or Copy when there is none. The rules are one line. */
-export function ReferralCard({ code, url }: { code: string | null; url: string | null }) {
+export function ReferralCard({ code, url, baseFeeMinor }: { code: string | null; url: string | null; baseFeeMinor: number }) {
   const [state, setState] = useState<"idle" | "shared" | "copied" | "failed">("idle");
   async function go() {
     if (!url) return;
     const r = await shareOrCopy(
-      { title: "Book with Calvy", text: "Book your visit here and we both get a free booking confirmation.", url },
+      { title: "Book with Calvy", text: "Book your visit here and we both get a free confirmation.", url },
       { share: typeof navigator !== "undefined" && "share" in navigator ? (d) => navigator.share(d) : undefined, copy: typeof navigator !== "undefined" && navigator.clipboard ? (s) => navigator.clipboard.writeText(s) : undefined },
     );
     if (r === "shared" || r === "copied" || r === "failed") setState(r);
@@ -86,7 +86,7 @@ export function ReferralCard({ code, url }: { code: string | null; url: string |
       ) : (
         <p className="mt-3 text-sm text-cv-mute">Your referral link appears after your first booking.</p>
       )}
-      <p className="mt-4 text-xs text-cv-mute">{REFERRAL_RULE}</p>
+      <p className="mt-4 text-xs text-cv-mute">{referralRule(baseFeeMinor)}</p>
     </section>
   );
 }

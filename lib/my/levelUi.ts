@@ -1,5 +1,5 @@
-// Pure helpers for the customer dashboard's level hero, stamps and referral card (no React, no database). Everything the customer reads here is
-// worded WITHOUT amounts: the fee is "nominal", never a number. The only place an amount appears is checkout, where the exact charge must be shown.
+// Pure helpers for the customer dashboard's level hero, stamps and referral card (no React, no database). A signed-in customer sees their ACTUAL booking
+// fee here, from the same source as checkout (levelFee, the level's configured fee). Only the public marketing home page and About say "nominal fee".
 import { LEVELS, LEVEL_LABEL, levelIndex, type LevelId } from "@/lib/rewards/levels";
 
 export type LadderState = "done" | "current" | "next" | "locked";
@@ -29,13 +29,18 @@ export function barPercent(ratio: number, atTop: boolean): number {
   return Math.min(96, Math.max(6, Math.round(r * 100)));
 }
 
+/** Rupees from paise, whole numbers only (the fee ladder is 10, 9, 8, 7, 6). */
+export const rupees = (minor: number): string => `\u20B9${Math.round(minor / 100)}`;
+
 /**
- * The fee lines of the level hero. They appear ONLY for someone who has booked at a business that charges Calvy's nominal confirmation fee
- * (India, Free plan). Everyone else sees the level, perks and progress and nothing about a fee. No line ever carries an amount.
+ * The fee lines of the level hero: "Your booking fee: ₹8" (the customer's real fee for their level, the same number checkout charges). They appear ONLY
+ * for someone who has booked at a business that charges Calvy's confirmation fee (India, Free plan). Everyone else sees the level, perks and progress.
  */
-export function feeLines(level: LevelId, feeApplies: boolean): string[] {
+export function feeLines(level: LevelId, feeApplies: boolean, feeMinor: number, baseFeeMinor: number): string[] {
   if (!feeApplies) return [];
-  return level === "STARTER" ? ["Your nominal fee drops as you level up."] : ["Lower nominal fee unlocked.", "Your nominal fee drops as you level up."];
+  const lines = [`Your booking fee: ${rupees(feeMinor)}${feeMinor < baseFeeMinor ? ` (instead of ${rupees(baseFeeMinor)})` : ""}`];
+  if (level !== "LEGEND") lines.push("Your booking fee drops as you level up.");
+  return lines;
 }
 
 /** Seven stamp dots: filled = an attended visit. */
@@ -63,5 +68,5 @@ export async function shareOrCopy(
   return "failed";
 }
 
-/** One line of rules, without amounts. */
-export const REFERRAL_RULE = "When your friend attends their first visit, you both get a free booking confirmation (limited per month).";
+/** One line of rules. The free confirmation is worth the base fee. */
+export const referralRule = (baseFeeMinor: number): string => `When your friend attends their first visit, you both get a free ${rupees(baseFeeMinor)} confirmation (up to 5 a month).`;

@@ -46,7 +46,7 @@ describe("earning a level when a visit is marked attended", () => {
     expect(await f.attend(spread(7, 5))).toBe("REGULAR");
     expect(f.lv.levels.get(ID)).toMatchObject({ level: "REGULAR", pendingLevelUp: "REGULAR" });
     expect(sent).toHaveLength(1);
-    expect(sent[0]).toMatchObject({ template: "level_up", recipient: "ann@x.com", payload: expect.objectContaining({ level: "REGULAR", levelLabel: "Regular" }) });
+    expect(sent[0]).toMatchObject({ template: "level_up", recipient: "ann@x.com", payload: expect.objectContaining({ level: "REGULAR", levelLabel: "Regular", feeMinor: 900 }) });
   });
   it("6 days is not enough: no level, no email", async () => {
     const f = fakeDb();

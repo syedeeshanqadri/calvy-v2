@@ -89,7 +89,7 @@ export function buildUpdates(rows: UpdateRow[], waivers: Waiver[], now: Date = n
     }
   }
   for (const w of waivers) {
-    out.push({ id: `wal-${w.businessId}`, tone: "good", at: now, title: "Your confirmation is still valid", detail: `Rebook once at ${w.businessName} without paying it again` });
+    out.push({ id: `wal-${w.businessId}`, tone: "good", at: now, title: "Your Rs 10 confirmation is still valid", detail: `Rebook once at ${w.businessName} without paying it again` });
   }
   const rank = (u: UpdateItem) => (u.tone === "info" ? 0 : u.tone === "warn" ? 1 : 2);
   return out.sort((a, b) => rank(a) - rank(b) || b.at.getTime() - a.at.getTime()).slice(0, limit);

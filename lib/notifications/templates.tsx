@@ -142,12 +142,12 @@ export const TEMPLATES = {
   queue_moved_back: define<BookingPayload & { place: number }>({
     subject: (p) => `You are now #${p.place} in line at ${p.businessName}`,
     Email: (p) => <QueueMovedBackEmail {...p} />,
-    text: (p) => lines(`Hi ${first(p.clientName)}, you were not present when called at ${p.businessName}, so you were moved back. You are now number ${p.place} in line.`, `You get four calls in all: if you are not present for the fourth, this ${appt(p)} is closed. Your nominal confirmation fee is kept, and you can rebook once without paying it again.`, p.trackUrl && `Track your place in line: ${p.trackUrl}`),
+    text: (p) => lines(`Hi ${first(p.clientName)}, you were not present when called at ${p.businessName}, so you were moved back. You are now number ${p.place} in line.`, `You get four calls in all: if you are not present for the fourth, this ${appt(p)} is closed. Your Rs 10 confirmation fee is kept, and you can rebook once without paying it again.`, p.trackUrl && `Track your place in line: ${p.trackUrl}`),
   }),
   queue_closed: define<BookingPayload & { reason: "missed" | "cancelled"; feeKept?: boolean; loginUrl?: string }>({
     subject: (p) => (p.reason === "missed" ? `You missed your ${appt(p)} at ${p.businessName}` : `Your ${appt(p)} at ${p.businessName} was cancelled`),
     Email: (p) => <QueueClosedEmail {...p} />,
-    text: (p) => lines(p.reason === "missed" ? `Hi ${first(p.clientName)}, your number was called four times at ${p.businessName} and you were not present, so the ${appt(p)} was closed.` : `Hi ${first(p.clientName)}, your ${appt(p)} at ${p.businessName} was cancelled.`, p.feeKept ? "Your nominal confirmation fee is kept, and you can rebook once at " + p.businessName + " without paying it again." : "You can book again on any date.", p.loginUrl && `Book another date: ${p.loginUrl}`),
+    text: (p) => lines(p.reason === "missed" ? `Hi ${first(p.clientName)}, your number was called four times at ${p.businessName} and you were not present, so the ${appt(p)} was closed.` : `Hi ${first(p.clientName)}, your ${appt(p)} at ${p.businessName} was cancelled.`, p.feeKept ? "Your Rs 10 confirmation fee is kept, and you can rebook once at " + p.businessName + " without paying it again." : "You can book again on any date.", p.loginUrl && `Book another date: ${p.loginUrl}`),
   }),
   invoice: define<InvoicePayload>({
     subject: (p) => `Receipt from ${p.businessName}: ${formatCurrencyAmount(p.price ?? 0, p.currency ?? "INR")}`,
@@ -272,10 +272,10 @@ export const TEMPLATES = {
     Email: (p) => <MemberLinkEmail name={p.name} linkUrl={p.secret} />,
     text: (p) => lines(`Hi ${first(p.name)}, tap the link to sign in and go back to your booking with your member price. No password needed.`, p.secret, "This link works once and expires in 15 minutes. If you did not ask for it, ignore this email."),
   }),
-  level_up: define<{ level: string; levelLabel: string; perk: string | null; accountUrl: string }>({
+  level_up: define<{ level: string; levelLabel: string; feeMinor: number; baseFeeMinor: number; perk: string | null; accountUrl: string }>({
     subject: (p) => `You reached ${p.levelLabel} on Calvy`,
-    Email: (p) => <LevelUpEmail levelLabel={p.levelLabel} perk={p.perk} accountUrl={p.accountUrl} />,
-    text: (p) => lines(`You reached ${p.levelLabel}. Your nominal confirmation fee is now lower at businesses where it applies.`, p.perk ?? "", p.accountUrl),
+    Email: (p) => <LevelUpEmail levelLabel={p.levelLabel} feeLabel={`Rs ${p.feeMinor / 100}`} perk={p.perk} accountUrl={p.accountUrl} />,
+    text: (p) => lines(`You reached ${p.levelLabel}. Your Calvy confirmation fee is now Rs ${p.feeMinor / 100} at businesses where it applies.`, p.perk ?? "", p.accountUrl),
   }),
   customer_password_reset: define<AuthPayload>({
     subject: () => "Reset your password",

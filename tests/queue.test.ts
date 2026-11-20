@@ -151,14 +151,14 @@ describe("plain-language outcomes", () => {
   });
   it("miss 4: closed, the Rs 10 confirmation fee is kept for one rebooking", () => {
     expect(describeOutcome({ outcome: "no_show", token: 3, name: "Riya", feeKept: true, called, emailed: true })).toBe(
-      "Token 3 (Riya) closed: not present after being called 4 times. The nominal confirmation fee is kept, and they can rebook once without paying it again. Now serving token 4 (Aman). They were emailed how to book another date.",
+      "Token 3 (Riya) closed: not present after being called 4 times. The Rs 10 confirmation fee is kept, and they can rebook once without paying it again. Now serving token 4 (Aman). They were emailed how to book another date.",
     );
   });
   it("nothing paid online: no fee note", () => {
     expect(describeOutcome({ outcome: "no_show", token: 3, name: "Walk-in", feeKept: false, emailed: false })).not.toContain("confirmation fee");
   });
   it("cancelled", () => {
-    expect(describeOutcome({ outcome: "cancelled", token: 3, name: "Riya", feeKept: true, emailed: true })).toContain("Token 3 (Riya) cancelled. The nominal confirmation fee is kept");
+    expect(describeOutcome({ outcome: "cancelled", token: 3, name: "Riya", feeKept: true, emailed: true })).toContain("Token 3 (Riya) cancelled. The Rs 10 confirmation fee is kept");
   });
   it("no email on file says so", () => {
     expect(describeOutcome({ outcome: "moved_back", token: 3, misses: 1, place: 2, emailed: false })).toContain("No email on file");

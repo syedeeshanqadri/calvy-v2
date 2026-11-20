@@ -181,7 +181,7 @@ export function describeOutcome(f: OutcomeFacts): string {
   const who = f.token !== undefined ? `Token ${f.token}${f.name ? ` (${f.name})` : ""}` : "This token";
   const calling = f.called ? ` Now serving token ${f.called.token} (${f.called.name}).` : "";
   const mail = (sent: string, none: string) => (f.emailed ? ` ${sent}` : ` ${none}`);
-  const wallet = f.feeKept ? " The nominal confirmation fee is kept, and they can rebook once without paying it again." : "";
+  const wallet = f.feeKept ? " The Rs 10 confirmation fee is kept, and they can rebook once without paying it again." : "";
   switch (f.outcome) {
     case "advanced":
       return `${who} is done.${calling || " No one else is waiting."}`;
