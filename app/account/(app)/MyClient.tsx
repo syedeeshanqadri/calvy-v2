@@ -54,8 +54,8 @@ export function ProfileCard({ name, email }: { name: string; email: string }) {
   }
 
   return (
-    <section aria-labelledby="prof" className="bg-white rounded-2xl border border-[#e8e6e0] p-5 space-y-4">
-      <h2 id="prof" className="font-syne font-bold text-lg">Profile</h2>
+    <section aria-labelledby="prof" className="acct-card p-5 space-y-4">
+      <h3 id="prof" className="font-display text-lg font-bold text-cv-ink">Profile</h3>
       <form onSubmit={save} className="space-y-4">
         <div>
           <label htmlFor="p-email" className="text-sm font-medium block mb-1.5">Email</label>
@@ -123,8 +123,8 @@ export function DeleteAccountCard({ email, pendingUntil }: { email: string; pend
   }
 
   return (
-    <section aria-labelledby="del" className="bg-white rounded-2xl border border-[#e8e6e0] p-5">
-      <h2 id="del" className="font-syne font-bold text-lg">Request account deletion</h2>
+    <section aria-labelledby="del" className="acct-card p-5">
+      <h3 id="del" className="font-display text-lg font-bold text-cv-ink">Request account deletion</h3>
       {until ? (
         <>
           <p className="text-sm mt-1" role="status">Deletion requested. Your account will be deleted on <strong>{label(until)}</strong>. Until then nothing changes, and we emailed you a link to cancel.</p>

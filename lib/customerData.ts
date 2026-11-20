@@ -13,6 +13,9 @@ import { progressFor } from "@/lib/rewards/service";
 import { levelView } from "@/lib/rewards/levelService";
 import { ensureReferralCode } from "@/lib/rewards/referrals";
 import { prisma } from "@/lib/prisma";
+import { regionOf } from "@/lib/payments/region";
+import { normalizePlanId } from "@/lib/plans";
+import { unsubscribeLinks } from "@/lib/notifications/prefs";
 
 /** Everything the customer screens need, shaped for the browser: plain values, no raw links to other bookings. */
 
@@ -116,5 +119,10 @@ export const getCustomerData = cache(async () => {
   const level = await levelView(prisma, { email: me.email });
   const referralCode = level ? await ensureReferralCode(prisma, { email: me.email }).catch(() => null) : null;
   const referralSlug = all[0]?.business.slug ?? null;
-  return { me, verified: true as const, upcoming, past, stats: { ...stats, next: nextAt }, updates, waivers, reward, level, referral: referralCode && referralSlug ? { code: referralCode, slug: referralSlug } : null };
+  // Fee-related lines show only for someone who has booked at a business that charges Calvy's nominal confirmation fee (India, Free plan).
+  const feeApplies = all.some((a) => regionOf({ currency: a.business.currency }) === "IN" && normalizePlanId(a.business.plan) === "free");
+  // "Unsubscribe from offers & reminders": the same signed link the optional emails carry, one per business (at most five, most recent first).
+  const seen = new Set<string>();
+  const unsubscribe = all.flatMap((a) => (seen.has(a.business.id) ? [] : (seen.add(a.business.id), [{ businessName: a.business.name, href: unsubscribeLinks(a.business.id, me.email).page }]))).slice(0, 5);
+  return { me, verified: true as const, upcoming, past, stats: { ...stats, next: nextAt }, updates, waivers, reward, level, feeApplies, unsubscribe, referral: referralCode && referralSlug ? { code: referralCode, slug: referralSlug } : null };
 });

@@ -103,7 +103,7 @@ export function TrackClient({ code, initial, back }: { code: string; initial: Tr
             </Card>
             {view.movedBack && (
               <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
-                You were not here when your number was called, so you were moved back (missed {view.missedCalls} of 4 calls). Please stay close. After the fourth missed call this {appt} is closed. If you paid the Rs 10 confirmation fee, it is kept and you can rebook once at this business without paying it again.
+                You were not here when your number was called, so you were moved back (missed {view.missedCalls} of 4 calls). Please stay close. After the fourth missed call this {appt} is closed. If you paid the nominal confirmation fee, it is kept and you can rebook once at this business without paying it again.
               </p>
             )}
           </>
@@ -165,7 +165,7 @@ function WalletNote({ page, appt, color, fg }: { page: TrackingPage; appt: strin
     <div className="mt-3 space-y-3">
       {feeKept ? (
         <p>
-          Not attended — confirmation still valid. Your Rs 10 confirmation fee is kept, and you can rebook once at {business.name} without paying it again.
+          Not attended — confirmation still valid. Your nominal confirmation fee is kept, and you can rebook once at {business.name} without paying it again.
         </p>
       ) : (
         <p>You can book again on any date.</p>

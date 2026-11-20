@@ -118,7 +118,7 @@ async function queueLevelUpEmail(identity: string, level: LevelId, cfg: LevelCon
     const base = PLAN_LIMITS.free.platformFeeMinorIN;
     await notify({
       event: "level.up", audience: "CUSTOMER", subjectId: identity, version: `${level}:${istDay(now)}`, recipient: identity.slice(2), template: "level_up",
-      payload: { level, levelLabel: LEVEL_LABEL[level], feeMinor: levelFee(level, base, cfg), baseFeeMinor: base, perk: PERK_TEXT[level] ?? null, accountUrl: `${(process.env.NEXT_PUBLIC_APP_URL ?? "https://calvy.io").replace(/\/+$/, "")}/account` },
+      payload: { level, levelLabel: LEVEL_LABEL[level], perk: PERK_TEXT[level] ?? null, accountUrl: `${(process.env.NEXT_PUBLIC_APP_URL ?? "https://calvy.io").replace(/\/+$/, "")}/account` },
     });
   } catch (err) {
     logger.error("[Levels] level-up email failed", { err });

@@ -28,7 +28,7 @@ export interface BookingProps {
   trackUrl?: string;
   /** Online consultation. meetingUrl is null when the business has not set a link yet. Only confirmation and reminder pass it. */
   online?: { meetingUrl: string | null };
-  /** Loyalty progress (confirmation only): every 8th attended visit has the Rs 10 confirmation free. */
+  /** Loyalty progress (confirmation only): every 7th attended visit has the nominal confirmation fee free. */
   reward?: { done: number; of: number; available: number };
   /** Confirmation only: the customer's account link. `claimed` false = a one-time "claim your Calvy account" link; true = a plain link to their account. */
   claimUrl?: string;
@@ -37,7 +37,7 @@ export interface BookingProps {
 
 /** Loyalty progress line for the confirmation email and its text version. */
 export function rewardLine(r: { done: number; of: number; available: number }): string {
-  return r.available > 0 ? "A free booking is ready: your next Rs 10 confirmation is on us." : `Loyalty: ${r.done} of ${r.of} attended visits toward a free booking.`;
+  return r.available > 0 ? "A free booking is ready: your next nominal confirmation fee is on us." : `Loyalty: ${r.done} of ${r.of} attended visits toward a free booking.`;
 }
 
 const appt = (p: BookingProps) => t(p.terms ?? {}, "appointment");
@@ -182,7 +182,7 @@ export function QueueMovedBackEmail(p: BookingProps & { place: number }) {
       <H>You were not here when we called you</H>
       <P>Hi {p.clientName.split(" ")[0]}, your place in the queue at <strong style={{ color: brand.ink }}>{p.businessName}</strong> came up but you were not present, so we moved you back in the queue. Please stay close.</P>
       <BookingDetails p={p} />
-      <P>You are now number {p.place} in line. You get four calls in all: if you are not present for the fourth, this {appt(p)} is closed. Your Rs 10 confirmation fee is kept, and you can rebook once without paying it again.</P>
+      <P>You are now number {p.place} in line. You get four calls in all: if you are not present for the fourth, this {appt(p)} is closed. Your nominal confirmation fee is kept, and you can rebook once without paying it again.</P>
       {p.trackUrl ? <CTA color={p.tenant?.color} fg={p.tenant?.fg} href={p.trackUrl} label="Track your place in line" /> : null}
     </EmailLayout>
   );
@@ -216,7 +216,7 @@ export function QueueClosedEmail(p: BookingProps & { reason: "missed" | "cancell
       <BookingDetails p={p} />
       {p.feeKept ? (
         <P>
-          Your Rs 10 confirmation fee is kept, and you can rebook once at {p.businessName} without paying it again.
+          Your nominal confirmation fee is kept, and you can rebook once at {p.businessName} without paying it again.
         </P>
       ) : (
         <P>You can book again on any date.</P>
@@ -469,14 +469,14 @@ export function BillingLinksModeEmail({ businessName, businessId, reason, adminU
   );
 }
 
-export interface LevelUpProps { levelLabel: string; feeLabel: string; perk: string | null; accountUrl: string }
+export interface LevelUpProps { levelLabel: string; perk: string | null; accountUrl: string }
 
 /** A customer reached a new Calvy level. Names only the level, the new fee and the perk; the requirements are never listed. */
-export function LevelUpEmail({ levelLabel, feeLabel, perk, accountUrl }: LevelUpProps) {
+export function LevelUpEmail({ levelLabel, perk, accountUrl }: LevelUpProps) {
   return (
     <EmailLayout preview={`You reached ${levelLabel}`}>
       <H>You reached {levelLabel}</H>
-      <P>Thank you for showing up. Your Calvy confirmation fee is now {feeLabel} at businesses where it applies.</P>
+      <P>Thank you for showing up. Your nominal confirmation fee is now lower at businesses where it applies.</P>
       {perk && <P>{perk}</P>}
       <CTA href={accountUrl} label="See my level" />
     </EmailLayout>

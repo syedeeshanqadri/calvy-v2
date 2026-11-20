@@ -42,7 +42,7 @@ const FIXTURES: Record<TemplateId, object> = {
   owner_magic_link: { name: "Riya Kapoor", secret: SECRET },
   email_verified: { name: "Riya Kapoor" },
   onboarding_reminder: { name: "Riya Kapoor", n: 2, secret: SECRET },
-  level_up: { level: "INSIDER", levelLabel: "Insider", feeMinor: 800, baseFeeMinor: 1000, perk: "One free booking, on us, for reaching Insider.", accountUrl: "https://x.test/account" },
+  level_up: { level: "INSIDER", levelLabel: "Insider", perk: "One free booking, on us, for reaching Insider.", accountUrl: "https://x.test/account" },
   lead: { name: "Asha Rao", demoRequested: true },
   form_notification: { title: "New lead", fields: { Name: "Jo" }, at: "then" },
 };
