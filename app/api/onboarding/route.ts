@@ -6,6 +6,14 @@ import { loadWizardState, saveStep, skipStep, SlugTakenError } from "@/lib/onboa
 import { SKIPPABLE, STEPS, isSavableStep, stepSchemas } from "@/lib/onboarding";
 import { parseBody } from "@/lib/validation/common";
 import { rateLimit } from "@/lib/ratelimit";
+import { touchSignupLead } from "@/lib/leads";
+import { prisma } from "@/lib/prisma";
+import { logger } from "@/lib/logger";
+
+/** Record the progress on the sign-up lead (restarts the reminder clock). Never blocks saving the step. */
+async function noteProgress(w: { user: { id: string; name: string; email: string } }, step: number) {
+  await touchSignupLead(prisma, w.user, step).catch((err) => logger.error("[onboarding] lead not updated", { err }));
+}
 
 export const dynamic = "force-dynamic";
 
@@ -37,7 +45,9 @@ async function PATCH_handler(req: NextRequest) {
   if (skip) {
     if (!SKIPPABLE.has(step)) return NextResponse.json({ error: "This step cannot be skipped." }, { status: 400 });
     await skipStep(w.business.id, step);
-    return NextResponse.json(await loadWizardState(w.business.id));
+    const state = await loadWizardState(w.business.id);
+    await noteProgress(w, state.step);
+    return NextResponse.json(state);
   }
 
   const v = stepSchemas[step].safeParse(data);
@@ -49,7 +59,9 @@ async function PATCH_handler(req: NextRequest) {
     if (err instanceof Error && /^(The Free plan|Add at least)/.test(err.message)) return NextResponse.json({ error: err.message }, { status: 400 });
     throw err;
   }
-  return NextResponse.json(await loadWizardState(w.business.id));
+  const state = await loadWizardState(w.business.id);
+  await noteProgress(w, state.step);
+  return NextResponse.json(state);
 }
 
 export const GET = safeRoute(GET_handler);

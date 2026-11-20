@@ -2,21 +2,17 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { tryNormalizeEmail } from "@/lib/email-normalize";
-import { notify } from "@/lib/notifications/enqueue";
-import { authEmail } from "@/lib/notifications/events";
-import { issueCustomerToken } from "@/lib/customerDb";
 
 /**
- * A booking with an email makes sure that email has a customer account, so the booker can later keep track
- * of every appointment in /my. Booking never waits on this and never fails because of it.
+ * A booking with an email makes sure that email has a customer account, silently, so the booker can later keep track of every appointment in
+ * /account. Booking never waits on this and never fails because of it.
  *
- * - No account: one is created with no password, and a "verify and set your password" link is emailed.
- * - Account made this way and not verified yet: a new link, at most once a day (so repeat bookings do not spam).
- * - Account the person created themselves but has not verified: left alone (their own signup link applies).
+ * - No account: one is created with no password. Nothing is emailed from here: the booking's CONFIRMATION email carries the "claim your Calvy
+ *   account" button (lib/customerClaim.ts), a single-use link that signs in and verifies.
+ * - Account not verified yet: left alone (the confirmation's claim link applies).
  * - Verified account: nothing to do.
  *
- * The account shows nothing until the emailed link is used, so typing someone else's email at booking
- * gives the booker no access; the real owner can set the password or ignore the email.
+ * The account shows nothing until claimed, so typing someone else's email at booking gives the booker no access.
  */
 
 export type AccountNotice = "created" | "verify" | null;
@@ -40,27 +36,18 @@ export async function ensureCustomerAccount(input: { email: string | null | unde
   if (!email) return null;
   try {
     const existing = await prisma.customer.findUnique({ where: { email }, select: { id: true, name: true, email: true, emailVerified: true, password: true } });
-    const last = existing && !existing.emailVerified
-      ? await prisma.customerToken.findFirst({ where: { customerId: existing.id, purpose: "verify" }, orderBy: { createdAt: "desc" }, select: { createdAt: true } })
-      : null;
-    const action = inviteAction(existing, last?.createdAt ?? null, now);
+    const action = inviteAction(existing, null, now);
 
-    let target = existing;
     if (action.create) {
       try {
-        target = await prisma.customer.create({
+        await prisma.customer.create({
           data: { email, name: input.name.trim().slice(0, 120) || email, password: null },
-          select: { id: true, name: true, email: true, emailVerified: true, password: true },
         });
       } catch (err) {
-        // Two bookings at once with the same new email: the other one created it and sent the link.
+        // Two bookings at once with the same new email: the other one created it.
         if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") return "verify";
         throw err;
       }
-    }
-    if (action.sendLink && target) {
-      const token = await issueCustomerToken(prisma, target.id, "verify");
-      await notify(authEmail({ template: "customer_account_setup", userId: target.id, to: target.email, name: target.name, token, baseUrl: input.baseUrl }));
     }
     return action.notice;
   } catch (err) {

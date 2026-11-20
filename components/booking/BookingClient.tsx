@@ -442,7 +442,7 @@ export function BookingClient({ business, fontClasses, homeHref = "/", followUp 
           )}
           {accountNotice && (
             <p className="bk-note" role="status" style={{ marginTop: 14, textAlign: "left" }}>
-              Verify your email to create your account and track your {word("appointment", { plural: true })} and payments. We sent a link to set your password to <strong>{form.email}</strong>. Your booking is confirmed either way.
+              Your confirmation email to <strong>{form.email}</strong> has a button to manage your {word("appointment", { plural: true })} and claim your free Calvy account. Your booking is confirmed either way.
             </p>
           )}
           {tokenResult && (
@@ -923,6 +923,11 @@ export function BookingClient({ business, fontClasses, homeHref = "/", followUp 
               </button>
             )}
           </nav>
+          {step === "confirm" && (
+            <p className="bk-note" data-testid="booking-privacy-note" style={{ textAlign: "center", marginTop: 10 }}>
+              We save your booking details so you can manage them. <a href="/privacy" target="_blank" rel="noreferrer">Privacy policy</a>
+            </p>
+          )}
           {business.showCalvyBadge !== false && <div className="mt-10 flex justify-center"><CalvyBadge slug={business.slug} color={color} href={business.calvyHref} /></div>}
         </main>
 

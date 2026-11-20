@@ -13,7 +13,7 @@ export async function loadBusinessDetail(id: string) {
   const b = await prisma.business.findUnique({
     where: { id },
     include: {
-      owner: { select: { name: true, email: true, emailVerified: true, createdAt: true } },
+      owner: { select: { name: true, email: true, emailVerified: true, ownershipTransferredAt: true, createdAt: true } },
       services: { where: { isActive: true }, orderBy: { createdAt: "asc" }, take: 30, select: { id: true, name: true, price: true, duration: true } },
       _count: { select: { appointments: true, clients: true, staff: true } },
     },

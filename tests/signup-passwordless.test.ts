@@ -5,6 +5,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const db = vi.hoisted(() => ({
   user: { findUnique: vi.fn(), findFirst: vi.fn(), create: vi.fn(), update: vi.fn(), updateMany: vi.fn() },
+  lead: { upsert: vi.fn(async () => ({})) },
   passwordResetToken: { create: vi.fn(), deleteMany: vi.fn() },
   $transaction: vi.fn(),
 }));
@@ -35,17 +36,22 @@ const authorize = (ticket: string | undefined) => ticketProvider.options.authori
 beforeEach(() => { vi.clearAllMocks(); db.user.findFirst.mockResolvedValue(null); db.user.create.mockResolvedValue({ id: "u1" }); db.$transaction.mockResolvedValue([]); db.user.updateMany.mockResolvedValue({ count: 1 }); });
 
 describe("sign-up", () => {
-  it("creates a passwordless user, queues the setup email, and returns a sign-in ticket", async () => {
-    const res = await signup(post("/api/signup", { name: "Asha Rao", email: "Asha@Glow.test", phone: "+91 98765 43210", packId: "SALON_SPA", timezone: "Asia/Kolkata" }));
+  it("creates a passwordless user, a lead and a draft business, sends NO email, and returns a sign-in ticket (no email gate)", async () => {
+    const res = await signup(post("/api/signup", { name: "Asha Rao", email: "Asha@Glow.test", phone: "+91 98765 43210", businessName: "Glow Salon", timezone: "Asia/Kolkata" }));
     expect(res.status).toBe(201);
     expect(db.user.create).toHaveBeenCalledWith({ data: { name: "Asha Rao", email: "asha@glow.test" } }); // no password, not verified
-    expect(createBusinessForUser).toHaveBeenCalledWith(expect.objectContaining({ packId: "SALON_SPA", phone: "+91 98765 43210", region: "IN", currency: "INR", onboardingStep: 2, welcome: false }));
-    expect(notify.mock.calls[0][0]).toMatchObject({ template: "owner_account_setup", recipient: "asha@glow.test" });
-    expect(String(notify.mock.calls[0][0].secret)).toContain("/reset-password?setup=1&token=");
+    expect(createBusinessForUser).toHaveBeenCalledWith(expect.objectContaining({ businessName: "Glow Salon", phone: "+91 98765 43210", region: "IN", currency: "INR", onboardingStep: 1, welcome: false }));
+    expect((createBusinessForUser.mock.calls[0] as unknown as [Record<string, unknown>])[0]).not.toHaveProperty("packId"); // the type is asked in onboarding
+    expect(notify).not.toHaveBeenCalled(); // the "Set your password" email waits for onboarding to finish
+    expect(db.lead.upsert).toHaveBeenCalledWith(expect.objectContaining({ create: expect.objectContaining({ source: "signup", onboardingStep: 1, email: "asha@glow.test" }) }));
     expect((await res.json()).ticket).toEqual(expect.any(String));
+    // The browser that signed up is marked (signed, httpOnly), so verifying later from here does not sign anybody out.
+    const cookie = res.headers.get("set-cookie") ?? "";
+    expect(cookie).toMatch(/calvy_signup_device=/);
+    expect(cookie).toMatch(/HttpOnly/i);
   });
   it("stores which business's \"Bookings by Calvy\" link the person came from (calvy_ref cookie), and ignores a forged one", async () => {
-    const body = { name: "Asha Rao", email: "asha@glow.test", phone: "+91 98765 43210", packId: "SALON_SPA", timezone: "Asia/Kolkata" };
+    const body = { name: "Asha Rao", email: "asha@glow.test", phone: "+91 98765 43210", businessName: "Glow Salon", timezone: "Asia/Kolkata" };
     const withCookie = (value: string) => new NextRequest("http://localhost/api/signup", { method: "POST", headers: { "content-type": "application/json", cookie: `calvy_ref=${value}` }, body: JSON.stringify(body) });
     await signup(withCookie("glow-salon.tenant_site"));
     expect(db.user.create).toHaveBeenLastCalledWith({ data: { name: "Asha Rao", email: "asha@glow.test", signupRef: "glow-salon", signupSource: "tenant_site" } });
@@ -53,12 +59,12 @@ describe("sign-up", () => {
     expect(db.user.create).toHaveBeenLastCalledWith({ data: { name: "Asha Rao", email: "asha@glow.test" } });
   });
   it("India without a phone is refused; outside India the phone is optional", async () => {
-    expect((await signup(post("/api/signup", { name: "A", email: "a@x.co", packId: "OTHER", timezone: "Asia/Kolkata" }))).status).toBe(400);
-    expect((await signup(post("/api/signup", { name: "A", email: "a@x.co", packId: "OTHER", timezone: "Europe/Paris" }))).status).toBe(201);
+    expect((await signup(post("/api/signup", { name: "A", email: "a@x.co", businessName: "Glow", timezone: "Asia/Kolkata" }))).status).toBe(400);
+    expect((await signup(post("/api/signup", { name: "A", email: "a@x.co", businessName: "Glow", timezone: "Europe/Paris" }))).status).toBe(201);
   });
   it("an existing email is not overwritten", async () => {
     db.user.findFirst.mockResolvedValue({ id: "old" });
-    expect((await signup(post("/api/signup", { name: "A", email: "a@x.co", packId: "OTHER", timezone: "Europe/Paris" }))).status).toBe(409);
+    expect((await signup(post("/api/signup", { name: "A", email: "a@x.co", businessName: "Glow", timezone: "Europe/Paris" }))).status).toBe(409);
     expect(db.user.create).not.toHaveBeenCalled();
   });
 });
@@ -129,7 +135,7 @@ describe("sign-up then automatic sign-in", () => {
   it("the ticket the sign-up returns opens the first session, and the signIn gate lets it through", async () => {
     db.user.findFirst.mockResolvedValue(null);
     db.user.create.mockResolvedValue({ id: "u1" });
-    const res = await signup(post("/api/signup", { name: "Asha Rao", email: "a@x.co", packId: "SALON_SPA", timezone: "Asia/Kolkata", phone: "+91 98765 43210" }));
+    const res = await signup(post("/api/signup", { name: "Asha Rao", email: "a@x.co", businessName: "Glow Salon", timezone: "Asia/Kolkata", phone: "+91 98765 43210" }));
     const { ticket } = await res.json();
     expect(ticket).toBeTruthy();
     db.user.findUnique.mockResolvedValue({ id: "u1", name: "Asha", email: "a@x.co", password: null });

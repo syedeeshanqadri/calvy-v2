@@ -82,10 +82,10 @@ async function replaceServicesWithPack(tx: Prisma.TransactionClient, businessId:
   const booked = await tx.appointment.count({ where: { businessId } });
   if (booked > 0) return;
   await tx.service.deleteMany({ where: { businessId } });
-  for (const svc of getPack(packId).defaultServices) {
-    const created = await tx.service.create({ data: { ...svc, businessId, isActive: true } });
-    await linkServiceToAllStaff(tx, businessId, created.id);
-  }
+  // A handful of queries, not one round trip per service and per staff link: a slow connection to the database must not time the step out.
+  const created = await tx.service.createManyAndReturn({ data: getPack(packId).defaultServices.map((svc) => ({ ...svc, businessId, isActive: true })), select: { id: true } });
+  const staff = await tx.staff.findMany({ where: { businessId, isActive: true }, select: { id: true } });
+  if (staff.length && created.length) await tx.staffService.createMany({ data: staff.flatMap((m) => created.map((c) => ({ staffId: m.id, serviceId: c.id }))), skipDuplicates: true });
 }
 
 /** Save one wizard step. `data` must already be validated with the step's schema. Progress only moves forward. */
@@ -158,7 +158,7 @@ export async function saveStep<S extends SavableStep>(businessId: string, step: 
       const d = data as Input<"plan">;
       await tx.business.update({ where: { id: businessId }, data: { intendedPlan: d.plan, ...next } });
     }
-  });
+  }, { maxWait: 10_000, timeout: 30_000 }); // generous: each query is a round trip, and a slow link must not abort a step that is only a few writes
 }
 
 /** Skip: keep the defaults and move on. */

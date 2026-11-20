@@ -10,5 +10,5 @@ export default async function CrmPage() {
 
   const leads = await prisma.lead.findMany({ orderBy: { createdAt: "desc" } });
 
-  return <CrmBoard initialLeads={leads.map(l => ({ ...l, createdAt: l.createdAt.toISOString() }))} />;
+  return <CrmBoard initialLeads={leads.map(l => ({ ...l, createdAt: l.createdAt.toISOString(), updatedAt: undefined, lastActivityAt: l.lastActivityAt?.toISOString() ?? null, lastReminderAt: l.lastReminderAt?.toISOString() ?? null, unsubscribedAt: l.unsubscribedAt?.toISOString() ?? null, convertedAt: l.convertedAt?.toISOString() ?? null }))} />;
 }

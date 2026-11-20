@@ -41,7 +41,7 @@ export default async function AdminBusinessPage(props: { params: Promise<{ id: s
       <div className="grid lg:grid-cols-2 gap-6">
         <Section title="Profile">
           <dl>
-            <Row k="Owner" v={`${d.owner.name} · ${d.owner.email}${d.owner.emailVerified ? "" : " (not verified)"}`} />
+            <Row k="Owner" v={`${d.owner.name} · ${d.owner.email}${d.owner.emailVerified ? "" : " (not verified)"}${d.owner.ownershipTransferredAt ? ` · OWNERSHIP TRANSFERRED ${d.owner.ownershipTransferredAt.toISOString().slice(0, 10)} (taken over by a verified sign-in; review)` : ""}`} />
             <Row k="Phone" v={b.phone ?? "—"} /><Row k="Business email" v={b.email ?? "—"} /><Row k="Address" v={b.address ?? "—"} /><Row k="Website" v={b.website ?? "—"} />
             <Row k="Currency · timezone" v={`${b.currency} · ${b.timezone}`} /><Row k="Booking mode" v={b.bookingMode} />
             <Row k="Setup" v={b.onboardingCompletedAt ? "Complete" : `Wizard step ${b.onboardingStep}`} />

@@ -9,6 +9,7 @@ import { emailField, id, parseBody, text } from "@/lib/validation/common";
 import { audit } from "@/lib/audit";
 import { issueInvite, serializeMember } from "@/lib/teamDb";
 import { appBaseUrl, testTokenHookEnabled } from "@/lib/auth-http";
+import { isManagerLike, ownerEmailVerified, unverifiedResponse } from "@/lib/verification";
 
 export const dynamic = "force-dynamic";
 
@@ -35,6 +36,9 @@ async function POST_handler(req: NextRequest) {
   const parsed = await parseBody(req, memberCreateSchema);
   if (!parsed.ok) return parsed.res;
   const { name, email, roleName, permissions, staffId } = parsed.data;
+
+  // Manager-level access is for verified owners only: an unverified sign-up cannot hand it out.
+  if (isManagerLike(permissions, roleName) && !(await ownerEmailVerified(s.user.id))) return unverifiedResponse("team");
 
   const denied = await checkLimit(businessId, "team", { owner: true });
   if (denied) return denialResponse(denied);
