@@ -1,5 +1,5 @@
-import { VerifiedOnly } from "@/components/auth/VerifyEmail";
 "use client";
+import { VerifiedOnly } from "@/components/auth/VerifyEmail";
 import { fromMinorUnits } from "@/lib/currency";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
