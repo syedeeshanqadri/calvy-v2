@@ -18,7 +18,7 @@ export default async function AdminBillingPage() {
   });
   const links = rows.filter((r) => r.billingMode === "LINKS");
   return (
-    <div className="space-y-8">
+    <div className="min-w-0 space-y-8">
       <div>
         <h1 className="font-syne text-2xl font-bold">Billing</h1>
         <p className="text-sm text-[#6b6b80] mt-1">Calvy plan subscriptions. India pays through Cashfree (rupees), everyone else through Razorpay (dollars, cards). Settlement of Razorpay payments is in rupees, because Calvy&apos;s Razorpay account is an Indian one.</p>

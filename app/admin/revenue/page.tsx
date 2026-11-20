@@ -51,7 +51,7 @@ export default async function AdminRevenuePage() {
   const maxRevenue = Math.max(...monthlyRevenue.map(m => m._sum.price ?? 0), 1);
 
   return (
-    <div className="p-4 md:p-8 space-y-8">
+    <div className="min-w-0 space-y-8">
       <div>
         <h1 className="font-syne font-bold text-2xl">Revenue</h1>
         <p className="text-[#6b6b80] text-sm mt-1">Platform-wide booking revenue across all tenants</p>
@@ -93,15 +93,15 @@ export default async function AdminRevenuePage() {
       </div>
 
       {/* Top tenants by revenue */}
-      <div className="bg-white rounded-2xl border border-[#e8e6e0] overflow-hidden">
+      <div className="min-w-0 max-w-full bg-white rounded-2xl border border-[#e8e6e0] overflow-hidden">
         <div className="px-6 py-4 border-b border-[#f0ede8]">
           <h2 className="font-syne font-semibold text-[15px]">Top Tenants by Revenue (This Month)</h2>
         </div>
         {tenantRevenue.length === 0 ? (
           <div className="p-8 text-center text-[#6b6b80] text-sm">No paid appointments this month yet</div>
         ) : (
-          <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <div className="max-w-full overflow-x-auto overscroll-x-contain" role="region" aria-label="Top tenants by revenue" tabIndex={0}>
+          <table className="w-full min-w-[560px] text-sm">
             <thead>
               <tr className="bg-[#fafaf8] border-b border-[#f0ede8]">
                 {["#", "Business", "Owner", "Bookings", "Revenue"].map(h => (

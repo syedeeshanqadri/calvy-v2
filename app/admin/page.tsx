@@ -34,7 +34,7 @@ export default async function AdminOverviewPage() {
   await requireAdminPage();
   const s = await loadAdminStats();
   return (
-    <div className="p-4 md:p-8 space-y-8">
+    <div className="min-w-0 space-y-8">
       <div>
         <h1 className="font-syne font-bold text-2xl">Overview</h1>
         <p className="text-sm text-[#6b6b80]">Counts only. No customer details.</p>

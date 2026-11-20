@@ -9,7 +9,7 @@ export default async function AdminSettingsPage() {
   await requireAdminPage();
   const limits = await getVerifiedLimits(prisma);
   return (
-    <div className="p-4 md:p-8 max-w-2xl space-y-6">
+    <div className="min-w-0 max-w-2xl space-y-6">
       <div><h1 className="font-syne font-bold text-2xl">Settings</h1><p className="text-sm text-[#6b6b80]">Platform-wide rules.</p></div>
       <section className="bg-white rounded-2xl border border-[#e8e6e0] p-5 space-y-3">
         <h2 className="font-syne font-semibold text-[15px]">Verified-customer booking limits</h2>

@@ -20,7 +20,7 @@ export default function ReviewClient({ connections }: { connections: Conn[] }) {
   }
 
   return (
-    <div className="p-4 md:p-8 max-w-2xl space-y-5">
+    <div className="min-w-0 max-w-2xl space-y-5">
       <div>
         <h1 className="font-syne font-bold text-2xl text-[#0f0f1a]">WhatsApp review template</h1>
         <p className="text-sm text-[#6b6b80] mt-1 break-words">For the Meta App Review screen recording. Creates a UTILITY template (English) on a connected WhatsApp Business Account through the Graph API and shows Meta&apos;s response.</p>

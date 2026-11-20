@@ -17,6 +17,7 @@
     "audit:authz": "tsx scripts/authz-audit.ts",
     "audit:secrets": "tsx scripts/secrets-scan.ts",
     "env:parity": "tsx scripts/env-parity.ts",
+    "e2e:admin-fixture:wipe": "dotenv -e .env.local -- tsx scripts/e2e-admin-fixture.ts wipe",
     "db:status": "dotenv -e .env.local -- prisma migrate status",
     "db:deploy": "prisma migrate deploy",
     "db:seed": "dotenv -e .env.local -- tsx prisma/seed.ts",

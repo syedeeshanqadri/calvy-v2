@@ -13,7 +13,7 @@ export default async function AdminCustomersPage() {
   const pending = rows.filter((r) => r.status === "PENDING");
   const history = rows.filter((r) => r.status !== "PENDING");
   return (
-    <div className="space-y-8">
+    <div className="min-w-0 space-y-8">
       <div>
         <h1 className="font-syne text-2xl font-bold">Customers</h1>
         <p className="text-sm text-[#6b6b80] mt-1">Customers who asked to delete their account. They wait {GRACE_DAYS} days and can cancel; then the nightly job anonymises them (name, email, phone, login and referral codes removed; businesses keep their booking records). You can process or cancel a request earlier. Business owner accounts are not part of this.</p>

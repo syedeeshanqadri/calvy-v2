@@ -146,7 +146,7 @@ export function AdminSupportClient({ tickets: initialTickets }: Props) {
   };
 
   return (
-    <div className="p-4 md:p-8 space-y-6">
+    <div className="min-w-0 space-y-6">
       <div>
         <h1 className="font-syne font-bold text-2xl">Support Tickets</h1>
         <p className="text-[#6b6b80] text-sm mt-1">Manage and respond to tenant support requests</p>

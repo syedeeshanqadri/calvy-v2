@@ -15,7 +15,7 @@ export default async function AdminCouponsPage() {
   await requireAdminPage();
   const coupons = await listCoupons(prisma, { ownerKey: CALVY_OWNER });
   return (
-    <div className="space-y-8">
+    <div className="min-w-0 space-y-8">
       <div>
         <h1 className="font-syne text-2xl font-bold">Coupons</h1>
         <p className="text-sm text-[#6b6b80] mt-1">One code per checkout. A fee coupon and a loyalty reward never combine: a coupon that clears the whole Rs 10 is used and the reward is kept. A plan coupon takes money off the first payment only. Coupons are switched off, never deleted.</p>

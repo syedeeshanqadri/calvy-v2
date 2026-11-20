@@ -51,7 +51,7 @@ export default async function AdminNotificationLogPage({ searchParams }: { searc
   const period = filters.days === 1 ? "24h" : `${filters.days}d`;
 
   return (
-    <div className="space-y-6 p-4 md:p-8">
+    <div className="min-w-0 space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-2">
         <div>
           <h1 className="text-2xl font-semibold text-[#0f0f1a]">Delivery log</h1>
@@ -77,7 +77,7 @@ export default async function AdminNotificationLogPage({ searchParams }: { searc
       <section className="rounded-2xl border border-[#f0ede8] bg-white p-4 md:p-6">
         <h2 className="mb-3 text-sm font-semibold text-[#0f0f1a]">Highest failure rates · {period}</h2>
         {worst.length ? (
-          <div className="overflow-x-auto">
+          <div className="max-w-full overflow-x-auto overscroll-x-contain" role="region" aria-label="Highest failure rates" tabIndex={0}>
             <table className="w-full min-w-[480px] text-left text-sm">
               <thead className="border-b border-[#f0ede8] text-xs uppercase tracking-wide text-[#6b6b80]">
                 <tr><th className="py-2 pr-3 font-medium">Business</th><th className="py-2 pr-3 font-medium">Failed</th><th className="py-2 pr-3 font-medium">Sent</th><th className="py-2 pr-3 font-medium">Skipped</th><th className="py-2 font-medium">Failure rate</th></tr>

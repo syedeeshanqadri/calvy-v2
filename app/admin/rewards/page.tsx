@@ -15,7 +15,7 @@ export default async function AdminRewardsPage(props: { searchParams: Promise<{ 
   const q = (Array.isArray(raw) ? raw[0] : raw)?.trim().slice(0, 254) ?? "";
   const [config, found] = await Promise.all([getLevelConfig(prisma), q ? lookupLevel(prisma, q) : Promise.resolve(null)]);
   return (
-    <div className="space-y-8">
+    <div className="min-w-0 space-y-8">
       <div>
         <h1 className="font-syne text-2xl font-bold">Rewards: Calvy Levels</h1>
         <p className="text-sm text-[#6b6b80] mt-1">Levels lower Calvy&apos;s own confirmation fee, only where it exists (Free plan, India). Changes apply to the next booking; bookings already made keep the fee they were charged.</p>

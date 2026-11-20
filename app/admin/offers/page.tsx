@@ -18,7 +18,7 @@ export default async function AdminOffersPage(props: { searchParams: Promise<{ q
   ]);
 
   return (
-    <div className="space-y-8">
+    <div className="min-w-0 space-y-8">
       <div>
         <h1 className="font-syne text-2xl font-bold">Offers</h1>
         <p className="text-sm text-[#6b6b80] mt-1">Switching an offer off stops new visits counting and stops rewards being spent. Rewards already earned are kept.</p>

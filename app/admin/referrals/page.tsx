@@ -14,7 +14,7 @@ export default async function AdminReferralsPage() {
   await requireAdminPage();
   const v = await referralAdminView(prisma);
   return (
-    <div className="space-y-8">
+    <div className="min-w-0 space-y-8">
       <div>
         <h1 className="font-syne text-2xl font-bold">Referrals</h1>
         <p className="text-sm text-[#6b6b80] mt-1">A friend must be new to Calvy. Both people get a free Rs 10 after the friend&apos;s first attended visit, up to {REFERRAL_CAP_PER_MONTH} rewarded referrals per referrer a month. Same phone, same device, self-referral and loops are refused.</p>
