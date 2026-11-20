@@ -5,6 +5,7 @@ import { isOurCredentialsLogin } from "@/lib/authProviders";
 import { redeemOwnerLoginToken } from "@/lib/ownerLogin";
 import { takeOverUnverified } from "@/lib/ownerTakeover";
 import { redeemClaim } from "@/lib/customerClaim";
+import { createdOnThisDevice } from "@/lib/signupDevice";
 import GoogleProvider from "next-auth/providers/google";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
@@ -159,7 +160,7 @@ export const authOptions: NextAuthOptions = {
         if (!redeemed) return null;
         const user = await prisma.user.findUnique({ where: { id: redeemed.userId }, select: { id: true, name: true, email: true, isSuperAdmin: true } });
         if (!user || user.isSuperAdmin) return null;
-        await takeOverUnverified(user.id, "magic-link");
+        await takeOverUnverified(user.id, "magic-link", { sameDevice: await createdOnThisDevice(user.id) });
         return { id: user.id, name: user.name, email: user.email };
       },
     }),
@@ -230,10 +231,10 @@ export const authOptions: NextAuthOptions = {
             });
           } else if (existing && d.action === "link") {
             // The owner linking Google while signed in is the same person: just verify. Anyone else arriving verified by Google takes the account over.
-            if (!existing.emailVerified && linkIntentUserId !== existing.id) await takeOverUnverified(existing.id, "google");
+            if (!existing.emailVerified && linkIntentUserId !== existing.id) await takeOverUnverified(existing.id, "google", { sameDevice: await createdOnThisDevice(existing.id) });
             await prisma.user.update({ where: { id: existing.id }, data: { googleId: account.providerAccountId, emailVerified: existing.emailVerified ?? new Date() } });
           } else if (existing && !existing.emailVerified) {
-            await takeOverUnverified(existing.id, "google");
+            await takeOverUnverified(existing.id, "google", { sameDevice: await createdOnThisDevice(existing.id) });
           }
         } catch {
           return "/login?error=GoogleDenied"; // e.g. this Google account is already linked to another user

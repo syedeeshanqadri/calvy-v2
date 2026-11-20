@@ -273,12 +273,9 @@ export function ownerMagicLinkEmail(i: { userId: string; to: string; name: strin
   };
 }
 
-/** Sent to the address when a verified sign-in took over an account that had been created there without verification. */
-export function ownershipTransferredEmail(i: { userId: string; to: string; name: string; via: "google" | "magic-link"; at: Date }): NotificationInput {
-  return {
-    event: "auth.notice", audience: "BUSINESS", subjectId: i.userId, version: i.at.getTime(), recipient: i.to,
-    template: "ownership_transferred", payload: { name: i.name, via: i.via },
-  };
+/** "Your email is verified": sent to the address when a verified sign-in (Google or a link) confirms an email sign-up. Friendly and short; one per verification. */
+export function emailVerifiedEmail(i: { userId: string; to: string; name: string; at: Date }): NotificationInput {
+  return { event: "auth.notice", audience: "BUSINESS", subjectId: i.userId, version: i.at.getTime(), recipient: i.to, template: "email_verified", payload: { name: i.name } };
 }
 
 /** One of the four reminders to an owner who stopped during onboarding. Each carries a one-click resume link (the secret) and a stop link. */

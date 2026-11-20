@@ -7,7 +7,7 @@ import {
   PasswordResetEmail, OwnerAccountSetupEmail, TeamInviteEmail, QueueClosedEmail, QueueMovedBackEmail, ReviewRequestEmail, StatusChangeEmail, WelcomeEmail, businessAlertHeadline,
   type SubscriptionNoticeProps, type BookingProps, type BusinessAlertProps, type DailySummaryProps, type InvoiceProps,
   rewardLine,
-  OwnerMagicLinkEmail, OwnershipTransferredEmail, OnboardingReminderEmail, onboardingReminderSubject, onboardingReminderLead,
+  OwnerMagicLinkEmail, EmailVerifiedEmail, OnboardingReminderEmail, onboardingReminderSubject, onboardingReminderLead,
 } from "@/emails/templates";
 import type { TenantBrand } from "@/emails/EmailLayout";
 import { formatCurrencyAmount } from "@/lib/currency";
@@ -257,10 +257,10 @@ export const TEMPLATES = {
     Email: (p) => <OwnerMagicLinkEmail name={p.name} linkUrl={p.secret} />,
     text: (p) => lines(`Hi ${first(p.name)}, tap the link to sign in to Calvy. No password needed.`, p.secret, "This link works once and expires in 15 minutes. If you did not ask for it, ignore this message."),
   }),
-  ownership_transferred: define<{ name: string; via: "google" | "magic-link" }>({
-    subject: () => "Your email address was verified on Calvy",
-    Email: (p) => <OwnershipTransferredEmail name={p.name} via={p.via} />,
-    text: (p) => lines(`Hi ${first(p.name)}, someone signed in to Calvy with this address using ${p.via === "google" ? "Google" : "a sign-in link sent to it"}, so it is now confirmed as yours. Any earlier sign-up with it that was not verified has been closed off.`, "If this was you, there is nothing to do. If it was not, reply to this email and we will look into it."),
+  email_verified: define<{ name: string }>({
+    subject: () => "Your email is verified \u2713",
+    Email: (p) => <EmailVerifiedEmail name={p.name} />,
+    text: (p) => lines(`Hi ${first(p.name)}, your email is verified \u2713`, "Thanks for confirming it. Payments, WhatsApp and exports are now available in your Calvy account.", "If you did not do this, reply to this email and we will help."),
   }),
   onboarding_reminder: define<{ name: string; n: number; secret: string }>({
     subject: (p) => onboardingReminderSubject(p.n),

@@ -75,34 +75,53 @@ describe("squatting: a verified sign-in takes ownership of an unverified account
     expect(needsTakeover({ emailVerified: new Date() })).toBe(false);
     expect(needsTakeover(null)).toBe(false);
   });
-  it("verifies it, clears the password, revokes ticket sessions, audits it and emails the address", async () => {
+  it("a DIFFERENT browser: verifies, clears the password, ends the creator's sessions, audits it, and sends the friendly verified email (nothing about ownership)", async () => {
     db.user.findUnique.mockResolvedValue(user());
     db.appointment.count.mockResolvedValue(0);
     db.user.updateMany.mockResolvedValue({ count: 1 });
-    expect(await takeOverUnverified("u1", "google", NOW)).toBe(true);
+    expect(await takeOverUnverified("u1", "google", { sameDevice: false, now: NOW })).toBe(true);
     const call = db.user.updateMany.mock.calls[0][0];
     expect(call.where).toEqual({ id: "u1", emailVerified: null });
     expect(call.data).toMatchObject({ emailVerified: NOW, password: null, passwordChangedAt: NOW });
     expect(call.data).not.toHaveProperty("ownershipTransferredAt"); // no real bookings: no review flag
-    expect(audit).toHaveBeenCalledWith(expect.objectContaining({ businessId: "b1", action: "account.ownership_taken", detail: expect.objectContaining({ via: "google", flaggedForReview: false }) }));
-    expect(notify.mock.calls[0][0]).toMatchObject({ template: "ownership_transferred", recipient: "asha@x.co" });
+    expect(audit).toHaveBeenCalledWith(expect.objectContaining({ businessId: "b1", action: "account.ownership_taken", detail: expect.objectContaining({ via: "google", sameDevice: false, flaggedForReview: false }) }));
+    const mail = notify.mock.calls[0][0];
+    expect(mail).toMatchObject({ template: "email_verified", recipient: "asha@x.co" });
+    expect(JSON.stringify(mail)).not.toMatch(/owner/i);
   });
-  it("an account that already has real bookings is also flagged for Admin review (the takeover still happens)", async () => {
+  it("the SAME browser that created the account: only verified. Nobody is signed out, the password is kept, no flag; the audit entry is still written", async () => {
+    db.user.findUnique.mockResolvedValue(user());
+    db.appointment.count.mockResolvedValue(9); // even with bookings
+    db.user.updateMany.mockResolvedValue({ count: 1 });
+    expect(await takeOverUnverified("u1", "magic-link", { sameDevice: true, now: NOW })).toBe(true);
+    const data = db.user.updateMany.mock.calls[0][0].data;
+    expect(data).toEqual({ emailVerified: NOW }); // no password clearing, no passwordChangedAt (which would end sessions), no review flag
+    expect(audit).toHaveBeenCalledWith(expect.objectContaining({ detail: expect.objectContaining({ sameDevice: true, flaggedForReview: false }) }));
+    expect(notify.mock.calls[0][0]).toMatchObject({ template: "email_verified" });
+  });
+  it("flagged for Admin review only when the device differs AND the account has real bookings (the takeover still happens)", async () => {
     db.user.findUnique.mockResolvedValue(user());
     db.appointment.count.mockResolvedValue(7);
     db.user.updateMany.mockResolvedValue({ count: 1 });
-    expect(await takeOverUnverified("u1", "magic-link", NOW)).toBe(true);
+    expect(await takeOverUnverified("u1", "magic-link", { sameDevice: false, now: NOW })).toBe(true);
     expect(db.user.updateMany.mock.calls[0][0].data).toMatchObject({ emailVerified: NOW, ownershipTransferredAt: NOW });
     expect(audit).toHaveBeenCalledWith(expect.objectContaining({ detail: expect.objectContaining({ bookings: 7, flaggedForReview: true }) }));
   });
+  it("no device cookie at all (a job, a cleared browser) counts as a different device", async () => {
+    db.user.findUnique.mockResolvedValue(user());
+    db.appointment.count.mockResolvedValue(0);
+    db.user.updateMany.mockResolvedValue({ count: 1 });
+    await takeOverUnverified("u1", "google", { now: NOW });
+    expect(db.user.updateMany.mock.calls[0][0].data).toMatchObject({ password: null, passwordChangedAt: NOW });
+  });
   it("a verified account is never touched, and a lost race does nothing twice", async () => {
     db.user.findUnique.mockResolvedValue(user({ emailVerified: new Date() }));
-    expect(await takeOverUnverified("u1", "google", NOW)).toBe(false);
+    expect(await takeOverUnverified("u1", "google", { now: NOW })).toBe(false);
     expect(db.user.updateMany).not.toHaveBeenCalled();
     db.user.findUnique.mockResolvedValue(user());
     db.appointment.count.mockResolvedValue(0);
     db.user.updateMany.mockResolvedValue({ count: 0 });
-    expect(await takeOverUnverified("u1", "google", NOW)).toBe(false);
+    expect(await takeOverUnverified("u1", "google", { now: NOW })).toBe(false);
     expect(notify).not.toHaveBeenCalled();
   });
   it("Google: an unverified account never blocks the verified owner, a verified password account still does", () => {
@@ -131,5 +150,20 @@ describe("the magic-link sign-in provider", () => {
     expect(await authorize(t)).toBeNull(); // a super admin
     expect(await authorize(t)).toBeNull(); // and it was spent anyway
     expect(await authorize("not-a-token")).toBeNull();
+  });
+});
+
+import { signupDeviceValue, isSignupDevice, SIGNUP_DEVICE_TTL_MS } from "@/lib/signupDevice";
+
+describe("the sign-up device cookie", () => {
+  const SECRET = "test-secret";
+  it("is signed for one user: valid for them, useless for anyone else, forged or expired", () => {
+    const v = signupDeviceValue("u1", SECRET, 1_000);
+    expect(isSignupDevice(v, "u1", SECRET, 2_000)).toBe(true);
+    expect(isSignupDevice(v, "u2", SECRET, 2_000)).toBe(false);
+    expect(isSignupDevice(v, "u1", "other-secret", 2_000)).toBe(false);
+    expect(isSignupDevice(v.replace("u1", "u2"), "u2", SECRET, 2_000)).toBe(false);
+    expect(isSignupDevice(v, "u1", SECRET, 1_000 + SIGNUP_DEVICE_TTL_MS + 1)).toBe(false);
+    expect(isSignupDevice(undefined, "u1", SECRET)).toBe(false);
   });
 });

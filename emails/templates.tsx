@@ -623,13 +623,13 @@ export function OwnerMagicLinkEmail({ name, linkUrl }: { name: string; linkUrl: 
   );
 }
 
-/** A verified sign-in took over an account that someone had created on this address without verifying it. */
-export function OwnershipTransferredEmail({ name, via }: { name: string; via: "google" | "magic-link" }) {
+/** Friendly confirmation that the address is verified. */
+export function EmailVerifiedEmail({ name }: { name: string }) {
   return (
-    <EmailLayout preview="Your email address was verified on Calvy">
-      <H>Your email address is now verified on Calvy</H>
-      <P>Hi {name.split(" ")[0]}, someone signed in to Calvy with this email address using {via === "google" ? "Google" : "a sign-in link sent to it"}, so it is now confirmed as yours. Any earlier sign-up with this address that had not been verified has been closed off.</P>
-      <P>If this was you, there is nothing to do. If it was not, reply to this email and our team will look into it.</P>
+    <EmailLayout preview="Your email is verified">
+      <H>Your email is verified &#10003;</H>
+      <P>Hi {name.split(" ")[0]}, thanks for confirming your email address. Payments, WhatsApp and exports are now available in your Calvy account.</P>
+      <P>If you did not do this, just reply to this email and we will help.</P>
     </EmailLayout>
   );
 }

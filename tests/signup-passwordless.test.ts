@@ -45,6 +45,10 @@ describe("sign-up", () => {
     expect(notify).not.toHaveBeenCalled(); // the "Set your password" email waits for onboarding to finish
     expect(db.lead.upsert).toHaveBeenCalledWith(expect.objectContaining({ create: expect.objectContaining({ source: "signup", onboardingStep: 1, email: "asha@glow.test" }) }));
     expect((await res.json()).ticket).toEqual(expect.any(String));
+    // The browser that signed up is marked (signed, httpOnly), so verifying later from here does not sign anybody out.
+    const cookie = res.headers.get("set-cookie") ?? "";
+    expect(cookie).toMatch(/calvy_signup_device=/);
+    expect(cookie).toMatch(/HttpOnly/i);
   });
   it("stores which business's \"Bookings by Calvy\" link the person came from (calvy_ref cookie), and ignores a forged one", async () => {
     const body = { name: "Asha Rao", email: "asha@glow.test", phone: "+91 98765 43210", businessName: "Glow Salon", timezone: "Asia/Kolkata" };

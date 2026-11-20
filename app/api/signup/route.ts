@@ -10,6 +10,7 @@ import { parseBody } from "@/lib/validation/common";
 import { signupSchema } from "@/lib/validation/public";
 import { detectRegion, detectCountry, currencyFor } from "@/lib/onboarding";
 import { verifyTurnstile } from "@/lib/turnstile";
+import { SIGNUP_DEVICE_COOKIE, signupDeviceCookieOptions, signupDeviceValue } from "@/lib/signupDevice";
 import { upsertSignupLead } from "@/lib/leads";
 import { signTicket } from "@/lib/signedTicket";
 import { SIGNUP_TICKET_PURPOSE, SIGNUP_TICKET_TTL_MS } from "@/lib/signupTicket";
@@ -70,13 +71,16 @@ async function POST_handler(req: NextRequest) {
   }));
 
   const secret = process.env.NEXTAUTH_SECRET ?? "";
-  return NextResponse.json(
+  const res = NextResponse.json(
     {
       message: "Account created.",
       ticket: signTicket(SIGNUP_TICKET_PURPOSE, user.id, secret, SIGNUP_TICKET_TTL_MS),
     },
     { status: 201 },
   );
+  // Marks this browser as the one that made the account, so a later verification from here is not treated as someone else taking it over.
+  res.cookies.set(SIGNUP_DEVICE_COOKIE, signupDeviceValue(user.id, secret), signupDeviceCookieOptions());
+  return res;
 }
 
 export const POST = safeRoute(POST_handler);

@@ -41,7 +41,7 @@ const FIXTURES: Record<TemplateId, object> = {
   billing_links_mode: { businessName: "Glow Studio", businessId: "biz_1", reason: "International cards are not enabled for recurring", adminUrl: "https://x.test/admin/billing" },
   member_link: { name: "Riya Kapoor", secret: SECRET },
   owner_magic_link: { name: "Riya Kapoor", secret: SECRET },
-  ownership_transferred: { name: "Riya Kapoor", via: "google" },
+  email_verified: { name: "Riya Kapoor" },
   onboarding_reminder: { name: "Riya Kapoor", n: 2, secret: SECRET },
   level_up: { level: "INSIDER", levelLabel: "Insider", feeMinor: 800, baseFeeMinor: 1000, perk: "One free booking, on us, for reaching Insider.", accountUrl: "https://x.test/account" },
   lead: { name: "Asha Rao", demoRequested: true },
