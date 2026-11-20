@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 
-export type AuditAction = "team.member_added" | "team.member_removed" | "team.permissions_changed" | "team.invite_resent" | "team.invite_revoked" | "team.invite_accepted" | "settings.payments_changed" | "gateway.added" | "gateway.updated" | "gateway.removed" | "gateway.verified" | "payment.refunded" | "subscription.changed" | "calendar.feed_regenerated" | "offer.created" | "offer.updated" | "offer.deleted" | "coupon.created" | "coupon.updated";
+export type AuditAction = "team.member_added" | "team.member_removed" | "team.permissions_changed" | "team.invite_resent" | "team.invite_revoked" | "team.invite_accepted" | "settings.payments_changed" | "gateway.added" | "gateway.updated" | "gateway.removed" | "gateway.verified" | "payment.refunded" | "subscription.changed" | "calendar.feed_regenerated" | "offer.created" | "offer.updated" | "offer.deleted" | "coupon.created" | "coupon.updated" | "account.ownership_taken";
 
 /** Append-only record of who did what in a business. A failed write is logged, never thrown. */
 export async function audit(entry: { businessId: string; actorId: string; action: AuditAction; target?: string; detail?: unknown }): Promise<void> {

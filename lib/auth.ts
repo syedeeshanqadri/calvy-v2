@@ -2,6 +2,10 @@ import { currentPushDeviceId } from "@/lib/pushDeviceCookie";
 import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { isOurCredentialsLogin } from "@/lib/authProviders";
+import { redeemOwnerLoginToken } from "@/lib/ownerLogin";
+import { takeOverUnverified } from "@/lib/ownerTakeover";
+import { redeemClaim } from "@/lib/customerClaim";
+import { createdOnThisDevice } from "@/lib/signupDevice";
 import GoogleProvider from "next-auth/providers/google";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
@@ -142,6 +146,24 @@ export const authOptions: NextAuthOptions = {
         return { id: user.id, name: user.name, email: user.email, viaTicket: true } as { id: string; name: string; email: string };
       },
     }),
+    // Owner sign-in links ("Email me a sign-in link" and the onboarding reminders). One-time: the token is spent atomically before anyone is let in.
+    // Using one proves the address, so an unverified account becomes verified (and takes over any earlier unverified claim, see ownerTakeover).
+    // Calvy admins never use this: they sign in with a password and an authenticator code.
+    CredentialsProvider({
+      id: "magic-link",
+      name: "magic-link",
+      credentials: { token: { label: "Token", type: "text" } },
+      async authorize(credentials) {
+        const rl = await rateLimit(`magic-redeem:${String(credentials?.token ?? "").slice(0, 12)}`, 10, 60_000);
+        if (!rl.ok) return null;
+        const redeemed = await redeemOwnerLoginToken(prisma, credentials?.token);
+        if (!redeemed) return null;
+        const user = await prisma.user.findUnique({ where: { id: redeemed.userId }, select: { id: true, name: true, email: true, isSuperAdmin: true } });
+        if (!user || user.isSuperAdmin) return null;
+        await takeOverUnverified(user.id, "magic-link", { sameDevice: await createdOnThisDevice(user.id) });
+        return { id: user.id, name: user.name, email: user.email };
+      },
+    }),
     // Customer accounts: a separate table, so owners and customers never share credentials.
     CredentialsProvider({
       id: "customer",
@@ -157,6 +179,18 @@ export const authOptions: NextAuthOptions = {
         if (!customer?.password || !(await bcrypt.compare(credentials.password, customer.password))) return null;
         if (!customer.emailVerified) throw new Error("EmailNotVerified");
         return { id: customer.id, name: customer.name, email: customer.email, kind: "customer" } as { id: string; name: string; email: string };
+      },
+    }),
+    // A customer opening the "claim your Calvy account" link from a booking confirmation: spends the single-use link, verifies the address, signs in.
+    CredentialsProvider({
+      id: "customer-claim",
+      name: "customer-claim",
+      credentials: { token: { label: "Token", type: "text" } },
+      async authorize(credentials) {
+        const rl = await rateLimit(`claim-redeem:${String(credentials?.token ?? "").slice(0, 12)}`, 10, 60_000);
+        if (!rl.ok) return null;
+        const c = await redeemClaim(credentials?.token);
+        return c ? ({ id: c.id, name: c.name, email: c.email, kind: "customer" } as { id: string; name: string; email: string }) : null;
       },
     }),
     ...oauthProviders,
@@ -186,7 +220,7 @@ export const authOptions: NextAuthOptions = {
         const d = decideGoogleSignIn({
           emailVerified: (profile as { email_verified?: boolean } | undefined)?.email_verified === true,
           sub: account.providerAccountId,
-          existing: existing ? { id: existing.id, password: existing.password, googleId: existing.googleId } : null,
+          existing: existing ? { id: existing.id, password: existing.password, googleId: existing.googleId, emailVerified: existing.emailVerified } : null,
           linkIntentUserId,
         });
         if (d.action === "deny") return d.reason === "password-account" ? "/login?error=GoogleLinkRequired" : "/login?error=GoogleDenied";
@@ -196,9 +230,11 @@ export const authOptions: NextAuthOptions = {
               data: { name: user.name ?? oauthEmail.split("@")[0], email: oauthEmail, image: user.image ?? null, emailVerified: new Date(), googleId: account.providerAccountId },
             });
           } else if (existing && d.action === "link") {
+            // The owner linking Google while signed in is the same person: just verify. Anyone else arriving verified by Google takes the account over.
+            if (!existing.emailVerified && linkIntentUserId !== existing.id) await takeOverUnverified(existing.id, "google", { sameDevice: await createdOnThisDevice(existing.id) });
             await prisma.user.update({ where: { id: existing.id }, data: { googleId: account.providerAccountId, emailVerified: existing.emailVerified ?? new Date() } });
           } else if (existing && !existing.emailVerified) {
-            await prisma.user.update({ where: { id: existing.id }, data: { emailVerified: new Date() } });
+            await takeOverUnverified(existing.id, "google", { sameDevice: await createdOnThisDevice(existing.id) });
           }
         } catch {
           return "/login?error=GoogleDenied"; // e.g. this Google account is already linked to another user
@@ -243,7 +279,13 @@ export const authOptions: NextAuthOptions = {
           token.businessSlug = dbUser.business?.slug;
           token.businessName = dbUser.business?.name;
           token.sa = dbUser.isSuperAdmin || undefined;
+          token.ev = !!dbUser.emailVerified;
         }
+      }
+      // Still unverified: ask the database each request, so verifying (a link, Google) shows at once. Verified owners pay nothing.
+      if (!user && token.ev === false && token.uid) {
+        const u = await prisma.user.findUnique({ where: { id: token.uid as string }, select: { emailVerified: true } });
+        if (u?.emailVerified) token.ev = true;
       }
       // Every request: re-validate the business claims against the DB (throttled), so a
       // deleted/re-created business or a just-finished onboarding is picked up.
@@ -265,6 +307,7 @@ export const authOptions: NextAuthOptions = {
         session.user.businessId = token.businessId as string | undefined;
         session.user.businessSlug = token.businessSlug as string | undefined;
         session.user.businessName = token.businessName as string | undefined;
+        session.user.emailVerified = token.kind === "customer" ? undefined : token.ev;
         // A Calvy super admin in a view-as session sees the viewed business through the same session every page already
         // reads. The database decides (admin flag, live admin session, not expired); the token only hints.
         if (token.sa && session.user.kind !== "customer") {

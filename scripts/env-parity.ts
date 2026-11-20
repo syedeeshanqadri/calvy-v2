@@ -10,6 +10,12 @@ const PREVIEW_ONLY: Record<string, string> = {
   VERCEL_AUTOMATION_BYPASS_SECRET: "Deployment Protection bypass: previews only, never production",
 };
 
+/** Names that must exist in Production whether or not Preview has them. A missing one fails the check. */
+const REQUIRED_IN_PRODUCTION: Record<string, string> = {
+  TURNSTILE_SITE_KEY: "sign-up bot check (Cloudflare Turnstile); without it sign-up still works but is unprotected beyond the rate limit",
+  TURNSTILE_SECRET_KEY: "sign-up bot check (Cloudflare Turnstile), server side",
+};
+
 function names(env: "preview" | "production"): Set<string> {
   const out = execFileSync("vercel", ["env", "ls", env, "--format", "json"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
   const parsed = JSON.parse(out.slice(out.indexOf("{"))) as { envs?: { key: string }[] };
@@ -23,7 +29,12 @@ const productionOnly = [...production].filter((n) => !preview.has(n)).sort();
 
 console.log(`Preview: ${preview.size} names, Production: ${production.size} names`);
 if (productionOnly.length) console.log(`Only in Production (fine if intended): ${productionOnly.join(", ")}`);
-if (missing.length) {
+const requiredMissing = Object.keys(REQUIRED_IN_PRODUCTION).filter((n) => !production.has(n)).sort();
+if (requiredMissing.length) {
+  console.log(`\nREQUIRED but MISSING in Production (${requiredMissing.length}):\n  ${requiredMissing.map((n) => `${n}: ${REQUIRED_IN_PRODUCTION[n]}`).join("\n  ")}`);
+}
+if (missing.length || requiredMissing.length) {
+  if (!missing.length) process.exit(1);
   console.log(`\nMISSING in Production (${missing.length}):\n  ${missing.join("\n  ")}`);
   process.exit(1);
 }

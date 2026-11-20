@@ -70,7 +70,7 @@ describe("every API route is protected or on the reviewed public list", () => {
   const PROTECTED = /getServerSession|accessSession|wizardOwner|requireAdminApi|requireAdminPage|twoFaUser|getCustomer\b|queueContext|requireAdmin|isAdminUser|adminAuth|isCronAuthorized|hmacSha256Matches|verifyWebhook|verifySignature|getToken/;
   /** Public on purpose. Each one validates its input, is rate limited or signed, and returns no private data. */
   const PUBLIC = new Set([
-    "auth/[...nextauth]", "team/accept", "admin/logout", "auth/forgot-password", "auth/resend-verification", "auth/reset-password", "auth/verify-email",
+    "auth/[...nextauth]", "team/accept", "admin/logout", "auth/forgot-password", "auth/magic-link", "unsubscribe/onboarding", "auth/resend-verification", "auth/reset-password", "auth/verify-email",
     "availability", "availability/month", "token-availability", "bookings",
     "customer/forgot-password", "customer/resend-verification", "customer/reset-password", "customer/signup", "customer/verify-email",
     "flags", "geo/rate", "region", "health", "leads", "signup", "track/[code]", "calendar/[token]",

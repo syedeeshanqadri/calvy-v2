@@ -46,7 +46,7 @@ export default async function AdminBusinessesPage(props: { searchParams: Promise
             {rows.map((b) => (
               <tr key={b.id} className="border-t border-[#f0ede8] hover:bg-[#fafaf8]">
                 <td className="px-4 py-3"><Link href={`/admin/businesses/${b.id}`} className="font-semibold hover:underline">{b.name}</Link><div className="text-xs text-[#6b6b80]">{b.slug}</div></td>
-                <td className="px-4 py-3 text-[#6b6b80]">{b.owner.email}</td>
+                <td className="px-4 py-3 text-[#6b6b80]">{b.owner.email}{b.owner.ownershipTransferredAt && <span data-testid="ownership-badge" title={`Taken over by a verified sign-in on ${b.owner.ownershipTransferredAt.toISOString().slice(0, 10)}; the account already had bookings. Review.`} className="ml-2 inline-block rounded-full bg-amber-100 text-amber-800 px-2 py-0.5 text-[10px] font-semibold align-middle">Ownership transferred</span>}</td>
                 <td className="px-4 py-3">{b.packId}</td>
                 <td className="px-4 py-3">{b.region}</td>
                 <td className="px-4 py-3">{b.plan}{b.planOverridePlan ? <span className="ml-1 text-[10px] font-bold bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded-full">override</span> : null}</td>

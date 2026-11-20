@@ -5,6 +5,9 @@ import { loadBrand } from "@/lib/notifications/brand";
 import { CHANNELS, type Channel, type SendOutcome } from "@/lib/notifications/channels";
 import { MAX_ATTEMPTS, nextAttemptAt } from "@/lib/notifications/policy";
 import { OPTIONAL_EVENTS, skipReasons, unsubscribeLinks } from "@/lib/notifications/prefs";
+import { ONBOARDING_REMINDER_EVENT } from "@/lib/notifications/events";
+import { claimUrlFor } from "@/lib/customerClaim";
+import { leadUnsubscribeLinks, recordReminderSent, reminderStillWanted } from "@/lib/onboardingReminders";
 import { REVIEW_EVENT } from "@/lib/notifications/prefs";
 import { reviewSendBlocker } from "@/lib/notifications/reviewThrottle";
 import { REMINDER_EVENT, reminderSendCheck } from "@/lib/notifications/reminderRules";
@@ -61,6 +64,8 @@ async function purgeOldPayloads(now: Date): Promise<number> {
   return count;
 }
 
+const leadIdOf = (row: { payload: unknown }) => String((row.payload as { leadId?: string } | null)?.leadId ?? "");
+
 /** Render and hand to the channel. Anything thrown (a bad secret, a render error) is retried, then fails for good. */
 async function attemptSend(row: NotificationOutbox, channels: Record<string, Channel>, now: Date): Promise<SendOutcome> {
   if (row.expiresAt && row.expiresAt <= now) return { kind: "skipped", error: "expired" };
@@ -81,13 +86,21 @@ async function attemptSend(row: NotificationOutbox, channels: Record<string, Cha
     const stale = row.event === REMINDER_EVENT ? await reminderSendCheck(row) : null;
     if (stale) return { kind: "skipped", error: stale };
     // "Your turn is coming up" only makes sense while the token is still waiting.
+    // An onboarding reminder is only right while the owner is still mid-onboarding and has not unsubscribed.
+    const lapsed = row.event === ONBOARDING_REMINDER_EVENT ? await reminderStillWanted(prisma, leadIdOf(row)) : null;
+    if (lapsed) return { kind: "skipped", error: lapsed };
     const served = row.event === QUEUE_NEXT_EVENT ? await queueNextSendCheck(row) : null;
     if (served) return { kind: "skipped", error: served };
     // WhatsApp has its own gates (consent, STOP, template, connection, permissions); it needs the whole row, not rendered email.
     if (row.channel === "WHATSAPP" && channels.WHATSAPP === CHANNELS.WHATSAPP) return await sendWhatsAppRow(row);
-    const payload = row.secret ? { ...(row.payload as object), secret: decryptSecret(row.secret) } : row.payload;
+    let payload = row.secret ? { ...(row.payload as object), secret: decryptSecret(row.secret) } : row.payload;
+    // A confirmation email to a customer carries the "claim your Calvy account" button. The link is made now, so it lives only in this email.
+    if (row.template === "confirmation" && row.channel === "EMAIL" && row.audience === "CUSTOMER" && row.recipient) {
+      const claim = await claimUrlFor(row.recipient, String((row.payload as { clientName?: string })?.clientName ?? "")).catch(() => null);
+      if (claim) payload = { ...(payload as object), claimUrl: claim.url, claimed: claim.claimed };
+    }
     const brand = row.businessId ? await loadBrand(row.businessId) : undefined;
-    const links = row.businessId && OPTIONAL_EVENTS.has(row.event) ? unsubscribeLinks(row.businessId, row.recipient) : undefined;
+    const links = row.event === ONBOARDING_REMINDER_EVENT ? leadUnsubscribeLinks(leadIdOf(row)) : row.businessId && OPTIONAL_EVENTS.has(row.event) ? unsubscribeLinks(row.businessId, row.recipient) : undefined;
     const message = await renderTemplate(row.template, payload, brand, links, await whatsappStopLinkFor(row));
     return await channels[row.channel](message, row.recipient, row.id);
   } catch (err) {
@@ -100,6 +113,7 @@ async function settle(row: NotificationOutbox, outcome: SendOutcome, now: Date):
   const where = { id: row.id, status: "SENDING" as const, attempts: row.attempts };
   if (outcome.kind === "sent") {
     await prisma.notificationOutbox.updateMany({ where, data: { status: "SENT", sentAt: now, providerId: outcome.providerId ?? null, error: null, lockedUntil: null, secret: null } });
+    if (row.event === ONBOARDING_REMINDER_EVENT) await recordReminderSent(prisma, leadIdOf(row), Number((row.payload as { n?: number })?.n ?? 0), now).catch((err) => logger.error("[onboarding-reminders] send not recorded", { err }));
     return "sent";
   }
   const error = short(outcome.error);

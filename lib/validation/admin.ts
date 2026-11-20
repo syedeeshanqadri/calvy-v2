@@ -5,7 +5,7 @@ export const PLAN_IDS = ["free", "trial", "starter", "professional", "business"]
 export const PLAN_STATUSES = ["free", "trialing", "active", "past_due", "cancelled", "canceled", "expired"] as const;
 export const TICKET_STATUSES = ["open", "in_progress", "resolved", "closed"] as const;
 export const TICKET_PRIORITIES = ["low", "normal", "high", "urgent"] as const;
-export const LEAD_STAGES = ["new", "contacted", "qualified", "demo", "won", "lost"] as const;
+export const LEAD_STAGES = ["new", "contacted", "qualified", "demo", "won", "lost", "converted"] as const;
 
 export const adminPageQuery = z.object({
   page: z.coerce.number().int().min(1).max(10_000).default(1),

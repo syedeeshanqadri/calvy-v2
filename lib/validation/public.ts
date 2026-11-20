@@ -25,13 +25,15 @@ function withCurrency<T extends { region?: string; currency?: string }>(v: T, ct
   return { ...v, currency };
 }
 
-/** Sign-up asks for the minimum: name, email, phone (required in India only) and the business type. No password: the emailed link sets it. */
+/** Sign-up asks for the minimum: name, business name, email and phone (required in India only). No password and no business type (onboarding asks). */
 export const signupSchema = z.object({
   name: text(120).min(1, "Please enter your name."),
+  businessName: text(120).min(1, "Please enter your business name."),
   email: emailField,
   phone: z.preprocess(blankToUndef, phoneField.optional()),
-  packId: z.enum(PACK_IDS, { error: "Please choose your business type." }),
   timezone,
+  /** The invisible bot check's token (absent when the keys are not configured). */
+  turnstileToken: z.string().max(4096).optional(),
 }).superRefine((v, ctx) => {
   if (detectRegion(v.timezone) === "IN" && !v.phone) {
     ctx.addIssue({ code: "custom", path: ["phone"], message: "Please enter your phone number." });

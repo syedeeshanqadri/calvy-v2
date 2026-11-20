@@ -15,6 +15,7 @@ import type { PackId } from "@/lib/packs/types";
 import { BookingModeSettings, type TokenSessionRow } from "@/components/tokens/BookingModeSettings";
 import { LinkGoogle } from "@/components/settings/LinkGoogle";
 import { CalendarFeeds } from "@/components/settings/CalendarFeeds";
+import { VerifyGateNotice } from "@/components/auth/VerifyEmail";
 import { GatewaySettings, type GatewaySettingsProps } from "@/components/settings/GatewaySettings";
 import { t as term } from "@/lib/terms";
 import { DEFAULT_MAX_PEOPLE_PER_BOOKER, MAX_PEOPLE_PER_BOOKER_LIMIT } from "@/lib/patients";
@@ -280,7 +281,7 @@ export function SettingsClient({ business, customSlotInterval = false, stripePay
           </div>
         )}
 
-        {tab === "payments" && payments && <GatewaySettings {...payments} />}
+        {tab === "payments" && payments && <><VerifyGateNotice what="Connecting or changing a payment gateway" /><GatewaySettings {...payments} /></>}
 
         {/* Availability tab */}
         {tab === "availability" && (

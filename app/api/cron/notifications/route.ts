@@ -9,6 +9,7 @@ import { runOutbox } from "@/lib/notifications/process";
 import { enqueueDueReminders } from "@/lib/notifications/reminders";
 import { enqueueDailySummaries } from "@/lib/notifications/summary";
 import { runWhatsAppHealth } from "@/lib/whatsapp/health";
+import { queueOnboardingReminders } from "@/lib/onboardingReminders";
 import { processDueSubscriptions } from "@/lib/subscriptions/service";
 import { processRazorpayDue } from "@/lib/subscriptions/razorpayService";
 
@@ -35,7 +36,8 @@ async function GET_handler(req: NextRequest) {
   const remindersQueued = await step("reminder sweep", () => enqueueDueReminders());
   const summariesQueued = await step("daily summaries", () => enqueueDailySummaries());
   const whatsappChecked = await step("whatsapp health", () => runWhatsAppHealth());
-  return NextResponse.json({ ok: true, expiredHolds, expiredOverrides, subscriptions, razorpay, remindersQueued, summariesQueued, whatsappChecked, ...(await runOutbox()) });
+  const onboardingReminders = await step("onboarding reminders", async () => (await queueOnboardingReminders(prisma)).queued);
+  return NextResponse.json({ ok: true, expiredHolds, expiredOverrides, subscriptions, razorpay, remindersQueued, summariesQueued, whatsappChecked, onboardingReminders, ...(await runOutbox()) });
 }
 
 export const GET = safeRoute(GET_handler);

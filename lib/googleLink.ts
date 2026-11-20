@@ -4,7 +4,7 @@ import { signTicket, verifyTicket } from "@/lib/signedTicket";
  * Google sign-in rules (pure, unit-tested). An email address alone never links a Google login to an existing
  * password account: the owner logs in with the password first and then chooses "Link Google" in settings.
  */
-export type GoogleExisting = { id: string; password: string | null; googleId: string | null };
+export type GoogleExisting = { id: string; password: string | null; googleId: string | null; emailVerified?: Date | null };
 export type GoogleDecision =
   | { action: "create" }
   | { action: "allow" }
@@ -25,7 +25,9 @@ export function decideGoogleSignIn(i: {
   if (i.linkIntentUserId === e.id) return { action: "link" };
   // A password account is never taken over by email match. Accounts with no password were created by an
   // earlier Google sign-up and have nothing to protect, so they keep working and get linked.
-  if (e.password) return { action: "deny", reason: "password-account" };
+  // An UNVERIFIED password account is not protected either: signing up proves nothing about an address, so it never blocks the verified owner
+  // of that mailbox (the caller takes it over, see lib/ownerTakeover.ts).
+  if (e.password && e.emailVerified !== null) return { action: "deny", reason: "password-account" };
   return { action: "link" };
 }
 

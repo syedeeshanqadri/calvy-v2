@@ -11,6 +11,8 @@ declare module "next-auth" {
       /** "customer" for customer accounts; absent for business owners. */
       kind?: string;
       customerId?: string;
+      /** The owner's email is verified. False for an email sign-up that has not used a link yet; undefined for older sessions (treated as verified). */
+      emailVerified?: boolean;
       /** When this customer signed in (ms); a password change after it ends the session. */
       authAt?: number;
       /** A Calvy super admin viewing a business: the business claims above are the VIEWED business, not the admin's own. */
@@ -31,5 +33,7 @@ declare module "next-auth/jwt" {
     customerAuthAt?: number;
     /** The user was a Calvy super admin at sign-in. Only a hint to look up an admin session: the database decides. */
     sa?: boolean;
+    /** Email verified (owner accounts). Only `false` is acted on; refreshed from the database on each request while false. */
+    ev?: boolean;
   }
 }
