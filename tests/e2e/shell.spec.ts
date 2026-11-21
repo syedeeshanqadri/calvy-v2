@@ -16,7 +16,8 @@ import { signInAsFixtureAdmin } from "./helpers/admin";
 // The minted admin cookie must never end up in an artefact: no trace (it records requests and cookies), no video, no automatic screenshots.
 test.use({ trace: "off", video: "off", screenshot: "off" });
 
-const WIDTHS = [375, 768, 1024, 1440] as const;
+// CI runs the quick subset (375 and 1440). `npm run test:shell` sets SHELL_FULL=1 for all four widths.
+const WIDTHS: readonly number[] = process.env.SHELL_FULL === "1" ? [375, 768, 1024, 1440] : [375, 1440];
 const ADMIN_ROUTES = [
   "/admin", "/admin/businesses", "/admin/businesses/new", "/admin/plans", "/admin/revenue", "/admin/billing", "/admin/offers", "/admin/coupons", "/admin/customers",
   "/admin/referrals", "/admin/rewards", "/admin/notifications", "/admin/notifications/log", "/admin/whatsapp-review", "/admin/blog", "/admin/support", "/admin/audit", "/admin/settings",
@@ -90,6 +91,37 @@ test("admin: the minted session cookie alone gets nobody in; the live admin-sess
   });
 });
 
+test("admin: /admin/2fa (its own layout) fits a phone and its code input is usable", async ({ page, context, baseURL }) => {
+  await withAdminFixture(async (fixture: AdminFixture) => {
+    await signInAsFixtureAdmin(context, baseURL ?? "http://localhost:3000", fixture);
+    await fixture.markEnrolled(); // an enrolled admin sees the "enter your code" form (the real day-to-day screen)
+    await fixture.endSession();   // cookies without a live row: the app shows the authenticator page
+    await page.setViewportSize({ width: 375, height: 667 });
+    await page.goto("/admin/2fa", { waitUntil: "load" });
+    const field = page.locator("#totp");
+    await expect(field).toBeVisible();
+    const m = await page.evaluate(() => ({ vw: innerWidth, sw: document.documentElement.scrollWidth, bw: document.body.scrollWidth }));
+    expect(m.sw, "2fa page scrolls sideways").toBeLessThanOrEqual(m.vw + 1);
+    expect(m.bw).toBeLessThanOrEqual(m.vw + 1);
+    await expect(page.locator("h1")).toBeVisible();
+    const submit = page.getByRole("button", { name: /^(Sign in|Start setup|Confirm and sign in)$/ });
+    await expect(submit).toBeVisible();
+    const box = await submit.boundingBox();
+    expect(box && box.height >= 40, "submit button is a phone-sized target").toBe(true);
+    expect(box && box.x >= 0 && box.x + box.width <= m.vw, "submit button inside the viewport").toBe(true);
+    {
+      await expect(field).toHaveAttribute("inputmode", "numeric");
+      await expect(field).toHaveAttribute("autocomplete", "one-time-code");
+      const fb = await field.boundingBox();
+      expect(fb && fb.height >= 40, "code input is a phone-sized target").toBe(true);
+      expect(fb && fb.x >= 0 && fb.x + fb.width <= m.vw, "code input inside the viewport").toBe(true);
+      await field.fill("123456");
+      await expect(field).toHaveValue("123456");
+    }
+    if (SHOTS) await page.screenshot({ path: "docs/audit/step-36c/admin_2fa-375.png" });
+  });
+});
+
 test("admin: the menu is a drawer under 1024px (backdrop, Escape, focus kept inside and returned)", async ({ page, context, baseURL }) => {
   await withAdminFixture(async (fixture: AdminFixture) => {
     await signInAsFixtureAdmin(context, baseURL ?? "http://localhost:3000", fixture);
@@ -144,6 +176,8 @@ test("dashboard: the sound chip clears the bottom tabs, is dismissible per devic
   const chipBox = (await chip.boundingBox())!;
   const nav = (await page.locator('nav[aria-label], nav').filter({ hasText: "Today" }).last().boundingBox())!;
   expect(chipBox.y + chipBox.height, "the chip overlaps the bottom tabs").toBeLessThanOrEqual(nav.y + 1);
+  expect(chipBox.height, "the chip text wraps onto a second line").toBeLessThanOrEqual(52);
+  if (SHOTS) await page.screenshot({ path: "docs/audit/step-36c/dashboard-sound-chip-375.png" });
   expect(chipBox.x).toBeGreaterThanOrEqual(0);
   expect(chipBox.x + chipBox.width).toBeLessThanOrEqual(375);
   await page.getByTestId("dismiss-sound-chip").click();

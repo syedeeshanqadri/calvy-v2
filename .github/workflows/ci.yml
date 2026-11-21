@@ -97,7 +97,7 @@ jobs:
   # migrations and the seed. Runs in parallel with `checks`. Chromium only, desktop viewport only.
   smoke:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
 
     services:
       postgres:

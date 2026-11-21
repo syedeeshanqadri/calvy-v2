@@ -51,3 +51,11 @@ The chip's no-wrap tweak (one line instead of two on a 375px phone) was made aft
 ## Cleanup proof (after the final admin run)
 `e2e-admin@calvy.test`: users = 0, audit rows = 0, and 0 admin sessions belong to a user that no longer exists. `npm run e2e:admin-fixture:wipe` afterwards reports 0 users, 0 sessions, 0 audit rows.
 The admin audit log is append-only (database triggers refuse update and delete), so the fixture never deletes from it; it only checks that the run wrote none, and fails the run if it did.
+
+## Final verification (before ship)
+
+- Full spec on the final commit (`npm run test:shell`, 4 widths): all 6 tests pass (admin routes, cookie-without-row, `/admin/2fa` at 375px, drawer, dashboard routes, sound chip + sidebar mark).
+- Sound chip re-photographed at 375px (`dashboard-sound-chip-375.png`): one line, clear of the bottom tabs; the spec now fails if it wraps.
+- `/admin/2fa` at 375px (`admin_2fa-375.png`): no horizontal scroll, numeric code input and Sign in button are full-width phone-sized targets.
+- CI: `shell.spec.ts` is part of `test:e2e:smoke` and runs the quick subset (375 + 1440) against CI's own Postgres; `npm run test:shell` runs all four widths locally.
+- Cleanup: users=0, audit rows=0, sessions wiped=0.

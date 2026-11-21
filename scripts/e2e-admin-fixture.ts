@@ -56,6 +56,8 @@ export interface AdminFixture {
   adminToken: string;
   /** Delete the admin session row only (the user stays): what an expired or revoked session looks like to the app. For the "no row, no access" test. */
   endSession: () => Promise<void>;
+  /** Show the "enter your code" form on /admin/2fa (as for an enrolled admin) without any real authenticator: a random placeholder secret nobody can use to pass a code check from outside. The user row is deleted with the fixture. */
+  markEnrolled: () => Promise<void>;
   wipe: () => Promise<{ users: number; sessions: number; auditLeft: number }>;
 }
 
@@ -71,7 +73,8 @@ export async function createAdminFixture(prisma: PrismaClient): Promise<AdminFix
   // The session is cut off after 15 minutes whatever happens (a stuck run included).
   const timer = setTimeout(() => { void wipeAdminFixture(prisma).catch(() => undefined); }, MAX_SESSION_MS);
   timer.unref?.();
-  return { userId: user.id, adminToken, endSession: async () => { await prisma.adminSession.deleteMany({ where: { userId: user.id } }); }, wipe: async () => { clearTimeout(timer); return wipeAdminFixture(prisma); } };
+  const markEnrolled = async () => { await prisma.user.update({ where: { id: user.id }, data: { adminTotpSecret: randomBytes(20).toString("hex"), adminTotpEnabledAt: new Date() } }); };
+  return { userId: user.id, adminToken, markEnrolled, endSession: async () => { await prisma.adminSession.deleteMany({ where: { userId: user.id } }); }, wipe: async () => { clearTimeout(timer); return wipeAdminFixture(prisma); } };
 }
 
 /** Run `fn` with a fixture admin and ALWAYS remove it afterwards. */
