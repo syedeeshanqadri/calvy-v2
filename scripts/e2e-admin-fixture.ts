@@ -52,6 +52,8 @@ export interface AdminFixture {
   userId: string;
   /** The value of the `calvy_admin` cookie. In memory only. */
   adminToken: string;
+  /** Delete the admin session row only (the user stays): what an expired or revoked session looks like to the app. For the "no row, no access" test. */
+  endSession: () => Promise<void>;
   wipe: () => Promise<void>;
 }
 
@@ -67,7 +69,7 @@ export async function createAdminFixture(prisma: PrismaClient): Promise<AdminFix
   // The session is cut off after 15 minutes whatever happens (a stuck run included).
   const timer = setTimeout(() => { void wipeAdminFixture(prisma).catch(() => undefined); }, MAX_SESSION_MS);
   timer.unref?.();
-  return { userId: user.id, adminToken, wipe: async () => { clearTimeout(timer); await wipeAdminFixture(prisma); } };
+  return { userId: user.id, adminToken, endSession: async () => { await prisma.adminSession.deleteMany({ where: { userId: user.id } }); }, wipe: async () => { clearTimeout(timer); await wipeAdminFixture(prisma); } };
 }
 
 /** Run `fn` with a fixture admin and ALWAYS remove it afterwards. */

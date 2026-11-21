@@ -153,12 +153,12 @@ export function AdminSupportClient({ tickets: initialTickets }: Props) {
       </div>
 
       {/* Filter tabs */}
-      <div className="flex gap-1 bg-[#f8f7f4] rounded-xl p-1 w-fit border border-[#e8e6e0]">
+      <div className="flex max-w-full gap-1 overflow-x-auto rounded-xl border border-[#e8e6e0] bg-[#f8f7f4] p-1 sm:w-fit" role="group" aria-label="Ticket status">
         {TABS.map(tab => (
           <button
             key={tab.key}
             onClick={() => setActiveTab(tab.key)}
-            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5 ${activeTab === tab.key ? "bg-white text-[#0f0f1a] shadow-sm" : "text-[#6b6b80] hover:text-[#0f0f1a]"}`}
+            className={`shrink-0 whitespace-nowrap px-3 py-1.5 min-h-10 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5 ${activeTab === tab.key ? "bg-white text-[#0f0f1a] shadow-sm" : "text-[#6b6b80] hover:text-[#0f0f1a]"}`}
           >
             {tab.label}
             {tabCounts[tab.key] > 0 && (

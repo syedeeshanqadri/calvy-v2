@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { BellRing, Volume2, X } from "lucide-react";
@@ -8,6 +8,12 @@ import { AlertDeduper, vibrateNow } from "@/lib/alertSound";
 import { getAlertAudio, useAudioState, useSoundSettings } from "@/lib/useSoundSettings";
 
 interface Toast extends AlertDetail { id: number }
+
+// "Tap to enable sound": hidden for good on this device once dismissed (the first tap anywhere still unlocks audio, so alerts keep working).
+const CHIP_KEY = "calvy_sound_chip_dismissed";
+const CHIP_EVENT = "calvy:sound-chip";
+const subscribeChip = (cb: () => void) => { window.addEventListener(CHIP_EVENT, cb); window.addEventListener("storage", cb); return () => { window.removeEventListener(CHIP_EVENT, cb); window.removeEventListener("storage", cb); }; };
+const dismissChip = () => { try { localStorage.setItem(CHIP_KEY, "1"); } catch { /* storage blocked: it stays until the next visit */ } window.dispatchEvent(new Event(CHIP_EVENT)); };
 const TOAST_MS = 14_000;
 
 /**
@@ -18,6 +24,7 @@ export function AlertCenter() {
   const userId = useSession().data?.user?.id;
   const { settings } = useSoundSettings(userId);
   const audioState = useAudioState();
+  const chipDismissed = useSyncExternalStore(subscribeChip, () => { try { return localStorage.getItem(CHIP_KEY) === "1"; } catch { return false; } }, () => true);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const dedupe = useRef(new AlertDeduper());
   const nextId = useRef(1);
@@ -26,7 +33,12 @@ export function AlertCenter() {
 
   // The first tap or key press after the page opens unlocks audio for the rest of the session.
   useEffect(() => {
-    const unlock = () => { void getAlertAudio()?.unlock(); };
+    const unlock = (e: Event) => {
+      // Any tap unlocks audio, which removes the chip at once, so a tap on its "x" is recorded here, before the chip is gone (its own click would never arrive).
+      const t = e.target instanceof Element ? e.target.closest('[data-testid="dismiss-sound-chip"]') : null;
+      if (t && (e.type !== "keydown" || (e as KeyboardEvent).key === "Enter" || (e as KeyboardEvent).key === " ")) dismissChip();
+      void getAlertAudio()?.unlock();
+    };
     const events = ["pointerdown", "touchend", "keydown"] as const;
     events.forEach((e) => window.addEventListener(e, unlock, { once: false, passive: true }));
     return () => events.forEach((e) => window.removeEventListener(e, unlock));
@@ -56,15 +68,21 @@ export function AlertCenter() {
 
   return (
     <>
-      {settings.on && audioState === "locked" && (
-        <button
-          type="button"
-          onClick={() => { void getAlertAudio()?.unlock().then((ok) => ok && getAlertAudio()?.play(latest.current.volume)); }}
-          className="fixed left-1/2 -translate-x-1/2 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] md:bottom-6 z-[75] inline-flex items-center gap-2 min-h-11 rounded-full bg-[#0f0f1a] text-white text-sm font-semibold px-4 shadow-xl"
-          data-testid="enable-sound-chip"
-        >
-          <Volume2 size={16} aria-hidden /> Tap to enable sound
-        </button>
+      {settings.on && audioState === "locked" && !chipDismissed && (
+        // Phones: sits just above the bottom tabs, clear of the home indicator. Dismissible (remembered on this device); it goes away by itself once sound is on.
+        <div className="fixed left-1/2 z-[75] flex -translate-x-1/2 items-center rounded-full bg-[#0f0f1a] text-white shadow-xl bottom-[calc(4.75rem+env(safe-area-inset-bottom))] max-w-[calc(100vw-1.5rem)] md:bottom-6" data-testid="sound-chip">
+          <button
+            type="button"
+            onClick={() => { void getAlertAudio()?.unlock().then((ok) => ok && getAlertAudio()?.play(latest.current.volume)); }}
+            className="inline-flex min-h-11 items-center gap-2 whitespace-nowrap rounded-l-full pl-4 pr-2 text-sm font-semibold"
+            data-testid="enable-sound-chip"
+          >
+            <Volume2 size={16} aria-hidden /> Tap to enable sound
+          </button>
+          <button type="button" onClick={dismissChip} aria-label="Dismiss: do not show this again on this device" className="inline-flex h-11 w-11 items-center justify-center rounded-r-full text-white/70 hover:text-white" data-testid="dismiss-sound-chip">
+            <X size={16} aria-hidden />
+          </button>
+        </div>
       )}
       <div className="fixed inset-x-3 top-[calc(0.75rem+env(safe-area-inset-top))] z-[90] flex flex-col items-center gap-2 pointer-events-none" aria-live="assertive">
         {toasts.map((t) => (
