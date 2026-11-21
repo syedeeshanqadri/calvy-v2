@@ -5,7 +5,9 @@
 //
 //   - The user is e2e-admin@calvy.test: a domain that cannot receive mail, NO password (nobody can type their way in), flagged super admin.
 //   - The admin session lasts 15 minutes at most. Its random token exists only in memory, in the run that created it. It is never written to disk or a log.
-//   - Everything it created (user, sessions, the audit rows the user caused) is deleted at the end of every run (try/finally), and by `wipe`.
+//   - Everything it created (the user and its sessions) is deleted at the end of every run (try/finally), and by `wipe`.
+//   - The admin AUDIT LOG is append-only by design (database triggers refuse update, delete and truncate), so this script never touches it. The specs only VIEW
+//     pages, which writes no audit row; if a run ever does leave rows for the fixture admin, the run FAILS loudly (it cannot, and must not, delete them).
 //   - It refuses to run when NODE_ENV=production, VERCEL is set, DATABASE_URL points at a host in PROD_DB_HOSTS (comma-separated denylist), or PROD_DB_HOSTS
 //     is not set at all (an unset list would mean no protection). In CI it runs only against CI's own database on localhost.
 //
@@ -38,14 +40,14 @@ export function refusal(env: Record<string, string | undefined> = process.env): 
 
 const sha256 = (s: string) => createHash("sha256").update(s).digest("hex");
 
-/** Delete the fixture user, its admin sessions and the audit rows it caused. Safe to run any time, any number of times. */
-export async function wipeAdminFixture(prisma: PrismaClient): Promise<{ users: number; sessions: number; audit: number }> {
+/** Delete the fixture user and its admin sessions. Safe to run any time, any number of times. Returns how many audit rows exist for it (they are append-only and are never deleted here). */
+export async function wipeAdminFixture(prisma: PrismaClient): Promise<{ users: number; sessions: number; auditLeft: number }> {
   const user = await prisma.user.findUnique({ where: { email: E2E_ADMIN_EMAIL }, select: { id: true } });
-  const audit = await prisma.adminAuditLog.deleteMany({ where: { OR: [{ adminEmail: E2E_ADMIN_EMAIL }, ...(user ? [{ adminId: user.id }] : [])] } });
-  if (!user) return { users: 0, sessions: 0, audit: audit.count };
+  const auditLeft = await prisma.adminAuditLog.count({ where: { OR: [{ adminEmail: E2E_ADMIN_EMAIL }, ...(user ? [{ adminId: user.id }] : [])] } });
+  if (!user) return { users: 0, sessions: 0, auditLeft };
   const sessions = await prisma.adminSession.deleteMany({ where: { userId: user.id } });
   await prisma.user.delete({ where: { id: user.id } });
-  return { users: 1, sessions: sessions.count, audit: audit.count };
+  return { users: 1, sessions: sessions.count, auditLeft };
 }
 
 export interface AdminFixture {
@@ -54,7 +56,7 @@ export interface AdminFixture {
   adminToken: string;
   /** Delete the admin session row only (the user stays): what an expired or revoked session looks like to the app. For the "no row, no access" test. */
   endSession: () => Promise<void>;
-  wipe: () => Promise<void>;
+  wipe: () => Promise<{ users: number; sessions: number; auditLeft: number }>;
 }
 
 /** Create the fixture. Prefer withAdminFixture(), which always cleans up. */
@@ -69,7 +71,7 @@ export async function createAdminFixture(prisma: PrismaClient): Promise<AdminFix
   // The session is cut off after 15 minutes whatever happens (a stuck run included).
   const timer = setTimeout(() => { void wipeAdminFixture(prisma).catch(() => undefined); }, MAX_SESSION_MS);
   timer.unref?.();
-  return { userId: user.id, adminToken, endSession: async () => { await prisma.adminSession.deleteMany({ where: { userId: user.id } }); }, wipe: async () => { clearTimeout(timer); await wipeAdminFixture(prisma); } };
+  return { userId: user.id, adminToken, endSession: async () => { await prisma.adminSession.deleteMany({ where: { userId: user.id } }); }, wipe: async () => { clearTimeout(timer); return wipeAdminFixture(prisma); } };
 }
 
 /** Run `fn` with a fixture admin and ALWAYS remove it afterwards. */
@@ -80,7 +82,10 @@ export async function withAdminFixture<T>(fn: (f: AdminFixture) => Promise<T>): 
     fixture = await createAdminFixture(prisma);
     return await fn(fixture);
   } finally {
-    try { if (fixture) await fixture.wipe(); else await wipeAdminFixture(prisma); } finally { await prisma.$disconnect(); }
+    try {
+      const left = fixture ? await fixture.wipe() : await wipeAdminFixture(prisma);
+      if (left.auditLeft > 0) throw new Error(`the fixture admin left ${left.auditLeft} audit row(s). The audit log is append-only, so they cannot be removed: find what wrote them`);
+    } finally { await prisma.$disconnect(); }
   }
 }
 
@@ -90,6 +95,6 @@ if (process.argv[1]?.endsWith("e2e-admin-fixture.ts") && process.argv[2] === "wi
   if (why) { console.error(`e2e admin fixture refused: ${why}`); process.exit(1); }
   const prisma = new PrismaClient();
   wipeAdminFixture(prisma)
-    .then((r) => console.log(`wiped: ${r.users} user, ${r.sessions} sessions, ${r.audit} audit rows`))
+    .then((r) => console.log(`wiped: ${r.users} user, ${r.sessions} sessions. Audit rows for the fixture admin (append-only, never deleted): ${r.auditLeft}`))
     .finally(() => prisma.$disconnect());
 }

@@ -47,3 +47,7 @@ Two visual fixes: the "Tap to enable sound" chip now sits above the bottom tabs 
 
 ## Not re-photographed
 The chip's no-wrap tweak (one line instead of two on a 375px phone) was made after the last screenshot run.
+
+## Cleanup proof (after the final admin run)
+`e2e-admin@calvy.test`: users = 0, audit rows = 0, and 0 admin sessions belong to a user that no longer exists. `npm run e2e:admin-fixture:wipe` afterwards reports 0 users, 0 sessions, 0 audit rows.
+The admin audit log is append-only (database triggers refuse update and delete), so the fixture never deletes from it; it only checks that the run wrote none, and fails the run if it did.
