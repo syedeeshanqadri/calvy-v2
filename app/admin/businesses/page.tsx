@@ -1,3 +1,4 @@
+import { TableCard, TruncCell } from "@/components/admin/TableCard";
 import Link from "next/link";
 import { requireAdminPage } from "@/lib/admin/auth";
 import { businessFilterSchema, listBusinesses } from "@/lib/admin/businesses";
@@ -21,7 +22,7 @@ export default async function AdminBusinessesPage(props: { searchParams: Promise
   };
 
   return (
-    <div className="p-4 md:p-8 space-y-6">
+    <div className="min-w-0 space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div><h1 className="font-syne font-bold text-2xl">Businesses</h1><p className="text-sm text-[#6b6b80]">{total} found</p></div>
         <Link href="/admin/businesses/new" className="h-10 px-4 inline-flex items-center rounded-xl bg-accent text-white text-sm font-semibold">Create business</Link>
@@ -39,13 +40,12 @@ export default async function AdminBusinessesPage(props: { searchParams: Promise
         <Link href="/admin/businesses" className="h-10 px-2 inline-flex items-center text-sm text-[#6b6b80] hover:underline">Clear</Link>
       </form>
 
-      <div className="bg-white rounded-2xl border border-[#e8e6e0] overflow-x-auto">
-        <table className="w-full text-sm">
+      <TableCard minWidth={980} label="Businesses">
           <thead><tr className="bg-[#fafaf8] text-left text-xs text-[#6b6b80]">{["Business", "Owner", "Type", "Region", "Plan", "Status", "Bookings", "Signed up", "Came from"].map((h) => <th key={h} className="px-4 py-3 font-semibold">{h}</th>)}</tr></thead>
           <tbody>
             {rows.map((b) => (
               <tr key={b.id} className="border-t border-[#f0ede8] hover:bg-[#fafaf8]">
-                <td className="px-4 py-3"><Link href={`/admin/businesses/${b.id}`} className="font-semibold hover:underline">{b.name}</Link><div className="text-xs text-[#6b6b80]">{b.slug}</div></td>
+                <td className="px-4 py-3 max-w-[260px]"><Link href={`/admin/businesses/${b.id}`} title={b.name} className="block truncate font-semibold hover:underline">{b.name}</Link><div className="text-xs text-[#6b6b80]">{b.slug}</div></td>
                 <td className="px-4 py-3 text-[#6b6b80]">{b.owner.email}{b.owner.ownershipTransferredAt && <span data-testid="ownership-badge" title={`Taken over by a verified sign-in on ${b.owner.ownershipTransferredAt.toISOString().slice(0, 10)}; the account already had bookings. Review.`} className="ml-2 inline-block rounded-full bg-amber-100 text-amber-800 px-2 py-0.5 text-[10px] font-semibold align-middle">Ownership transferred</span>}</td>
                 <td className="px-4 py-3">{b.packId}</td>
                 <td className="px-4 py-3">{b.region}</td>
@@ -53,13 +53,12 @@ export default async function AdminBusinessesPage(props: { searchParams: Promise
                 <td className="px-4 py-3">{b.suspendedAt ? <span className="text-red-700 font-semibold">Suspended</span> : b.onboardingCompletedAt ? "Live" : "Setting up"}</td>
                 <td className="px-4 py-3">{b._count.appointments}</td>
                 <td className="px-4 py-3 text-[#6b6b80]">{b.createdAt.toISOString().slice(0, 10)}</td>
-                <td className="px-4 py-3 text-[#6b6b80]">{b.owner.signupRef ? `${b.owner.signupRef} (${b.owner.signupSource ?? "?"})` : ""}</td>
+                <TruncCell max={160} className="text-[#6b6b80]" text={b.owner.signupRef ? `${b.owner.signupRef} (${b.owner.signupSource ?? "?"})` : ""} />
               </tr>
             ))}
             {rows.length === 0 && <tr><td colSpan={9} className="px-4 py-10 text-center text-[#6b6b80]">No businesses match.</td></tr>}
           </tbody>
-        </table>
-      </div>
+        </TableCard>
 
       <nav className="flex items-center justify-between text-sm" aria-label="Pages">
         <span className="text-[#6b6b80]">Page {f.page} of {pages}</span>

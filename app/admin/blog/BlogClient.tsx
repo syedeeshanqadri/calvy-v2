@@ -103,7 +103,7 @@ export default function BlogClient() {
   // ── Editor view ──────────────────────────────────────────────
   if (editing) {
     return (
-      <div className="max-w-3xl mx-auto p-5 sm:p-8">
+      <div className="mx-auto min-w-0 max-w-3xl">
         <button onClick={() => setEditing(null)} className="flex items-center gap-2 text-sm text-[#6b6b80] hover:text-[#0f0f1a] mb-6">
           <ArrowLeft size={16} /> Back to posts
         </button>
@@ -214,7 +214,7 @@ export default function BlogClient() {
 
   // ── List view ────────────────────────────────────────────────
   return (
-    <div className="max-w-4xl mx-auto p-5 sm:p-8">
+    <div className="mx-auto min-w-0 max-w-4xl">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-2.5">
           <Newspaper size={22} className="text-sky-600" />

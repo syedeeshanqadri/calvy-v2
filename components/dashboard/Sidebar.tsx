@@ -10,6 +10,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useFlags } from "@/components/providers/FlagsProvider";
 import type { FeatureFlag } from "@/lib/flags";
+import Image from "next/image";
 import { Logo } from "@/components/ui/Logo";
 import { useAccess } from "@/components/providers/AccessProvider";
 import { useTerms } from "@/components/providers/TermsProvider";
@@ -57,7 +58,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
             <Logo width={80} />
           </Link>
         )}
-        {collapsed && <Logo width={28} />}
+        {collapsed && <Image src="/icon.svg" alt="Calvy" width={30} height={32} className="h-8 w-[30px] shrink-0" priority />}
         <button
           onClick={onToggle}
           className={cn("p-1.5 rounded-lg text-[#6b6b80] hover:text-[#0f0f1a] hover:bg-[#f8f7f4] transition-colors", collapsed && "rotate-180")}

@@ -146,19 +146,19 @@ export function AdminSupportClient({ tickets: initialTickets }: Props) {
   };
 
   return (
-    <div className="p-4 md:p-8 space-y-6">
+    <div className="min-w-0 space-y-6">
       <div>
         <h1 className="font-syne font-bold text-2xl">Support Tickets</h1>
         <p className="text-[#6b6b80] text-sm mt-1">Manage and respond to tenant support requests</p>
       </div>
 
       {/* Filter tabs */}
-      <div className="flex gap-1 bg-[#f8f7f4] rounded-xl p-1 w-fit border border-[#e8e6e0]">
+      <div className="flex max-w-full gap-1 overflow-x-auto rounded-xl border border-[#e8e6e0] bg-[#f8f7f4] p-1 sm:w-fit" role="group" aria-label="Ticket status">
         {TABS.map(tab => (
           <button
             key={tab.key}
             onClick={() => setActiveTab(tab.key)}
-            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5 ${activeTab === tab.key ? "bg-white text-[#0f0f1a] shadow-sm" : "text-[#6b6b80] hover:text-[#0f0f1a]"}`}
+            className={`shrink-0 whitespace-nowrap px-3 py-1.5 min-h-10 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5 ${activeTab === tab.key ? "bg-white text-[#0f0f1a] shadow-sm" : "text-[#6b6b80] hover:text-[#0f0f1a]"}`}
           >
             {tab.label}
             {tabCounts[tab.key] > 0 && (
